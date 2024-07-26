@@ -1,0 +1,4 @@
+avoid-breaking-exported-api = false
+disallowed-names = ["foo", "bar"]
+
+

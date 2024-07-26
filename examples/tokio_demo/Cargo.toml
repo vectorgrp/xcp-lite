@@ -1,0 +1,19 @@
+[package]
+name = "tokio_demo"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+log = "0.4.21"
+env_logger = "0.11.3"
+
+chrono = "0.4.38"
+lazy_static = "1.4.0"
+tokio = { version = "1.37.0", features = ["full"] }
+
+paste = "1.0.14"
+xcp = { path = "../../" }
+#xcp = { git = "https://github1.vg.vector.int/rdm/xcp-lite" }
