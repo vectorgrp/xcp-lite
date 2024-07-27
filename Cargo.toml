@@ -59,7 +59,7 @@ lazy_static = "1.4.0"
 
 # A2L serializer for structs
 characteristic_container = { path = "./serialization/characteristic_container/" } # CharacteristicContainer Trait
-characteristic_container_derive = { path = "./serialization/characteristic_container/characteristic_container_derive/" } # CharacteristicContainer proc-macro
+characteristic_container_derive = { path = "./serialization/characteristic_container/characteristic_container_derive/" } 
 
 
 [dev-dependencies]

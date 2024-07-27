@@ -13,11 +13,11 @@ serde_json = "1.0"
 paste = "1.0.14"
 
 xcp = { path = "../../" }
-#xcp = { git = "https://github1.vg.vector.int/rdm/xcp-lite" }
+#xcp = { git = "https://github.com/vectorgrp/xcp-lite" }
 
 # Dependencies for the A2L serializer prototype
 characteristic_container = { path = "../../serialization/characteristic_container/" } # CharacteristicContainer Trait
-characteristic_container_derive = { path = "../../serialization/characteristic_container/characteristic_container_derive/" } # CharacteristicContainer proc-macro
+characteristic_container_derive = { path = "../../serialization/characteristic_container/characteristic_container_derive/" } 
 
 
 

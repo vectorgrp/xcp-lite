@@ -46,7 +46,7 @@ Currently xcp-lite for Rust uses a C library build from XCPlite sources, which c
 The code should work on Linux, Windows and Mac, Intel and ARM.  
   
 The project creates a library crate xcp and a main application to showcase usage. There are more basic examples in the examples folder.  
-There is an integration test, where the crate a2lfile is used to verify the generated A2L file and a small XCP client for blackbox testing.
+There is an integration test, where the crate a2lfile is used to verify the generated A2L file and a quick and dirty, tokio based XCP client with hardcoded DAQ decoding for blackbox testing. This includes performance testing which reaches up to 2GByte/s on Linux or MacOS.
 
 
 ## Code instrumentation for measurement and calibration:
@@ -58,8 +58,10 @@ CalSeg is a generic type used to encapsulate structs containing calibration para
   
 A CalSeg has interiour mutability. Parameter mutation happens only in the CalSeg::sync(&self) method, which must be repeatedly called by the application code, whenever mutation of calibration parameters is considered ok in the current thread.  
   
-A CalSeg may be shared among multiple threads. It it cloned like an Arc, implements the Deref trait for convinience and does not do any locks to deref to the inner calibration parameter page struct. The sync method must be called for each clone, to make new calibration changes visible in each thread. The sync method shares a mutex with all clones. To achieve this, each clone holds a shadow copy of thread local calibration values on heap.
+A CalSeg may be shared among multiple threads. It it cloned like an Arc, implements the Deref trait for convinience and does not do any locks to deref to the inner calibration parameter page struct. A sync method must be called on each clone, to make new calibration changes visible in each thread. The sync method shares a mutex with all clones. Each clone holds a shadow copy of the calibration values on heap.
       
+Measurement code instrumentation provides event definition and registration of measurement objects. Measurement objects can be captured (copied to a buffer inside the event) or accessed directly in memory. This works for variables on heap or stack.  
+
 The registration of objects has to be completed, before the A2L file is generated. The A2l is created at latest on connect of the XCP client tool. Objects created later, will not be visible to the XCP client tool.  
   
 ``` rust
@@ -67,16 +69,24 @@ The registration of objects has to be completed, before the A2L file is generate
 // Calibration parameter segment
 // Each calibration parameter struct defines a MEMORY_SEGMENT in A2L and CANape
 // The A2L serializer will create an A2L CHARACTERISTIC for each field. 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, CharacteristicContainer)]
 struct CalPage {
-    run: bool,
-    ampl: f64, 
-    period: f64, 
+
+    #[comment = "Amplitude"]
+    #[unit = "Volt"]
+    #[min = "0"]
+    #[max = "400"]
+    ampl: f64,
+
+    #[comment = "Period"]
+    #[unit = "s"]
+    #[min = "0"]
+    #[max = "1000"]
+    period: f64,
 }
 
 // Default calibration page values (called "FLASH" page of a MEMORY_SEGMENT in CANape)
 const CAL_PAGE: CalPage = CalPage {
-    run: true,
     ampl: 100.0,
     period: 5.0,
 };
@@ -84,25 +94,27 @@ const CAL_PAGE: CalPage = CalPage {
 
 // A single instance demo task 
 // Calculates some measurement signals depending on calibration parameters in a calibration segment
-fn task(cal_seg: CalSeg<CalPage>) {
+fn task(calseg: CalSeg<CalPage>) {
 
     let channel: f64 = 0;
 
-     // Create a measurement XCP event called "task" and register the measurment
+     // Create a measurement XCP event called "task" and register the measurement object
     let event = daq_create_event!("task1");
     daq_register!(channel, event, "demo: f64", "Volt" /* unit */, 2.0 /* factor */, 0.0 /* offset */);
 
     loop {
         thread::sleep(...);
 
-        // Calculate a demo measurement variable depending on calibration parameters (sine wave signal with ampl and period)
-        let channel = cal_seg.ampl * (time/cal_seg.period).sin(); // Use active page in calibration segment
+        // Calculate channel depending on calibration parameters from calseg (sine wave signal with ampl and period)
+        channel = calseg.ampl * (time/cal_seg.period).sin(); // Use active page in calibration segment
 
         // Measurement of local variables by capturing their value and association to the given XCP event
         event.trigger(); // Take a timestamp and trigger data acquisition
 
         // Synchronize calibration operations
         // All calibration actions (read, write, upload, download, checksum, page switch, freeze, init) on segment "cal_seg" happen only here
+        // This operation locks a mutex, checks for changes and copies the calibration page
+        // It could also be called occationally to update calibrations, checking for changes could be optimized mutex free in the future
         cal_seg.sync(); 
     }
 }
@@ -115,29 +127,23 @@ fn main() {
     XcpBuilder::new("xcp_lite").set_log_level(XcpLogLevel::Warn).enable_a2l(true).set_epk("???")
       .start_server(XcpTransportLayer::Udp,[127, 0, 0, 1],5555, 1400,).unwrap();
 
-    // Create a calibration parameter set (struct CalSeg, a MEMORY_SEGMENT in A2L and CANape)
-    // Calibration segments have 2 pages, a constant default "FLASH" page and a mutable "RAM" page
-    // FLASH or RAM can be selected at runtime (XCP set_cal_page), saved to json (XCP freeze) freeze and reinitialized from FLASH (XCP copy_cal_page)
-    // The RAM page can be loaded from a json file
-    
-    // Use CalSeg::Clone () to share the calibration segments between threads
-    // No locks, sync must be called in each thread
-
+    // Create a calibration parameter set named "calsseg" (struct CalSeg, a MEMORY_SEGMENT in A2L and CANape)
+    // Calibration segments have 2 pages, a constant default "FLASH" page (CAL_PAGE) and a mutable "RAM" page
+    // The RAM page can be loaded from a json file (load_json=true)
      let calseg = Xcp::create_calseg(
-        "calseg1", // name of the calibration segment in A2L as MEMORY_SEGMENT and as .json file
+        "calseg", // name of the calibration segment in A2L as MEMORY_SEGMENT and as .json file
         &CAL_PAGE, // default calibration values
         true,      // load RAM page from file "cal_seg1".json
         );
 
-    let calseg_clone = CalSeg::clone(&calseg)
+    // Use CalSeg::Clone () to share the calibration segments between threads
+    // No locks, calseg.sync() must be called in each thread
+    let c = CalSeg::clone(&calseg)
     thread::spawn(move || {
-        task1(calseg_clone);
+        task1(c);
     }
 
-    loop {
-        if !calseg.run { break; }
-        calseg.sync();
-    }
+    loop { ... }
 
     Xcp::stop_server();
 }

@@ -101,7 +101,7 @@ fn main() {
 
     // Initialize XCP driver singleton, the transport layer server and enable the registry
     XcpBuilder::new("multi_thread_demo")
-        .set_log_level(log::LevelFilter::Warn)
+        .set_log_level(XcpLogLevel::Warn)
         .enable_a2l(true)
         .set_epk("EPK_12345678")
         .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555, 1464)

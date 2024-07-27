@@ -86,7 +86,7 @@ fn main() {
     // Mainloop
     let start_time = Instant::now();
 
-    // Measurment variable
+    // Measurement variable
     let mut counter: u32 = 0;
     let mut channel_1: f64 = 0.0;
 

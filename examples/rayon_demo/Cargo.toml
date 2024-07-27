@@ -13,4 +13,18 @@ rayon = "1.10.0"
 lazy_static = "1.4.0"
 # paste = "1.0.14"
 xcp = { path = "../../" }
-#xcp = { git = "https://github1.vg.vector.int/rdm/xcp-lite" }
+#xcp = { git = "https://github.com/vectorgrp/xcp-lite" }
+
+
+
+[profile.dev.package."*"]
+debug = false
+opt-level = 3
+
+[profile.dev]
+panic = 'abort'
+debug = true
+lto = true
+opt-level = 2
+
+

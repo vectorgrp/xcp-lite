@@ -35,7 +35,7 @@ const CAL_PAGE: CalPage = CalPage {
     delay: 100000,
 };
 
-fn task1(calseg: CalSeg<CalPage>) {
+fn task1(calseg: &CalSeg<CalPage>) {
     info!("Start task");
 
     let mut counter: u16 = calseg.min;
@@ -67,20 +67,22 @@ fn main() {
         .filter_level(log::LevelFilter::Debug)
         .init();
 
-    // [127, 0, 0, 1] // Office [172,19,11,24] // Home [192,168,0,83]
     XcpBuilder::new("xcp_demo")
         .set_log_level(XcpLogLevel::Debug)
         .enable_a2l(true)
         .set_epk("EPK_")
-        .start_server(XcpTransportLayer::Udp, [172, 19, 11, 24], 5555, 1464)
+        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555, 1464)
         .unwrap();
 
     let calseg = Xcp::create_calseg("calseg", &CAL_PAGE, true);
 
     thread::scope(|s| {
         for _ in 0..2 {
-            let c = calseg.clone();
-            s.spawn(|| task1(c));
+            //     let c = calseg.clone();
+            //     s.spawn(|| task1(c));
+
+            // Make sure this does not work
+            s.spawn(|| task1(&calseg));
         }
     });
 }

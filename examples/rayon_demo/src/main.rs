@@ -1,4 +1,6 @@
-// xcp_lite - tokio_demo
+// xcp_lite - rayon demo
+// Visualize start and stop of synchronous tasks in worker thread pool
+// Compare to xcp_lite tokio_demo
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
@@ -8,24 +10,22 @@ use std::{thread, time::Duration};
 use rayon::prelude::*;
 
 use xcp::*;
-const OPTION_SERVER_ADDR: [u8; 4] = [192, 168, 0, 83]; // Home
-                                                       //const OPTION_SERVER_ADDR: [u8; 4] = [172, 19, 11, 24]; // Office 172.19.11.24
-                                                       //const OPTION_SERVER_ADDR: [u8; 4] = [127, 0, 0, 1]; // Localhost
 
 // Asynchronous task, sleeps 100ms and ends
 fn task(task_index: u16) {
+    trace!("task {} start", task_index);
+
+    let event = daq_create_event_instance!("task");
+
     let mut index = task_index;
-    trace!("task {} start", index);
+    daq_register_instance!(index, event);
 
-    let mut event = daq_create_event_instance!("task", 256);
-
-    daq_capture_instance!(index, event);
     event.trigger();
 
     thread::sleep(Duration::from_micros(2000));
 
     index = 0;
-    daq_capture_instance!(index, event);
+
     event.trigger();
 
     trace!("task {} end", index);
@@ -34,17 +34,15 @@ fn task(task_index: u16) {
 fn main() {
     println!("xcp_lite_rayon_demo");
 
-    // Logging
     env_logger::Builder::new()
         .filter_level(log::LevelFilter::Info)
         .init();
 
-    // Initialize XCP driver singleton, the transport layer server and enable the A2L generation
     XcpBuilder::new("tokio_demo")
         .set_log_level(XcpLogLevel::Info)
         .enable_a2l(true)
         .set_epk("EPK")
-        .start_server(XcpTransportLayer::Udp, OPTION_SERVER_ADDR, 5555, 1464)
+        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555, 1464)
         .unwrap();
 
     loop {

@@ -105,26 +105,6 @@ const CAL_PAGE: CalPage = CalPage {
     cycle_time_us: 1000, // 1ms
 };
 
-// Override default implementation of register_fields in CalPageTrait called by the CharacteristicContainer derive macro code
-// This is optional, the default implementation registers all fields in the struct automatically
-// @@@@ This does not work, because it is in conflict with the blanket implementation
-// impl CalPageTrait for CalPage {
-//     fn register_fields(&self, name: &'static str) {
-//         error!("Custom implementation of register_fields in {}", name);
-//         add_characteristic!("CalPage", self.run, "stop task", "", 0.0, 1.0);
-//         add_characteristic!("CalPage", self.run1, "stop task 1", "", 0.0, 1.0);
-//         add_characteristic!("CalPage", self.run2, "stop task 2", "", 0.0, 1.0);
-//         add_characteristic!(
-//             "CalPage",
-//             self.cycle_time_us,
-//             "cycle time",
-//             "us",
-//             0.0,
-//             1000000.0
-//         );
-//     }
-// }
-
 //---------------------------------------------------
 // CalPage1
 
@@ -313,30 +293,12 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
             y: u32,
             z: u32,
         }
-
         let mut point_cloud = Vec::with_capacity(4);
         point_cloud.push(Point { x: 0, y: 0, z: 0 });
         point_cloud.push(Point { x: 1, y: 0, z: 0 });
         point_cloud.push(Point { x: 1, y: 1, z: 0 });
         point_cloud.push(Point { x: 1, y: 1, z: 1 });
         daq_serialize!(point_cloud, event_point_cloud, "struct serializer demo");
-
-        /* serialized data is : [
-            0, 0, 0, 0,
-            0, 0, 0, 4, // Count of elements
-            0, 0, 0, 0, // p1
-            0, 0, 0, 0,
-            0, 0, 0, 0,
-            0, 0, 0, 1, // p2
-            0, 0, 0, 0,
-            0, 0, 0, 0,
-            0, 0, 0, 1, // p3
-            0, 0, 0, 1,
-            0, 0, 0, 0,
-            0, 0, 0, 1, // p4
-            0, 0, 0, 1,
-            0, 0, 0, 1]
-        */
 
         // Trigger single instance event "task1" for data acquisition
         // Capture variables from stack happens here
@@ -475,13 +437,6 @@ fn main() {
     t1.join().ok().unwrap();
     t.into_iter().for_each(|t| t.join().ok().unwrap());
     info!("All tasks finished");
-
-    // @@@@ Dev: Check state of calibration segments, by explicitly dropping the remaining instances
-    // The Xcp singleton still hold a last instance of each calibration segment smart pointer
-    // Drop prints a test message if this is the case
-    drop(calseg);
-    //drop(calseg1); // calseg1 has been moved and is already lost for the application
-    drop(calseg2);
 
     // Stop and shutdown the XCP server
     Xcp::stop_server();

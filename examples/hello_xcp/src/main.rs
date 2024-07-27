@@ -1,4 +1,4 @@
-// hello_xcp
+// xcp_demo
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
