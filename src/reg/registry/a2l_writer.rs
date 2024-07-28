@@ -12,11 +12,8 @@ use std::{
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use crate::Xcp;
-
-use characteristic_container::Characteristic;
-
 use super::*;
+use crate::Xcp;
 
 trait GenerateA2l {
     fn to_a2l_string(&self) -> String;
@@ -151,13 +148,7 @@ impl GenerateA2l for RegistryMeasurement {
         let min = self.datatype.get_min();
         let event = self.event.get_num();
 
-        // Array as CHARACTERISTIC VAL_BLK, no conversion
-
-        // let type_str = self.datatype.get_deposit_str();
-        // format!(
-        //     r#"/begin CHARACTERISTIC {name} "{comment}" VAL_BLK 0x{addr:X} {type_str} 0 NO_COMPU_METHOD  {min} {max} MATRIX_DIM {dim} ECU_ADDRESS_EXTENSION {ext} /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT {event} /end DAQ_EVENT /end IF_DATA /end CHARACTERISTIC"#
-        // )
-
+        // Dynamic object as CHARACTERISTIC ASCII string with IDL annotation
         if self.datatype == RegistryDataType::Blob {
             let buffer_size = self.dim;
 
@@ -182,23 +173,22 @@ impl GenerateA2l for RegistryMeasurement {
 "#
             );
 
-            trace!("write measurment dynamic object description: {annotation}");
-            // As BLOB
+            trace!("write measurement dynamic object description: {annotation}");
+            // As BLOB (new in CANape 22 SP3)
             // format!(
             //     r#"/begin BLOB {name} "{comment}" 0x{addr:X} {buffer_size} ECU_ADDRESS_EXTENSION {ext} {annotation} /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT {event} /end DAQ_EVENT /end IF_DATA /end BLOB"#
             // )
-
-            // As ASCII string
+            // As ASCII string (old representation)
             format!(
                 r#"/begin CHARACTERISTIC {name} "{comment}" ASCII 0x{addr:X} U8 0 NO_COMPU_METHOD 0 255 READ_ONLY NUMBER {buffer_size} ECU_ADDRESS_EXTENSION {ext} {annotation} /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT {event} /end DAQ_EVENT /end IF_DATA /end CHARACTERISTIC"#
             )
         } else {
+            // Measurement signals or array of signals
             let matrix_dim = if dim > 1 {
                 format!("MATRIX_DIM {} ", dim)
             } else {
                 "".to_string()
             };
-
             if self.factor != 1.0 || self.offset != 0.0 || !self.unit.is_empty() {
                 format!(
                     r#"/begin COMPU_METHOD {name}.Conv "" LINEAR "%6.3" "{unit}" COEFFS_LINEAR {factor} {offset} /end COMPU_METHOD
@@ -215,56 +205,41 @@ impl GenerateA2l for RegistryMeasurement {
 
 //-------------------------------------------------------------------------------------------------
 
-impl GenerateA2l for Characteristic {
+impl GenerateA2l for RegistryCharacteristic {
     fn to_a2l_string(&self) -> String {
         let characteristic_type = self.characteristic_type();
 
-        let datatype = RegistryDataType::from_rust_type(self.datatype()).get_deposit_str();
+        let datatype = RegistryDataType::from_rust_type(self.datatype).get_deposit_str();
 
-        let (a2l_ext, a2l_addr) = Xcp::get_calseg_ext_addr(self.calseg_name(), *self.offset());
+        let (a2l_ext, a2l_addr) = Xcp::get_calseg_ext_addr(self.calseg_name, self.offset);
 
         let mut result = format!(
             r#"/begin CHARACTERISTIC {} "{}" {} 0x{:X} {} 0 NO_COMPU_METHOD {} {}"#,
-            self.name(),
-            self.comment(),
-            characteristic_type,
-            a2l_addr,
-            datatype,
-            self.min(),
-            self.max(),
+            self.name, self.comment, characteristic_type, a2l_addr, datatype, self.min, self.max,
         );
 
-        if *self.x_dim() > 1 && *self.y_dim() > 1 {
-            let (axis_par_1, axis_par_2, axis_par_3) =
-                (self.x_dim(), self.x_dim() - 1, self.x_dim());
+        if self.x_dim > 1 || self.y_dim > 1 {
+            let mut axis_par: (usize, usize, usize);
+            if self.x_dim > 1 && self.y_dim > 1 {
+                axis_par = (self.x_dim, self.x_dim - 1, self.x_dim);
+                result += &format!(
+                    r#" /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD  {} 0 {} FIX_AXIS_PAR_DIST 0 1 {} /end AXIS_DESCR"#,
+                    axis_par.0, axis_par.1, axis_par.2
+                );
+                axis_par = (self.y_dim, self.y_dim - 1, self.y_dim);
+            } else if self.x_dim > 1 {
+                axis_par = (self.x_dim, self.x_dim - 1, self.x_dim);
+            } else {
+                axis_par = (self.y_dim, self.y_dim - 1, self.y_dim);
+            }
             result += &format!(
                 r#" /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD  {} 0 {} FIX_AXIS_PAR_DIST 0 1 {} /end AXIS_DESCR"#,
-                axis_par_1, axis_par_2, axis_par_3
-            );
-            let (axis_par_1, axis_par_2, axis_par_3) =
-                (self.y_dim(), self.y_dim() - 1, self.y_dim());
-            result += &format!(
-                r#" /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD  {} 0 {} FIX_AXIS_PAR_DIST 0 1 {} /end AXIS_DESCR"#,
-                axis_par_1, axis_par_2, axis_par_3
-            );
-        } else if *self.x_dim() > 1 {
-            let (axis_par_1, axis_par_2, axis_par_3) =
-                (self.x_dim(), self.x_dim() - 1, self.x_dim());
-            result += &format!(
-                r#" /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD  {} 0 {} FIX_AXIS_PAR_DIST 0 1 {} /end AXIS_DESCR"#,
-                axis_par_1, axis_par_2, axis_par_3
-            );
-        } else if *self.y_dim() > 1 {
-            let (axis_par_1, axis_par_2, axis_par_3) =
-                (self.y_dim(), self.y_dim() - 1, self.y_dim());
-            result += &format!(
-                r#" /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD  {} 0 {} FIX_AXIS_PAR_DIST 0 1 {} /end AXIS_DESCR"#,
-                axis_par_1, axis_par_2, axis_par_3
+                axis_par.0, axis_par.1, axis_par.2
             );
         }
 
-        if !self.unit().is_empty() {
-            result += &format!(r#" PHYS_UNIT "{}""#, self.unit());
+        if !self.unit.is_empty() {
+            result += &format!(r#" PHYS_UNIT "{}""#, self.unit);
         }
 
         if a2l_ext != 0 {
@@ -386,7 +361,7 @@ impl A2lWriter {
         // Memory segments from calibration segments
         let memory_segments = &registry.cal_seg_list.to_a2l_string();
 
-        // Characteristics in groups defined by calibration segments
+        // Parameter groups defined by calibration segments
         let mut v = Vec::new();
         for s in registry.cal_seg_list.iter() {
             for c in registry.characteristic_list.iter() {
@@ -400,7 +375,7 @@ impl A2lWriter {
             ));
             for c in registry.characteristic_list.iter() {
                 if s.name == c.calseg_name() {
-                    v.push(c.name().clone());
+                    v.push(c.name().to_string());
                 }
             }
             v.push((r#"/end REF_CHARACTERISTIC /end GROUP"#).to_string());

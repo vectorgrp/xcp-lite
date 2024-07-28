@@ -20,8 +20,9 @@ use std::sync::{Arc, Mutex};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use characteristic_container::prelude::*;
+use crate::reg::RegistryCharacteristicBuilder;
 use serde::Serialize;
+use xcp_type_description::prelude::*;
 
 use crate::xcp::*;
 
@@ -38,7 +39,7 @@ where
         + Serialize
         + serde::de::DeserializeOwned
         + 'static
-        + CharacteristicContainer,
+        + XcpTypeDescription,
 {
     fn load_from_file(name: &str) -> Result<Self, std::io::Error> {
         trace!("Load parameter file {}", name);
@@ -56,17 +57,30 @@ where
         writer.write_all(s.as_ref()).unwrap();
     }
 
-    fn register_fields(&self, name: &'static str) {
-        trace!("Register all fields in {}", name);
+    fn register_fields(&self, calseg_name: &'static str) {
+        trace!("Register all fields in {}", calseg_name);
 
-        // @@@@ ToDo: Maybe avoid copy from one vec to another
-        for mut characteristic in self.characteristics().unwrap() {
-            characteristic.set_calseg_name(name);
+        for field in self.characteristics().unwrap() {
+            let c = RegistryCharacteristicBuilder::default()
+                .name(field.name().to_string())
+                .comment(field.comment())
+                .min(field.min())
+                .max(field.max())
+                .unit(field.unit())
+                .datatype(field.datatype())
+                .x_dim(if field.x_dim() == 0 { 1 } else { field.x_dim() })
+                .y_dim(if field.y_dim() == 0 { 1 } else { field.y_dim() })
+                .offset(field.offset())
+                .extension(Xcp::XCP_ADDR_EXT_APP) // segment relative addressing
+                .calseg_name(calseg_name)
+                .build()
+                .unwrap();
+
             Xcp::get()
                 .get_registry()
                 .lock()
                 .unwrap()
-                .add_characteristic(characteristic);
+                .add_characteristic(c);
         }
     }
 }

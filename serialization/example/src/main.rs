@@ -1,6 +1,6 @@
-use characteristic_container::prelude::*;
+use xcp_type_description::prelude::*;
 
-#[derive(Clone, Copy, CharacteristicContainer, Debug)]
+#[derive(Clone, Copy, XcpTypeDescription, Debug)]
 struct Parent {
     #[comment = "Unique identifier"]
     #[min = "10"]
@@ -13,7 +13,7 @@ struct Parent {
     ndim_array: [[[i32; 4]; 1]; 2],
 }
 
-#[derive(Clone, Copy, Debug, CharacteristicContainer)]
+#[derive(Clone, Copy, Debug, XcpTypeDescription)]
 struct Child {
     uid: u32,
 }

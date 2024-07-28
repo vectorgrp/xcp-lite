@@ -16,8 +16,8 @@ xcp = { path = "../../" }
 #xcp = { git = "https://github.com/vectorgrp/xcp-lite" }
 
 # Dependencies for the A2L serializer prototype
-characteristic_container = { path = "../../serialization/characteristic_container/" } # CharacteristicContainer Trait
-characteristic_container_derive = { path = "../../serialization/characteristic_container/characteristic_container_derive/" } 
+xcp_type_description = { path = "../../serialization/xcp_type_description/" } # XcpTypeDescription Trait
+xcp_type_description_derive = { path = "../../serialization/xcp_type_description/xcp_type_description_derive/" } 
 
 
 

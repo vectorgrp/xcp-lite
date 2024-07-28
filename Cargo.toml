@@ -1,20 +1,18 @@
 [package]
 name = "xcp"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 resolver = "2"
+rust-version = "1.76"
 
-authors = ["rainer.zaiser@vector.com>"]
-description = "Rust implementation of ASAM XCP, based on XCPlite"
+authors = ["Vector Informatik GmbH, RDM"]
+description = "XCP for Rust, based on XCPlite"
 readme = "README.md"
 keywords = ["XCP","Rust","Vector","ASAM","CANape","A2L"]
-license = "MIT"
+license = "MIT OR Apache-2.0"
 homepage = "https://vector.com"  
 repository = "https://github.com/vectorgrp/xcp-lite"
-categories = ["measurement and calibration"] 
-
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+categories = ["MC"] 
 
 
 [features]
@@ -25,17 +23,20 @@ categories = ["measurement and calibration"]
 # Command line parser
 clap = { version = "4.5.9", features = ["derive"] }
 
+# Rust macro to automatically implement the builder pattern for arbitrary structs
+derive_builder = "0.20.0"
+
 # Raw FFI bindings to platform libraries like libc
 libc = "0.2.153"
 
 # A macro to ergonomically define an item depending on a large number of #[cfg] parameters. Structured like an if-else chain, the first matching branch is the item that gets emitted
-cfg-if = "1.0.0"
+# cfg-if = "1.0.0"
 
 # Compile-time assertions to ensure that invariants are met
-static_assertions = "1.1.0"
+# static_assertions = "1.1.0"
 
 # Macros for all your token pasting needs
-paste = "1.0.14"
+# paste = "1.0.14"
 
 # Logging
 log = "0.4.21"
@@ -43,7 +44,7 @@ env_logger = "0.11.3"
 
 # Collects build-information of your Rust crate
 # used to generate EPK
-build-info = "0.0.36" 
+# build-info = "0.0.36" 
 
 # A generic serialization/deserialization framework
 # Used to handle json parameter files
@@ -51,15 +52,15 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
 # Binary serialization strategies for transforming structs into bytes 
-bincode = "1.3.3"
+# bincode = "1.3.3"
 cdr = "0.2.4"
 
 # A macro for declaring lazily evaluated statics
 lazy_static = "1.4.0"
 
-# A2L serializer for structs
-characteristic_container = { path = "./serialization/characteristic_container/" } # CharacteristicContainer Trait
-characteristic_container_derive = { path = "./serialization/characteristic_container/characteristic_container_derive/" } 
+# proc-macro A2L serializer for structs
+xcp_type_description = { path = "./serialization/xcp_type_description/" } # XcpTypeDescription Trait
+xcp_type_description_derive = { path = "./serialization/xcp_type_description/xcp_type_description_derive/" } 
 
 
 [dev-dependencies]

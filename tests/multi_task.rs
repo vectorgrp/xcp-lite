@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, thread};
 use tokio::time::Duration;
 
-use characteristic_container::prelude::*;
+use xcp_type_description::prelude::*;
 
 //-----------------------------------------------------------------------------
 // XCP
@@ -27,7 +27,7 @@ const OPTION_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Info; // log::LevelFilter::Of
 //-----------------------------------------------------------------------------
 // Calibration Segment
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, CharacteristicContainer)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
 struct CalPage1 {
     run: bool,
     counter_max: u32,

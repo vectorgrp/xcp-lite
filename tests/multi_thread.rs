@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, thread};
 use tokio::time::Duration;
 
-use characteristic_container::prelude::*;
+use xcp_type_description::prelude::*;
 
 //-----------------------------------------------------------------------------
 // XCP
@@ -28,7 +28,7 @@ const OPTION_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Info; // log::LevelFilter::Of
 //-----------------------------------------------------------------------------
 // Calibration Segment
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, CharacteristicContainer)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
 struct TestInts {
     test_bool: bool,
     test_u8: u8,
@@ -43,7 +43,7 @@ struct TestInts {
     test_f64: f64,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, CharacteristicContainer)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
 struct CalPage1 {
     run: bool,
     counter_max: u32,
@@ -131,9 +131,10 @@ fn task(cal_seg: CalSeg<CalPage1>) {
 
         if loop_counter % 256 == 0 {
             test1 = loop_counter;
-            test2 = loop_counter + 1;
-            test3 = loop_counter + 2;
-            test4 = loop_counter + 3;
+            test2 = test1 + 1;
+            test3 = test2 + 2;
+            test4 = test3 + 3;
+            _ = test4;
 
             // Check for termination
             if !cal_seg.run {

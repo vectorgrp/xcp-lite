@@ -69,7 +69,7 @@ The registration of objects has to be completed, before the A2L file is generate
 // Calibration parameter segment
 // Each calibration parameter struct defines a MEMORY_SEGMENT in A2L and CANape
 // The A2L serializer will create an A2L CHARACTERISTIC for each field. 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, CharacteristicContainer)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
 struct CalPage {
 
     #[comment = "Amplitude"]

@@ -398,12 +398,8 @@ pub async fn test_executor(single_thread: bool, multi_thread: bool, log_level: X
                     && duration_ms < DURATION_DAQ_TEST_MS as f64 + 100.0
             );
             let avg_cycletime_us = (duration_ms * 1000.0) / d.daq_events[0] as f64;
-
             info!("  task cycle time:",);
-            info!(
-                "    average = {}us",
-                duration_ms * 1000.0 / d.daq_events[0] as f64,
-            );
+            info!("    average = {}us", avg_cycletime_us,);
             info!("    min = {}us", d.daq0_timestamp_min);
             info!("    max = {}us", d.daq0_timestamp_max);
             let jitter = d.daq0_timestamp_max - d.daq0_timestamp_min;

@@ -4,6 +4,6 @@ resolver = "2"
 
 members = [
     "example",
-    "characteristic_container",
-    "characteristic_container/characteristic_container_derive",
+    "xcp_type_description",
+    "xcp_type_description/xcp_type_description_derive",
 ]

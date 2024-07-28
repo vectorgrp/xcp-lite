@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-characteristic_container = { path = "../characteristic_container" }
-characteristic_container_derive = { path = "../characteristic_container/characteristic_container_derive" }
+xcp_type_description = { path = "../xcp_type_description" }
+xcp_type_description_derive = { path = "../xcp_type_description/xcp_type_description_derive" }

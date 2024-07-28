@@ -21,6 +21,9 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
+#[macro_use]
+extern crate derive_builder;
+
 #[allow(unused_imports)]
 //-----------------------------------------------------------------------------
 
@@ -50,7 +53,7 @@ pub use reg::RegDataTypeHandler;
 pub use reg::RegDataTypeProperties;
 pub use reg::RegistryDataType;
 
-use characteristic_container::CharacteristicContainer;
+use xcp_type_description::XcpTypeDescription;
 
 // @@@@ Reexport for integration tests
 pub use xcp::xcp_test::test_reinit;
@@ -71,7 +74,7 @@ impl<T> CalPageTrait for T where
         + serde::Serialize
         + serde::de::DeserializeOwned
         + 'static
-        + CharacteristicContainer
+        + XcpTypeDescription
 {
 }
 

@@ -1,6 +1,5 @@
 use syn::{Attribute, Lit, Meta, Type, TypeArray, TypePath};
 
-//TODO: Remove Strings
 pub fn parse_characteristic_attributes(
     attributes: &Vec<Attribute>,
     field_type: &Type,

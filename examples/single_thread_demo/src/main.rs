@@ -11,14 +11,14 @@ use std::{
 
 use xcp::*;
 
-use characteristic_container::prelude::*;
+use xcp_type_description::prelude::*;
 use serde::{Deserialize, Serialize};
 
 //-----------------------------------------------------------------------------
 // Demo calibration parameters
 
 // Define a struct with calibration parameters
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, CharacteristicContainer)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
 struct CalPage {
     #[comment = "Amplitude of the sine signal"]
     #[unit = "Volt"]

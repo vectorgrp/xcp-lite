@@ -4,13 +4,13 @@
 use log::{debug, error, info, trace, warn};
 use std::{fmt::Debug, thread, time::Duration};
 
-use characteristic_container::prelude::*;
+use xcp_type_description::prelude::*;
 use serde::{Deserialize, Serialize};
 use xcp::*;
 
 //-----------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, CharacteristicContainer)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
 struct CalPage {
     #[comment = "Max counter value"]
     #[min = "0"]

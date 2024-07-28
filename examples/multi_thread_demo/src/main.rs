@@ -11,7 +11,7 @@ use std::{
 
 use xcp::*;
 
-use characteristic_container::prelude::*;
+use xcp_type_description::prelude::*;
 use serde::{Deserialize, Serialize};
 
 // Static application start time
@@ -22,7 +22,7 @@ lazy_static::lazy_static! {
 //-----------------------------------------------------------------------------
 // Demo calibration parameters
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, CharacteristicContainer)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
 struct CalPage1 {
     #[comment = "Amplitude of the sine signal"]
     #[unit = "Volt"]

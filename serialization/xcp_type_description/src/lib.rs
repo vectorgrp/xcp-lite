@@ -1,7 +1,7 @@
 pub mod prelude;
 
-pub trait CharacteristicContainer {
-    fn characteristics(&self) -> Option<Vec<Characteristic>> {
+pub trait XcpTypeDescription {
+    fn characteristics(&self) -> Option<Vec<FieldDescriptor>> {
         None
     }
 }
@@ -12,8 +12,7 @@ pub trait CharacteristicContainer {
     characteristics to have knowledge of cal segments
 */
 #[derive(Debug)]
-pub struct Characteristic {
-    calseg_name: &'static str,
+pub struct FieldDescriptor {
     name: String,
     datatype: &'static str,
     comment: &'static str,
@@ -23,12 +22,10 @@ pub struct Characteristic {
     x_dim: usize,
     y_dim: usize,
     offset: u16,
-    extension: u8, //TODO: Discuss hardcoding extension vs Xcp::get_calseg_ext_addr
 }
 
-impl Characteristic {
+impl FieldDescriptor {
     pub fn new(
-        calseg_name: &'static str,
         name: String,
         datatype: &'static str,
         comment: &'static str,
@@ -38,10 +35,8 @@ impl Characteristic {
         x_dim: usize,
         y_dim: usize,
         offset: u16,
-        extension: u8,
     ) -> Self {
-        Characteristic {
-            calseg_name,
+        FieldDescriptor {
             name,
             datatype,
             comment,
@@ -51,45 +46,39 @@ impl Characteristic {
             y_dim,
             unit,
             offset,
-            extension,
         }
     }
 
-    pub fn calseg_name<'a>(&'a self) -> &'static str {
-        &self.calseg_name
+    pub fn name(&self) -> &str {
+        self.name.as_str()
     }
 
-    //TODO: Check if returning &str is better
-    pub fn name(&self) -> &String {
-        &self.name
+    pub fn datatype(&self) -> &'static str {
+        self.datatype
     }
 
-    pub fn datatype(&self) -> &&str {
-        &self.datatype
+    pub fn comment(&self) -> &'static str {
+        self.comment
     }
 
-    pub fn comment(&self) -> &&str {
-        &self.comment
+    pub fn min(&self) -> f64 {
+        self.min
     }
 
-    pub fn min(&self) -> &f64 {
-        &self.min
+    pub fn max(&self) -> f64 {
+        self.max
     }
 
-    pub fn max(&self) -> &f64 {
-        &self.max
+    pub fn unit(&self) -> &'static str {
+        self.unit
     }
 
-    pub fn unit(&self) -> &&str {
-        &self.unit
+    pub fn x_dim(&self) -> usize {
+        self.x_dim
     }
 
-    pub fn x_dim(&self) -> &usize {
-        &self.x_dim
-    }
-
-    pub fn y_dim(&self) -> &usize {
-        &self.y_dim
+    pub fn y_dim(&self) -> usize {
+        self.y_dim
     }
 
     pub fn characteristic_type(&self) -> &'static str {
@@ -102,51 +91,43 @@ impl Characteristic {
         }
     }
 
-    pub fn offset(&self) -> &u16 {
-        &self.offset
-    }
-
-    pub fn extension(&self) -> &u8 {
-        &self.extension
+    pub fn offset(&self) -> u16 {
+        self.offset
     }
 
     pub fn set_name(&mut self, name: String) {
         self.name = name;
     }
-
-    pub fn set_calseg_name(&mut self, name: &'static str) {
-        self.calseg_name = name;
-    }
 }
 
-// The CharacteristicContainer trait implementation for Rust primitives
+// The XcpTypeDescription trait implementation for Rust primitives
 // is simply a blanket (empty) trait implementation. This macro is used
 // to automatically generate the implementation for Rust primitives
-macro_rules! impl_characteristic_container_for_primitive {
+macro_rules! impl_xcp_type_description_for_primitive {
     ($($t:ty),*) => {
         $(
-            impl CharacteristicContainer for $t {}
+            impl XcpTypeDescription for $t {}
         )*
     };
 }
 
-impl_characteristic_container_for_primitive!(
+impl_xcp_type_description_for_primitive!(
     u8, u16, u32, u64, usize, i8, i16, i32, i64, isize, f32, f64, bool, char, String
 );
 
-// The implementation of the CharacteristicContainer trait for
+// The implementation of the XcpTypeDescription trait for
 // arrays is also a blanket (empty) trait implementation
-impl<T, const N: usize> CharacteristicContainer for [T; N] {}
+impl<T, const N: usize> XcpTypeDescription for [T; N] {}
 
 #[derive(Debug)]
-pub struct RegistryCharacteristicList(Vec<Characteristic>);
+pub struct StructDescriptor(Vec<FieldDescriptor>);
 
-impl RegistryCharacteristicList {
+impl StructDescriptor {
     pub fn new() -> Self {
-        RegistryCharacteristicList(Vec::new())
+        StructDescriptor(Vec::new())
     }
 
-    pub fn push(&mut self, characteristic: Characteristic) {
+    pub fn push(&mut self, characteristic: FieldDescriptor) {
         self.0.push(characteristic);
     }
 
@@ -154,7 +135,7 @@ impl RegistryCharacteristicList {
         self.0.sort_by(|a, b| a.name.as_str().cmp(b.name.as_str()));
     }
 
-    pub fn iter(&self) -> std::slice::Iter<Characteristic> {
+    pub fn iter(&self) -> std::slice::Iter<FieldDescriptor> {
         self.0.iter()
     }
 }

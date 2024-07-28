@@ -24,8 +24,8 @@ use std::{
     time::{Duration, Instant},
 };
 
-use characteristic_container::prelude::*;
 use serde::{Deserialize, Serialize};
+use xcp_type_description::prelude::*;
 
 //-----------------------------------------------------------------------------
 // Logging
@@ -84,13 +84,13 @@ lazy_static::lazy_static! {
 
 // Definition of structures with calibration parameters
 // Implement Serialize, Deserialize for persistence to json
-// Implement CharacteristicContainer for auto registration of fields in A2L registry
+// Implement XcpTypeDescription for auto registration of fields in A2L registry
 // Each page defines a MEMORY_SEGMENT in A2L and CANape
 
 //---------------------------------------------------
 // CalPage
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, CharacteristicContainer)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
 struct CalPage {
     run: bool,
     run1: bool,
@@ -108,7 +108,7 @@ const CAL_PAGE: CalPage = CalPage {
 //---------------------------------------------------
 // CalPage1
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, CharacteristicContainer)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
 struct TestInts {
     test_bool: bool,
     test_u8: u8,
@@ -123,7 +123,7 @@ struct TestInts {
     test_f64: f64,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, CharacteristicContainer)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
 struct CalPage1 {
     #[comment = "Max value for counter"]
     #[min = "0"]
@@ -181,7 +181,7 @@ const CAL_PAGE1: CalPage1 = CalPage1 {
 //---------------------------------------------------
 // CalPage2
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, CharacteristicContainer)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
 struct CalPage2 {
     #[comment = "Amplitude"]
     #[unit = "Volt"]

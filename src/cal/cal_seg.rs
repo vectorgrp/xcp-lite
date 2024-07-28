@@ -354,10 +354,11 @@ mod cal_tests {
     #![allow(unused_imports)]
 
     use super::*;
+    use crate::reg::RegistryCharacteristic;
     use crate::xcp;
     use crate::xcplib;
-    use characteristic_container::prelude::*;
     use xcp::*;
+    use xcp_type_description::prelude::*;
 
     use serde::{Deserialize, Serialize};
     use std::sync::{mpsc, mpsc::Sender, Arc, Mutex, Once, RwLock};
@@ -375,12 +376,12 @@ mod cal_tests {
     fn is_send_clone<T: Sized + Send + Clone>() {}
     fn is_send_sync<T: Sized + Send + Sync>() {}
 
-    #[derive(Debug, Clone, Copy, Serialize, Deserialize, CharacteristicContainer)]
+    #[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
     struct CalPage0 {
         stop: bool,
     }
 
-    #[derive(Debug, Clone, Copy, Serialize, Deserialize, CharacteristicContainer)]
+    #[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
     struct CalPage3 {
         test: u8,
     }
@@ -476,7 +477,7 @@ mod cal_tests {
     fn test_calibration_segment_persistence() {
         xcp_test::test_setup(log::LevelFilter::Info);
 
-        #[derive(Debug, Clone, Copy, Serialize, Deserialize, CharacteristicContainer)]
+        #[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
         struct CalPage {
             test_byte: u8,
             test_short: u16,
@@ -530,14 +531,14 @@ mod cal_tests {
     //-----------------------------------------------------------------------------
     // Test cal page switching
 
-    #[derive(Debug, Copy, Clone, Serialize, Deserialize, CharacteristicContainer)]
+    #[derive(Debug, Copy, Clone, Serialize, Deserialize, XcpTypeDescription)]
     struct CalPage1 {
         a: u32,
         b: u32,
         c: u32,
     }
 
-    #[derive(Debug, Copy, Clone, Serialize, Deserialize, CharacteristicContainer)]
+    #[derive(Debug, Copy, Clone, Serialize, Deserialize, XcpTypeDescription)]
     struct CalPage2 {
         a: u32,
         b: u32,
@@ -630,19 +631,19 @@ mod cal_tests {
     fn test_cal_page_trait() {
         xcp_test::test_setup(log::LevelFilter::Debug);
 
-        #[derive(Debug, Copy, Clone, Serialize, Deserialize, CharacteristicContainer)]
+        #[derive(Debug, Copy, Clone, Serialize, Deserialize, XcpTypeDescription)]
         struct Page1 {
             a: u32,
         }
 
         const PAGE1: Page1 = Page1 { a: 1 };
-        #[derive(Debug, Copy, Clone, Serialize, Deserialize, CharacteristicContainer)]
+        #[derive(Debug, Copy, Clone, Serialize, Deserialize, XcpTypeDescription)]
         struct Page2 {
             b: u32,
         }
 
         const PAGE2: Page2 = Page2 { b: 1 };
-        #[derive(Debug, Copy, Clone, Serialize, Deserialize, CharacteristicContainer)]
+        #[derive(Debug, Copy, Clone, Serialize, Deserialize, XcpTypeDescription)]
         struct Page3 {
             c: u32,
         }
@@ -688,5 +689,92 @@ mod cal_tests {
             }
         });
         t.join().unwrap();
+    }
+
+    //-----------------------------------------------------------------------------
+    // Test attribute macros
+
+    #[test]
+    fn test_attribute_macros() {
+        xcp_test::test_setup(log::LevelFilter::Debug);
+
+        #[derive(Debug, Copy, Clone, Serialize, Deserialize, XcpTypeDescription)]
+        struct CalPage {
+            #[comment = "Comment"]
+            #[unit = "Unit"]
+            #[min = "0"]
+            #[max = "100"]
+            a: u32,
+            b: u32,
+            curve: [f64; 16],  // This will be a CURVE type (1 dimension)
+            map: [[u8; 9]; 8], // This will be a MAP type (2 dimensions)
+        }
+        const CAL_PAGE: CalPage = CalPage {
+            a: 1,
+            b: 2,
+            curve: [
+                0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5,
+            ],
+            map: [
+                [0, 0, 0, 0, 0, 0, 0, 1, 2],
+                [0, 0, 0, 0, 0, 0, 0, 2, 3],
+                [0, 0, 0, 0, 0, 1, 1, 2, 3],
+                [0, 0, 0, 0, 1, 1, 2, 3, 4],
+                [0, 0, 1, 1, 2, 3, 4, 5, 7],
+                [0, 1, 1, 1, 2, 4, 6, 8, 9],
+                [0, 1, 1, 2, 4, 5, 8, 9, 10],
+                [0, 1, 1, 3, 5, 8, 9, 10, 10],
+            ],
+        };
+
+        let calseg = &Xcp::create_calseg("calseg", &CAL_PAGE, false);
+        let c: RegistryCharacteristic = Xcp::get()
+            .get_registry()
+            .lock()
+            .unwrap()
+            .find_characteristic("CalPage.a")
+            .unwrap()
+            .clone();
+
+        assert_eq!(calseg.get_name(), "calseg");
+        assert_eq!(c.comment(), "Comment");
+        assert_eq!(c.unit(), "Unit");
+        assert_eq!(c.min(), 0.0);
+        assert_eq!(c.max(), 100.0);
+        assert_eq!(c.x_dim(), 1);
+        assert_eq!(c.y_dim(), 1);
+        assert_eq!(c.offset(), 200);
+        assert_eq!(c.datatype(), "u32");
+
+        let c: RegistryCharacteristic = Xcp::get()
+            .get_registry()
+            .lock()
+            .unwrap()
+            .find_characteristic("CalPage.b")
+            .unwrap()
+            .clone();
+        assert_eq!(c.offset(), 204);
+
+        let c: RegistryCharacteristic = Xcp::get()
+            .get_registry()
+            .lock()
+            .unwrap()
+            .find_characteristic("CalPage.curve")
+            .unwrap()
+            .clone();
+        assert_eq!(c.offset(), 0);
+        assert_eq!(c.x_dim(), 16);
+        assert_eq!(c.y_dim(), 1);
+
+        let c: RegistryCharacteristic = Xcp::get()
+            .get_registry()
+            .lock()
+            .unwrap()
+            .find_characteristic("CalPage.map")
+            .unwrap()
+            .clone();
+        assert_eq!(c.offset(), 128);
+        assert_eq!(c.x_dim(), 8);
+        assert_eq!(c.y_dim(), 9);
     }
 }

@@ -8,8 +8,8 @@ use std::sync::{
 
 use crate::{cal, reg, xcplib};
 use cal::*;
-use characteristic_container::prelude::*;
 use reg::*;
+use xcp_type_description::prelude::*;
 
 //----------------------------------------------------------------------------------------------
 // XCP log level

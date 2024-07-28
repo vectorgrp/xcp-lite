@@ -1,5 +1,5 @@
 [package]
-name = "characteristic_container_derive"
+name = "xcp_type_description_derive"
 version = "0.1.0"
 edition = "2021"
 

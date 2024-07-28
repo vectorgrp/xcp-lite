@@ -18,7 +18,7 @@ use std::{
 };
 use xcp::*;
 
-use characteristic_container::prelude::*;
+use xcp_type_description::prelude::*;
 //-----------------------------------------------------------------------------
 // Extra bindings for testing
 
@@ -196,7 +196,7 @@ pub fn test_setup(level: XcpLogLevel) {
 // Test calibration page
 
 // Calibration page struct
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, CharacteristicContainer)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
 struct CalPage {
     test_u8: u8,
     test_u64: u64,
