@@ -209,4 +209,5 @@ async fn test_single_thread() {
 
     t1.join().ok();
     Xcp::stop_server();
+    std::fs::remove_file("xcp_client.a2l").ok();
 }

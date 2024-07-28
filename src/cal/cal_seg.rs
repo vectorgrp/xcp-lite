@@ -468,6 +468,7 @@ mod cal_tests {
         Xcp::get().set_ecu_cal_page(XcpCalPage::Flash);
         assert_eq!(*r, 0xAA); // RAM page
         assert_eq!(cal_seg2.test, 0x55); // FLASH page
+        std::fs::remove_file("calseg2.json").ok();
     }
 
     //-----------------------------------------------------------------------------
@@ -525,7 +526,7 @@ mod cal_tests {
         drop(cal_seg1);
         let _ = cal_seg;
 
-        //std::fs::remove_file("test_cal_seg.json").ok();
+        std::fs::remove_file("test_cal_seg.json").ok();
     }
 
     //-----------------------------------------------------------------------------
@@ -603,6 +604,7 @@ mod cal_tests {
             }
         }
         std::fs::remove_file("test1.json").ok();
+        std::fs::remove_file("test2.json").ok();
     }
 
     //-----------------------------------------------------------------------------

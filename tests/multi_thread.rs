@@ -200,4 +200,5 @@ async fn test_multi_thread() {
     }
 
     Xcp::stop_server();
+    std::fs::remove_file("xcp_client.a2l").ok();
 }

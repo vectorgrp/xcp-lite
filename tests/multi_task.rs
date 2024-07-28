@@ -128,4 +128,5 @@ async fn test_multi_task() {
     t0.join().unwrap();
 
     Xcp::stop_server();
+    std::fs::remove_file("xcp_client.a2l").ok();
 }
