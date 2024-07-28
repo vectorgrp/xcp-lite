@@ -7,7 +7,7 @@ This is no implementation of XCP in Rust, it is an experimental API for measurem
 
 Main purpose was to experiment with Rust and to demonstrate some more advanced features of measurement and calibration with CANape:
 - Automatic A2L and IDL generation with proc-macros
-- Thread safe wrapper types for calibration variables with offline calibration, calibration page switching, freeze and persistence
+- A thread safe, transparent wrapper for calibration variables which enables offline calibration, calibration page switching, reinit, load and save to file
 - Measurement of dynamic data from stack or heap
 - Measurement of data with non static lifetime
 - Measurement of thread local data instances
@@ -60,9 +60,9 @@ A CalSeg has interiour mutability. Parameter mutation happens only in the CalSeg
   
 A CalSeg may be shared among multiple threads. It it cloned like an Arc, implements the Deref trait for convinience and does not do any locks to deref to the inner calibration parameter page struct. A sync method must be called on each clone, to make new calibration changes visible in each thread. The sync method shares a mutex with all clones. Each clone holds a shadow copy of the calibration values on heap.
       
-Measurement code instrumentation provides event definition and registration of measurement objects. Measurement objects can be captured (copied to a buffer inside the event) or accessed directly in memory. This works for variables on heap or stack.  
+Measurement code instrumentation provides event definition, registration or capture of measurement objects. Measurement objects can be captured (copied to a buffer inside the event) or accessed directly on stack memory after being registered. Capture works for variables on heap or stack. Measurement variables can be registered as single instance or multi instance, which creates one variaable instance for each thread instance. Variable names and event names are automaticaally extended with an index in this case.
 
-The registration of objects has to be completed, before the A2L file is generated. The A2l is created at latest on connect of the XCP client tool. Objects created later, will not be visible to the XCP client tool.  
+The registration of objects has to be completed, before the A2L file is generated. The A2l is created at latest on connect of the XCP client tool. Objects created later, will not be visible to CANape.  
   
 ``` rust
 
@@ -96,26 +96,33 @@ const CAL_PAGE: CalPage = CalPage {
 // Calculates some measurement signals depending on calibration parameters in a calibration segment
 fn task(calseg: CalSeg<CalPage>) {
 
-    let channel: f64 = 0;
+    let mut channel1: f64 = 0.0;
+    let mut channel2: f64 = Box::new(0.0);
 
-     // Create a measurement XCP event called "task" and register the measurement object
-    let event = daq_create_event!("task1");
+     // Create a measurement event called "task" with a capture buffer of 8 byte
+    let event = daq_create_event!("task1",8);
+
+    // Register measurement variables on stack
     daq_register!(channel, event, "demo: f64", "Volt" /* unit */, 2.0 /* factor */, 0.0 /* offset */);
 
     loop {
         thread::sleep(...);
 
         // Calculate channel depending on calibration parameters from calseg (sine wave signal with ampl and period)
-        channel = calseg.ampl * (time/cal_seg.period).sin(); // Use active page in calibration segment
+        channel1 = calseg.ampl * (time/cal_seg.period).sin(); // Use active page in calibration segment
+        channel2 = calseg.ampl * (time/cal_seg.period).sin(); // Use active page in calibration segment
+        
+        // Register and capture a variables on heap 
+        daq_capture(channel1);
 
-        // Measurement of local variables by capturing their value and association to the given XCP event
-        event.trigger(); // Take a timestamp and trigger data acquisition
+        // Take a timestamp and trigger data acquisition for all variables associated and configured by the tool for this event
+        event.trigger(); 
 
-        // Synchronize calibration operations
+        // Synchronize calibration operations in calseg
         // All calibration actions (read, write, upload, download, checksum, page switch, freeze, init) on segment "cal_seg" happen only here
         // This operation locks a mutex, checks for changes and copies the calibration page
-        // It could also be called occationally to update calibrations, checking for changes could be optimized mutex free in the future
-        cal_seg.sync(); 
+        // It could be called more occationally and in any place where calseg in scope to update calibrations in this clone
+        calseg.sync(); 
     }
 }
 
@@ -136,7 +143,7 @@ fn main() {
         true,      // load RAM page from file "cal_seg1".json
         );
 
-    // Use CalSeg::Clone () to share the calibration segments between threads
+    // Use CalSeg::Clone() to share the calibration segments between threads
     // No locks, calseg.sync() must be called in each thread
     let c = CalSeg::clone(&calseg)
     thread::spawn(move || {

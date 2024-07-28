@@ -388,9 +388,10 @@ fn main() {
     // Mainloop
     xcp_println!("Main task starts");
     let mut mainloop_counter: u64 = 0;
+    let mut mainloop_counter2 = Box::new(0u64);
 
-    let mainloop_event = daq_create_event!("mainloop");
-    daq_register!(mainloop_counter, mainloop_event, "main loop counter", "");
+    let mut mainloop_event = daq_create_event!("mainloop", 8);
+    daq_register!(mainloop_counter, mainloop_event, "counter on stack", "");
 
     loop {
         // @@@@ Dev: Terminate after 3s to check shutdown and drop behaviour
@@ -404,6 +405,8 @@ fn main() {
         thread::sleep(Duration::from_millis(50));
 
         mainloop_counter += 1;
+        *mainloop_counter2 += 1;
+        daq_capture!(mainloop_counter2, mainloop_event, "counter on heap", "");
 
         // Check if the XCP server is still alive
         // Optional
