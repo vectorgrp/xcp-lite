@@ -4,7 +4,7 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use crate::{xcp::*, RegistryDataType};
+use crate::{reg::RegistryMeasurement, xcp::*, RegistryDataType};
 
 //----------------------------------------------------------------------------------------------
 // DaqEvent
@@ -64,32 +64,36 @@ impl<const N: usize> DaqEvent<N> {
         &mut self,
         name: &'static str,
         size: usize,
-        data_type: RegistryDataType,
+        datatype: RegistryDataType,
         dim: usize,
         factor: f64,
         offset: f64,
         unit: &'static str,
         comment: &'static str,
     ) -> i16 {
-        let event_offset: i16 = self.allocate(size);
+        let event_offset: i16 = self.allocate(size); // Address offset (signed) relative to event memory context (XCP_ADDR_EXT_DYN)
         trace!(
             "Allocate DAQ buffer for {}, TLS OFFSET = {} {:?} and register measurement",
             name,
             event_offset,
-            data_type
+            datatype
         );
         let event = self.get_xcp_event();
-        Xcp::get().get_registry().lock().unwrap().add_measurement(
-            name,
-            data_type,
-            dim,
-            event,
-            event_offset,
-            factor,
-            offset,
-            unit,
-            comment,
-        );
+        Xcp::get()
+            .get_registry()
+            .lock()
+            .unwrap()
+            .add_measurement(RegistryMeasurement::new(
+                name.to_string(),
+                datatype,
+                dim,
+                event,
+                event_offset,
+                factor,
+                offset,
+                comment,
+                unit,
+            ));
         event_offset
     }
 
@@ -98,7 +102,7 @@ impl<const N: usize> DaqEvent<N> {
         &self,
         name: &'static str,
         ptr: *const u8,
-        data_type: RegistryDataType,
+        datatype: RegistryDataType,
         dim: usize,
         factor: f64,
         offset: f64,
@@ -110,7 +114,7 @@ impl<const N: usize> DaqEvent<N> {
         trace!(
             "add_stack: {} {:?} ptr={:p} base={:p}",
             name,
-            data_type,
+            datatype,
             ptr,
             &self.buffer as *const _
         );
@@ -120,17 +124,21 @@ impl<const N: usize> DaqEvent<N> {
             "memory offset out of range"
         );
         let event_offset: i16 = o as i16;
-        Xcp::get().get_registry().lock().unwrap().add_measurement(
-            name,
-            data_type,
-            dim,
-            self.event,
-            event_offset,
-            factor,
-            offset,
-            unit,
-            comment,
-        );
+        Xcp::get()
+            .get_registry()
+            .lock()
+            .unwrap()
+            .add_measurement(RegistryMeasurement::new(
+                name.to_string(),
+                datatype,
+                dim,
+                self.event,
+                event_offset,
+                factor,
+                offset,
+                comment,
+                unit,
+            ));
     }
 }
 

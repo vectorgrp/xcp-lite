@@ -322,14 +322,77 @@ impl RegistryEpk {
 #[derive(Builder, Clone, Debug)]
 pub struct RegistryMeasurement {
     name: String,
-    datatype: RegistryDataType, // Ubyte, SByte, AUint64, Float64Ieee, ...  A2L style basic types
-    dim: usize, // 0 = binary serialized object (A2L BLOB), 1 = basic type (A2L MEASUREMENT), >1 = arrayy of basic type (A2L MEASUREMENT_ARRAY (MATRIX_DIM))
+    datatype: RegistryDataType, // Basic types Ubyte, SByte, AUint64, Float64Ieee, ...  or Blob
+    dim: usize, // 1 = basic type (A2L MEASUREMENT), >1 = array[dim] of basic type (A2L MEASUREMENT with MATRIX_DIM)
     event: XcpEvent,
-    event_offset: i16, // Address offset (signed) relative to event memory context (addr ext 2)
+    event_offset: i16, // Address offset (signed) relative to event memory context (XCP_ADDR_EXT_DYN)
     factor: f64,
     offset: f64,
     comment: &'static str,
     unit: &'static str,
+}
+
+impl RegistryMeasurement {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        name: String,
+        datatype: RegistryDataType,
+        dim: usize,
+        event: XcpEvent,
+        event_offset: i16,
+        factor: f64,
+        offset: f64,
+        comment: &'static str,
+        unit: &'static str,
+    ) -> Self {
+        RegistryMeasurement {
+            name,
+            datatype,
+            dim,
+            event,
+            event_offset,
+            factor,
+            offset,
+            comment,
+            unit,
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        self.name.as_str()
+    }
+
+    pub fn datatype(&self) -> RegistryDataType {
+        self.datatype
+    }
+
+    pub fn dim(&self) -> usize {
+        self.dim
+    }
+
+    pub fn event(&self) -> XcpEvent {
+        self.event
+    }
+
+    pub fn event_offset(&self) -> i16 {
+        self.event_offset
+    }
+
+    pub fn factor(&self) -> f64 {
+        self.factor
+    }
+
+    pub fn offset(&self) -> f64 {
+        self.offset
+    }
+
+    pub fn comment(&self) -> &str {
+        self.comment
+    }
+
+    pub fn unit(&self) -> &str {
+        self.unit
+    }
 }
 
 #[derive(Debug)]
@@ -603,57 +666,42 @@ impl Registry {
     /// # panics
     ///   If a measurement with the same name already exists
     ///   If the registry is closed
-    #[allow(clippy::too_many_arguments)]
-    pub fn add_measurement(
-        &mut self,
-        name: &'static str,
-        datatype: RegistryDataType,
-        dim: usize,
-        event: XcpEvent,
-        event_offset: i16,
-        factor: f64,
-        offset: f64,
-        unit: &'static str,
-        comment: &'static str,
-    ) {
+    ///
+    ///
+    ///
+    ///
+    ///
+    ///
+    ///
+    ///
+    ///
+    pub fn add_measurement(&mut self, mut m: RegistryMeasurement) {
         debug!(
             "add_measurement: {} type={:?}[{}] event={}+({})",
-            name,
-            datatype,
-            dim,
-            event.get_num(),
-            event_offset
+            m.name,
+            m.datatype,
+            m.dim,
+            m.event.get_num(),
+            m.event_offset
         );
 
         // Panic if registry is closed
         assert!(self.name.is_some(), "Registry is closed");
 
         // Append event index to name in case of a multi instance event (index>0)
-        let name = if event.get_index() > 0 {
-            format!("{}_{}", name, event.get_index())
-        } else {
-            name.to_string()
-        };
+        if m.event.get_index() > 0 {
+            m.name = format!("{}_{}", m.name, m.event.get_index())
+        }
 
         // Panic if symbol_name with same name already exists
-        for m in self.measurement_list.iter() {
-            if m.name == name {
-                panic!("Duplicate measurement: {}", name);
+        for m1 in self.measurement_list.iter() {
+            if m1.name == m.name {
+                panic!("Duplicate measurement: {}", m.name);
             }
         }
 
         // Add to list
-        self.measurement_list.push(RegistryMeasurement {
-            name,
-            datatype,
-            dim,
-            event,
-            event_offset,
-            factor,
-            offset,
-            comment,
-            unit,
-        });
+        self.measurement_list.push(m);
     }
 
     // pub fn find_measurement(&self, name: &str) -> Option<&RegistryMeasurement> {
@@ -664,32 +712,30 @@ impl Registry {
     /// # panics
     ///   If a measurement with the same name already exists
     ///   If the registry is closed
-    pub fn add_characteristic(&mut self, characteristic: RegistryCharacteristic) {
-        let c_name = characteristic.name();
-
+    pub fn add_characteristic(&mut self, c: RegistryCharacteristic) {
         debug!(
             "add_characteristic: {}/{} type={:?} offset={}",
-            characteristic.calseg_name(),
-            c_name,
-            characteristic.datatype(),
-            characteristic.offset()
+            c.calseg_name(),
+            c.name(),
+            c.datatype(),
+            c.offset()
         );
 
         // Panic if registry is closed
         assert!(self.name.is_some(), "Registry is closed");
 
         // Panic if duplicate
-        for c in self.characteristic_list.iter() {
-            if c_name == c.name() {
-                panic!("Duplicate characteristic: {}", c_name);
+        for c1 in self.characteristic_list.iter() {
+            if c.name == c1.name() {
+                panic!("Duplicate characteristic: {}", c.name);
             }
         }
 
         // Check dimensions
-        assert!(characteristic.x_dim > 0);
-        assert!(characteristic.y_dim > 0);
+        assert!(c.x_dim > 0);
+        assert!(c.y_dim > 0);
 
-        self.characteristic_list.push(characteristic);
+        self.characteristic_list.push(c);
     }
 
     pub fn find_characteristic(&self, name: &str) -> Option<&RegistryCharacteristic> {
@@ -745,8 +791,8 @@ mod registry_tests {
         r.add_cal_seg("test_memory_segment_2", 0x80020000, 0, 4);
 
         let event = xcp.create_event("test_event", false);
-        r.add_measurement(
-            "signal1",
+        r.add_measurement(RegistryMeasurement::new(
+            "signal1".to_string(),
             RegistryDataType::Float64Ieee,
             1,
             event,
@@ -755,7 +801,7 @@ mod registry_tests {
             0.0,
             "unit",
             "comment",
-        );
+        ));
 
         std::fs::remove_file("test.a2h").ok();
         let res = r.write();

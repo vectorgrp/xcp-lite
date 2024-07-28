@@ -14,7 +14,7 @@ xcp = { path = "../../" }
 #xcp = { git = "https://github.com/vectorgrp/xcp-lite" }
 
 # Dependencies for the A2L serializer proc-macro prototype
-xcp_type_description = { path = "../../serialization/xcp_type_description/" } # XcpTypeDescription Trait
-xcp_type_description_derive = { path = "../../serialization/xcp_type_description/xcp_type_description_derive/" } 
+xcp_type_description = { path = "../../xcp_type_description/xcp_type_description/" } # XcpTypeDescription Trait
+xcp_type_description_derive = { path = "../../xcp_type_description/xcp_type_description/xcp_type_description_derive/" } 
 
 

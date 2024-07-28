@@ -27,9 +27,8 @@ extern crate derive_builder;
 #[allow(unused_imports)]
 //-----------------------------------------------------------------------------
 
-// Submodule xcp_driver
+// Submodule xcp
 mod xcp;
-
 pub use xcp::Xcp;
 pub use xcp::XcpBuilder;
 pub use xcp::XcpCalPage;
@@ -47,24 +46,29 @@ pub use cal::CalSegTrait;
 mod daq;
 pub use daq::DaqEvent;
 
-// Submodule registry
+// Submodule reg
 mod reg;
 pub use reg::RegDataTypeHandler;
 pub use reg::RegDataTypeProperties;
 pub use reg::RegistryDataType;
 
-use xcp_type_description::XcpTypeDescription;
+pub use reg::RegistryCharacteristicBuilder;
+pub use reg::RegistryMeasurementBuilder;
 
 // @@@@ Reexport for integration tests
 pub use xcp::xcp_test::test_reinit;
 
-// XCPlite bindings
+// XCPlite FFI bindings
 mod xcplib {
     include!("xcplite.rs");
 }
 
 //-----------------------------------------------------------------------------
 // Implement CalPageTrait for all types that may be a calibration page
+
+// proc-macro crate
+use xcp_type_description::XcpTypeDescription;
+
 impl<T> CalPageTrait for T where
     T: Sized
         + Send
