@@ -1823,7 +1823,7 @@ void XcpSendEvent(uint8_t ev, uint8_t evc, const uint8_t* d, uint8_t l)
 #if defined ( XCP_ENABLE_SERV_TEXT )
 
 #ifndef XCPTL_QUEUED_CRM
-#error "XcpPrint is not thread safe, when used without XCPTL_QUEUED_CRM
+#error "XcpPrint is not thread safe, when used without XCPTL_QUEUED_CRM"
 #endif
 
 void XcpPrint( const char *str ) {

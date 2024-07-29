@@ -468,7 +468,7 @@ uint32_t ApplXcpGetId(uint8_t id, uint8_t* buf, uint32_t bufLen) {
         if (gXcpA2lName==NULL) return 0; 
         len = (uint32_t)strlen(gXcpA2lName);
         if (buf) {
-            if (len > bufLen) return 0; // Insufficient buffer space
+            if (len >= bufLen) return 0; // Insufficient buffer space
             strncpy((char*)buf, gXcpA2lName, len);
         }
         break;
