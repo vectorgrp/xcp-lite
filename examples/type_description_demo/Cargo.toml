@@ -4,5 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-xcp_type_description = { path = "../xcp_type_description" }
-xcp_type_description_derive = { path = "../xcp_type_description/xcp_type_description_derive" }
+# xcp = { git = "https://github.com/vectorgrp/xcp-lite" }
+xcp = { path = "../../" }
+xcp_type_description_derive = { path = "../../xcp_type_description_derive/" } 
+
+
+

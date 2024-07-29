@@ -1,20 +1,26 @@
-use xcp_type_description::prelude::*;
+use xcp::*;
+use xcp_type_description_derive::XcpTypeDescription;
 
 #[derive(Clone, Copy, XcpTypeDescription, Debug)]
 struct Parent {
-    #[comment = "Unique identifier"]
-    #[min = "10"]
-    #[max = "20"]
+    #[comment = "uid"]
+    #[min = "0"]
+    #[max = "10.1"]
     #[unit = "unit"]
     uid: u32,
+
     child: Child,
+
     array: [f32; 16],
+
     map: [[i32; 9]; 1],
+
     ndim_array: [[[i32; 4]; 1]; 2],
 }
 
 #[derive(Clone, Copy, Debug, XcpTypeDescription)]
 struct Child {
+    #[comment = "child.uid"]
     uid: u32,
 }
 
@@ -29,6 +35,6 @@ const PARENT: Parent = Parent {
 };
 
 fn main() {
-    let chars = PARENT.type_description();
-    dbg!(chars);
+    let fields = PARENT.type_description();
+    dbg!(fields);
 }
