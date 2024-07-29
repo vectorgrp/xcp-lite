@@ -242,10 +242,8 @@ pub async fn test_executor(single_thread: bool, multi_thread: bool, log_level: X
     // Upload A2L file
     tokio::time::sleep(Duration::from_micros(10000)).await;
     info!("Upload A2l");
-    Xcp::set_server_log_level(log_level); // upload will be too verbose
     xcp_client.upload_a2l().await.unwrap();
     tokio::time::sleep(Duration::from_micros(10000)).await;
-    Xcp::set_server_log_level(log_level); // restore log level
 
     //-------------------------------------------------------------------------------------------------------------------------------------
     // Check EPK upload

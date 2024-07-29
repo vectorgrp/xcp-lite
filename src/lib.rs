@@ -50,10 +50,13 @@ pub use daq::DaqEvent;
 mod reg;
 pub use reg::RegDataTypeHandler;
 pub use reg::RegDataTypeProperties;
-pub use reg::RegistryDataType;
-
 pub use reg::RegistryCharacteristicBuilder;
+pub use reg::RegistryDataType;
 pub use reg::RegistryMeasurementBuilder;
+
+// Submodule type_description
+mod type_description;
+pub use type_description::{FieldDescriptor, StructDescriptor, XcpTypeDescription};
 
 // @@@@ Reexport for integration tests
 pub use xcp::xcp_test::test_reinit;
@@ -65,9 +68,6 @@ mod xcplib {
 
 //-----------------------------------------------------------------------------
 // Implement CalPageTrait for all types that may be a calibration page
-
-// proc-macro crate
-use xcp_type_description::XcpTypeDescription;
 
 impl<T> CalPageTrait for T where
     T: Sized

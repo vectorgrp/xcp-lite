@@ -1,16 +1,12 @@
-pub mod prelude;
+// pub mod prelude;
 
 pub trait XcpTypeDescription {
-    fn characteristics(&self) -> Option<Vec<FieldDescriptor>> {
+    fn type_description(&self) -> Option<Vec<FieldDescriptor>> {
         None
     }
 }
 
-/*  TODO: Calseg name is introduced as it is necessary to get
-    the index from the CalSeg List of XCP. There has to be
-    a more elegant way to solve this that does not force
-    characteristics to have knowledge of cal segments
-*/
+/// FieldDescriptor contains properties and attributes for a struct field
 #[derive(Debug)]
 pub struct FieldDescriptor {
     name: String,
@@ -25,6 +21,7 @@ pub struct FieldDescriptor {
 }
 
 impl FieldDescriptor {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         name: String,
         datatype: &'static str,
@@ -119,7 +116,9 @@ impl_xcp_type_description_for_primitive!(
 // arrays is also a blanket (empty) trait implementation
 impl<T, const N: usize> XcpTypeDescription for [T; N] {}
 
-#[derive(Debug)]
+/// StructDescriptor is a vec of FieldDescriptor
+/// It it created with the XcpTypeDescription proc-macro trait
+#[derive(Debug, Default)]
 pub struct StructDescriptor(Vec<FieldDescriptor>);
 
 impl StructDescriptor {

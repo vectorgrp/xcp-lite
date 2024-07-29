@@ -1,9 +1,0 @@
-[workspace]
-
-resolver = "2"
-
-members = [
-    "example",
-    "xcp_type_description",
-    "xcp_type_description/xcp_type_description_derive",
-]

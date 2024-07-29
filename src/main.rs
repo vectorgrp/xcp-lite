@@ -25,7 +25,6 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use xcp_type_description::prelude::*;
 
 //-----------------------------------------------------------------------------
 // Logging
@@ -71,6 +70,7 @@ struct Args {
 // XCP
 
 use xcp::*;
+use xcp_type_description_derive::XcpTypeDescription;
 
 //-----------------------------------------------------------------------------
 // Application start time

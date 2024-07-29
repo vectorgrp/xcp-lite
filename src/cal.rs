@@ -22,12 +22,13 @@ use log::{debug, error, info, trace, warn};
 
 use crate::reg::RegistryCharacteristicBuilder;
 use serde::Serialize;
-use xcp_type_description::prelude::*;
 
 use crate::xcp::*;
 
 //-----------------------------------------------------------------------------
 // CalPage
+
+use crate::type_description::XcpTypeDescription;
 
 pub trait CalPageTrait
 where
@@ -60,7 +61,7 @@ where
     fn register_fields(&self, calseg_name: &'static str) {
         trace!("Register all fields in {}", calseg_name);
 
-        for field in self.characteristics().unwrap() {
+        for field in self.type_description().unwrap() {
             let c = RegistryCharacteristicBuilder::default()
                 .name(field.name().to_string())
                 .comment(field.comment())
@@ -123,7 +124,6 @@ impl CalSegDescriptor {
 /// Calibration segment descriptor list
 /// The Xcp singleton holds this type
 /// Calibration segments are created via the Xcp singleton
-///
 pub struct CalSegList(Vec<CalSegDescriptor>);
 
 impl CalSegList {

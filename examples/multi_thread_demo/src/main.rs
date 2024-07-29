@@ -10,8 +10,8 @@ use std::{
 };
 
 use xcp::*;
+use xcp_type_description_derive::XcpTypeDescription;
 
-use xcp_type_description::prelude::*;
 use serde::{Deserialize, Serialize};
 
 // Static application start time

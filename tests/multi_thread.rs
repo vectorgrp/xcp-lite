@@ -14,8 +14,6 @@ use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, thread};
 use tokio::time::Duration;
 
-use xcp_type_description::prelude::*;
-
 //-----------------------------------------------------------------------------
 // XCP
 
@@ -23,10 +21,12 @@ const OPTION_SERVER_ADDR: [u8; 4] = [127, 0, 0, 1]; // Localhost
 const OPTION_SERVER_PORT: u16 = 5555;
 const OPTION_TRANSPORT_LAYER: XcpTransportLayer = XcpTransportLayer::Udp; // XcpTransportLayer::TcpIp or XcpTransportLayer::UdpIp
 const OPTION_SEGMENT_SIZE: u16 = 1500 - 28; // UDP MTU
-const OPTION_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Info; // log::LevelFilter::Off, Error=1, Warn=2, Info=3, Debug=4, Trace=5
-
+const OPTION_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Info;
+const OPTION_XCP_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Warn;
 //-----------------------------------------------------------------------------
 // Calibration Segment
+
+use xcp_type_description_derive::XcpTypeDescription;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
 struct TestInts {
@@ -164,7 +164,7 @@ async fn test_multi_thread() {
 
     // Initialize XCP driver singleton, the transport layer server and enable the A2L writer
     match XcpBuilder::new("xcp_lite")
-        .set_log_level(OPTION_LOG_LEVEL)
+        .set_log_level(OPTION_XCP_LOG_LEVEL)
         .enable_a2l(true)
         .set_epk("EPK_TEST")
         .start_server(

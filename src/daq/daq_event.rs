@@ -9,11 +9,11 @@ use crate::{reg::RegistryMeasurement, xcp::*, RegistryDataType};
 //----------------------------------------------------------------------------------------------
 // DaqEvent
 
-/// DAQ event
+/// DaqEvent is a wrapper for XcpEvent which adds on optional capture buffer (N may be 0)
 #[derive(Debug)]
 pub struct DaqEvent<const N: usize> {
-    buffer_len: usize,
     event: XcpEvent,
+    buffer_len: usize,
     pub buffer: [u8; N],
 }
 
@@ -38,6 +38,7 @@ impl<const N: usize> DaqEvent<N> {
         self.event
     }
 
+    /// Allocate space in the capture buffer
     pub fn allocate(&mut self, size: usize) -> i16 {
         trace!(
             "Allocate DAQ buffer, size={}, len={}",
@@ -50,15 +51,18 @@ impl<const N: usize> DaqEvent<N> {
         offset as i16
     }
 
+    /// Copy to the capture buffer     
     pub fn capture(&mut self, data: &[u8], offset: i16) {
         self.buffer[offset as usize..offset as usize + data.len()].copy_from_slice(data);
     }
 
+    /// Trigger this event
     pub fn trigger(&self) {
         let base: *const u8 = &self.buffer as *const u8;
         self.event.trigger(base, self.buffer_len as u32);
     }
 
+    /// Associate a variable to this DaqEvent, allocate space in the capture buffer and register it
     #[allow(clippy::too_many_arguments)]
     pub fn add_capture(
         &mut self,
@@ -97,6 +101,7 @@ impl<const N: usize> DaqEvent<N> {
         event_offset
     }
 
+    /// Associate a variable on stack to this DaqEvent and register it
     #[allow(clippy::too_many_arguments)]
     pub fn add_stack(
         &self,

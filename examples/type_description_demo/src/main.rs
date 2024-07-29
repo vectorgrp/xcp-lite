@@ -29,6 +29,6 @@ const PARENT: Parent = Parent {
 };
 
 fn main() {
-    let chars = PARENT.characteristics();
+    let chars = PARENT.type_description();
     dbg!(chars);
 }

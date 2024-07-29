@@ -9,7 +9,6 @@ use std::sync::{
 use crate::{cal, reg, xcplib};
 use cal::*;
 use reg::*;
-use xcp_type_description::prelude::*;
 
 //----------------------------------------------------------------------------------------------
 // XCP log level
@@ -64,11 +63,8 @@ impl XcpLogLevel {
 const XCP_MAX_EVENTS: usize = 256;
 static mut XCP_EVENT_MAP: [u16; XCP_MAX_EVENTS] = [0; XCP_MAX_EVENTS];
 
-/// XCP event
-/// Interface to XCP protocol events for measurement and calibration
-/// Represents the u16 event number in the XCP protocol and A2L
-/// Public because used in macros
-
+/// Represents a measurement event  
+/// Holds the u16 XCP event number used in the XCP protocol and A2L to identify an event
 #[derive(Debug, Clone, Copy)]
 pub struct XcpEvent {
     num: u16,   // Number used in A2L and XCP protocol
@@ -403,6 +399,8 @@ impl XcpBuilder {
 //------------------------------------------------------------------------------------------
 // Xcp singleton
 
+/// A singleton instance of Xcp holds all XCP server data and states  
+/// The Xcp singleton is obtained with Xcp::get()
 pub struct Xcp {
     ecu_cal_page: AtomicU8,
     xcp_cal_page: AtomicU8,
@@ -841,7 +839,7 @@ pub mod xcp_test {
     // Reinit XCP singleton before the next test
     pub fn test_reinit() {
         let xcp = Xcp::get();
-
+        Xcp::set_server_log_level(XcpLogLevel::Warn);
         xcp.set_ecu_cal_page(XcpCalPage::Ram);
         xcp.set_xcp_cal_page(XcpCalPage::Ram);
         let mut l = xcp.event_list.lock().unwrap();

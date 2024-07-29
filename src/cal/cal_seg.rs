@@ -28,8 +28,7 @@ struct CalPage<T: CalPageTrait> {
 }
 
 //----------------------------------------------------------------------------------------------
-/// CalSeg
-/// Calibration Segment
+
 /// Thread safe calibration parameter page wrapper with interiour mutabiity by XCP
 /// Each instance stores 2 copies of its inner data, the calibration page
 /// One for each clone of the readers, a shared copy for the writer (XCP) and
@@ -51,7 +50,6 @@ impl<T> CalSeg<T>
 where
     T: CalPageTrait,
 {
-    /// CalSeg constructor
     /// Create a calibration segment for a calibration parameter struct T (called page)  
     /// With a name and static const default values, which will be the "FLASH" page
     /// The mutable "RAM" page is initialized from name.json, if load_json==true and if it exists, otherwise with default
@@ -355,10 +353,13 @@ mod cal_tests {
 
     use super::*;
     use crate::reg::RegistryCharacteristic;
+    use crate::type_description;
     use crate::xcp;
     use crate::xcplib;
+
+    use type_description::{FieldDescriptor, StructDescriptor, XcpTypeDescription};
     use xcp::*;
-    use xcp_type_description::prelude::*;
+    use xcp_type_description_derive::XcpTypeDescription;
 
     use serde::{Deserialize, Serialize};
     use std::sync::{mpsc, mpsc::Sender, Arc, Mutex, Once, RwLock};
@@ -631,7 +632,7 @@ mod cal_tests {
 
     #[test]
     fn test_cal_page_trait() {
-        xcp_test::test_setup(log::LevelFilter::Debug);
+        xcp_test::test_setup(log::LevelFilter::Info);
 
         #[derive(Debug, Copy, Clone, Serialize, Deserialize, XcpTypeDescription)]
         struct Page1 {
@@ -664,6 +665,7 @@ mod cal_tests {
         info!("d1: {}", d1.get_name());
         is_send::<Box<dyn CalSegTrait + Send>>();
 
+        #[allow(clippy::vec_init_then_push)]
         let mut v: Vec<Box<dyn CalSegTrait>> = Vec::new();
         v.push(Box::new(s1.clone()));
         v.push(Box::new(s2.clone()));
@@ -698,7 +700,7 @@ mod cal_tests {
 
     #[test]
     fn test_attribute_macros() {
-        xcp_test::test_setup(log::LevelFilter::Debug);
+        xcp_test::test_setup(log::LevelFilter::Info);
 
         #[derive(Debug, Copy, Clone, Serialize, Deserialize, XcpTypeDescription)]
         struct CalPage {

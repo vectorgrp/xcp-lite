@@ -18,7 +18,6 @@ use std::{
 };
 use xcp::*;
 
-use xcp_type_description::prelude::*;
 //-----------------------------------------------------------------------------
 // Extra bindings for testing
 
@@ -185,7 +184,7 @@ pub fn test_setup(level: XcpLogLevel) {
 
     // Initialize the XCP driver transport layer only, not the server
     let _xcp = XcpBuilder::new("xcp_lite")
-        .set_log_level(level)
+        .set_log_level(XcpLogLevel::Error)
         .enable_a2l(true)
         .set_epk("TEST_EPK")
         .start_protocol_layer()
@@ -194,6 +193,8 @@ pub fn test_setup(level: XcpLogLevel) {
 
 //-----------------------------------------------------------------------------
 // Test calibration page
+
+use xcp_type_description_derive::XcpTypeDescription;
 
 // Calibration page struct
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]

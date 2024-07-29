@@ -4,9 +4,10 @@
 use log::{debug, error, info, trace, warn};
 use std::{fmt::Debug, thread, time::Duration};
 
-use xcp_type_description::prelude::*;
 use serde::{Deserialize, Serialize};
+
 use xcp::*;
+use xcp_type_description_derive::XcpTypeDescription;
 
 //-----------------------------------------------------------------------------
 
@@ -35,7 +36,7 @@ const CAL_PAGE: CalPage = CalPage {
     delay: 100000,
 };
 
-fn task1(calseg: &CalSeg<CalPage>) {
+fn task1(calseg: CalSeg<CalPage>) {
     info!("Start task");
 
     let mut counter: u16 = calseg.min;
@@ -78,11 +79,11 @@ fn main() {
 
     thread::scope(|s| {
         for _ in 0..2 {
-            //     let c = calseg.clone();
-            //     s.spawn(|| task1(c));
+            let c = calseg.clone();
+            s.spawn(|| task1(c));
 
             // Make sure this does not work
-            s.spawn(|| task1(&calseg));
+            // s.spawn(|| task1(&calseg));
         }
     });
 }

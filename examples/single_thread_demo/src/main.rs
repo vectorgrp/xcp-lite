@@ -10,8 +10,8 @@ use std::{
 };
 
 use xcp::*;
+use xcp_type_description_derive::XcpTypeDescription;
 
-use xcp_type_description::prelude::*;
 use serde::{Deserialize, Serialize};
 
 //-----------------------------------------------------------------------------
@@ -54,13 +54,13 @@ fn main() {
 
     // Logging
     env_logger::Builder::new()
-        .filter_level(log::LevelFilter::Debug)
+        .filter_level(log::LevelFilter::Info)
         .init();
 
     // Initialize XCP driver singleton, the XCP transport layer server and enable the A2L file creator
     // The A2L file will be finalized on XCP connection and can be uploaded by CANape
     XcpBuilder::new("single_thread_demo")
-        .set_log_level(XcpLogLevel::Debug) // Set log level of the XCP server
+        .set_log_level(XcpLogLevel::Info) // Set log level of the XCP server
         .enable_a2l(true) // Enabl A2L generation
         .set_epk("EPK_") // Set the EPK string for A2L version check, length must be %4
         .start_server(
@@ -108,6 +108,7 @@ fn main() {
         // A sine signal with amplitude and period from calibration parameters
         let time = start_time.elapsed().as_micros() as f64 * 0.000001; // s
         channel_1 = calseg.ampl * (PI * time / calseg.period).sin();
+        let _channel_2 = channel_1;
 
         // Triger the measurement event "task"
         // The measurement event timestamp is taken here and captured data is sent to CANape
