@@ -26,4 +26,5 @@ tmp.a2l
 /tests.a2l
 /a2lfile.a2l
 
-
+# misc
+.DS_Store
