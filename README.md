@@ -14,6 +14,8 @@ Main purpose was to experiment with Rust and to demonstrate some more advanced f
 - Data objects and containers with dynamic size like point clouds or detection lists, to demonstrate CANape ADAS features
 - Support Google protobuf or OMG DDS/CDR serialized data objects with XCP and CANape
 
+Requires CANape 22 SP2.  
+The point cloud demo variable is not functional yet.  
 
 ## Introduction
 
@@ -208,3 +210,12 @@ The EPK version string in the A2L file can be set by the applicaation. It reside
 - Improve the meta data annotations of the A2L serializer
 - Add support for dynamic data objects and variable length lists using the CANape CDR or Protobuf deserializers
 
+
+## CANape
+
+To use one of the CANape projects included, use 'Project/Open" and select the file CANape.ini in the CANape folder.  
+
+The examples are build with CANape 22 SP2.  
+Older versions were not tested.
+
+![CANape](CANape.png)
