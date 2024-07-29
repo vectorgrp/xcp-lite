@@ -34,22 +34,23 @@ jobs:
           run: cargo clippy
     build:
       name: Build
-      runs-on: [ubuntu-22.04, macos-13]
+      runs-on: ${{ matrix.os }}
       strategy:
-          matrix:
-              os: [ubuntu]
-          fail-fast: false
+        matrix:
+          os: [ubuntu-22.04, macos-latest]
+        fail-fast: false
       steps:
-
-          - uses: actions/checkout@v3
-          - uses: moonrepo/setup-rust@v1
-            with:
-              components: rustfmt
-          - name: Build binary
-            run: |
+        - uses: actions/checkout@v3
+        - uses: moonrepo/setup-rust@v1
+          with:
+            components: rustfmt
+        - name: Build binary
+          run: |
+            if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
               sudo apt update
               sudo apt install build-essential
-              cargo build --verbose
+            fi
+            cargo build --verbose
     test:
         name: Test
         runs-on: [ubuntu-22.04]
