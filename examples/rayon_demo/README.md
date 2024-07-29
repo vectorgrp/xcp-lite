@@ -7,4 +7,4 @@ Taken from the mandelbrot rayon example in the book "Programming Rust" by Jim Bl
 
   
     
-    ![mandel](mandel.png)
+![mandel](mandel.png)
