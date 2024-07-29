@@ -6,29 +6,29 @@ fn main() {
     // Generate XCPlite C code bindings
     // Uncomment this to regenerate the bindings
 
-    let bindings = bindgen::Builder::default()
-        .header("xcplib/wrapper.h")
-        .clang_arg("-Ixcplib/src")
-        .clang_arg("-Ixcplib")
-        // Tell cargo to invalidate the built crate whenever any of the included header files changed.
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
-        //
-        .blocklist_type("T_CLOCK_INFO")
-        .allowlist_function("XcpInit")
-        .allowlist_function("XcpEventExt")
-        .allowlist_function("XcpPrint")
-        .allowlist_function("XcpEthServerInit")
-        .allowlist_function("XcpEthServerShutdown")
-        .allowlist_function("XcpEthServerStatus")
-        .allowlist_function("ApplXcpSetLogLevel")
-        .allowlist_function("ApplXcpSetA2lName")
-        .allowlist_function("ApplXcpRegisterCallbacks")
-        //
-        .generate()
-        .expect("Unable to generate bindings");
-    bindings
-        .write_to_file("src/xcplite.rs")
-        .expect("Couldn't write bindings!");
+    // let bindings = bindgen::Builder::default()
+    //     .header("xcplib/wrapper.h")
+    //     .clang_arg("-Ixcplib/src")
+    //     .clang_arg("-Ixcplib")
+    //     // Tell cargo to invalidate the built crate whenever any of the included header files changed.
+    //     .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
+    //     //
+    //     .blocklist_type("T_CLOCK_INFO")
+    //     .allowlist_function("XcpInit")
+    //     .allowlist_function("XcpEventExt")
+    //     .allowlist_function("XcpPrint")
+    //     .allowlist_function("XcpEthServerInit")
+    //     .allowlist_function("XcpEthServerShutdown")
+    //     .allowlist_function("XcpEthServerStatus")
+    //     .allowlist_function("ApplXcpSetLogLevel")
+    //     .allowlist_function("ApplXcpSetA2lName")
+    //     .allowlist_function("ApplXcpRegisterCallbacks")
+    //     //
+    //     .generate()
+    //     .expect("Unable to generate bindings");
+    // bindings
+    //     .write_to_file("src/xcplite.rs")
+    //     .expect("Couldn't write bindings!");
 
     // Build a XCP on ETH version of XCPlite as a library
     Build::new()
