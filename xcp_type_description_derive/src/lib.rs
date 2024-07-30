@@ -13,9 +13,7 @@ pub fn xcp_type_description_derive(input: TokenStream) -> TokenStream {
     let data_type = &input.ident;
 
     let gen = match input.data {
-        Data::Struct(data_struct) => {
-            generate_type_description_impl(data_struct, data_type)
-        }
+        Data::Struct(data_struct) => generate_type_description_impl(data_struct, data_type),
         _ => panic!("XcpTypeDescription macro only supports structs"),
     };
 
@@ -60,7 +58,6 @@ fn generate_type_description_impl(
                     #x_dim,
                     #y_dim,
                     offset,
-                    
                 ));
             }
         }
