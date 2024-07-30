@@ -341,13 +341,18 @@ impl A2lWriter {
         // Measurement groups
         let mut v = Vec::new();
         for e in registry.event_list.iter() {
+            if e.get_index() > 1 {
+                // Ignore all but the first event instance
+                continue;
+            }
+
             v.push(format!(
                 r#"/begin GROUP {} "" /begin REF_MEASUREMENT"#,
-                e.get_indexed_name()
+                e.get_name()
             ));
 
             for m in registry.measurement_list.iter() {
-                if m.event == *e {
+                if m.event.get_name() == e.get_name() {
                     v.push(m.name.clone());
                 }
             }

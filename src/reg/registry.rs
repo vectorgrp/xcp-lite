@@ -39,10 +39,12 @@ impl RegistryDataType {
             "u16" => RegistryDataType::Uword,
             "u32" => RegistryDataType::Ulong,
             "u64" => RegistryDataType::AUint64,
+            "usize" => RegistryDataType::AUint64, // @@@@ Check if usize is correct
             "i8" => RegistryDataType::Sbyte,
             "i16" => RegistryDataType::Sword,
             "i32" => RegistryDataType::Slong,
             "i64" => RegistryDataType::AInt64,
+            "isize" => RegistryDataType::AInt64, // @@@@ Check if isize is correct
             "f32" => RegistryDataType::Float32Ieee,
             "f64" => RegistryDataType::Float64Ieee,
             _ => RegistryDataType::Unknown,

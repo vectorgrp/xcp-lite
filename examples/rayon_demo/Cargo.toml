@@ -10,6 +10,8 @@ rayon = "1.10.0"
 num = "0.4.3"
 image = "0.13.0"
 
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 lazy_static = "1.4.0"
 # xcp = { git = "https://github.com/vectorgrp/xcp-lite" }
 xcp = { path = "../../" }
