@@ -132,9 +132,11 @@ impl XcpDaqDecoder for DaqDecoder {
                 // Check cal_test pattern
                 assert_eq!((cal_test >> 32) ^ 0x55555555, cal_test & 0xFFFFFFFF);
             }
+
             // Check counter_max
             assert!(counter_max <= 255);
             assert!(counter <= 255);
+            assert!(counter <= counter_max);
             if counter_max >= self.max_counter[daq as usize] {
                 self.max_counter[daq as usize] = counter_max;
             }
@@ -148,9 +150,6 @@ impl XcpDaqDecoder for DaqDecoder {
                 counter_max,
                 &data[6..]
             );
-
-            // Check counter <= counter_max
-            assert!(counter <= counter_max);
 
             // Check each counter is incrementing
             if self.daq_events[daq as usize] != 0
@@ -443,7 +442,7 @@ pub async fn test_executor(single_thread: bool, multi_thread: bool, log_level: X
     // Wait some time to be sure the queue is emptied
     // The XCP server should not respond to STOP while the queue is not empty
     // But the queue of the client may still contain data or the control channel may need some time
-    tokio::time::sleep(Duration::from_millis(400)).await;
+    tokio::time::sleep(Duration::from_millis(500)).await;
 
     //-------------------------------------------------------------------------------------------------------------------------------------
     // Calibration test

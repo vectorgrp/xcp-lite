@@ -516,15 +516,15 @@ impl XcpClient {
                 res = rx_daq_decoder.recv() => {
                     match res {
                         Some(c) => {
-                            debug!("receive_task: new daq decoder received connected={} running={}", c.connected, c.running);
+                            info!("receive_task: task control status changed: connected={} running={}", c.connected, c.running);
                             if !c.connected { // Handle the data from rx_daq_decoder
-                                debug!("receive_task: return, disconnected");
+                                info!("receive_task: stop, disconnected");
                                 return Ok(());
                             }
                             task_control = Some(c);
                         }
                         None => { // The sender has been dropped
-                            debug!("receive_task: return, channel closed");
+                            info!("receive_task: stop, channel closed");
                             return Ok(());
                         }
                     }
