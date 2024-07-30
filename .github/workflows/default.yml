@@ -35,9 +35,10 @@ jobs:
     build:
       name: Build
       runs-on: ${{ matrix.os }}
+      needs: [format, lint]
       strategy:
         matrix:
-          os: [ubuntu-22.04, macos-latest]
+          os: [ubuntu-22.04, macos-13, macos-14, windows-2022]
         fail-fast: false
       steps:
         - uses: actions/checkout@v3
@@ -46,20 +47,14 @@ jobs:
             components: rustfmt
         - name: Build binary
           run: |
-            if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
-              sudo apt update
-              sudo apt install build-essential
-            fi
             cargo build --verbose
     test:
         name: Test
-        runs-on: [ubuntu-22.04]
+        runs-on: ${{ matrix.os }}
+        needs: [build]
         strategy:
           matrix:
-            os:
-            - ubuntu
-            # - macos-latest
-            # - windows-latest
+            os: [ubuntu-22.04, macos-13, macos-14, windows-2022]
           fail-fast: false
         steps:
         - uses: actions/checkout@v3
