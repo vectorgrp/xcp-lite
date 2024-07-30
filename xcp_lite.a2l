@@ -151,7 +151,7 @@
 
             /end DAQ
 
-/begin XCP_ON_UDP_IP 0x104 5555 ADDRESS "192.168.0.83" /end XCP_ON_UDP_IP
+/begin XCP_ON_UDP_IP 0x104 5555 ADDRESS "127.0.0.1" /end XCP_ON_UDP_IP
 
         /end IF_DATA
 
@@ -263,31 +263,15 @@ counter_u8
 /begin GROUP task1_points "" /begin REF_MEASUREMENT
 point_cloud
 /end REF_MEASUREMENT /end GROUP
-/begin GROUP task2_inst_1 "" /begin REF_MEASUREMENT
+/begin GROUP task2_inst "" /begin REF_MEASUREMENT
 channel_1
-/end REF_MEASUREMENT /end GROUP
-/begin GROUP task2_inst_2 "" /begin REF_MEASUREMENT
 channel_2
-/end REF_MEASUREMENT /end GROUP
-/begin GROUP task2_inst_3 "" /begin REF_MEASUREMENT
 channel_3
-/end REF_MEASUREMENT /end GROUP
-/begin GROUP task2_inst_4 "" /begin REF_MEASUREMENT
 channel_4
-/end REF_MEASUREMENT /end GROUP
-/begin GROUP task2_inst_5 "" /begin REF_MEASUREMENT
 channel_5
-/end REF_MEASUREMENT /end GROUP
-/begin GROUP task2_inst_6 "" /begin REF_MEASUREMENT
 channel_6
-/end REF_MEASUREMENT /end GROUP
-/begin GROUP task2_inst_7 "" /begin REF_MEASUREMENT
 channel_7
-/end REF_MEASUREMENT /end GROUP
-/begin GROUP task2_inst_8 "" /begin REF_MEASUREMENT
 channel_8
-/end REF_MEASUREMENT /end GROUP
-/begin GROUP task2_inst_9 "" /begin REF_MEASUREMENT
 channel_9
 /end REF_MEASUREMENT /end GROUP
 /begin GROUP task2_static "" /begin REF_MEASUREMENT

@@ -18,9 +18,18 @@ use xcp_client::a2l::*;
 use xcp_client::xcp_client::*;
 
 // DAQ test parameters
-pub const MULTI_THREAD_TASK_COUNT: usize = 50; // No of signals = MULTI_THREAD_TASK_COUNT*8
+// Low performance test
+// Make sure the tests in Github action pass with low CPU power
+pub const MULTI_THREAD_TASK_COUNT: usize = 10; // No of signals = MULTI_THREAD_TASK_COUNT*8
 const DURATION_DAQ_TEST_MS: u64 = 2000; // ms
-const CYCLE_TIME_DAQ_TEST_US: u64 = 250; // us
+const TASK_SLEEP_TIME_US: u64 = 250; // us
+
+// High performance test with 1600 MByte/s target data rate
+// Actual data rate will be lower because in high cpu load situation the task cycle time increases
+// These settings result in 1200 MByte/s data rate on Macbook Pro M3
+// pub const MULTI_THREAD_TASK_COUNT: usize = 50; // No of signals = MULTI_THREAD_TASK_COUNT*8
+// const DURATION_DAQ_TEST_MS: u64 = 2000; // ms
+// const TASK_SLEEP_TIME_US: u64 = 100; // us
 
 //------------------------------------------------------------------------
 // Handle incomming SERV_TEXT data
@@ -123,7 +132,9 @@ impl XcpDaqDecoder for DaqDecoder {
                 // Check cal_test pattern
                 assert_eq!((cal_test >> 32) ^ 0x55555555, cal_test & 0xFFFFFFFF);
             }
-            //self.counter[daq as usize] = counter;
+            // Check counter_max
+            assert!(counter_max <= 255);
+            assert!(counter <= 255);
             if counter_max >= self.max_counter[daq as usize] {
                 self.max_counter[daq as usize] = counter_max;
             }
@@ -296,7 +307,7 @@ pub async fn test_executor(single_thread: bool, multi_thread: bool, log_level: X
 
         // Set cycle time
         xcp_client
-            .set_value_u64(cycle_time_us, CYCLE_TIME_DAQ_TEST_US)
+            .set_value_u64(cycle_time_us, TASK_SLEEP_TIME_US)
             .await
             .unwrap(); // 1us
 
@@ -356,7 +367,7 @@ pub async fn test_executor(single_thread: bool, multi_thread: bool, log_level: X
         }
         xcp_client.start_measurement().await.unwrap();
 
-        // Test for DURATION_DAQ_TEST_MS time, do a calibration in the middle
+        // Test for DURATION_DAQ_TEST_MS time, do a calibration of counter_max to 255 in the middle of the time
         let starttime = Instant::now();
         tokio::time::sleep(Duration::from_millis(DURATION_DAQ_TEST_MS / 2)).await;
         xcp_client.set_value_u64(counter_max, 255).await.unwrap(); // Calibrate counter_max
@@ -371,12 +382,12 @@ pub async fn test_executor(single_thread: bool, multi_thread: bool, log_level: X
         {
             let d = daq_decoder.lock().unwrap();
             assert_ne!(d.tot_events, 0);
-            info!("DAQ test cycle time = {}us", CYCLE_TIME_DAQ_TEST_US);
+            info!("DAQ test cycle time = {}us", TASK_SLEEP_TIME_US);
             if multi_thread {
                 info!("DAQ test thread count = {}", MULTI_THREAD_TASK_COUNT);
                 info!(
                     "DAQ test target data rate {} MByte/s",
-                    (1.0 / CYCLE_TIME_DAQ_TEST_US as f64)
+                    (1.0 / TASK_SLEEP_TIME_US as f64)
                         * (bytes * MULTI_THREAD_TASK_COUNT as u32) as f64
                 );
             }
@@ -403,7 +414,7 @@ pub async fn test_executor(single_thread: bool, multi_thread: bool, log_level: X
             let jitter = d.daq0_timestamp_max - d.daq0_timestamp_min;
             info!("    jitter = {}us", jitter);
             //assert!(jitter < 150); // us tolerance
-            let diff: f64 = (d.daq0_timestamp_min as f64 - CYCLE_TIME_DAQ_TEST_US as f64).abs();
+            let diff: f64 = (d.daq0_timestamp_min as f64 - TASK_SLEEP_TIME_US as f64).abs();
             info!("    ecu task cpu time = {:.1}us", diff);
             //assert!(diff < 50.0); // us tolerance
             if multi_thread {
@@ -414,10 +425,9 @@ pub async fn test_executor(single_thread: bool, multi_thread: bool, log_level: X
                 }
             } else {
                 assert_eq!(d.daq_max, 0);
-                assert_eq!(d.max_counter[0], 255);
+                assert_eq!(d.max_counter[0], 255); // @@@@
             }
             assert_eq!(d.odt_max, 0);
-            // C
         }
     }
     //-------------------------------------------------------------------------------------------------------------------------------------
@@ -429,6 +439,11 @@ pub async fn test_executor(single_thread: bool, multi_thread: bool, log_level: X
         tokio::time::sleep(Duration::from_millis(1000)).await;
         xcp_client.stop_measurement().await.unwrap();
     }
+
+    // Wait some time to be sure the queue is emptied
+    // The XCP server should not respond to STOP while the queue is not empty
+    // But the queue of the client may still contain data or the control channel may need some time
+    tokio::time::sleep(Duration::from_millis(400)).await;
 
     //-------------------------------------------------------------------------------------------------------------------------------------
     // Calibration test

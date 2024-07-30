@@ -593,8 +593,10 @@ impl XcpClient {
                                         }
                                     }
                                     _ => {
-                                        // Handle DAQ data if we got a DAQ control
+                                        // Check that we got a DAQ control
                                         if let Some(c) = &task_control {
+
+                                            // Handle DAQ data if DAQ running
                                             if c.running {
                                                 let mut m = decode_daq.lock().unwrap();
                                                 m.decode(c, &buf[i + 4..i + 4 + len]);
@@ -1248,7 +1250,7 @@ impl XcpClient {
                 .unwrap();
         }
 
-        // Send throught the DAQ control channel to receive task
+        // Send running=true throught the DAQ control channel to the receive task
         self.task_control.running = true;
         self.tx_task_control
             .as_ref()
@@ -1269,6 +1271,7 @@ impl XcpClient {
         // Stop DAQ
         self.start_stop_sync(XcpClient::XCP_STOP_ALL).await.unwrap();
 
+        // Send running=false throught the DAQ control channel to the receive task
         self.task_control.running = false;
         self.tx_task_control
             .as_ref()
