@@ -1,4 +1,4 @@
-use syn::{Attribute, Lit, Meta, Type, TypeArray, TypePath};
+use syn::{Attribute, Lit, Meta, NestedMeta, Type, TypeArray, TypePath};
 
 pub fn parse_characteristic_attributes(
     attributes: &Vec<Attribute>,
@@ -13,13 +13,46 @@ pub fn parse_characteristic_attributes(
     let mut max_set: bool = false;
 
     for attribute in attributes {
-        let ident = attribute.path.get_ident().unwrap().to_string();
-        match ident.as_str() {
-            "comment" => parse_comment(attribute, &mut comment),
-            "min" => parse_min(attribute, &mut min, &mut min_set),
-            "max" => parse_max(attribute, &mut max, &mut max_set),
-            "unit" => parse_unit(attribute, &mut unit),
-            _ => continue,
+        // Attributes not prefixed with type_description
+        // are accepted but ignored as they likely
+        // belong to different derived macros
+        if !attribute.path.is_ident("type_description") {
+            continue;
+        }
+
+        let meta_list = match attribute.parse_meta() {
+            Ok(Meta::List(list)) => list,                                          // #[type_description(key = "This is correct)"]
+            _ => panic!("Expected a list of attributes for type_description"),               // #[type_description = "This is incorrect"]
+        };
+
+        for nested in meta_list.nested {
+            let name_value = match nested {
+                NestedMeta::Meta(Meta::NameValue(nv)) => nv,                  // #[type_description(comment = "This is correct")]
+                _ => panic!("Expected name-value pairs in type_description"),                // #[type_description(comment)] -> Incorrect
+            };
+
+            let key = name_value
+                .path
+                .get_ident()                                                  // #[type_description(comment = "This is correct")]
+                .unwrap_or_else(|| panic!("Expected identifier in type_description")) // #[type_description("comment" = "This is incorrect")]
+                .to_string();
+
+            //TODO: Figure out how to handle with Num after changing min,max,unit to range
+            let value = match &name_value.lit {
+                Lit::Str(s) => s.value(),
+                _ => panic!(
+                    "Expected string literal for key: {} in type_description",
+                    key
+                ),
+            };
+
+            match key.as_str() {
+                "comment" => parse_comment(&value, &mut comment),
+                "min" => parse_min(&value, &mut min, &mut min_set),
+                "max" => parse_max(&value, &mut max, &mut max_set),
+                "unit" => parse_unit(&value, &mut unit),
+                _ => panic!("Unsupported type description item: {}", key),
+            }
         }
     }
 
@@ -66,83 +99,30 @@ pub fn dimensions(ty: &Type) -> (usize, usize) {
     }
 }
 
-fn parse_unit(attribute: &Attribute, unit: &mut String) {
-    let meta = attribute.parse_meta().unwrap_or_else(|e| {
-        panic!("Failed to parse 'unit' attribute: {}", e);
-    });
-
-    let unit_str = match meta {
-        Meta::NameValue(meta) => match meta.lit {
-            Lit::Str(unit_str) => unit_str,
-            _ => panic!("Expected a string literal for 'unit'"),
-        },
-        _ => panic!("Expected 'unit' attribute to be a name-value pair"),
-    };
-
-    *unit = unit_str.value();
+#[inline]
+fn parse_unit(attribute: &str, unit: &mut String) {
+    *unit = attribute.to_string();
 }
 
-fn parse_max(attribute: &Attribute, max: &mut f64, max_set: &mut bool) {
-    let meta = attribute.parse_meta().unwrap_or_else(|e| {
-        panic!("Failed to parse 'max' attribute: {}", e);
-    });
+#[inline]
+fn parse_comment(attribute: &str, comment: &mut String) {
+    *comment = attribute.to_string()
+}
 
-    let max_value = match meta {
-        Meta::NameValue(meta) => match meta.lit {
-            // NOTE: we are forced to limit the user to defining the min
-            // and max attributes as strings instead of integers because
-            // negative numbers are not interpreted as single literals in
-            // Rust. This means # [max = 100] would work but #[max = -100]
-            // would cause a compilation error
-            Lit::Str(lit_str) => lit_str.value().parse::<f64>().unwrap(),
-            _ => panic!("Expected a string literal for 'max'"),
-        },
-        _ => panic!("Expected 'max' attribute to be a name-value pair"),
-    };
-
-    *max = max_value;
+#[inline]
+fn parse_max(attribute: &str, max: &mut f64, max_set: &mut bool) {
+    let parsed_max = attribute.parse::<f64>().expect("Failed to parse max");
+    *max = parsed_max;
     *max_set = true;
 }
 
-fn parse_min(attribute: &Attribute, min: &mut f64, min_set: &mut bool) {
-    let meta = attribute.parse_meta().unwrap_or_else(|e| {
-        panic!("Failed to parse 'min' attribute: {}", e);
-    });
-
-    let min_value = match meta {
-        Meta::NameValue(meta) => match meta.lit {
-            // NOTE: we are forced to limit the user to defining the min
-            // and max attributes as strings instead of integers because
-            // negative numbers are not interpreted as single literals in
-            // Rust. This means # [min = 100] would work but #[min = -100]
-            // would cause a compilation error
-            Lit::Str(lit_str) => lit_str.value().parse::<f64>().unwrap(),
-            _ => panic!("Expected a string literal for 'min'"),
-        },
-        _ => panic!("Expected 'min' attribute to be a name-value pair"),
-    };
-
-    *min = min_value;
+#[inline]
+fn parse_min(attribute: &str, min: &mut f64, min_set: &mut bool) {
+    let parsed_min = attribute.parse::<f64>().expect("Failed to parse max");
+    *min = parsed_min;
     *min_set = true;
 }
 
-fn parse_comment(attribute: &Attribute, comment: &mut String) {
-    let meta = attribute.parse_meta().unwrap_or_else(|e| {
-        panic!("Failed to parse 'comment' attribute: {}", e);
-    });
-
-    let comment_str = match meta {
-        Meta::NameValue(meta) => match meta.lit {
-            Lit::Str(comment_str) => comment_str,
-            _ => panic!("Expected a string literal for 'comment'"),
-        },
-        _ => panic!("Expected 'comment' attribute to be a name-value pair"),
-    };
-
-    *comment = comment_str.value();
-}
-
-//TODO: Discuss why the actual min values for certain types are not used
 fn get_default_min_value_for_type(ty: &Type) -> Option<f64> {
     match ty {
         Type::Path(TypePath { path, .. }) => {
@@ -162,7 +142,6 @@ fn get_default_min_value_for_type(ty: &Type) -> Option<f64> {
     }
 }
 
-//TODO: Discuss why the actual max values for certain types are not used
 fn get_default_max_value_for_type(ty: &Type) -> Option<f64> {
     match ty {
         Type::Path(TypePath { path, .. }) => {

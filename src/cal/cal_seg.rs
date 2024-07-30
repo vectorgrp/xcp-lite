@@ -704,10 +704,10 @@ mod cal_tests {
 
         #[derive(Debug, Copy, Clone, Serialize, Deserialize, XcpTypeDescription)]
         struct CalPage {
-            #[comment = "Comment"]
-            #[unit = "Unit"]
-            #[min = "0"]
-            #[max = "100"]
+            #[type_description(comment = "Comment")]
+            #[type_description(unit = "Unit")]
+            #[type_description(min = "0")]
+            #[type_description(max = "100")]
             a: u32,
             b: u32,
             curve: [f64; 16],  // This will be a CURVE type (1 dimension)

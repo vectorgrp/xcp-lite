@@ -1,12 +1,11 @@
+//TODO: Remove
+#[allow(warnings)]
 use xcp::*;
 use xcp_type_description_derive::XcpTypeDescription;
 
 #[derive(Clone, Copy, XcpTypeDescription, Debug)]
 struct Parent {
-    #[comment = "uid"]
-    #[min = "0"]
-    #[max = "10.1"]
-    #[unit = "unit"]
+    #[type_description(unit = "unit", min = "-1", max = "10.1", comment = "Parent comment")]
     uid: u32,
 
     child: Child,
@@ -20,7 +19,7 @@ struct Parent {
 
 #[derive(Clone, Copy, Debug, XcpTypeDescription)]
 struct Child {
-    #[comment = "child.uid"]
+    #[type_description(comment = "child.uid")]
     uid: u32,
 }
 

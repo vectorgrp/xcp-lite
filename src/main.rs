@@ -125,21 +125,13 @@ struct TestInts {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
 struct CalPage1 {
-    #[comment = "Max value for counter"]
-    #[min = "0"]
-    #[max = "1000000"]
-    counter_max: u32, // This will be a MEASUREMENT type
+    #[type_description(comment = "Max value for counter", min = "0", max = "1000000")]
+    counter_max: u32, // This will be a VALUE type
 
-    #[comment = "Demo curve"]
-    #[unit = "ms"]
-    #[min = "0"]
-    #[max = "100"]
+    #[type_description(comment = "Demo curve", unit = "ms", min = "0", max = "100")]
     array: [f64; 16], // This will be a CURVE type (1 dimension)
 
-    #[comment = "Demo map"]
-    #[unit = "ms"]
-    #[min = "-100"]
-    #[max = "100"]
+    #[type_description(comment = "Demo map", unit = "ms", min = "-100", max = "100")]
     map: [[u8; 9]; 8], // This will be a MAP type (2 dimensions)
 
     // Other basic types supported
@@ -183,16 +175,16 @@ const CAL_PAGE1: CalPage1 = CalPage1 {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
 struct CalPage2 {
-    #[comment = "Amplitude"]
-    #[unit = "Volt"]
-    #[min = "0"]
-    #[max = "400"]
+    #[type_description(comment = "Amplitude")]
+    #[type_description(unit = "Volt")]
+    #[type_description(min = "0")]
+    #[type_description(max = "400")]
     ampl: f64,
 
-    #[comment = "Period"]
-    #[unit = "s"]
-    #[min = "0"]
-    #[max = "1000"]
+    #[type_description(comment = "Period")]
+    #[type_description(unit = "s")]
+    #[type_description(min = "0")]
+    #[type_description(max = "1000")]
     period: f64,
 }
 
