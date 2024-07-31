@@ -61,6 +61,7 @@ lazy_static = "1.4.0"
 # proc-macro A2L serializer for structs
 xcp_type_description_derive = { path = "xcp_type_description_derive/" } 
 
+xcp_idl_generator_derive  = { path = "xcp_idl_generator_derive"}
 
 [dev-dependencies]
 

@@ -1,0 +1,11 @@
+[package]
+name = "example"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+xcp = { path = "../../" }
+xcp_idl_generator_derive = { path = "../../xcp_idl_generator_derive/" }
+
+
+

@@ -58,6 +58,9 @@ pub use reg::RegistryMeasurementBuilder;
 mod type_description;
 pub use type_description::{FieldDescriptor, StructDescriptor, XcpTypeDescription};
 
+mod idl_generator;
+pub use idl_generator::IdlGenerator;
+
 // @@@@ Reexport for integration tests
 pub use xcp::xcp_test::test_reinit;
 
