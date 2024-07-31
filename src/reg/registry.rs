@@ -325,7 +325,8 @@ impl RegistryEpk {
 pub struct RegistryMeasurement {
     name: String,
     datatype: RegistryDataType, // Basic types Ubyte, SByte, AUint64, Float64Ieee, ...  or Blob
-    dim: usize, // 1 = basic type (A2L MEASUREMENT), >1 = array[dim] of basic type (A2L MEASUREMENT with MATRIX_DIM)
+    x_dim: u16, // 1 = basic type (A2L MEASUREMENT), >1 = array[dim] of basic type (A2L MEASUREMENT with MATRIX_DIM x (max u16))
+    y_dim: u16, // 1 = basic type (A2L MEASUREMENT), >1 = array[x_dim,y_dim] of basic type (A2L MEASUREMENT with MATRIX_DIM x,y (max u16))
     event: XcpEvent,
     event_offset: i16, // Address offset (signed) relative to event memory context (XCP_ADDR_EXT_DYN)
     factor: f64,
@@ -339,7 +340,8 @@ impl RegistryMeasurement {
     pub fn new(
         name: String,
         datatype: RegistryDataType,
-        dim: usize,
+        x_dim: u16,
+        y_dim: u16,
         event: XcpEvent,
         event_offset: i16,
         factor: f64,
@@ -350,7 +352,8 @@ impl RegistryMeasurement {
         RegistryMeasurement {
             name,
             datatype,
-            dim,
+            x_dim,
+            y_dim,
             event,
             event_offset,
             factor,
@@ -367,9 +370,14 @@ impl RegistryMeasurement {
     pub fn datatype(&self) -> RegistryDataType {
         self.datatype
     }
-
-    pub fn dim(&self) -> usize {
-        self.dim
+    pub fn dim(&self) -> u16 {
+        self.x_dim * self.y_dim
+    }
+    pub fn x_dim(&self) -> u16 {
+        self.x_dim
+    }
+    pub fn y_dim(&self) -> u16 {
+        self.y_dim
     }
 
     pub fn event(&self) -> XcpEvent {
@@ -679,10 +687,11 @@ impl Registry {
     ///
     pub fn add_measurement(&mut self, mut m: RegistryMeasurement) {
         debug!(
-            "add_measurement: {} type={:?}[{}] event={}+({})",
+            "add_measurement: {} type={:?}[{},{}] event={}+({})",
             m.name,
             m.datatype,
-            m.dim,
+            m.x_dim,
+            m.y_dim,
             m.event.get_num(),
             m.event_offset
         );

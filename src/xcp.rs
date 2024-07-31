@@ -131,6 +131,14 @@ impl XcpEvent {
     /// The buffer must match its registry description, to avoid corrupt data given to the XCP tool
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn trigger(self, base: *const u8, len: u32) -> u8 {
+        trace!(
+            "Trigger event {} num={}, index={}, base=0x{:X}, len={}",
+            self.get_name(),
+            self.get_num(),
+            self.get_index(),
+            base as u64,
+            len
+        );
         // @@@@ unsafe - C library call
         // @@@@ unsafe - Transfering a pointer and its valid memory range to XCPlite FFI
         unsafe {
@@ -212,6 +220,7 @@ impl EventList {
                 XCP_EVENT_MAP[e.event.num as usize] = i as u16; // New external event number is index pointer to sorted list
             }
         }
+        trace!("Event map: {:?}", unsafe { XCP_EVENT_MAP });
 
         // Register all events
         let r = Xcp::get().get_registry();

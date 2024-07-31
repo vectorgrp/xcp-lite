@@ -7,6 +7,58 @@ use log::{debug, error, info, trace, warn};
 use crate::{reg::RegistryMeasurement, xcp::*, RegistryDataType};
 
 //----------------------------------------------------------------------------------------------
+// XcpEvent
+
+impl Xcp {
+    // Create a measurement event and a measurement variable directly associated to the event with memory offset 0
+    pub fn create_measurement_object(
+        &self,
+        name: &'static str,
+        data_type: RegistryDataType,
+        x_dim: u16,
+        y_dim: u16,
+        comment: &'static str,
+    ) -> XcpEvent {
+        let event = self.create_event(name, false);
+        self.get_registry()
+            .lock()
+            .unwrap()
+            .add_measurement(RegistryMeasurement::new(
+                name.to_string(),
+                data_type,
+                x_dim,
+                y_dim,
+                event,
+                0,   // byte_offset
+                1.0, // factor
+                0.0, // offset
+                comment,
+                "", // unit
+            ));
+        event
+    }
+}
+
+/// Create a single instance XCP event and register the given variable once, trigger the event
+#[allow(unused_macros)]
+#[macro_export]
+macro_rules! daq_event_for_ref {
+
+    ( $id:expr, $data_type: expr, $x_dim: expr, $comment:expr ) => {{
+        lazy_static::lazy_static! {
+            static ref XCP_EVENT__: XcpEvent = Xcp::get().create_measurement_object(stringify!($id), $data_type, $x_dim, 1, $comment);
+        }
+        XCP_EVENT__.trigger(&(*$id) as *const _ as *const u8, 0 );
+    }};
+    ( $id:expr, $data_type: expr, $x_dim: expr, $y_dim: expr, $comment:expr ) => {{
+        lazy_static::lazy_static! {
+            static ref XCP_EVENT__: XcpEvent = Xcp::get().create_measurement_object(stringify!($id), $data_type, $x_dim, $y_dim, $comment);
+        }
+        XCP_EVENT__.trigger(&(*$id) as *const _ as *const u8, 0);
+    }};
+}
+
+//----------------------------------------------------------------------------------------------
 // DaqEvent
 
 /// DaqEvent is a wrapper for XcpEvent which adds on optional capture buffer (N may be 0)
@@ -69,7 +121,8 @@ impl<const N: usize> DaqEvent<N> {
         name: &'static str,
         size: usize,
         datatype: RegistryDataType,
-        dim: usize,
+        x_dim: u16,
+        y_dim: u16,
         factor: f64,
         offset: f64,
         unit: &'static str,
@@ -90,7 +143,8 @@ impl<const N: usize> DaqEvent<N> {
             .add_measurement(RegistryMeasurement::new(
                 name.to_string(),
                 datatype,
-                dim,
+                x_dim,
+                y_dim,
                 event,
                 event_offset,
                 factor,
@@ -108,7 +162,8 @@ impl<const N: usize> DaqEvent<N> {
         name: &'static str,
         ptr: *const u8,
         datatype: RegistryDataType,
-        dim: usize,
+        x_dim: u16,
+        y_dim: u16,
         factor: f64,
         offset: f64,
         unit: &'static str,
@@ -136,7 +191,8 @@ impl<const N: usize> DaqEvent<N> {
             .add_measurement(RegistryMeasurement::new(
                 name.to_string(),
                 datatype,
-                dim,
+                x_dim,
+                y_dim,
                 self.event,
                 event_offset,
                 factor,
@@ -159,6 +215,7 @@ impl<const N: usize> DaqEvent<N> {
 #[allow(unused_macros)]
 #[macro_export]
 macro_rules! daq_create_event {
+    // Without capture buffer
     ( $name:expr, $capacity: literal ) => {{
         // Scope for lazy static XCP_EVENT__, create the XCP event only once
         lazy_static::lazy_static! {
@@ -167,6 +224,7 @@ macro_rules! daq_create_event {
         // Create the DAQ event every time the thread is running through this code
         DaqEvent::<$capacity>::new_from(&XCP_EVENT__)
     }};
+    // With capture buffer capacity
     ( $name:expr ) => {{
         lazy_static::lazy_static! {
             static ref XCP_EVENT__: XcpEvent = Xcp::get().create_event($name, false);
@@ -196,7 +254,8 @@ macro_rules! daq_capture {
                     stringify!($id),
                     std::mem::size_of_val(&$id),
                     $id.get_type(),
-                    1, // dim
+                    1, // x_dim
+                    1, // y_dim
                     $factor,
                     $offset,
                     $unit,
@@ -226,7 +285,8 @@ macro_rules! daq_capture {
                     stringify!($id),
                     std::mem::size_of_val(&$id),
                     $id.get_type(),
-                    1, // dim
+                    1, // x_dim
+                    1, // y_dim
                     1.0,
                     0.0,
                     $unit,
@@ -255,7 +315,8 @@ macro_rules! daq_capture {
                     stringify!($id),
                     std::mem::size_of_val(&$id),
                     $id.get_type(),
-                    1, // dim
+                    1, // x_dim
+                    1, // y_dim
                     1.0,
                     0.0,
                     "",
@@ -291,7 +352,8 @@ macro_rules! daq_serialize {
                     stringify!($id),
                     std::mem::size_of_val(&$id),
                     RegistryDataType::Blob,
-                    $daq_event.buffer.len(),  // dim
+                    $daq_event.buffer.len() as u16,  // x_dim
+                    1, // y_dim
                     1.0,
                     0.0,
                     "",
@@ -333,6 +395,7 @@ macro_rules! daq_register {
                 &$id as *const _ as *const u8,
                 $id.get_type(),
                 1,
+                1,
                 $factor,
                 $offset,
                 $unit,
@@ -358,6 +421,7 @@ macro_rules! daq_register {
                 &$id as *const _ as *const u8,
                 $id.get_type(),
                 1,
+                1,
                 1.0,
                 0.0,
                 $unit,
@@ -382,6 +446,7 @@ macro_rules! daq_register {
                 stringify!($id),
                 &$id as *const _ as *const u8,
                 $id.get_type(),
+                1,
                 1,
                 1.0,
                 0.0,
@@ -411,12 +476,13 @@ macro_rules! daq_register_array {
             )
             .is_ok()
         {
-            let dim = std::mem::size_of_val(&$id) / std::mem::size_of_val(&$id[0]);
+            let dim = (std::mem::size_of_val(&$id) / std::mem::size_of_val(&$id[0])) as u16;
             $daq_event.add_stack(
                 stringify!($id),
                 &$id as *const _ as *const u8,
                 ($id[0]).get_type(),
                 dim,
+                1,
                 1.0,
                 0.0,
                 "",
@@ -475,7 +541,8 @@ macro_rules! daq_capture_instance {
                 stringify!($id),
                 std::mem::size_of_val(&$id),
                 $id.get_type(),
-                1,
+                1, // x_dim
+                1, // y_dim
                 $factor,
                 $offset,
                 $unit,
@@ -497,7 +564,8 @@ macro_rules! daq_capture_instance {
                 stringify!($id),
                 std::mem::size_of_val(&$id),
                 $id.get_type(),
-                1,
+                1, // x_dim
+                1, // y_dim
                 1.0,
                 0.0,
                 $unit,
@@ -519,7 +587,8 @@ macro_rules! daq_capture_instance {
                 stringify!($id),
                 std::mem::size_of_val(&$id),
                 $id.get_type(),
-                1,
+                1, // x_dim
+                1, // y_dim
                 1.0,
                 0.0,
                 "",
@@ -548,6 +617,7 @@ macro_rules! daq_register_instance {
                 stringify!($id),
                 &$id as *const _ as *const u8,
                 $id.get_type(),
+                1,
                 1,
                 1.0,
                 0.0,

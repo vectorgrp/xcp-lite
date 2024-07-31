@@ -14,8 +14,9 @@ use serde::{Deserialize, Serialize};
 use xcp::*;
 use xcp_type_description_derive::XcpTypeDescription;
 
-const X_RES: usize = 3000;
-const Y_RES: usize = 2000;
+// Arrays measured may not exxed 2^15
+const X_RES: usize = 256;
+const Y_RES: usize = 128;
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, XcpTypeDescription)]
 struct Mandelbrot {
@@ -40,18 +41,8 @@ const MANDELBROT: Mandelbrot = Mandelbrot {
 //---------------------------------------------------------------------------------------
 // Image rendering
 
-/// Write the buffer `pixels`, whose dimensions are given by `bounds`, to the file named `filename`.
+/// Write the buffer `pixels` to the file named `filename`.
 fn write_image(filename: &str, pixels: &[u8]) -> Result<(), std::io::Error> {
-    // Black and white
-    // let output = File::create(filename)?;
-    // let encoder = PNGEncoder::new(output);
-    // encoder.encode(
-    //     &pixels,
-    //     X_RES as u32,
-    //     Y_RES as u32,
-    //     ColorType::Gray(8),
-    // )?;
-
     // Rainbox color map (credits to CoPilot)
     let mut color_map = Vec::with_capacity(256);
     for i in 0..256 {
@@ -69,7 +60,7 @@ fn write_image(filename: &str, pixels: &[u8]) -> Result<(), std::io::Error> {
         color_map.push(rgb);
     }
 
-    // Color
+    // Create rgb image buffer and write to file
     let mut imgbuf = ImageBuffer::new(X_RES as u32, Y_RES as u32);
     for (x, y, rgb_pixel) in imgbuf.enumerate_pixels_mut() {
         *rgb_pixel = color_map[pixels[y as usize * X_RES as usize + x as usize] as usize];
@@ -159,15 +150,15 @@ fn main() {
     println!("xcp_lite rayon mandelbrot demo");
 
     env_logger::Builder::new()
-        .filter_level(log::LevelFilter::Info)
+        .filter_level(log::LevelFilter::Debug)
         .init();
 
-    const BIND_ADDR: [u8; 4] = [127, 0, 0, 1]; // [192, 168, 0, 83]; // [127, 0, 0, 1];
+    const BIND_ADDR: [u8; 4] = [192, 168, 0, 83]; // [172, 19, 11, 24]; // [192, 168, 0, 83]; // [127, 0, 0, 1];
     XcpBuilder::new("mandelbrot")
-        .set_log_level(XcpLogLevel::Info)
+        .set_log_level(XcpLogLevel::Debug)
         .enable_a2l(true)
         .set_epk("EPK")
-        .start_server(XcpTransportLayer::Udp, BIND_ADDR, 5555, 1464)
+        .start_server(XcpTransportLayer::Udp, BIND_ADDR, 5555, 8000 - 20 - 8)
         .unwrap();
 
     let mandelbrot = Xcp::create_calseg("mandelbrot", &MANDELBROT, true);
@@ -179,12 +170,14 @@ fn main() {
     // Create event for this worker thread and register variable index, which is the upper left corner of the rectangle
     let event = daq_create_event!("mainloop");
     let mut elapsed_time: f64 = 0.0;
-    let mut wait_counter: u32 = 0;
+    let mut frame_counter: u32 = 0;
     daq_register!(elapsed_time, event, "duration of image calculation", "s");
-    daq_register!(wait_counter, event, "loop counter", "");
+    daq_register!(frame_counter, event, "frame counter", "");
 
+    // Recalculate image in a loop with 10 ms pause
+    let mut first = true;
     loop {
-        thread::sleep(Duration::from_micros(1000));
+        thread::sleep(Duration::from_micros(1000000)); // 1ms
         let start_time = std::time::Instant::now();
 
         let lower_right = Complex {
@@ -204,27 +197,34 @@ fn main() {
             render(band, y, X_RES, band_upper_left, band_lower_right);
         });
 
-        // Measure run time
+        // Measure run time and frame count
         elapsed_time = start_time.elapsed().as_secs_f64();
+        frame_counter += 1;
         event.trigger();
-        println!("Image rendered, duration = {:.3} s", elapsed_time);
 
         // Measure the pixel array from heap, with an individual event
-        //daq_event!(pixels, "pixels");
+        daq_event_for_ref!(
+            pixels,
+            RegistryDataType::Ubyte,
+            X_RES as u16,
+            Y_RES as u16,
+            "pixel array"
+        );
+        // println!(
+        //     "Pixel array measured, frame {} {:.4}s",
+        //     frame_counter, elapsed_time
+        // );
 
-        // Render image to png
-        write_image("mandelbrot.png", &pixels).expect("error writing PNG file");
-        println!("Image written to mandelbrot.png");
-
-        // Write A2L file
-        Xcp::get().write_a2l();
-
-        // Wait until parameter change and recalculate image
-        while !mandelbrot.sync() {
-            thread::sleep(Duration::from_millis(100));
-            wait_counter += 1;
-            event.trigger();
+        // On first iteration or after parameter changes: render image and write to file
+        if first || mandelbrot.sync() {
+            write_image("mandelbrot.png", &pixels).expect("error writing PNG file");
+            println!(
+                "Image written to mandelbrot.png, frame {} {:.4}s",
+                frame_counter, elapsed_time
+            );
         }
+
+        first = false;
     }
 
     //Xcp::get().write_a2l();
