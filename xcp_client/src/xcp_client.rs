@@ -651,7 +651,9 @@ impl XcpClient {
                         }
                     }
                     None => {
-                        panic!("xcp_command: bug in receive_task, no data in channel")
+                        // @@@@ Empty response, channel has been closed, return with XcpError Timeout
+                        error!("xcp_command: receive_task channel closed");
+                        Err(Box::new(XcpError::new(ERROR_CMD_TIMEOUT)) as Box<dyn Error>)
                     }
                 }
             }

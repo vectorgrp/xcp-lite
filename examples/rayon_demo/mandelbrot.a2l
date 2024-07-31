@@ -66,7 +66,7 @@
         /end MEMORY_SEGMENT
      
         /begin MEMORY_SEGMENT
-            mandelbrot "" DATA FLASH INTERN 0x80010000 32 -1 -1 -1 -1 -1
+            mandelbrot "" DATA FLASH INTERN 0x80010000 24 -1 -1 -1 -1 -1
             /begin IF_DATA XCP
                 /begin SEGMENT /* index: */ 1 /* pages: */ 2 /* ext: */ 0 0 0
                 /begin CHECKSUM XCP_ADD_44 MAX_BLOCK_SIZE 0xFFFF EXTERNAL_FUNCTION "" /end CHECKSUM
@@ -130,21 +130,17 @@
 
             /end DAQ
 
-/begin XCP_ON_UDP_IP 0x104 5555 ADDRESS "192.168.0.83" /end XCP_ON_UDP_IP
+/begin XCP_ON_UDP_IP 0x104 5555 ADDRESS "127.0.0.1" /end XCP_ON_UDP_IP
 
         /end IF_DATA
 
 /begin CHARACTERISTIC Mandelbrot.width "" VALUE 0x80010010 F64 0 NO_COMPU_METHOD -1000000000000 1000000000000 /end CHARACTERISTIC
 /begin CHARACTERISTIC Mandelbrot.x "" VALUE 0x80010000 F64 0 NO_COMPU_METHOD -1000000000000 1000000000000 /end CHARACTERISTIC
-/begin CHARACTERISTIC Mandelbrot.x_pixels "" VALUE 0x80010018 U32 0 NO_COMPU_METHOD 0 4294967295 /end CHARACTERISTIC
 /begin CHARACTERISTIC Mandelbrot.y "" VALUE 0x80010008 F64 0 NO_COMPU_METHOD -1000000000000 1000000000000 /end CHARACTERISTIC
-/begin CHARACTERISTIC Mandelbrot.y_pixels "" VALUE 0x8001001C U32 0 NO_COMPU_METHOD 0 4294967295 /end CHARACTERISTIC
 /begin GROUP mandelbrot "" /begin REF_CHARACTERISTIC
 Mandelbrot.width
 Mandelbrot.x
-Mandelbrot.x_pixels
 Mandelbrot.y
-Mandelbrot.y_pixels
 /end REF_CHARACTERISTIC /end GROUP
 
 /begin COMPU_METHOD elapsed_time.Conv "" LINEAR "%6.3" "s" COEFFS_LINEAR 1 0 /end COMPU_METHOD
