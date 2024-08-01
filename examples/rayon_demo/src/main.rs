@@ -15,8 +15,8 @@ use xcp::*;
 use xcp_type_description_derive::XcpTypeDescription;
 
 // Arrays measured may not exxed 2^15
-const X_RES: usize = 256;
-const Y_RES: usize = 128;
+const X_RES: usize = 1024 * 2;
+const Y_RES: usize = 768 * 2;
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, XcpTypeDescription)]
 struct Mandelbrot {
@@ -25,23 +25,23 @@ struct Mandelbrot {
     width: f64,
 }
 
+// Complete set
 // const MANDELBROT: Mandelbrot = Mandelbrot {
-//     x: -1.06,
-//     y: 0.271,
-//     width: 0.023,
+//     x: -0.5,
+//     y: 0.0,
+//     width: 3.0,
 // };
 
-// Complete set
 const MANDELBROT: Mandelbrot = Mandelbrot {
-    x: -0.5,
+    x: -1.4,
     y: 0.0,
-    width: 3.0,
+    width: 0.015,
 };
 
 //---------------------------------------------------------------------------------------
 // Image rendering
 
-/// Write the buffer `pixels` to the file named `filename`.
+// Write the buffer `pixels` to the file named `filename`.
 fn write_image(filename: &str, pixels: &[u8]) -> Result<(), std::io::Error> {
     // Rainbox color map (credits to CoPilot)
     let mut color_map = Vec::with_capacity(256);
@@ -163,70 +163,69 @@ fn main() {
 
     let mandelbrot = Xcp::create_calseg("mandelbrot", &MANDELBROT, true);
 
-    // The pixel array on stack would overflow the addr offset
-    // let mut pixels: [u8; X_RES * Y_RES] = [0; X_RES * Y_RES];
+    // The pixel array on heap
     let mut pixels = vec![0; X_RES * Y_RES];
 
     // Create event for this worker thread and register variable index, which is the upper left corner of the rectangle
-    let event = daq_create_event!("mainloop");
+    let event_mainloop = daq_create_event!("mainloop");
+    let event_update = daq_create_event!("update");
     let mut elapsed_time: f64 = 0.0;
-    let mut frame_counter: u32 = 0;
-    daq_register!(elapsed_time, event, "duration of image calculation", "s");
-    daq_register!(frame_counter, event, "frame counter", "");
+    let mut mainloop_counter: u32 = 0;
+    let mut update_counter: u32 = 0;
+    daq_register!(elapsed_time, event_update, "calculation duration", "s");
+    daq_register!(mainloop_counter, event_mainloop, "mainloop counter", "");
+    daq_register!(update_counter, event_update, "update counter", "");
 
     // Recalculate image in a loop with 10 ms pause
     let mut first = true;
     loop {
-        thread::sleep(Duration::from_micros(1000000)); // 1ms
-        let start_time = std::time::Instant::now();
-
-        let lower_right = Complex {
-            re: mandelbrot.x + mandelbrot.width / 2.0,
-            im: mandelbrot.y - mandelbrot.width / 2.0 * Y_RES as f64 / X_RES as f64,
-        };
-        let upper_left = Complex {
-            re: mandelbrot.x - mandelbrot.width / 2.0,
-            im: mandelbrot.y + mandelbrot.width / 2.0 * Y_RES as f64 / X_RES as f64,
-        };
-
-        // Calculate image lines in parallel
-        let lines: Vec<(usize, &mut [u8])> = pixels.chunks_mut(X_RES).enumerate().collect();
-        lines.into_par_iter().for_each(|(y, band)| {
-            let band_upper_left = pixel_to_point((0, y), upper_left, lower_right);
-            let band_lower_right = pixel_to_point((X_RES, y + 1), upper_left, lower_right);
-            render(band, y, X_RES, band_upper_left, band_lower_right);
-        });
-
-        // Measure run time and frame count
-        elapsed_time = start_time.elapsed().as_secs_f64();
-        frame_counter += 1;
-        event.trigger();
-
-        // Measure the pixel array from heap, with an individual event
-        daq_event_for_ref!(
-            pixels,
-            RegistryDataType::Ubyte,
-            X_RES as u16,
-            Y_RES as u16,
-            "pixel array"
-        );
-        // println!(
-        //     "Pixel array measured, frame {} {:.4}s",
-        //     frame_counter, elapsed_time
-        // );
+        thread::sleep(Duration::from_micros(1000)); // 1ms
+        mainloop_counter += 1;
+        event_mainloop.trigger();
 
         // On first iteration or after parameter changes: render image and write to file
         if first || mandelbrot.sync() {
+            {
+                let start_time = std::time::Instant::now();
+
+                // Calculate image lines in parallel
+                let lower_right = Complex {
+                    re: mandelbrot.x + mandelbrot.width / 2.0,
+                    im: mandelbrot.y - mandelbrot.width / 2.0 * Y_RES as f64 / X_RES as f64,
+                };
+                let upper_left = Complex {
+                    re: mandelbrot.x - mandelbrot.width / 2.0,
+                    im: mandelbrot.y + mandelbrot.width / 2.0 * Y_RES as f64 / X_RES as f64,
+                };
+                let lines: Vec<(usize, &mut [u8])> = pixels.chunks_mut(X_RES).enumerate().collect();
+                lines.into_par_iter().for_each(|(y, band)| {
+                    let band_upper_left = pixel_to_point((0, y), upper_left, lower_right);
+                    let band_lower_right = pixel_to_point((X_RES, y + 1), upper_left, lower_right);
+                    render(band, y, X_RES, band_upper_left, band_lower_right);
+                });
+
+                elapsed_time = start_time.elapsed().as_secs_f64();
+
+                // Measure the pixel array from heap, with an individual event
+                // daq_event_for_ref!(
+                //     pixels,
+                //     RegistryDataType::Ubyte,
+                //     X_RES as u16,
+                //     Y_RES as u16,
+                //     "pixel array"
+                // );
+            }
+
+            // Write image to file
             write_image("mandelbrot.png", &pixels).expect("error writing PNG file");
             println!(
                 "Image written to mandelbrot.png, frame {} {:.4}s",
-                frame_counter, elapsed_time
+                mainloop_counter, elapsed_time
             );
+            update_counter += 1;
+            event_update.trigger();
         }
 
         first = false;
     }
-
-    //Xcp::get().write_a2l();
-    //Xcp::stop_server();
 }

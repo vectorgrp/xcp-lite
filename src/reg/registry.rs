@@ -349,6 +349,7 @@ impl RegistryMeasurement {
         comment: &'static str,
         unit: &'static str,
     ) -> Self {
+        assert!((x_dim as usize * y_dim as usize) * datatype.get_size() <= u16::MAX as usize / 2);
         RegistryMeasurement {
             name,
             datatype,
@@ -805,6 +806,7 @@ mod registry_tests {
         r.add_measurement(RegistryMeasurement::new(
             "signal1".to_string(),
             RegistryDataType::Float64Ieee,
+            1,
             1,
             event,
             0,
