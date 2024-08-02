@@ -3,6 +3,7 @@
 // Uses the test XCP client in test_executor
 
 use xcp::*;
+use xcp_type_description::prelude::*;
 
 mod test_executor;
 use test_executor::test_executor;

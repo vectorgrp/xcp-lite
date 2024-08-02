@@ -54,12 +54,9 @@ pub use reg::RegistryCharacteristicBuilder;
 pub use reg::RegistryDataType;
 pub use reg::RegistryMeasurementBuilder;
 
-// Submodule type_description
-mod type_description;
-pub use type_description::{FieldDescriptor, StructDescriptor, XcpTypeDescription};
-
 //TODO Cleanup imports
 pub use::xcp_idl_generator::*;
+use xcp_type_description::XcpTypeDescription;
 
 // @@@@ Reexport for integration tests
 pub use xcp::xcp_test::test_reinit;

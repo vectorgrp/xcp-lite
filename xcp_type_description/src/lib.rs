@@ -1,4 +1,4 @@
-// pub mod prelude;
+pub mod prelude;
 
 pub trait XcpTypeDescription {
     fn type_description(&self) -> Option<Vec<FieldDescriptor>> {

@@ -36,12 +36,17 @@ use log::{debug, error, info, trace, warn};
 // Command line arguments
 
 use clap::Parser;
+use translator::translate_idl_struct;
 use std::net::Ipv4Addr;
 
 //TODO: Cleanup imports for this with prelude
 use xcp_idl_generator_derive::*;
 use xcp_idl_generator::*;
-use xcp_idl_generator::IDL::CDR;
+use xcp_idl_generator::translator::IDL;
+use xcp_idl_generator::translator::IDL::CDR;
+use xcp_idl_generator::types::{Struct, FieldList, Field};
+
+use xcp_type_description::prelude::*;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]

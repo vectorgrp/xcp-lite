@@ -28,7 +28,7 @@ use crate::xcp::*;
 //-----------------------------------------------------------------------------
 // CalPage
 
-use crate::type_description::XcpTypeDescription;
+use xcp_type_description::XcpTypeDescription;
 
 pub trait CalPageTrait
 where

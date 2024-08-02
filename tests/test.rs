@@ -194,7 +194,7 @@ pub fn test_setup(level: XcpLogLevel) {
 //-----------------------------------------------------------------------------
 // Test calibration page
 
-use xcp_type_description_derive::XcpTypeDescription;
+use xcp_type_description::prelude::*;
 
 // Calibration page struct
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]

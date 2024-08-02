@@ -353,11 +353,10 @@ mod cal_tests {
 
     use super::*;
     use crate::reg::RegistryCharacteristic;
-    use crate::type_description;
+    use xcp_type_description::prelude::*;
     use crate::xcp;
     use crate::xcplib;
 
-    use type_description::{FieldDescriptor, StructDescriptor, XcpTypeDescription};
     use xcp::*;
     use xcp_type_description_derive::XcpTypeDescription;
 

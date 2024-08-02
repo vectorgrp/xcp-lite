@@ -59,7 +59,8 @@ cdr = "0.2.4"
 lazy_static = "1.4.0"
 
 # proc-macro A2L serializer for structs
-xcp_type_description_derive = { path = "xcp_type_description_derive/" }
+xcp_type_description  = { path = "./xcp_type_description/"}
+xcp_type_description_derive = { path = "./xcp_type_description/xcp_type_description_derive/" }
 
 xcp_idl_generator  = { path = "./xcp_idl_generator/"}
 xcp_idl_generator_derive  = { path = "./xcp_idl_generator/xcp_idl_generator_derive/"}

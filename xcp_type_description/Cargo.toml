@@ -1,0 +1,11 @@
+[package]
+name = "xcp_type_description"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+lazy_static = "1.4"
+xcp_type_description_derive = { path = "./xcp_type_description_derive/" }
+
+[lib]
+path = "src/lib.rs"
