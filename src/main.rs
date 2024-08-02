@@ -39,9 +39,9 @@ use clap::Parser;
 use std::net::Ipv4Addr;
 
 //TODO: Cleanup imports for this with prelude
-use xcp_idl_generator_derive::IdlGenerator;
-mod idl_generator;
-use idl_generator::IDL;
+use xcp_idl_generator_derive::*;
+use xcp_idl_generator::*;
+use xcp_idl_generator::IDL::CDR;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -292,7 +292,7 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
         }
         let mut point_cloud = Vec::with_capacity(4);
         //TODO: Refactor API
-        let annotation = translate_idl_struct(xcp::idl_generator::IDL::CDR, &Point::description());
+        let annotation = translate_idl_struct(CDR, &Point::description());
         // let annotation = translate_idl_struct(po)
         point_cloud.push(Point { x: 0, y: 0, z: 0 });
         point_cloud.push(Point { x: 1, y: 0, z: 0 });

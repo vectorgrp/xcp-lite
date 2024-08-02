@@ -148,12 +148,13 @@ impl GenerateA2l for RegistryMeasurement {
         let min = self.datatype.get_min();
         let event = self.event.get_num();
 
+        //TODO: Maybe rework strings and add VALID and BUFFER constants
         // Dynamic object as CHARACTERISTIC ASCII string with IDL annotation
         if self.datatype == RegistryDataType::Blob {
             let buffer_size = self.dim;
 
             let annotation = self.annotation.as_ref().unwrap();
-            dbg!(annotation);
+
             let annotation = format!(
                 r#"
                 {annotation}
@@ -161,29 +162,6 @@ impl GenerateA2l for RegistryMeasurement {
                 /begin ANNOTATION ANNOTATION_LABEL "MaxBufferNeeded" ANNOTATION_ORIGIN "" /begin ANNOTATION_TEXT "{buffer_size}" /end ANNOTATION_TEXT /end ANNOTATION
             "#
             );
-
-            // dbg!(annotation);
-
-            // let annotation = format!(
-            //     r#"
-            //     /begin ANNOTATION ANNOTATION_LABEL "ObjectDescription" ANNOTATION_ORIGIN "application/dds" /begin ANNOTATION_TEXT
-            //             "<DynamicObject> "
-            //             "<RootType>Vector::PointCloud</RootType>"
-            //             "</DynamicObject>"
-            //             "module Vector {{"
-            //             "  struct Point {{"
-            //             "    uint32 x;"
-            //             "    uint32 y;"
-            //             "    uint32 z;"
-            //             "  }};"
-            //             "  struct PointCloud {{"
-            //             "    sequence<Point> Points;"
-            //             "}}; }};"
-            //     /end ANNOTATION_TEXT /end ANNOTATION
-            //     /begin ANNOTATION ANNOTATION_LABEL "IsVlsd" ANNOTATION_ORIGIN "" /begin ANNOTATION_TEXT  "true" /end ANNOTATION_TEXT /end ANNOTATION
-            //     /begin ANNOTATION ANNOTATION_LABEL "MaxBufferNeeded" ANNOTATION_ORIGIN "" /begin ANNOTATION_TEXT "{buffer_size}" /end ANNOTATION_TEXT /end ANNOTATION
-            //     "#
-            // );
 
             trace!("write measurement dynamic object description: {annotation}");
             // As BLOB (new in CANape 22 SP3)

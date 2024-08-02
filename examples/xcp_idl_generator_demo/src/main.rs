@@ -1,9 +1,10 @@
 //TODO: Remove
 #![allow(warnings)]
 
+//TODO Cleanup imports
 use xcp_idl_generator_derive::*;
-use xcp::{IdlGenerator, Field, FieldList, Struct, translate_idl_struct};
-use xcp::idl_generator::IDL::CDR;
+use xcp::{IdlGenerator, Field, FieldList, Struct, translate_idl_struct}; //TODO: Refactor translate_idl_struct
+use xcp_idl_generator::IDL::CDR;
 use std::{fs::File,io::Write};
 
 #[derive(IdlGenerator)]

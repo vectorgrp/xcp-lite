@@ -1,0 +1,11 @@
+[package]
+name = "xcp_idl_generator"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+lazy_static = "1.4"
+xcp_idl_generator_derive = { path = "./xcp_idl_generator_derive/" }
+
+[lib]
+path = "src/lib.rs"
