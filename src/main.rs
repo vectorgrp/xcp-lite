@@ -36,16 +36,9 @@ use log::{debug, error, info, trace, warn};
 // Command line arguments
 
 use clap::Parser;
-use translator::translate_idl_struct;
 use std::net::Ipv4Addr;
 
-//TODO: Cleanup imports for this with prelude
-use xcp_idl_generator_derive::*;
-use xcp_idl_generator::*;
-use xcp_idl_generator::translator::IDL;
-use xcp_idl_generator::translator::IDL::CDR;
-use xcp_idl_generator::types::{Struct, FieldList, Field};
-
+use xcp_idl_generator::prelude::*;
 use xcp_type_description::prelude::*;
 
 #[derive(Parser, Debug)]
@@ -304,7 +297,12 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
         point_cloud.push(Point { x: 1, y: 1, z: 0 });
         point_cloud.push(Point { x: 1, y: 1, z: 1 });
         // This one could be Noned
-        daq_serialize!(point_cloud, event_point_cloud, "struct serializer demo", Some(annotation));
+        daq_serialize!(
+            point_cloud,
+            event_point_cloud,
+            "struct serializer demo",
+            Some(annotation)
+        );
 
         // Trigger single instance event "task1" for data acquisition
         // Capture variables from stack happens here

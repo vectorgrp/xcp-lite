@@ -234,7 +234,7 @@ pub fn a2l_find_measurement(a2l_file: &A2lFile, name: &str) -> Option<(A2lAddr, 
 pub fn a2l_printf_info(a2l_file: &A2lFile) {
     // MOD_PAR
     info!("MOD_PAR:");
-    for mod_par in &a2l_file.project.module[0].mod_par {
+    if let Some(mod_par) = &a2l_file.project.module[0].mod_par {
         if let Some(epk) = &mod_par.epk {
             info!(" epk={}", epk.identifier);
         }

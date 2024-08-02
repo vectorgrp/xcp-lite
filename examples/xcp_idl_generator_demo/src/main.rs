@@ -1,16 +1,9 @@
 //TODO: Remove
 #![allow(warnings)]
 
-//TODO Cleanup imports
-use xcp_idl_generator_derive::*;
-// use xcp::{IdlGenerator, Field, FieldList, Struct, translate_idl_struct}; //TODO: Refactor translate_idl_struct
-use xcp_idl_generator::*;
-// use xcp_idl_generator::IDL::CDR;
-use crate::translator::translate_idl_struct;
-use crate::translator::IDL::CDR;
-use std::{fs::File, io::Write};
-use xcp_idl_generator::types::{Struct, FieldList, Field};
-
+use xcp_idl_generator::prelude::*;
+use std::fs::File;
+use std::io::Write;
 
 #[derive(IdlGenerator)]
 struct Measurement {
