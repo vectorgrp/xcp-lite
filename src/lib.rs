@@ -59,7 +59,7 @@ mod type_description;
 pub use type_description::{FieldDescriptor, StructDescriptor, XcpTypeDescription};
 
 mod idl_generator;
-pub use idl_generator::IdlGenerator;
+pub use idl_generator::{IdlGenerator, IdlStructField, IdlStructFieldVec, IdlStruct, translate_idl_struct};
 
 // @@@@ Reexport for integration tests
 pub use xcp::xcp_test::test_reinit;

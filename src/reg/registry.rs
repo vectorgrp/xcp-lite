@@ -330,6 +330,7 @@ pub struct RegistryMeasurement {
     offset: f64,
     comment: &'static str,
     unit: &'static str,
+    annotation: Option<String>,
 }
 
 impl RegistryMeasurement {
@@ -344,6 +345,7 @@ impl RegistryMeasurement {
         offset: f64,
         comment: &'static str,
         unit: &'static str,
+        annotation: Option<String>,
     ) -> Self {
         RegistryMeasurement {
             name,
@@ -355,6 +357,7 @@ impl RegistryMeasurement {
             offset,
             comment,
             unit,
+            annotation
         }
     }
 
@@ -801,6 +804,7 @@ mod registry_tests {
             0.0,
             "unit",
             "comment",
+            Some("annotation".to_string())
         ));
 
         std::fs::remove_file("test.a2h").ok();

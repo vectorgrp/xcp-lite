@@ -74,6 +74,7 @@ impl<const N: usize> DaqEvent<N> {
         offset: f64,
         unit: &'static str,
         comment: &'static str,
+        annotation: Option<String>
     ) -> i16 {
         let event_offset: i16 = self.allocate(size); // Address offset (signed) relative to event memory context (XCP_ADDR_EXT_DYN)
         trace!(
@@ -97,6 +98,7 @@ impl<const N: usize> DaqEvent<N> {
                 offset,
                 comment,
                 unit,
+                annotation
             ));
         event_offset
     }
@@ -113,6 +115,7 @@ impl<const N: usize> DaqEvent<N> {
         offset: f64,
         unit: &'static str,
         comment: &'static str,
+        annotation: Option<String>
     ) {
         let p = ptr as usize; // variable address
         let b = &self.buffer as *const _ as usize; // base address
@@ -143,6 +146,7 @@ impl<const N: usize> DaqEvent<N> {
                 offset,
                 comment,
                 unit,
+                annotation
             ));
     }
 }
@@ -201,6 +205,7 @@ macro_rules! daq_capture {
                     $offset,
                     $unit,
                     $comment,
+                    None
                 );
                 DAQ_OFFSET__.store(byte_offset, std::sync::atomic::Ordering::Relaxed);
             }
@@ -231,6 +236,7 @@ macro_rules! daq_capture {
                     0.0,
                     $unit,
                     $comment,
+                    None
                 );
                 DAQ_OFFSET__.store(byte_offset, std::sync::atomic::Ordering::Relaxed);
             }
@@ -260,6 +266,7 @@ macro_rules! daq_capture {
                     0.0,
                     "",
                     "",
+                    None
                 );
                 DAQ_OFFSET__.store(byte_offset, std::sync::atomic::Ordering::Relaxed);
             }
@@ -275,7 +282,7 @@ macro_rules! daq_capture {
 #[macro_export]
 macro_rules! daq_serialize {
     // name, event, comment
-    ( $id:ident, $daq_event:expr, $comment:expr ) => {{
+    ( $id:ident, $daq_event:expr, $comment:expr, $annotation:expr ) => {{
         static DAQ_OFFSET__: std::sync::atomic::AtomicI16 =
             std::sync::atomic::AtomicI16::new(-32768);
         let byte_offset;
@@ -296,6 +303,7 @@ macro_rules! daq_serialize {
                     0.0,
                     "",
                     $comment,
+                    $annotation
                 );
                 DAQ_OFFSET__.store(byte_offset, std::sync::atomic::Ordering::Relaxed);
             }
@@ -337,6 +345,7 @@ macro_rules! daq_register {
                 $offset,
                 $unit,
                 $comment,
+                None
             );
         };
     }};
@@ -362,6 +371,7 @@ macro_rules! daq_register {
                 0.0,
                 $unit,
                 $comment,
+                None
             );
         };
     }};
@@ -387,6 +397,7 @@ macro_rules! daq_register {
                 0.0,
                 "",
                 "",
+                None
             );
         };
     }};
@@ -421,6 +432,7 @@ macro_rules! daq_register_array {
                 0.0,
                 "",
                 "",
+                None
             );
         };
     }};
@@ -480,6 +492,7 @@ macro_rules! daq_capture_instance {
                 $offset,
                 $unit,
                 $comment,
+                None
             );
             DAQ_OFFSET__.set(offset)
         };
@@ -502,6 +515,7 @@ macro_rules! daq_capture_instance {
                 0.0,
                 $unit,
                 $comment,
+                None
             );
             DAQ_OFFSET__.set(offset)
         };
@@ -524,6 +538,7 @@ macro_rules! daq_capture_instance {
                 0.0,
                 "",
                 "",
+                None
             );
             DAQ_OFFSET__.set(offset)
         };
@@ -553,6 +568,7 @@ macro_rules! daq_register_instance {
                 0.0,
                 "",
                 "",
+                None
             );
         };
     }};
