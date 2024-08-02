@@ -18,8 +18,7 @@ fn write_string_to_file(filename: &str, content: &str) {
 fn main() {
     let my_measurement = Measurement { id: 1 };
     let description = Measurement::description();
-    // let cdr_str = Measurement::format(IdlType::CDR);
-    let idl_str = translate_idl_struct(CDR, &description);
+    let idl_str = translate_idl_struct(IDL::CDR, &description);
     println!("{}", idl_str);
     write_string_to_file("./gen.txt", &idl_str);
 }

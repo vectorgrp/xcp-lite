@@ -1,6 +1,6 @@
-
-use lazy_static::lazy_static;
+use crate::domain::*;
 use crate::types::*;
+use lazy_static::lazy_static;
 use std::{collections::HashMap, sync::Arc};
 
 lazy_static! {
@@ -9,7 +9,6 @@ lazy_static! {
 
 //TODO; Figure out how to move to types
 pub type TranslatorBox = Arc<dyn Translator + Send + Sync>;
-use crate::domain::*;
 
 pub trait Translator: Send {
     fn translate(&self, input: &Struct) -> String;
@@ -114,11 +113,6 @@ impl CdrTypeTranslation {
     pub fn get(&self, key: &str) -> Option<&&'static str> {
         self.map.get(key)
     }
-}
-
-#[derive(Eq, Hash, PartialEq)]
-pub enum IDL {
-    CDR,
 }
 
 pub fn translate_idl_struct(idl_type: IDL, input: &Struct) -> String {

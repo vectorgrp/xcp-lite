@@ -1,21 +1,4 @@
 #[derive(Debug)]
-pub struct Field(String, String);
-
-impl Field {
-    pub fn new(name: String, field_type: String) -> Self {
-        Field(name, field_type)
-    }
-
-    pub fn name(&self) -> &str {
-        &self.0
-    }
-
-    pub fn datatype(&self) -> &str {
-        &self.1
-    }
-}
-
-#[derive(Debug)]
 pub struct Struct(String, FieldList);
 
 impl Struct {
@@ -51,4 +34,26 @@ impl FieldList {
     pub fn iter(&self) -> impl Iterator<Item = &Field> {
         self.0.iter()
     }
+}
+
+#[derive(Debug)]
+pub struct Field(String, String);
+
+impl Field {
+    pub fn new(name: String, field_type: String) -> Self {
+        Field(name, field_type)
+    }
+
+    pub fn name(&self) -> &str {
+        &self.0
+    }
+
+    pub fn datatype(&self) -> &str {
+        &self.1
+    }
+}
+
+#[derive(Eq, Hash, PartialEq)]
+pub enum IDL {
+    CDR,
 }

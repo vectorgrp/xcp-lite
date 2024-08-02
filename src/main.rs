@@ -290,7 +290,7 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
         }
         let mut point_cloud = Vec::with_capacity(4);
         //TODO: Refactor API
-        let annotation = translate_idl_struct(CDR, &Point::description());
+        let annotation = translate_idl_struct(IDL::CDR, &Point::description());
         // let annotation = translate_idl_struct(po)
         point_cloud.push(Point { x: 0, y: 0, z: 0 });
         point_cloud.push(Point { x: 1, y: 0, z: 0 });

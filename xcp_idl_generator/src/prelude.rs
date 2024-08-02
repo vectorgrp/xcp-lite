@@ -1,5 +1,4 @@
-pub use crate::types::{Struct, FieldList, Field};
-pub use crate::translator::IDL::CDR;
+pub use crate::types::{Struct, FieldList, Field, IDL};
 pub use crate::translator::translate_idl_struct;
 
 pub use crate::IdlGenerator;
