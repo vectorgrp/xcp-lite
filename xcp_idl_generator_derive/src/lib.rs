@@ -3,12 +3,9 @@
 
 extern crate proc_macro;
 
-mod translator;
-
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{parse_macro_input, Data, DeriveInput};
-use translator::*;
 
 #[proc_macro_derive(IdlGenerator)]
 pub fn idl_generator_derive(input: TokenStream) -> TokenStream {
@@ -28,15 +25,9 @@ pub fn idl_generator_derive(input: TokenStream) -> TokenStream {
                     let f_name_str = field_name.to_string();
                     let f_type_str = field_type.into_token_stream().to_string();
 
-                    //TODO: This is hardcoded to CDR here
-                    let translated_t_type_str = CDR_TYPE_TRANSLATION
-                        .get(f_type_str.as_str())
-                        .unwrap()
-                        .to_string();
-
                     //TODO: Remove redundant to_string?
                     quote! {
-                        struct_fields.push(IdlStructField::new(
+                        struct_fields.push(Field::new(
                             #f_name_str.to_string(),
                             #f_type_str.to_string()
                         ));
@@ -47,10 +38,10 @@ pub fn idl_generator_derive(input: TokenStream) -> TokenStream {
 
             quote! {
                 impl IdlGenerator for #data_type {
-                    fn generate_idl() -> IdlStruct {
-                        let mut struct_fields = IdlStructFieldVec::new();
+                    fn description() -> Struct {
+                        let mut struct_fields = FieldList::new();
                         #(#field_handlers)*
-                        IdlStruct::new(stringify!(#data_type).to_owned(), struct_fields)
+                        Struct::new(stringify!(#data_type).to_owned(), struct_fields)
                     }
                 }
             }

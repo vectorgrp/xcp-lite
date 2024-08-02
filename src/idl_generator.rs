@@ -1,46 +1,140 @@
-//TODO: Remove
-#![allow(warnings)]
+const VECTOR_NAMESPACE: &'static &str = &"Vector";
+const RUST_VECTOR: &'static &str = &"Vec";
 
-pub trait IdlGenerator {
-    fn generate_idl() -> IdlStruct;
+use lazy_static::lazy_static;
+use std::collections::HashMap;
+use std::sync::Arc;
+
+type TranslatorBox = Arc<dyn Translator + Send + Sync>;
+
+lazy_static! {
+    static ref TRANSLATORS: TranslatorCollection = TranslatorCollection::new();
 }
 
-pub fn translate_idl_struct(input: &IdlStruct) -> String {
-    let name = input.name();
-    let lowercase_name = name.to_ascii_lowercase();
-    let fields_str = input
-        .fields()
-        .iter()
-        .map(|field| format!("    {} {};", field.datatype(), field.name()))
-        .collect::<Vec<_>>()
-        .join("\n");
+fn create_translator_box<T>(translator: T) -> TranslatorBox
+where
+    T: Translator + Send + Sync + 'static,
+{
+    Arc::new(translator) as TranslatorBox
+}
 
-    let annotation = format!(
-        r#"
-        /begin ANNOTATION ANNOTATION_LABEL "ObjectDescription" ANNOTATION_ORIGIN "application/dds" /begin ANNOTATION_TEXT
-            "<DynamicObject> "
-            "<RootType>Vector::{name}Vector</RootType>"
-            "</DynamicObject>"
-            "module Vector {{"
-            "  struct {name} {{"
-            "{fields_str}"
-            "  }};"
-            "  struct {name}Vector {{"
-            "    sequence<{name}> {lowercase_name}s;"
-            "}}; }};"
-        /end ANNOTATION_TEXT /end ANNOTATION
-        "#
-    );
+pub trait IdlGenerator {
+    fn description() -> Struct;
+}
 
-    annotation
+pub trait Translator: Send {
+    fn translate(&self, input: &Struct) -> String;
+    fn translate_fields(&self, input: &Struct) -> String;
+}
+
+struct TranslatorCollection {
+    map: HashMap<IDL, TranslatorBox>,
+}
+
+struct CdrTranslator {
+    type_translation: CdrTypeTranslation,
+}
+
+impl CdrTranslator {
+    fn new() -> Self {
+        Self {
+            type_translation: CdrTypeTranslation::new(),
+        }
+    }
+}
+
+impl Translator for CdrTranslator {
+    // This only returns a vector for now
+    fn translate(&self, input: &Struct) -> String {
+        // println!("Translating");
+        let type_name = input.type_name();
+        let lc_typename = type_name.to_ascii_lowercase();
+        let fields_str = self.translate_fields(input);
+
+        let translation = format!(
+            r#"
+            /begin ANNOTATION ANNOTATION_LABEL "ObjectDescription" ANNOTATION_ORIGIN "application/dds"
+                /begin ANNOTATION_TEXT
+                    "<DynamicObject> "
+                    "<RootType>{VECTOR_NAMESPACE}::{type_name}{RUST_VECTOR}</RootType>"
+                    "</DynamicObject>"
+                    "module {VECTOR_NAMESPACE} {{"
+                    "  struct {type_name} {{"
+                    "      {fields_str}"
+                    "  }};"
+                    "
+                    "  struct {type_name}{RUST_VECTOR} {{"
+                    "    sequence<{type_name}> {lc_typename}s;"
+                    "  }};
+                    }};"
+                /end ANNOTATION_TEXT
+            /end ANNOTATION
+            "#
+        );
+
+        translation
+    }
+
+    fn translate_fields(&self, input: &Struct) -> String {
+        input
+            .fields()
+            .iter()
+            .map(|field| {
+                let datatype = field.datatype();
+                let translated_type = self.type_translation.get(&datatype).unwrap_or(&datatype);
+                format!("{} {};", translated_type, field.name())
+            })
+            .collect::<Vec<String>>()
+            .join("\n      ")
+    }
+}
+
+impl TranslatorCollection {
+    fn new() -> Self {
+        let mut map = HashMap::new();
+        map.insert(IDL::CDR, create_translator_box(CdrTranslator::new()));
+        Self { map }
+    }
+
+    fn translate(&self, idl_type: &IDL, input: &Struct) -> Option<String> {
+        self.map
+            .get(idl_type)
+            .map(|translator| translator.translate(input))
+    }
+}
+
+pub struct CdrTypeTranslation {
+    map: HashMap<&'static str, &'static str>,
+}
+
+impl CdrTypeTranslation {
+    pub fn new() -> Self {
+        let mut map = HashMap::new();
+        map.insert("u32", "uint32");
+        Self { map }
+    }
+
+    pub fn get(&self, key: &str) -> Option<&&'static str> {
+        self.map.get(key)
+    }
+}
+
+#[derive(Eq, Hash, PartialEq)]
+pub enum IDL {
+    CDR,
+}
+
+pub fn translate_idl_struct(idl_type: IDL, input: &Struct) -> String {
+    let translation = TRANSLATORS.translate(&idl_type, input).unwrap();
+    translation
 }
 
 #[derive(Debug)]
-pub struct IdlStructField(String, String);
+pub struct Field(String, String);
 
-impl IdlStructField {
+impl Field {
     pub fn new(name: String, field_type: String) -> Self {
-        IdlStructField(name, field_type)
+        Field(name, field_type)
     }
 
     pub fn name(&self) -> &str {
@@ -53,39 +147,39 @@ impl IdlStructField {
 }
 
 #[derive(Debug)]
-pub struct IdlStruct(String, IdlStructFieldVec);
+pub struct Struct(String, FieldList);
 
-impl IdlStruct {
-    pub fn new(name: String, fields: IdlStructFieldVec) -> Self {
-        IdlStruct(name, fields)
+impl Struct {
+    pub fn new(name: String, fields: FieldList) -> Self {
+        Struct(name, fields)
     }
 
-    pub fn name(&self) -> &str {
+    pub fn type_name(&self) -> &str {
         &self.0
     }
 
-    pub fn fields(&self) -> &IdlStructFieldVec {
+    pub fn fields(&self) -> &FieldList {
         &self.1
     }
 }
 
 #[derive(Debug)]
-pub struct IdlStructFieldVec(Vec<IdlStructField>);
+pub struct FieldList(Vec<Field>);
 
-impl IdlStructFieldVec {
+impl FieldList {
     pub fn new() -> Self {
-        IdlStructFieldVec(Vec::new())
+        Self(Vec::new())
     }
 
     pub fn with_capacity(capacity: usize) -> Self {
-        IdlStructFieldVec(Vec::with_capacity(capacity))
+        Self(Vec::with_capacity(capacity))
     }
 
-    pub fn push(&mut self, field: IdlStructField) {
+    pub fn push(&mut self, field: Field) {
         self.0.push(field);
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &IdlStructField> {
+    pub fn iter(&self) -> impl Iterator<Item = &Field> {
         self.0.iter()
     }
 }

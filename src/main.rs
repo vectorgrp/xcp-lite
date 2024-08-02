@@ -38,8 +38,10 @@ use log::{debug, error, info, trace, warn};
 use clap::Parser;
 use std::net::Ipv4Addr;
 
-//TODO: Cleanup imports for this
+//TODO: Cleanup imports for this with prelude
 use xcp_idl_generator_derive::IdlGenerator;
+mod idl_generator;
+use idl_generator::IDL;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -290,13 +292,14 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
         }
         let mut point_cloud = Vec::with_capacity(4);
         //TODO: Refactor API
-        let annotation = Some(translate_idl_struct(&Point::generate_idl()));
+        let annotation = translate_idl_struct(xcp::idl_generator::IDL::CDR, &Point::description());
         // let annotation = translate_idl_struct(po)
         point_cloud.push(Point { x: 0, y: 0, z: 0 });
         point_cloud.push(Point { x: 1, y: 0, z: 0 });
         point_cloud.push(Point { x: 1, y: 1, z: 0 });
         point_cloud.push(Point { x: 1, y: 1, z: 1 });
-        daq_serialize!(point_cloud, event_point_cloud, "struct serializer demo", annotation);
+        // This one could be Noned
+        daq_serialize!(point_cloud, event_point_cloud, "struct serializer demo", Some(annotation));
 
         // Trigger single instance event "task1" for data acquisition
         // Capture variables from stack happens here

@@ -231,23 +231,29 @@ CalPage2.period
 /begin MEASUREMENT mainloop_counter "counter on stack" A_UINT64 NO_COMPU_METHOD 0 0 0 1000000000000 PHYS_UNIT "" ECU_ADDRESS 0x38 ECU_ADDRESS_EXTENSION 2 /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT 0 /end DAQ_EVENT /end IF_DATA /end MEASUREMENT
 /begin MEASUREMENT mainloop_counter2 "counter on heap" A_UINT64 NO_COMPU_METHOD 0 0 0 1000000000000 PHYS_UNIT "" ECU_ADDRESS 0x0 ECU_ADDRESS_EXTENSION 2 /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT 0 /end DAQ_EVENT /end IF_DATA /end MEASUREMENT
 /begin CHARACTERISTIC point_cloud "struct serializer demo" ASCII 0x20000 U8 0 NO_COMPU_METHOD 0 255 READ_ONLY NUMBER 64 ECU_ADDRESS_EXTENSION 2 
-                /begin ANNOTATION ANNOTATION_LABEL "ObjectDescription" ANNOTATION_ORIGIN "application/dds" /begin ANNOTATION_TEXT
-                        "<DynamicObject> "
-                        "<RootType>Vector::PointCloud</RootType>"
-                        "</DynamicObject>"
-                        "module Vector {"
-                        "  struct Point {"
-                        "    uint32 x;"
-                        "    uint32 y;"
-                        "    uint32 z;"
-                        "  };"
-                        "  struct PointCloud {"
-                        "    sequence<Point> Points;"
-                        "}; };"
-                /end ANNOTATION_TEXT /end ANNOTATION
+                
+            /begin ANNOTATION ANNOTATION_LABEL "ObjectDescription" ANNOTATION_ORIGIN "application/dds"
+                /begin ANNOTATION_TEXT
+                    "<DynamicObject> "
+                    "<RootType>Vector::PointVec</RootType>"
+                    "</DynamicObject>"
+                    "module Vector {"
+                    "  struct Point {"
+                    "      uint32 x;
+      uint32 y;
+      uint32 z;"
+                    "  };"
+                    "
+                    "  struct PointVec {"
+                    "    sequence<Point> points;"
+                    "  };
+                    };"
+                /end ANNOTATION_TEXT
+            /end ANNOTATION
+            
                 /begin ANNOTATION ANNOTATION_LABEL "IsVlsd" ANNOTATION_ORIGIN "" /begin ANNOTATION_TEXT  "true" /end ANNOTATION_TEXT /end ANNOTATION
                 /begin ANNOTATION ANNOTATION_LABEL "MaxBufferNeeded" ANNOTATION_ORIGIN "" /begin ANNOTATION_TEXT "64" /end ANNOTATION_TEXT /end ANNOTATION
-                 /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT 2 /end DAQ_EVENT /end IF_DATA /end CHARACTERISTIC
+             /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT 2 /end DAQ_EVENT /end IF_DATA /end CHARACTERISTIC
 /begin GROUP mainloop "" /begin REF_MEASUREMENT
 mainloop_counter
 mainloop_counter2

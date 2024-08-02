@@ -162,28 +162,28 @@ impl GenerateA2l for RegistryMeasurement {
             "#
             );
 
-            dbg!(annotation);
+            // dbg!(annotation);
 
-            let annotation = format!(
-                r#"
-                /begin ANNOTATION ANNOTATION_LABEL "ObjectDescription" ANNOTATION_ORIGIN "application/dds" /begin ANNOTATION_TEXT
-                        "<DynamicObject> "
-                        "<RootType>Vector::PointCloud</RootType>"
-                        "</DynamicObject>"
-                        "module Vector {{"
-                        "  struct Point {{"
-                        "    uint32 x;"
-                        "    uint32 y;"
-                        "    uint32 z;"
-                        "  }};"
-                        "  struct PointCloud {{"
-                        "    sequence<Point> Points;"
-                        "}}; }};"
-                /end ANNOTATION_TEXT /end ANNOTATION
-                /begin ANNOTATION ANNOTATION_LABEL "IsVlsd" ANNOTATION_ORIGIN "" /begin ANNOTATION_TEXT  "true" /end ANNOTATION_TEXT /end ANNOTATION
-                /begin ANNOTATION ANNOTATION_LABEL "MaxBufferNeeded" ANNOTATION_ORIGIN "" /begin ANNOTATION_TEXT "{buffer_size}" /end ANNOTATION_TEXT /end ANNOTATION
-                "#
-            );
+            // let annotation = format!(
+            //     r#"
+            //     /begin ANNOTATION ANNOTATION_LABEL "ObjectDescription" ANNOTATION_ORIGIN "application/dds" /begin ANNOTATION_TEXT
+            //             "<DynamicObject> "
+            //             "<RootType>Vector::PointCloud</RootType>"
+            //             "</DynamicObject>"
+            //             "module Vector {{"
+            //             "  struct Point {{"
+            //             "    uint32 x;"
+            //             "    uint32 y;"
+            //             "    uint32 z;"
+            //             "  }};"
+            //             "  struct PointCloud {{"
+            //             "    sequence<Point> Points;"
+            //             "}}; }};"
+            //     /end ANNOTATION_TEXT /end ANNOTATION
+            //     /begin ANNOTATION ANNOTATION_LABEL "IsVlsd" ANNOTATION_ORIGIN "" /begin ANNOTATION_TEXT  "true" /end ANNOTATION_TEXT /end ANNOTATION
+            //     /begin ANNOTATION ANNOTATION_LABEL "MaxBufferNeeded" ANNOTATION_ORIGIN "" /begin ANNOTATION_TEXT "{buffer_size}" /end ANNOTATION_TEXT /end ANNOTATION
+            //     "#
+            // );
 
             trace!("write measurement dynamic object description: {annotation}");
             // As BLOB (new in CANape 22 SP3)
