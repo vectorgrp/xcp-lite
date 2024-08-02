@@ -1,6 +1,6 @@
 pub mod types;
 pub mod domain;
-pub mod translator;
+pub mod gen;
 pub mod prelude;
 
 use types::Struct;

@@ -1,13 +1,10 @@
-//TODO: Remove
-#![allow(warnings)]
-
 use xcp_idl_generator::prelude::*;
 use std::fs::File;
 use std::io::Write;
 
 #[derive(IdlGenerator)]
 struct Measurement {
-    id: u32,
+    _id: u32,
 }
 
 fn write_string_to_file(filename: &str, content: &str) {
@@ -16,9 +13,8 @@ fn write_string_to_file(filename: &str, content: &str) {
 }
 
 fn main() {
-    let my_measurement = Measurement { id: 1 };
     let description = Measurement::description();
-    let idl_str = translate_idl_struct(IDL::CDR, &description);
+    let idl_str = generate(IDL::CDR, &description);
     println!("{}", idl_str);
     write_string_to_file("./gen.txt", &idl_str);
 }
