@@ -1,11 +1,9 @@
 CANape PAR V3.1: tokio_demo_autodetect.a2l 1 0 tokio_demo
-; visza
-; RDM
 ; 
 ; 
 ; 
-Mandelbrot.x_pixels [UINT(64)]  3000 ; 3000
-Mandelbrot.y_pixels [UINT(64)]  2000 ; 2000
-Mandelbrot.x [DOUBLE]  -0.94999999999999995559 ; -0.95
-Mandelbrot.y [DOUBLE]  0.26100000000000000977 ; 0.261
-Mandelbrot.width [DOUBLE]  2.1999999999999998723e-2 ; 0.022
+; 
+; 
+Mandelbrot.x [DOUBLE]  -1.3999999999999999112 ; -1.4
+Mandelbrot.y [DOUBLE]  0 ; 0
+Mandelbrot.width [DOUBLE]  0.10000000000000000555 ; 0.1

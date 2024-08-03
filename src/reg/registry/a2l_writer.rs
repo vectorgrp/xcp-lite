@@ -125,16 +125,22 @@ impl GenerateA2l for RegistryCalSegList {
 
 impl GenerateA2l for RegistryMeasurement {
     fn to_a2l_string(&self) -> String {
-        let (ext, addr) = self.event.get_daq_ext_addr(self.event_offset);
+
+        let (ext, addr) = if self.addr == 0 { 
+            self.event.get_dyn_ext_addr(self.addr_offset) 
+        } else {
+            self.event.get_abs_ext_addr(self.addr) 
+        };
 
         trace!(
-            "write measurement: {} {} {}:0x{:08X} event={},{}",
+            "write measurement: {} {} {}:0x{:08X} event={}+{}, addr=0x{:08X}",
             self.name,
             self.datatype.get_type_str(),
             ext,
             addr,
             self.event.get_num(),
-            self.event_offset
+            self.addr_offset,
+            self.addr
         );
 
         let name = &self.name;
@@ -144,13 +150,15 @@ impl GenerateA2l for RegistryMeasurement {
         let max = self.datatype.get_max();
         let offset = self.offset;
         let type_str = self.datatype.get_type_str();
-        let dim = self.dim;
+        let x_dim = self.x_dim;
+        let y_dim = self.y_dim;
+
         let min = self.datatype.get_min();
         let event = self.event.get_num();
 
         // Dynamic object as CHARACTERISTIC ASCII string with IDL annotation
         if self.datatype == RegistryDataType::Blob {
-            let buffer_size = self.dim;
+            let buffer_size = self.x_dim * self.y_dim;
 
             let annotation = format!(
                 r#"
@@ -184,8 +192,12 @@ impl GenerateA2l for RegistryMeasurement {
             )
         } else {
             // Measurement signals or array of signals
-            let matrix_dim = if dim > 1 {
-                format!("MATRIX_DIM {} ", dim)
+            let matrix_dim = if x_dim > 1 && y_dim > 1 {
+                format!("MATRIX_DIM {} {} ", x_dim, y_dim)
+            } else if x_dim > 1 {
+                format!("MATRIX_DIM {} ", x_dim)
+            } else if y_dim > 1 {
+                format!("MATRIX_DIM {} ", y_dim)
             } else {
                 "".to_string()
             };

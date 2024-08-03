@@ -57,8 +57,8 @@ struct Args {
     #[arg(short, long, default_value_t = 5555)]
     port: u16,
 
-    /// Segment size (UDP MTU)
-    #[arg(short, long, default_value_t = 7500)]
+    /// XCP segment size (jumbo frames supported with MTU up to 8000 bytes -> segment_size <= (OPTION_MTU-20-8), OPTION_MTU defined in main_cfg.h )
+    #[arg(short, long, default_value_t = 8000-20-8)]
     segment_size: u16,
 
     /// Don't create A2L file
@@ -330,7 +330,8 @@ fn main() {
     let xcp_builder = XcpBuilder::new("xcp_lite")
         .set_log_level(log_level)
         .enable_a2l(!args.no_a2l)
-        //.set_epk(build_info::format!("{}", $.timestamp));
+        // .set_segment_size(1500-20-8) // no jumbo frames
+        // .set_epk(build_info::format!("{}", $.timestamp)); // EPK from build info
         .set_epk("EPK_");
 
     let xcp = match xcp_builder.start_server(
@@ -344,7 +345,7 @@ fn main() {
         args.segment_size,
     ) {
         Err(res) => {
-            error!("XCP initialization failed: {:?}", res);
+            error!("XCP server initialization failed: {:?}", res);
             return;
         }
         Ok(xcp) => xcp,
@@ -387,26 +388,46 @@ fn main() {
 
     // Mainloop
     xcp_println!("Main task starts");
-    let mut mainloop_counter: u64 = 0;
+
+    let mut mainloop_counter1: u64 = 0;
     let mut mainloop_counter2 = Box::new(0u64);
+    let mut mainloop_counter3 = Box::new(0u64);
+    let mut mainloop_array = Box::new([[0u8; 16]; 16]);
 
-    let mut mainloop_event = daq_create_event!("mainloop", 8);
-    daq_register!(mainloop_counter, mainloop_event, "counter on stack", "");
-
+    let mut mainloop_event = daq_create_event!("mainloop", 8); // Capture buffer 8 bytes for mainloop_counter3
+    daq_register!(mainloop_counter1, mainloop_event);
+    //daq_register_ref!(mainloop_counter2, mainloop_event);
+    
     loop {
-        // @@@@ Dev: Terminate after 3s to check shutdown and drop behaviour
-        // if START_TIME.elapsed().as_secs() > 3 {
-        //     break;
-        // }
         // @@@@ Dev: Terminate mainloop for shutdown if calibration parameter run is false, for test automation
         if !calseg.run {
             break;
         }
         thread::sleep(Duration::from_millis(50));
 
-        mainloop_counter += 1;
-        *mainloop_counter2 += 1;
-        daq_capture!(mainloop_counter2, mainloop_event, "counter on heap", "");
+        mainloop_counter1 += 1; 
+        *mainloop_counter2 += 2;
+        *mainloop_counter3 += 3; 
+        mainloop_array[0][0] = mainloop_counter1 as u8; 
+
+        
+        // Capture variable from heap
+        daq_capture!(mainloop_counter3,mainloop_event);
+
+        // Measure variable directly from heap with individual event "mainloop_array"
+        daq_event_ref!(
+            mainloop_array,
+            RegistryDataType::AUint64,
+            16,
+            16,
+            "array on heap"
+        );
+
+        // Measure directly from stack with event "mainloop"
+        mainloop_event.trigger();
+
+        // Sync
+        calseg.sync();
 
         // Check if the XCP server is still alive
         // Optional
@@ -415,15 +436,11 @@ fn main() {
             break;
         }
 
-        // Sync and trigger mainloop event
-        calseg.sync();
-        mainloop_event.trigger();
-
         // @@@@ Dev:
         // Finalize A2l after 2s delay
         // This is just for testing, to force immediate creation of A2L file
         // Without this, the A2L file will be automatically written on XCP connect, to be available for download by CANape
-        if !args.no_a2l && mainloop_counter == 1 {
+        if !args.no_a2l && mainloop_counter1 == 1 {
             thread::sleep(Duration::from_secs(2));
             xcp.write_a2l(); // Test A2L write
                              // xcp.set_init_request(); // Test init request

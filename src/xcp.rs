@@ -60,11 +60,11 @@ impl XcpLogLevel {
 // The remapping is done when the registry is finalized and the A2L is written
 // # Safety
 // Use of a mutable static is save, because mutation for remapping is done only once in a thread safe context
-const XCP_MAX_EVENTS: usize = 256;
-static mut XCP_EVENT_MAP: [u16; XCP_MAX_EVENTS] = [0; XCP_MAX_EVENTS];
+static mut XCP_EVENT_MAP: [u16; XcpEvent::XCP_MAX_EVENTS] = [0; XcpEvent::XCP_MAX_EVENTS];
 
 /// Represents a measurement event  
 /// Holds the u16 XCP event number used in the XCP protocol and A2L to identify an event
+/// May have an index > 0 to identify multiple events with the same name in instanciated in different threads
 #[derive(Debug, Clone, Copy)]
 pub struct XcpEvent {
     num: u16,   // Number used in A2L and XCP protocol
@@ -72,6 +72,11 @@ pub struct XcpEvent {
 }
 
 impl XcpEvent {
+
+    /// Maximum number of events
+    pub const XCP_MAX_EVENTS: usize = 256;
+
+    // Uninitialized event
     pub const UNDEFINED: XcpEvent = XcpEvent {
         num: 0xFFFF,
         index: 0,
@@ -79,6 +84,7 @@ impl XcpEvent {
 
     /// Create a new XCP event
     pub fn new(num: u16, index: u16) -> XcpEvent {
+        assert!((num as usize) < XcpEvent::XCP_MAX_EVENTS, "Maximum number of events exceeded");
         unsafe {
             XCP_EVENT_MAP[num as usize] = num;
         }
@@ -117,25 +123,66 @@ impl XcpEvent {
         self.index
     }
 
-    // Get address externsion and address for A2L generation
-    pub fn get_daq_ext_addr(self, offset: i16) -> (u8, u32) {
+    /// Get address extension and address for A2L generation for XCP_ADDR_EXT_DYN addressing mode
+    /// Used by A2L writer
+    pub fn get_dyn_ext_addr(self, offset: i16) -> (u8, u32) {
         let a2l_ext = Xcp::XCP_ADDR_EXT_DYN;
         let a2l_addr: u32 = (self.get_num() as u32) << 16 | (offset as u16 as u32);
         (a2l_ext, a2l_addr)
     }
 
-    /// Trigger a XCP event and provide a base pointer for relative addressing with address extension 0
+    /// Get address extension and address for A2L generation for XCP_ADDR_EXT_ABS addressing mode
+    /// Used by A2L writer
+    pub fn get_abs_ext_addr(self, addr: u64) -> (u8, u32) {
+        let a2l_ext = Xcp::XCP_ADDR_EXT_ABS;
+        let a2l_addr = unsafe { xcplib::ApplXcpGetAddr(addr as  *const u8) };
+        (a2l_ext, a2l_addr)
+    }
+
+    /// Trigger a XCP event and provide a base pointer for relative addressing mode (XCP_ADDR_EXT_DYN)
+    /// Address of the associated measurement variable must be relative to base
+    /// 
     /// # Safety
     /// This is a C ffi call, which gets a pointer to a daq capture buffer
     /// The provenance of the pointer (len, lifetime) is is guaranteed , it refers to self
     /// The buffer must match its registry description, to avoid corrupt data given to the XCP tool
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn trigger(self, base: *const u8, len: u32) -> u8 {
+        // trace!(
+        //     "Trigger event {} num={}, index={}, base=0x{:X}, len={}",
+        //     self.get_name(),
+        //     self.get_num(),
+        //     self.get_index(),
+        //     base as u64,
+        //     len
+        // );
         // @@@@ unsafe - C library call
         // @@@@ unsafe - Transfering a pointer and its valid memory range to XCPlite FFI
         unsafe {
             // Trigger event
             xcplib::XcpEventExt(self.get_num(), base, len)
+        }
+    }
+
+    /// Trigger a XCP event for measurement objects in absolute addressing mode (XCP_ADDR_EXT_DYN)
+    /// Address of the associated measurement variable must be relative to module load addr
+    /// In 64 applications, this offset might overflow in the A2L description - this is checked wenn generating A2L
+    /// 
+    /// # Safety
+    /// This is a C ffi call, which gets a pointer to a daq capture buffer
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
+    pub fn trigger_abs(self) {
+        // trace!(
+        //     "Trigger event {} num={}, index={}, len={}",
+        //     self.get_name(),
+        //     self.get_num(),
+        //     self.get_index(),
+        //     len
+        // );
+        // @@@@ unsafe - C library call
+        unsafe {
+            // Trigger event
+            xcplib::XcpEvent(self.get_num());
         }
     }
 }
@@ -169,7 +216,7 @@ impl EventList {
 
     fn clear(&mut self) {
         unsafe {
-            XCP_EVENT_MAP = [0; XCP_MAX_EVENTS];
+            XCP_EVENT_MAP = [0; XcpEvent::XCP_MAX_EVENTS];
         }
         self.0.clear();
     }
@@ -212,6 +259,7 @@ impl EventList {
                 XCP_EVENT_MAP[e.event.num as usize] = i as u16; // New external event number is index pointer to sorted list
             }
         }
+        trace!("Event map: {:?}", unsafe { XCP_EVENT_MAP });
 
         // Register all events
         let r = Xcp::get().get_registry();
@@ -415,6 +463,19 @@ lazy_static::lazy_static! {
 }
 
 impl Xcp {
+
+
+    /// Absolute addressing mode of XCPlite
+    pub const XCP_ADDR_EXT_ABS: u8 = 1; // Used for DAQ objects on heap (addr is relative to module load address)
+    /// Relative addressing mode of XCPlite
+    pub const XCP_ADDR_EXT_DYN: u8 = 2; // Used for DAQ objects on stack and capture DAQ ( event in addr high word, low word relative to base given to XcpEventExt )
+    /// Segment relative addressing mode of XCPlite handled by applications read/write callbacks
+    pub const XCP_ADDR_EXT_APP: u8 = 0; // Used for CAL objects (addr = index | 0x8000 in high word (CANape does not support addr_ext in memory segments))
+    
+    /// Addr of the EPK
+    pub const XCP_EPK_ADDR: u32 = 0x80000000;
+
+
     // new
     fn new() -> Xcp {
         // @@@@ unsafe - C library call
@@ -515,11 +576,6 @@ impl Xcp {
         let m = self.calseg_list.lock().unwrap();
         m.get_name(index)
     }
-
-    pub const XCP_EPK_ADDR: u32 = 0x80000000;
-    // pub const XCP_ADDR_EXT_ABS: u8 = 1; // Not used (addr = relative to module load address)
-    pub const XCP_ADDR_EXT_DYN: u8 = 2; // Used for DAQ (addr = event in high word)
-    pub const XCP_ADDR_EXT_APP: u8 = 0; // Used for CAL (addr = index | 0x8000 in high word (CANape does not support addr_ext in memory segments))
 
     /// Get registry addr base for a CalSeg
     pub fn get_calseg_addr_base(calseg_index: usize) -> u32 {

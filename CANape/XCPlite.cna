@@ -10,8 +10,8 @@ PrgDate=08.07.2024
 Description=
 CreationTime=23:25
 CreationDate=04/18/2021 ; Month/Day/Year
-ModificationTime=14:38
-ModificationDate=07/29/2024 ; Month/Day/Year
+ModificationTime=12:39
+ModificationDate=07/31/2024 ; Month/Day/Year
 Protected=0
 CurrentWindowsACP=1252
 
@@ -261,7 +261,7 @@ OptionCSVListSeparator=0
 OptionCSVExport=0
 OptionMARMFExport=0
 OptionMARMFExtended=0
-OptionSuppressCASLRuntimeErrors=0
+OptionSuppressCASLRuntimeErrors=1
 FromTime=-1
 FromActive=0
 FromTimePartActive=0
@@ -333,7 +333,7 @@ COUNT=5
 5=}
 
 [FUNCTION_OBJECT_1]
-Number=16
+Number=17
 Unit=
 Components=0
 TimeSeriesSaveMode=0
@@ -362,7 +362,7 @@ DisplayCount=2
 
 [FUNCTION_OBJECT_1_DISPLAY_1]
 Window=8
-Index=7
+Index=8
 Color=65535
 ApplyColorToBackground=0
 ColorFunction=0
@@ -386,7 +386,7 @@ LineWidth=1
 Precision=-2
 Digits=6
 Enabled=1
-StoredFocused=1
+StoredFocused=0
 SublMask=1
 MeaSublMask=0
 LockScaling=0
@@ -465,7 +465,7 @@ IsParameterFunctionResult=0
 Module=xcp_lite
 
 [FUNCTION_OBJECT_2]
-Number=17
+Number=18
 Unit=
 Components=0
 TimeSeriesSaveMode=0
@@ -540,7 +540,7 @@ GUID=DISPLAY_d65eb017-2a7e-497a-8a3d-06ecb8376e2b
 
 [FUNCTION_OBJECT_2_DISPLAY_2]
 Window=8
-Index=6
+Index=7
 Color=255
 ApplyColorToBackground=0
 ColorFunction=0
@@ -597,7 +597,7 @@ IsParameterFunctionResult=0
 Module=xcp_lite
 
 [FUNCTION_OBJECT_3]
-Number=18
+Number=19
 Unit=
 Components=0
 TimeSeriesSaveMode=0
@@ -672,7 +672,7 @@ GUID=DISPLAY_3e67d534-875c-447a-afa4-04fbf002c84b
 
 [FUNCTION_OBJECT_3_DISPLAY_2]
 Window=8
-Index=8
+Index=9
 Color=16711935
 ApplyColorToBackground=0
 ColorFunction=0
@@ -751,7 +751,7 @@ SubConfigsCount=0
 Count=0
 
 [MEASUREMENT_LIST]
-Count=17
+Count=18
 OfflineFileCount=0
 MeaCfgLabellistName=
 
@@ -771,7 +771,7 @@ DisplayCount=1
 
 [MEASUREMENT_OBJECT_10]
 Module=xcp_lite
-Name=channel_3
+Name=channel_2
 Disabled=0
 Mode=2147483653
 Rate=0
@@ -784,6 +784,66 @@ HasManagedDisplay=0
 DisplayCount=1
 
 [MEASUREMENT_OBJECT_10_DISPLAY_1]
+Window=3
+Index=7
+Color=21930
+ApplyColorToBackground=0
+ColorFunction=0
+ColorFunctionScope=1
+LineTyp=2
+YMinHome=-200
+YMaxHome=200
+YMin=-200
+YMax=200
+XOffsetNS=0
+XOffset=0
+ValueFormat=3
+BitMask=1
+ShowYAxis=1
+Width=10
+LineStyle=1
+MarkerType=1
+SRMainValue=0
+InvalidValueDrawMode=3
+LineWidth=2
+Precision=-2
+Digits=6
+Enabled=1
+StoredFocused=0
+SublMask=1
+MeaSublMask=3
+LockScaling=0
+RightAxis=0
+MapMode=2
+OverlayGridColor=0
+ShadingMode=3
+EditOffset=1
+EditFactor=2
+WAxisLabel=
+XAxisLabel=
+YAxisLabel=
+AxisCaption=
+Row=0
+Col=0
+YAxis_ID=2
+AxisTemplate=
+GUID=DISPLAY_6bfc8c70-8ddc-4676-a754-45ecb1957527
+
+[MEASUREMENT_OBJECT_11]
+Module=xcp_lite
+Name=channel_3
+Disabled=0
+Mode=2147483654
+Rate=0
+Row=0
+Column=0
+MeaReferenced=1
+ArchivBy_1=Rekorder
+IsFallback=0
+HasManagedDisplay=0
+DisplayCount=1
+
+[MEASUREMENT_OBJECT_11_DISPLAY_1]
 Window=3
 Index=6
 Color=11184895
@@ -829,11 +889,11 @@ YAxis_ID=2
 AxisTemplate=
 GUID=DISPLAY_af726eb9-3178-4dfe-afce-87f52937a058
 
-[MEASUREMENT_OBJECT_11]
+[MEASUREMENT_OBJECT_12]
 Module=xcp_lite
 Name=channel_4
 Disabled=0
-Mode=2147483654
+Mode=2147483655
 Rate=0
 Row=0
 Column=0
@@ -843,7 +903,7 @@ IsFallback=0
 HasManagedDisplay=0
 DisplayCount=1
 
-[MEASUREMENT_OBJECT_11_DISPLAY_1]
+[MEASUREMENT_OBJECT_12_DISPLAY_1]
 Window=3
 Index=5
 Color=43520
@@ -889,11 +949,11 @@ YAxis_ID=2
 AxisTemplate=
 GUID=DISPLAY_f8838ae2-d42d-4254-b1ef-0e4d00235ec5
 
-[MEASUREMENT_OBJECT_12]
+[MEASUREMENT_OBJECT_13]
 Module=xcp_lite
 Name=channel_5
 Disabled=0
-Mode=2147483655
+Mode=2147483656
 Rate=0
 Row=0
 Column=0
@@ -903,7 +963,7 @@ IsFallback=0
 HasManagedDisplay=0
 DisplayCount=1
 
-[MEASUREMENT_OBJECT_12_DISPLAY_1]
+[MEASUREMENT_OBJECT_13_DISPLAY_1]
 Window=3
 Index=4
 Color=43690
@@ -949,11 +1009,11 @@ YAxis_ID=2
 AxisTemplate=
 GUID=DISPLAY_5316f15e-cd29-4a81-8d23-b63301664eab
 
-[MEASUREMENT_OBJECT_13]
+[MEASUREMENT_OBJECT_14]
 Module=xcp_lite
 Name=channel_6
 Disabled=0
-Mode=2147483656
+Mode=2147483657
 Rate=0
 Row=0
 Column=0
@@ -963,7 +1023,7 @@ IsFallback=0
 HasManagedDisplay=0
 DisplayCount=1
 
-[MEASUREMENT_OBJECT_13_DISPLAY_1]
+[MEASUREMENT_OBJECT_14_DISPLAY_1]
 Window=3
 Index=3
 Color=33023
@@ -1009,11 +1069,11 @@ YAxis_ID=2
 AxisTemplate=
 GUID=DISPLAY_b5933642-3201-41ea-8349-98fce39bdcf3
 
-[MEASUREMENT_OBJECT_14]
+[MEASUREMENT_OBJECT_15]
 Module=xcp_lite
 Name=channel_7
 Disabled=0
-Mode=2147483657
+Mode=2147483658
 Rate=0
 Row=0
 Column=0
@@ -1023,7 +1083,7 @@ IsFallback=0
 HasManagedDisplay=0
 DisplayCount=1
 
-[MEASUREMENT_OBJECT_14_DISPLAY_1]
+[MEASUREMENT_OBJECT_15_DISPLAY_1]
 Window=3
 Index=2
 Color=65450
@@ -1069,11 +1129,11 @@ YAxis_ID=2
 AxisTemplate=
 GUID=DISPLAY_f9d8418b-5fe5-4380-8f3e-f194517da47f
 
-[MEASUREMENT_OBJECT_15]
+[MEASUREMENT_OBJECT_16]
 Module=xcp_lite
 Name=channel_8
 Disabled=0
-Mode=2147483658
+Mode=2147483659
 Rate=0
 Row=0
 Column=0
@@ -1083,7 +1143,7 @@ IsFallback=0
 HasManagedDisplay=0
 DisplayCount=1
 
-[MEASUREMENT_OBJECT_15_DISPLAY_1]
+[MEASUREMENT_OBJECT_16_DISPLAY_1]
 Window=3
 Index=1
 Color=16776960
@@ -1129,11 +1189,11 @@ YAxis_ID=2
 AxisTemplate=
 GUID=DISPLAY_a264452d-a480-42f5-8b83-1b20a7180a17
 
-[MEASUREMENT_OBJECT_16]
+[MEASUREMENT_OBJECT_17]
 Module=xcp_lite
 Name=channel_9
 Disabled=0
-Mode=2147483659
+Mode=2147483660
 Rate=0
 Row=0
 Column=0
@@ -1143,7 +1203,7 @@ IsFallback=0
 HasManagedDisplay=0
 DisplayCount=1
 
-[MEASUREMENT_OBJECT_16_DISPLAY_1]
+[MEASUREMENT_OBJECT_17_DISPLAY_1]
 Window=3
 Index=0
 Color=11162965
@@ -1189,12 +1249,12 @@ YAxis_ID=2
 AxisTemplate=
 GUID=DISPLAY_38e26b38-ea9f-464e-95df-39d45a9aef6d
 
-[MEASUREMENT_OBJECT_17]
+[MEASUREMENT_OBJECT_18]
 Components=0
 Module=xcp_lite
 Name=$point_cloud$
 Disabled=1
-Mode=2147483650
+Mode=2147483651
 Rate=0
 Row=0
 Column=0
@@ -1206,7 +1266,7 @@ DisplayCount=0
 
 [MEASUREMENT_OBJECT_1_DISPLAY_1]
 Window=8
-Index=5
+Index=1
 Color=33023
 ApplyColorToBackground=0
 ColorFunction=0
@@ -1252,7 +1312,7 @@ GUID=DISPLAY_a4718064-71a8-43ab-a26d-7b0b56d07687
 
 [MEASUREMENT_OBJECT_2]
 Module=xcp_lite
-Name=counter
+Name=mainloop_counter2
 Disabled=0
 Mode=2147483649
 Rate=0
@@ -1262,11 +1322,71 @@ MeaReferenced=1
 ArchivBy_1=Rekorder
 IsFallback=0
 HasManagedDisplay=0
-DisplayCount=2
+DisplayCount=1
 
 [MEASUREMENT_OBJECT_2_DISPLAY_1]
 Window=8
-Index=4
+Index=0
+Color=16744576
+ApplyColorToBackground=0
+ColorFunction=0
+ColorFunctionScope=1
+LineTyp=2
+YMinHome=0
+YMaxHome=100
+YMin=0
+YMax=100
+XOffsetNS=0
+XOffset=0
+ValueFormat=3
+BitMask=1
+ShowYAxis=1
+Width=10
+LineStyle=1
+MarkerType=1
+SRMainValue=0
+InvalidValueDrawMode=3
+LineWidth=1
+Precision=-2
+Digits=6
+Enabled=1
+StoredFocused=0
+SublMask=1
+MeaSublMask=0
+LockScaling=0
+RightAxis=0
+MapMode=2
+OverlayGridColor=0
+ShadingMode=3
+EditOffset=1
+EditFactor=2
+WAxisLabel=
+XAxisLabel=
+YAxisLabel=
+AxisCaption=
+Row=0
+Col=0
+YAxis_ID=0
+AxisTemplate=
+GUID=DISPLAY_63b3c865-c9d8-4f5f-ad70-00899dc935c0
+
+[MEASUREMENT_OBJECT_3]
+Module=xcp_lite
+Name=counter
+Disabled=0
+Mode=2147483650
+Rate=0
+Row=0
+Column=0
+MeaReferenced=1
+ArchivBy_1=Rekorder
+IsFallback=0
+HasManagedDisplay=0
+DisplayCount=2
+
+[MEASUREMENT_OBJECT_3_DISPLAY_1]
+Window=8
+Index=6
 Color=16744448
 ApplyColorToBackground=0
 ColorFunction=0
@@ -1310,7 +1430,7 @@ YAxis_ID=0
 AxisTemplate=
 GUID=DISPLAY_3816e7cb-d393-4245-8621-60d726ebcfe4
 
-[MEASUREMENT_OBJECT_2_DISPLAY_2]
+[MEASUREMENT_OBJECT_3_DISPLAY_2]
 Window=3
 Index=9
 Color=16744448
@@ -1356,11 +1476,11 @@ YAxis_ID=0
 AxisTemplate=
 GUID=DISPLAY_2561bed0-8ac6-4731-a9eb-c3f475b324d8
 
-[MEASUREMENT_OBJECT_3]
+[MEASUREMENT_OBJECT_4]
 Module=xcp_lite
 Name=counter_u64
 Disabled=0
-Mode=2147483649
+Mode=2147483650
 Rate=0
 Row=0
 Column=0
@@ -1370,9 +1490,9 @@ IsFallback=0
 HasManagedDisplay=0
 DisplayCount=1
 
-[MEASUREMENT_OBJECT_3_DISPLAY_1]
+[MEASUREMENT_OBJECT_4_DISPLAY_1]
 Window=8
-Index=3
+Index=5
 Color=65280
 ApplyColorToBackground=0
 ColorFunction=0
@@ -1416,11 +1536,11 @@ YAxis_ID=0
 AxisTemplate=
 GUID=DISPLAY_7691d3bd-bcba-416d-8b8d-dd26b2a5fc34
 
-[MEASUREMENT_OBJECT_4]
+[MEASUREMENT_OBJECT_5]
 Module=xcp_lite
 Name=counter_u32
 Disabled=0
-Mode=2147483649
+Mode=2147483650
 Rate=0
 Row=0
 Column=0
@@ -1430,9 +1550,9 @@ IsFallback=0
 HasManagedDisplay=0
 DisplayCount=1
 
-[MEASUREMENT_OBJECT_4_DISPLAY_1]
+[MEASUREMENT_OBJECT_5_DISPLAY_1]
 Window=8
-Index=2
+Index=4
 Color=255
 ApplyColorToBackground=0
 ColorFunction=0
@@ -1476,11 +1596,11 @@ YAxis_ID=0
 AxisTemplate=
 GUID=DISPLAY_ed075cff-161d-441e-ab13-ef70dd70101d
 
-[MEASUREMENT_OBJECT_5]
+[MEASUREMENT_OBJECT_6]
 Module=xcp_lite
 Name=counter_u16
 Disabled=0
-Mode=2147483649
+Mode=2147483650
 Rate=0
 Row=0
 Column=0
@@ -1490,9 +1610,9 @@ IsFallback=0
 HasManagedDisplay=0
 DisplayCount=1
 
-[MEASUREMENT_OBJECT_5_DISPLAY_1]
+[MEASUREMENT_OBJECT_6_DISPLAY_1]
 Window=8
-Index=1
+Index=3
 Color=16776960
 ApplyColorToBackground=0
 ColorFunction=0
@@ -1536,11 +1656,11 @@ YAxis_ID=0
 AxisTemplate=
 GUID=DISPLAY_661e9d67-6e45-4854-9267-1189c1069d03
 
-[MEASUREMENT_OBJECT_6]
+[MEASUREMENT_OBJECT_7]
 Module=xcp_lite
 Name=counter_u8
 Disabled=0
-Mode=2147483649
+Mode=2147483650
 Rate=0
 Row=0
 Column=0
@@ -1550,9 +1670,9 @@ IsFallback=0
 HasManagedDisplay=0
 DisplayCount=1
 
-[MEASUREMENT_OBJECT_6_DISPLAY_1]
+[MEASUREMENT_OBJECT_7_DISPLAY_1]
 Window=8
-Index=0
+Index=2
 Color=16711935
 ApplyColorToBackground=0
 ColorFunction=0
@@ -1576,7 +1696,7 @@ LineWidth=1
 Precision=-2
 Digits=6
 Enabled=1
-StoredFocused=0
+StoredFocused=1
 SublMask=1
 MeaSublMask=0
 LockScaling=0
@@ -1596,11 +1716,11 @@ YAxis_ID=0
 AxisTemplate=
 GUID=DISPLAY_8ec39fbe-4cfc-405b-84f1-1beb1b99ea53
 
-[MEASUREMENT_OBJECT_7]
+[MEASUREMENT_OBJECT_8]
 Module=xcp_lite
 Name=array1
 Disabled=1
-Mode=2147483649
+Mode=2147483650
 Rate=0
 Row=0
 Column=0
@@ -1616,11 +1736,11 @@ IsFallback=0
 HasManagedDisplay=0
 DisplayCount=0
 
-[MEASUREMENT_OBJECT_8]
+[MEASUREMENT_OBJECT_9]
 Module=xcp_lite
 Name=channel_1
 Disabled=0
-Mode=2147483651
+Mode=2147483652
 Rate=0
 Row=0
 Column=0
@@ -1630,7 +1750,7 @@ IsFallback=0
 HasManagedDisplay=0
 DisplayCount=1
 
-[MEASUREMENT_OBJECT_8_DISPLAY_1]
+[MEASUREMENT_OBJECT_9_DISPLAY_1]
 Window=3
 Index=8
 Color=255
@@ -1675,66 +1795,6 @@ Col=0
 YAxis_ID=2
 AxisTemplate=
 GUID=DISPLAY_b65281b1-6d89-431f-848c-ff4f029b7ddf
-
-[MEASUREMENT_OBJECT_9]
-Module=xcp_lite
-Name=channel_2
-Disabled=0
-Mode=2147483652
-Rate=0
-Row=0
-Column=0
-MeaReferenced=1
-ArchivBy_1=Rekorder
-IsFallback=0
-HasManagedDisplay=0
-DisplayCount=1
-
-[MEASUREMENT_OBJECT_9_DISPLAY_1]
-Window=3
-Index=7
-Color=21930
-ApplyColorToBackground=0
-ColorFunction=0
-ColorFunctionScope=1
-LineTyp=2
-YMinHome=-200
-YMaxHome=200
-YMin=-200
-YMax=200
-XOffsetNS=0
-XOffset=0
-ValueFormat=3
-BitMask=1
-ShowYAxis=1
-Width=10
-LineStyle=1
-MarkerType=1
-SRMainValue=0
-InvalidValueDrawMode=3
-LineWidth=2
-Precision=-2
-Digits=6
-Enabled=1
-StoredFocused=0
-SublMask=1
-MeaSublMask=3
-LockScaling=0
-RightAxis=0
-MapMode=2
-OverlayGridColor=0
-ShadingMode=3
-EditOffset=1
-EditFactor=2
-WAxisLabel=
-XAxisLabel=
-YAxisLabel=
-AxisCaption=
-Row=0
-Col=0
-YAxis_ID=2
-AxisTemplate=
-GUID=DISPLAY_6bfc8c70-8ddc-4676-a754-45ecb1957527
 
 [MEASUREMENT_OPTIONS]
 RemainingRecordingTime=5000
@@ -1814,7 +1874,7 @@ GlobalCursorTimeNs=0
 GlobalTimeAxis=1
 GlobalTimeAxisStartTime=0
 GlobalTimeAxisEndTime=34366622088
-MainWindowPos=1, 1030, 18, 3502, 2069 ;cmd, x, y, w, h
+MainWindowPos=1, 1030, 68, 3502, 2069 ;cmd, x, y, w, h
 
 [PAR_COMMENT]
 1="Name",""
@@ -4287,7 +4347,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_9ceb89e6-e86a-43ef-8365-42987ca2f460
+GUID=DISPLAY_3a251c06-01c7-4146-a312-cfe3c7327f36
 
 [WINDOW_5_OBJECT_10]
 Type=2
@@ -4336,7 +4396,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_322e6750-5a76-4eb3-a41b-92b7acdcca1c
+GUID=DISPLAY_4ebb170f-8cab-4cd9-8f43-4233f4d1bbe2
 
 [WINDOW_5_OBJECT_11]
 Type=2
@@ -4385,7 +4445,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_eaf178de-7f13-4eb0-b006-74babc8847f8
+GUID=DISPLAY_25e07f2e-457c-43e7-995e-15f7009b527b
 
 [WINDOW_5_OBJECT_12]
 Type=2
@@ -4434,7 +4494,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_aecad35c-fe76-40e0-b61d-31bfdd877156
+GUID=DISPLAY_b911ea2b-9e19-433c-99ce-6847b77d72e0
 
 [WINDOW_5_OBJECT_13]
 Type=2
@@ -4483,7 +4543,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_c4f47b5c-928e-42fa-8aaa-28580475dca4
+GUID=DISPLAY_956ac468-e774-4159-8398-581dac4dcb25
 
 [WINDOW_5_OBJECT_14]
 Type=2
@@ -4532,7 +4592,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_fbdadd16-72db-4391-b7d6-2d648d500f4d
+GUID=DISPLAY_97c96f7a-9e7c-4c69-a433-26f9738dfb96
 
 [WINDOW_5_OBJECT_15]
 Type=2
@@ -4581,7 +4641,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_5cbd1eaf-51e7-498a-a192-dfd661b60b44
+GUID=DISPLAY_80d70cc9-6963-4213-ab03-53131095e8fe
 
 [WINDOW_5_OBJECT_16]
 Type=2
@@ -4630,7 +4690,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_8ef081e5-30ed-43ef-8e64-3339d1f45e05
+GUID=DISPLAY_4c3f63b1-54f4-45e0-9d2f-ed038c0cee44
 
 [WINDOW_5_OBJECT_2]
 Type=2
@@ -4679,7 +4739,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_6339cbb5-14f2-42e1-a2bd-4f8d3f73b959
+GUID=DISPLAY_68707be8-01e2-48e6-ac73-179618a5018a
 
 [WINDOW_5_OBJECT_3]
 Type=2
@@ -4728,7 +4788,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_fb9388f3-836b-41e4-b803-a0b7ee4d7f4f
+GUID=DISPLAY_979bbde8-663e-43e1-b9ea-dafcf81ae21d
 
 [WINDOW_5_OBJECT_4]
 Type=2
@@ -4777,7 +4837,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_b5b671ed-0021-418c-8488-2254fe2bc44f
+GUID=DISPLAY_1c0c1cb1-a571-4e9c-a01b-f8017e6d613b
 
 [WINDOW_5_OBJECT_5]
 Type=2
@@ -4826,7 +4886,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_acde4758-3a4c-4333-8acb-88365bafbe4b
+GUID=DISPLAY_54abeccf-c19d-4337-abfa-4e4897a23dfa
 
 [WINDOW_5_OBJECT_6]
 Type=2
@@ -4875,7 +4935,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_ec6419a5-5cf6-4fa3-a386-990f00076bd7
+GUID=DISPLAY_85f4276e-6b94-4f5a-83ab-609aa2d593cd
 
 [WINDOW_5_OBJECT_7]
 Type=2
@@ -4924,7 +4984,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_197c8deb-a846-492f-bc8f-46e92fc1cd6d
+GUID=DISPLAY_e970e771-6c1c-491d-a8b2-1e3cf32fa9fa
 
 [WINDOW_5_OBJECT_8]
 Type=2
@@ -4973,7 +5033,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_6190ec4d-fd59-4a06-981a-4cb40f9dbe70
+GUID=DISPLAY_289beb2a-15e2-4c7c-825f-9039d42842a7
 
 [WINDOW_5_OBJECT_9]
 Type=2
@@ -5022,7 +5082,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_0d151f66-5599-4ccb-bae6-4417b5599474
+GUID=DISPLAY_e0b7e0d3-0060-47e4-a692-b01ec4e28b11
 
 [WINDOW_6]
 ProgID=CNPTRACE.TraceCtrl.1

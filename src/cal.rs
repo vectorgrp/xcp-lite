@@ -216,7 +216,7 @@ impl CalSegList {
         // Address is index<<16, addr_ext is 0
         {
             for (i, d) in self.0.iter().enumerate() {
-                trace!("register CalSeg {}, size={}", d.get_name(), d.get_size());
+                trace!("Register CalSeg {}, size={}", d.get_name(), d.get_size());
                 assert!(i == d.calseg.lock().unwrap().get_index());
                 Xcp::get().get_registry().lock().unwrap().add_cal_seg(
                     d.get_name(),

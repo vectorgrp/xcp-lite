@@ -15,6 +15,7 @@ fn main() {
     //     //
     //     .blocklist_type("T_CLOCK_INFO")
     //     .allowlist_function("XcpInit")
+    //     .allowlist_function("XcpEvent")
     //     .allowlist_function("XcpEventExt")
     //     .allowlist_function("XcpPrint")
     //     .allowlist_function("XcpEthServerInit")
@@ -22,6 +23,7 @@ fn main() {
     //     .allowlist_function("XcpEthServerStatus")
     //     .allowlist_function("ApplXcpSetLogLevel")
     //     .allowlist_function("ApplXcpSetA2lName")
+    //     .allowlist_function("ApplXcpGetAddr")    
     //     .allowlist_function("ApplXcpRegisterCallbacks")
     //     //
     //     .generate()

@@ -192,7 +192,7 @@ impl XcpDaqDecoder for DaqDecoder {
 
 //-----------------------------------------------------------------------
 // Execute tests
-pub async fn test_executor(single_thread: bool, multi_thread: bool, log_level: XcpLogLevel) {
+pub async fn test_executor(single_thread: bool, multi_thread: bool) {
     tokio::time::sleep(Duration::from_millis(500)).await;
     info!("Start test executor");
 
@@ -291,10 +291,9 @@ pub async fn test_executor(single_thread: bool, multi_thread: bool, log_level: X
     //-------------------------------------------------------------------------------------------------------------------------------------
     // DAQ test single_thread or multi_thread
     if single_thread || multi_thread {
-        let log_level_daq_test = log_level;
+        
         tokio::time::sleep(Duration::from_micros(10000)).await;
         info!("Start data acquisition test");
-        Xcp::set_server_log_level(log_level_daq_test);
 
         // Create a calibration object for CalPage1.counter_max
         // Set counter_max to 15
@@ -429,15 +428,7 @@ pub async fn test_executor(single_thread: bool, multi_thread: bool, log_level: X
             assert_eq!(d.odt_max, 0);
         }
     }
-    //-------------------------------------------------------------------------------------------------------------------------------------
-    // DAQ test multi_task
-    else {
-        xcp_client.create_measurement_object("counter_max").unwrap();
-        xcp_client.create_measurement_object("counter").unwrap();
-        xcp_client.start_measurement().await.unwrap();
-        tokio::time::sleep(Duration::from_millis(1000)).await;
-        xcp_client.stop_measurement().await.unwrap();
-    }
+    
 
     // Wait some time to be sure the queue is emptied
     // The XCP server should not respond to STOP while the queue is not empty
