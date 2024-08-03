@@ -28,8 +28,8 @@ pub fn idl_generator_derive(input: TokenStream) -> TokenStream {
                     //TODO: Remove redundant to_string?
                     quote! {
                         struct_fields.push(Field::new(
-                            #f_name_str.to_string(),
-                            #f_type_str.to_string()
+                            #f_name_str,
+                            #f_type_str
                         ));
                     }
 
@@ -41,7 +41,7 @@ pub fn idl_generator_derive(input: TokenStream) -> TokenStream {
                     fn description() -> Struct {
                         let mut struct_fields = FieldList::new();
                         #(#field_handlers)*
-                        Struct::new(stringify!(#data_type).to_owned(), struct_fields)
+                        Struct::new(stringify!(#data_type), struct_fields)
                     }
                 }
             }

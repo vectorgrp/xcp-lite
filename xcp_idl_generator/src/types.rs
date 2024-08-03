@@ -1,8 +1,8 @@
 #[derive(Debug)]
-pub struct Struct(String, FieldList);
+pub struct Struct(&'static str, FieldList);
 
 impl Struct {
-    pub fn new(name: String, fields: FieldList) -> Self {
+    pub fn new(name: &'static str, fields: FieldList) -> Self {
         Struct(name, fields)
     }
 
@@ -37,10 +37,10 @@ impl FieldList {
 }
 
 #[derive(Debug)]
-pub struct Field(String, String);
+pub struct Field(&'static str, &'static str);
 
 impl Field {
-    pub fn new(name: String, field_type: String) -> Self {
+    pub fn new(name: &'static str, field_type: &'static str) -> Self {
         Field(name, field_type)
     }
 
