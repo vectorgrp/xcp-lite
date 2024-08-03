@@ -288,15 +288,14 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
             y: u32,
             z: u32,
         }
+
         let mut point_cloud = Vec::with_capacity(4);
-        //TODO: Refactor API
-        let annotation = generate(IDL::CDR, &Point::description());
-        // let annotation = translate_idl_struct(po)
+        let annotation = GeneratorCollection::generate(&IDL::CDR, &Point::description()).unwrap();
         point_cloud.push(Point { x: 0, y: 0, z: 0 });
         point_cloud.push(Point { x: 1, y: 0, z: 0 });
         point_cloud.push(Point { x: 1, y: 1, z: 0 });
         point_cloud.push(Point { x: 1, y: 1, z: 1 });
-        // This one could be Noned
+
         daq_serialize!(
             point_cloud,
             event_point_cloud,

@@ -14,7 +14,8 @@ fn write_string_to_file(filename: &str, content: &str) {
 
 fn main() {
     let description = Measurement::description();
-    let idl_str = generate(IDL::CDR, &description);
+    let idl_str = GeneratorCollection::generate(&IDL::CDR, &description).unwrap();
+
     println!("{}", idl_str);
     write_string_to_file("./gen.txt", &idl_str);
 }

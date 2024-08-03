@@ -1,19 +1,25 @@
 use crate::types::*;
-use collection::GeneratorCollection;
-use lazy_static::lazy_static;
+use std::collections::HashMap;
 
-mod collection;
-
-lazy_static! {
-    pub static ref GENERATOR_COLLECTION: GeneratorCollection = GeneratorCollection::new();
-}
+pub mod collection;
 
 pub trait Generator: Send {
-    fn translate(&self, input: &Struct) -> String;
-    fn translate_fields(&self, input: &Struct) -> String;
+    fn generate(&self, input: &Struct) -> String;
+    fn type_mapping(&self) -> &'static TypeMapping;
 }
 
-pub fn generate(idl_type: IDL, input: &Struct) -> String {
-    let translation = GENERATOR_COLLECTION.translate(&idl_type, input).unwrap();
-    translation
+pub struct TypeMapping(HashMap<&'static str, &'static str>);
+
+impl TypeMapping {
+    pub fn new() -> Self {
+        TypeMapping(HashMap::new())
+    }
+
+    pub fn insert(&mut self, key: &'static str, value: &'static str) {
+        self.0.insert(key, value);
+    }
+
+    fn get(&self, key: &str) -> Option<&&'static str> {
+        self.0.get(key)
+    }
 }

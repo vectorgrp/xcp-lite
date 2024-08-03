@@ -1,30 +1,52 @@
 pub mod cdr;
 
-use super::{Struct, Generator, IDL};
+use super::{Generator, Struct, IDL};
 use cdr::CdrGenerator;
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Once},
+};
 
-type TranslatorBox = Arc<dyn Generator + Send + Sync>;
-
-pub struct GeneratorCollection(HashMap<IDL, TranslatorBox>);
+pub struct GeneratorCollection(HashMap<IDL, ArcGenerator>);
 
 impl GeneratorCollection {
-    pub fn new() -> Self {
+    fn new() -> Self {
         let mut map = HashMap::new();
-        map.insert(IDL::CDR, create_translator_box(CdrGenerator::new()));
+        map.insert(IDL::CDR, create_arc_generator(CdrGenerator::new()));
         GeneratorCollection(map)
     }
 
-    pub fn translate(&self, idl_type: &IDL, input: &Struct) -> Option<String> {
-        self.0
+    pub fn generate(idl_type: &IDL, input: &Struct) -> Option<String> {
+        let instance = GeneratorCollection::instance();
+        let generator = instance
             .get(idl_type)
-            .map(|translator| translator.translate(input))
+            .expect("Generator not found for IDL type");
+
+        Some(generator.generate(input))
+    }
+
+    pub fn instance() -> &'static GeneratorCollection {
+        static mut INSTANCE: Option<GeneratorCollection> = None;
+        static INIT: Once = Once::new();
+
+        unsafe {
+            INIT.call_once(|| {
+                INSTANCE = Some(GeneratorCollection::new());
+            });
+            INSTANCE.as_ref().unwrap()
+        }
+    }
+
+    fn get(&self, idl_type: &IDL) -> Option<&ArcGenerator> {
+        self.0.get(idl_type)
     }
 }
 
-fn create_translator_box<T>(translator: T) -> TranslatorBox
+type ArcGenerator = Arc<dyn Generator + Send + Sync>;
+
+fn create_arc_generator<T>(generator: T) -> ArcGenerator
 where
     T: Generator + Send + Sync + 'static,
 {
-    Arc::new(translator) as TranslatorBox
+    Arc::new(generator) as ArcGenerator
 }

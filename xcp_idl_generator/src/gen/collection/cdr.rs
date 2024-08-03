@@ -1,38 +1,32 @@
-use std::collections::HashMap;
-
-use crate::gen::Generator;
-use crate::types::Struct;
 use crate::domain::{RUST_VECTOR, VECTOR_NAMESPACE};
+use crate::gen::Generator;
+use crate::gen::TypeMapping;
+use crate::types::Struct;
+use std::sync::Once;
 
-pub struct TypeMapping(HashMap<&'static str, &'static str>);
-
-impl TypeMapping {
-    pub fn new() -> Self {
-        let mut map = HashMap::new();
-        //TODO: Add other types
-        map.insert("u32", "uint32");
-        TypeMapping(map)
-    }
-
-    fn get(&self, key: &str) -> Option<&&'static str> {
-        self.0.get(key)
-    }
-}
-
-pub struct CdrGenerator {
-    type_mapping: TypeMapping,
-}
+pub struct CdrGenerator;
 
 impl CdrGenerator {
     pub fn new() -> Self {
-        Self {
-            type_mapping: TypeMapping::new(),
-        }
+        Self {}
+    }
+
+    fn translate_fields(&self, input: &Struct) -> String {
+        input
+            .fields()
+            .iter()
+            .map(|field| {
+                let datatype = field.datatype();
+                let translated_type = self.type_mapping().get(&datatype).unwrap(); //TODO: Error Handling
+                format!("{} {};", translated_type, field.name())
+            })
+            .collect::<Vec<String>>()
+            .join("\n      ")
     }
 }
 
 impl Generator for CdrGenerator {
-    fn translate(&self, input: &Struct) -> String {
+    fn generate(&self, input: &Struct) -> String {
         let type_name = input.type_name();
         let lc_typename = type_name.to_ascii_lowercase();
         let fields_str = self.translate_fields(input);
@@ -61,16 +55,18 @@ impl Generator for CdrGenerator {
         translation
     }
 
-    fn translate_fields(&self, input: &Struct) -> String {
-        input
-            .fields()
-            .iter()
-            .map(|field| {
-                let datatype = field.datatype();
-                let translated_type = self.type_mapping.get(&datatype).unwrap_or(&datatype);
-                format!("{} {};", translated_type, field.name())
-            })
-            .collect::<Vec<String>>()
-            .join("\n      ")
+    fn type_mapping(&self) -> &'static TypeMapping {
+        static mut MAPPING: Option<TypeMapping> = None;
+        static INIT: Once = Once::new();
+
+        unsafe {
+            INIT.call_once(|| {
+                let mut mapping = TypeMapping::new();
+                mapping.insert("u32", "uint32");
+
+                MAPPING = Some(mapping);
+            });
+            MAPPING.as_ref().unwrap() //TODO: Error Handling??
+        }
     }
 }
