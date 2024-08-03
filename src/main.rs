@@ -389,12 +389,15 @@ fn main() {
     // Mainloop
     xcp_println!("Main task starts");
 
-    let mut mainloop_counter: u64 = 0;
+    let mut mainloop_counter1: u64 = 0;
+    let mut mainloop_counter2 = Box::new(0u64);
+    let mut mainloop_counter3 = Box::new(0u64);
     let mut mainloop_array = Box::new([[0u8; 16]; 16]);
 
-    let mainloop_event = daq_create_event!("mainloop", 8);
-    daq_register!(mainloop_counter, mainloop_event, "counter on stack", "");
-
+    let mut mainloop_event = daq_create_event!("mainloop", 8); // Capture buffer 8 bytes for mainloop_counter3
+    daq_register!(mainloop_counter1, mainloop_event);
+    //daq_register_ref!(mainloop_counter2, mainloop_event);
+    
     loop {
         // @@@@ Dev: Terminate mainloop for shutdown if calibration parameter run is false, for test automation
         if !calseg.run {
@@ -402,20 +405,29 @@ fn main() {
         }
         thread::sleep(Duration::from_millis(50));
 
-        mainloop_counter += 1; // Stack
-        mainloop_array[0][0] = mainloop_counter as u8; // Heap
+        mainloop_counter1 += 1; 
+        *mainloop_counter2 += 2;
+        *mainloop_counter3 += 3; 
+        mainloop_array[0][0] = mainloop_counter1 as u8; 
 
-        // Measure directly from stack with event "mainloop"
-        mainloop_event.trigger();
+        
+        // Capture variable from heap
+        daq_capture!(mainloop_counter3,mainloop_event);
 
-        // Measure directly from heap with individual event "mainloop_array"
-        daq_event_for_ref!(
+        // Measure variable directly from heap with individual event "mainloop_array"
+        daq_event_ref!(
             mainloop_array,
             RegistryDataType::AUint64,
             16,
             16,
             "array on heap"
         );
+
+        // Measure directly from stack with event "mainloop"
+        mainloop_event.trigger();
+
+        // Sync
+        calseg.sync();
 
         // Check if the XCP server is still alive
         // Optional
@@ -424,14 +436,11 @@ fn main() {
             break;
         }
 
-        // Sync
-        calseg.sync();
-
         // @@@@ Dev:
         // Finalize A2l after 2s delay
         // This is just for testing, to force immediate creation of A2L file
         // Without this, the A2L file will be automatically written on XCP connect, to be available for download by CANape
-        if !args.no_a2l && mainloop_counter == 1 {
+        if !args.no_a2l && mainloop_counter1 == 1 {
             thread::sleep(Duration::from_secs(2));
             xcp.write_a2l(); // Test A2L write
                              // xcp.set_init_request(); // Test init request

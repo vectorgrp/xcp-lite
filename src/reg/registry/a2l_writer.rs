@@ -125,16 +125,22 @@ impl GenerateA2l for RegistryCalSegList {
 
 impl GenerateA2l for RegistryMeasurement {
     fn to_a2l_string(&self) -> String {
-        let (ext, addr) = self.event.get_daq_ext_addr(self.event_offset);
+
+        let (ext, addr) = if self.addr == 0 { 
+            self.event.get_dyn_ext_addr(self.addr_offset) 
+        } else {
+            self.event.get_abs_ext_addr(self.addr) 
+        };
 
         trace!(
-            "write measurement: {} {} {}:0x{:08X} event={},{}",
+            "write measurement: {} {} {}:0x{:08X} event={}+{}, addr=0x{:08X}",
             self.name,
             self.datatype.get_type_str(),
             ext,
             addr,
             self.event.get_num(),
-            self.event_offset
+            self.addr_offset,
+            self.addr
         );
 
         let name = &self.name;

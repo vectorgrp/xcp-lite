@@ -328,7 +328,8 @@ pub struct RegistryMeasurement {
     x_dim: u16, // 1 = basic type (A2L MEASUREMENT), >1 = array[dim] of basic type (A2L MEASUREMENT with MATRIX_DIM x (max u16))
     y_dim: u16, // 1 = basic type (A2L MEASUREMENT), >1 = array[x_dim,y_dim] of basic type (A2L MEASUREMENT with MATRIX_DIM x,y (max u16))
     event: XcpEvent,
-    event_offset: i16, // Address offset (signed) relative to event memory context (XCP_ADDR_EXT_DYN)
+    addr_offset: i16, // Address offset (signed!) relative to event memory context (XCP_ADDR_EXT_DYN)
+    addr:  u64,
     factor: f64,
     offset: f64,
     comment: &'static str,
@@ -344,6 +345,7 @@ impl RegistryMeasurement {
         y_dim: u16,
         event: XcpEvent,
         event_offset: i16,
+        addr: u64,
         factor: f64,
         offset: f64,
         comment: &'static str,
@@ -356,7 +358,8 @@ impl RegistryMeasurement {
             x_dim,
             y_dim,
             event,
-            event_offset,
+            addr_offset: event_offset,
+            addr,
             factor,
             offset,
             comment,
@@ -385,8 +388,12 @@ impl RegistryMeasurement {
         self.event
     }
 
-    pub fn event_offset(&self) -> i16 {
-        self.event_offset
+    pub fn addr_offset(&self) -> i16 {
+        self.addr_offset
+    }
+
+    pub fn addr(&self) -> u64 {
+        self.addr
     }
 
     pub fn factor(&self) -> f64 {
@@ -677,15 +684,6 @@ impl Registry {
     /// # panics
     ///   If a measurement with the same name already exists
     ///   If the registry is closed
-    ///
-    ///
-    ///
-    ///
-    ///
-    ///
-    ///
-    ///
-    ///
     pub fn add_measurement(&mut self, mut m: RegistryMeasurement) {
         debug!(
             "add_measurement: {} type={:?}[{},{}] event={}+({})",
@@ -694,7 +692,7 @@ impl Registry {
             m.x_dim,
             m.y_dim,
             m.event.get_num(),
-            m.event_offset
+            m.addr_offset
         );
 
         // Panic if registry is closed
@@ -809,6 +807,7 @@ mod registry_tests {
             1,
             1,
             event,
+            0,
             0,
             1.0,
             0.0,

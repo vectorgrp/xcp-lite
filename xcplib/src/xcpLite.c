@@ -142,6 +142,7 @@ typedef struct {
     uint8_t mode;
     uint8_t state;
     uint8_t priority;
+    uint8_t addrExt;
 } tXcpDaqList;
 
 
@@ -176,6 +177,7 @@ typedef struct {
 #define DaqListMode(i)          gXcp.Daq.u.DaqList[i].mode
 #define DaqListState(i)         gXcp.Daq.u.DaqList[i].state
 #define DaqListEventChannel(i)  gXcp.Daq.u.DaqList[i].eventChannel
+#define DaqListAddrExt(i)       gXcp.Daq.u.DaqList[i].addrExt
 #define DaqListPriority(i)      gXcp.Daq.u.DaqList[i].priority
 #ifdef XCP_ENABLE_PACKED_MODE
 #define DaqListSampleCount(i)   gXcp.Daq.u.DaqList[i].sampleCount
@@ -501,6 +503,7 @@ static uint8_t XcpAllocDaq( uint16_t daqCount ) {
   if (0!=(r = XcpAllocMemory())) return r;
   for (daq=0;daq<daqCount;daq++)  {
     DaqListEventChannel(daq) = XCP_UNDEFINED_EVENT;
+    DaqListAddrExt(daq) = XCP_ADDR_EXT_UNDEFINED;
   }
   gXcp.Daq.DaqCount = (uint8_t)daqCount;
   return 0;
@@ -577,11 +580,18 @@ static uint8_t  XcpSetDaqPtr(uint16_t daq, uint8_t odt, uint8_t idx) {
 }
 
 // Add an ODT entry to current DAQ/ODT
+// Supports XCP_ADDR_EXT_ABS and XCP_ADDR_EXT_DYN if XCP_ENABLE_DYN_ADDRESSING
+// All ODT entries of a DAQ list must have the same address extension,returns CRC_DAQ_CONFIG if not
+// In XCP_ADDR_EXT_DYN addressing mode, the event must be unique
 static uint8_t XcpAddOdtEntry(uint32_t addr, uint8_t ext, uint8_t size) {
 
     if ((size == 0) || size > XCP_MAX_ODT_ENTRY_SIZE) return CRC_OUT_OF_RANGE;
     if (0 == gXcp.Daq.DaqCount || 0 == gXcp.Daq.OdtCount || 0 == gXcp.Daq.OdtEntryCount) return CRC_DAQ_CONFIG;
     if (gXcp.WriteDaqOdtEntry-DaqListOdtFirstEntry(gXcp.WriteDaqOdt) >= DaqListOdtEntryCount(gXcp.WriteDaqOdt)) return CRC_OUT_OF_RANGE;
+
+    uint8_t daq_ext = DaqListAddrExt(gXcp.WriteDaqDaq);
+    if (daq_ext != XCP_ADDR_EXT_UNDEFINED && ext != daq_ext) return CRC_DAQ_CONFIG; // Error not unique address extension
+    DaqListAddrExt(gXcp.WriteDaqDaq) = ext;
 
 #ifndef XCP_ENABLE_DYN_ADDRESSING
     if (ext != XCP_ADDR_EXT_ABS) return CRC_ACCESS_DENIED; // Illegal address extension for DAQ, DAQ can only handle absolute addressing
@@ -622,6 +632,7 @@ static uint8_t XcpAddOdtEntry(uint32_t addr, uint8_t ext, uint8_t size) {
 }
 
 // Set DAQ list mode
+// All DAQ lists associaded with an event, must have the same event channel and address extension
 static uint8_t XcpSetDaqListMode(uint16_t daq, uint16_t event, uint8_t mode, uint8_t prio ) {
 
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
@@ -629,8 +640,21 @@ static uint8_t XcpSetDaqListMode(uint16_t daq, uint16_t event, uint8_t mode, uin
     if (e == NULL) return CRC_OUT_OF_RANGE;
 #endif
 #ifdef XCP_ENABLE_DYN_ADDRESSING 
-    uint16_t e0 = DaqListEventChannel(daq);
-    if (e0 != XCP_UNDEFINED_EVENT && event != e0) return CRC_OUT_OF_RANGE; // Error event channel redefinition
+
+    // Check if the DAQ list requires a specific event and it matches
+    uint16_t event0 = DaqListEventChannel(daq);
+    if (event0 != XCP_UNDEFINED_EVENT && event != event0) return CRC_DAQ_CONFIG; // Error event not unique
+
+    // Check all DAQ lists with same event have the same address extension
+    uint8_t ext = DaqListAddrExt(daq);
+    for (uint16_t daq0=0;daq0<gXcp.Daq.DaqCount;daq0++)  { 
+      uint16_t event0 = DaqListEventChannel(daq0); 
+      if (event0==event) {
+        uint8_t ext0 = DaqListAddrExt(daq0);
+        if (ext != ext0) return CRC_DAQ_CONFIG; // Error address extension not unique
+      }
+    }
+
 #endif
     DaqListEventChannel(daq) = event;
     DaqListMode(daq) = mode;
@@ -2386,6 +2410,7 @@ static void XcpPrintDaqList( uint16_t daq )
 
   printf("DAQ %u:\n",daq);
   printf(" eventchannel=%04Xh,",DaqListEventChannel(daq));
+  printf(" ext=%02Xh,",DaqListAddrExt(daq));
   printf(" firstOdt=%u,",DaqListFirstOdt(daq));
   printf(" lastOdt=%u,",DaqListLastOdt(daq));
   printf(" mode=%02Xh,", DaqListMode(daq));

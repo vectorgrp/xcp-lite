@@ -22,7 +22,7 @@ const OPTION_SERVER_PORT: u16 = 5555;
 const OPTION_TRANSPORT_LAYER: XcpTransportLayer = XcpTransportLayer::Udp; // XcpTransportLayer::TcpIp or XcpTransportLayer::UdpIp
 const OPTION_SEGMENT_SIZE: u16 = 1500 - 28; // UDP MTU
 const OPTION_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Info;
-const OPTION_XCP_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Warn;
+const OPTION_XCP_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Info;
 
 //-----------------------------------------------------------------------------
 // static calibration parameters
@@ -205,7 +205,7 @@ async fn test_single_thread() {
         task(cal_seg);
     });
 
-    test_executor(true, false, OPTION_LOG_LEVEL).await; // Start the test executor XCP client
+    test_executor(true, false).await; // Start the test executor XCP client
 
     t1.join().ok();
     Xcp::stop_server();

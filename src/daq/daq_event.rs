@@ -29,7 +29,8 @@ impl Xcp {
                 x_dim,
                 y_dim,
                 event,
-                0,   // byte_offset
+                0,  // byte_offset
+                0,
                 1.0, // factor
                 0.0, // offset
                 comment,
@@ -42,7 +43,7 @@ impl Xcp {
 /// Create a single instance XCP event and register the given variable once, trigger the event
 #[allow(unused_macros)]
 #[macro_export]
-macro_rules! daq_event_for_ref {
+macro_rules! daq_event_ref {
 
     ( $id:expr, $data_type: expr, $x_dim: expr, $comment:expr ) => {{
         lazy_static::lazy_static! {
@@ -108,10 +109,15 @@ impl<const N: usize> DaqEvent<N> {
         self.buffer[offset as usize..offset as usize + data.len()].copy_from_slice(data);
     }
 
-    /// Trigger this event
+    /// Trigger for stack or capture buffer measurement with base pointer relative addressing
     pub fn trigger(&self) {
         let base: *const u8 = &self.buffer as *const u8;
         self.event.trigger(base, self.buffer_len as u32);
+    }
+
+    /// Trigger for stack measurement with absolute addressing
+    pub fn trigger_abs(&self) {
+        self.event.trigger_abs();
     }
 
     /// Associate a variable to this DaqEvent, allocate space in the capture buffer and register it
@@ -147,6 +153,7 @@ impl<const N: usize> DaqEvent<N> {
                 y_dim,
                 event,
                 event_offset,
+                0u64,
                 factor,
                 offset,
                 comment,
@@ -171,7 +178,7 @@ impl<const N: usize> DaqEvent<N> {
     ) {
         let p = ptr as usize; // variable address
         let b = &self.buffer as *const _ as usize; // base address
-        trace!(
+        debug!(
             "add_stack: {} {:?} ptr={:p} base={:p}",
             name,
             datatype,
@@ -195,12 +202,56 @@ impl<const N: usize> DaqEvent<N> {
                 y_dim,
                 self.event,
                 event_offset,
+                0u64,
                 factor,
                 offset,
                 comment,
                 unit,
             ));
     }
+
+
+    /// Associate a variable on stack to this DaqEvent and register it
+    #[allow(clippy::too_many_arguments)]
+    pub fn add_heap(
+        &self,
+        name: &'static str,
+        ptr: *const u8,
+        datatype: RegistryDataType,
+        x_dim: u16,
+        y_dim: u16,
+        factor: f64,
+        offset: f64,
+        unit: &'static str,
+        comment: &'static str,
+    ) {
+        debug!(
+            "add_heap: {} {:?} ptr={:p} ",
+            name,
+            datatype,
+            ptr,
+            
+        );
+        
+        Xcp::get()
+            .get_registry()
+            .lock()
+            .unwrap()
+            .add_measurement(RegistryMeasurement::new(
+                name.to_string(),
+                datatype,
+                x_dim,
+                y_dim,
+                self.event,
+                0i16,
+                ptr as u64,
+                factor,
+                offset,
+                comment,
+                unit,
+            ));
+    }
+
 }
 
 //-----------------------------------------------------------------------------
@@ -446,6 +497,40 @@ macro_rules! daq_register {
                 stringify!($id),
                 &$id as *const _ as *const u8,
                 $id.get_type(),
+                1,
+                1,
+                1.0,
+                0.0,
+                "",
+                "",
+            );
+        };
+    }};
+}
+
+/// Register a local variable which is a reference to heap with basic type for the given daq event
+/// Address will be absolute addressing mode
+/// No capture buffer required
+#[allow(unused_macros)]
+#[macro_export]
+macro_rules! daq_register_ref {
+    // name, event
+    ( $id:ident, $daq_event:expr ) => {{
+        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 =
+            std::sync::atomic::AtomicI16::new(-32768);
+        if DAQ_OFFSET__
+            .compare_exchange(
+                -32768,
+                0,
+                std::sync::atomic::Ordering::Relaxed,
+                std::sync::atomic::Ordering::Relaxed,
+            )
+            .is_ok()
+        {
+            $daq_event.add_heap(
+                stringify!($id),
+                &(*$id) as *const _ as *const u8,
+                (*$id).get_type(),
                 1,
                 1,
                 1.0,
