@@ -47,8 +47,14 @@ impl GenerateA2l for XcpEvent {
         );
         // long name 100+1 characters
         // short name 8+1 characters
+        // format!(
+        //     r#"/begin EVENT "{:.100}" "{:.8}" {} DAQ 0xFF 0 0 0 CONSISTENCY EVENT /end EVENT"#,
+        //     indexed_name,
+        //     indexed_name,
+        //     self.get_num()
+        // )
         format!(
-            r#"/begin EVENT "{:.100}" "{:.8}" {} DAQ 0xFF 0 0 0 CONSISTENCY EVENT /end EVENT"#,
+            r#"/begin EVENT "{:.100}" "{:.8}" {} DAQ 0xFF 0 0 0 CONSISTENCY DAQ /end EVENT"#,
             indexed_name,
             indexed_name,
             self.get_num()
@@ -125,11 +131,10 @@ impl GenerateA2l for RegistryCalSegList {
 
 impl GenerateA2l for RegistryMeasurement {
     fn to_a2l_string(&self) -> String {
-
-        let (ext, addr) = if self.addr == 0 { 
-            self.event.get_dyn_ext_addr(self.addr_offset) 
+        let (ext, addr) = if self.addr == 0 {
+            self.event.get_dyn_ext_addr(self.addr_offset)
         } else {
-            self.event.get_abs_ext_addr(self.addr) 
+            self.event.get_abs_ext_addr(self.addr)
         };
 
         trace!(
@@ -168,9 +173,9 @@ impl GenerateA2l for RegistryMeasurement {
         "</DynamicObject>"
         "module Vector {{"
         "  struct Point {{"
-        "    uint32 x;"
-        "    uint32 y;"
-        "    uint32 z;"
+        "    float x;"
+        "    float y;"
+        "    float z;"
         "  }};"
         "  struct PointCloud {{"
         "    sequence<Point> Points;"

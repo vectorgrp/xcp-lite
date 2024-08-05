@@ -394,10 +394,10 @@ fn main() {
     let mut mainloop_counter3 = Box::new(0u64);
     let mut mainloop_array = Box::new([[0u8; 16]; 16]);
 
-    let mut mainloop_event = daq_create_event!("mainloop", 8); // Capture buffer 8 bytes for mainloop_counter3
+    let mut mainloop_event = daq_create_event!("mainloop", 64); // Capture buffer 64 bytes
     daq_register!(mainloop_counter1, mainloop_event);
     //daq_register_ref!(mainloop_counter2, mainloop_event);
-    
+
     loop {
         // @@@@ Dev: Terminate mainloop for shutdown if calibration parameter run is false, for test automation
         if !calseg.run {
@@ -405,14 +405,14 @@ fn main() {
         }
         thread::sleep(Duration::from_millis(50));
 
-        mainloop_counter1 += 1; 
+        mainloop_counter1 += 1;
         *mainloop_counter2 += 2;
-        *mainloop_counter3 += 3; 
-        mainloop_array[0][0] = mainloop_counter1 as u8; 
+        *mainloop_counter3 += 3;
+        mainloop_array[0][0] = mainloop_counter1 as u8;
 
-        
         // Capture variable from heap
-        daq_capture!(mainloop_counter3,mainloop_event);
+        daq_capture!(mainloop_counter2, mainloop_event);
+        daq_capture!(mainloop_counter3, mainloop_event);
 
         // Measure variable directly from heap with individual event "mainloop_array"
         daq_event_ref!(
