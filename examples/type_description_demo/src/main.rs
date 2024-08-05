@@ -1,7 +1,7 @@
 //TODO: Remove
 #[allow(warnings)]
 use xcp::*;
-use xcp_type_description_derive::XcpTypeDescription;
+use xcp_type_description::prelude::*;
 
 #[derive(Clone, Copy, XcpTypeDescription, Debug)]
 struct Parent {
