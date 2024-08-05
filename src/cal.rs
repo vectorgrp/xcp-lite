@@ -61,7 +61,7 @@ where
     fn register_fields(&self, calseg_name: &'static str) {
         trace!("Register all fields in {}", calseg_name);
 
-        for field in self.type_description().unwrap() {
+        for field in self.type_description().unwrap().iter() {
             let c = RegistryCharacteristicBuilder::default()
                 .name(field.name().to_string())
                 .comment(field.comment())

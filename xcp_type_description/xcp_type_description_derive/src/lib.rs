@@ -65,8 +65,8 @@ fn generate_type_description_impl(
 
     quote! {
         impl XcpTypeDescription for #data_type {
-            fn type_description(&self) -> Option<Vec<FieldDescriptor>> {
-                let mut type_description = Vec::new();
+            fn type_description(&self) -> Option<StructDescriptor> {
+                let mut type_description = StructDescriptor::new();
                 #(#field_handlers)*
                 Some(type_description)
             }

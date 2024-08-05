@@ -1,7 +1,9 @@
 pub mod prelude;
 
+use std::vec::IntoIter;
+
 pub trait XcpTypeDescription {
-    fn type_description(&self) -> Option<Vec<FieldDescriptor>> {
+    fn type_description(&self) -> Option<StructDescriptor> {
         None
     }
 }
@@ -127,8 +129,8 @@ impl StructDescriptor {
         StructDescriptor(Vec::new())
     }
 
-    pub fn push(&mut self, characteristic: FieldDescriptor) {
-        self.0.push(characteristic);
+    pub fn push(&mut self, field_descriptor: FieldDescriptor) {
+        self.0.push(field_descriptor);
     }
 
     pub fn sort(&mut self) {
@@ -137,5 +139,20 @@ impl StructDescriptor {
 
     pub fn iter(&self) -> std::slice::Iter<FieldDescriptor> {
         self.0.iter()
+    }
+}
+
+impl IntoIterator for StructDescriptor {
+    type Item = FieldDescriptor;
+    type IntoIter = IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl Extend<FieldDescriptor> for StructDescriptor {
+    fn extend<T: IntoIterator<Item = FieldDescriptor>>(&mut self, iter: T) {
+        self.0.extend(iter);
     }
 }
