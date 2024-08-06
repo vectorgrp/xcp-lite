@@ -29,7 +29,7 @@ impl Xcp {
                 x_dim,
                 y_dim,
                 event,
-                0,  // byte_offset
+                0, // byte_offset
                 0,
                 1.0, // factor
                 0.0, // offset
@@ -180,10 +180,7 @@ impl<const N: usize> DaqEvent<N> {
         let b = &self.buffer as *const _ as usize; // base address
         debug!(
             "add_stack: {} {:?} ptr={:p} base={:p}",
-            name,
-            datatype,
-            ptr,
-            &self.buffer as *const _
+            name, datatype, ptr, &self.buffer as *const _
         );
         let o: i64 = p as i64 - b as i64; // variable - base address
         assert!(
@@ -210,7 +207,6 @@ impl<const N: usize> DaqEvent<N> {
             ));
     }
 
-
     /// Associate a variable on stack to this DaqEvent and register it
     #[allow(clippy::too_many_arguments)]
     pub fn add_heap(
@@ -225,14 +221,8 @@ impl<const N: usize> DaqEvent<N> {
         unit: &'static str,
         comment: &'static str,
     ) {
-        debug!(
-            "add_heap: {} {:?} ptr={:p} ",
-            name,
-            datatype,
-            ptr,
-            
-        );
-        
+        debug!("add_heap: {} {:?} ptr={:p} ", name, datatype, ptr,);
+
         Xcp::get()
             .get_registry()
             .lock()
@@ -251,7 +241,6 @@ impl<const N: usize> DaqEvent<N> {
                 unit,
             ));
     }
-
 }
 
 //-----------------------------------------------------------------------------
@@ -267,13 +256,13 @@ impl<const N: usize> DaqEvent<N> {
 #[macro_export]
 macro_rules! daq_create_event {
     // Without capture buffer
-    ( $name:expr, $capacity: literal ) => {{
+    ( $name:expr, $capacity: expr ) => {{
         // Scope for lazy static XCP_EVENT__, create the XCP event only once
         lazy_static::lazy_static! {
             static ref XCP_EVENT__: XcpEvent = Xcp::get().create_event($name, false);
         }
         // Create the DAQ event every time the thread is running through this code
-        DaqEvent::<$capacity>::new_from(&XCP_EVENT__)
+        DaqEvent::<{ $capacity }>::new_from(&XCP_EVENT__)
     }};
     // With capture buffer capacity
     ( $name:expr ) => {{

@@ -9,16 +9,22 @@ use std::{
     time::{Duration, Instant},
 };
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-use xcp::*;
-//use xcp_type_description_derive::XcpTypeDescription;
+//-----------------------------------------------------------------------------
+// Defaults
 
 const BIND_ADDR: [u8; 4] = [192, 168, 0, 83]; // [172, 19, 11, 24]; // [192, 168, 0, 83]; // [127, 0, 0, 1];
 
-const POINT_COUNT: usize = 3;
+const POINT_COUNT: usize = 16;
 const AMPL: f64 = 10.0;
-const PERIOD: f64 = 3.0;
+const PERIOD: f64 = 10.0;
+
+//-----------------------------------------------------------------------------
+// XCP
+
+use xcp::*;
+use xcp_type_description_derive::XcpTypeDescription;
 
 //-----------------------------------------------------------------------------
 // Application start time
@@ -26,6 +32,51 @@ const PERIOD: f64 = 3.0;
 lazy_static::lazy_static! {
     static ref START_TIME: Instant = Instant::now();
 }
+
+//-----------------------------------------------------------------------------
+// Parameters
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
+struct Params {
+    #[unit = "s"]
+    #[min = "0.001"]
+    #[max = "10"]
+    period_x: f64,
+
+    #[unit = "m"]
+    #[min = "0.001"]
+    #[max = "100"]
+    ampl_x: f64,
+
+    #[unit = "PI"]
+    #[min = "0.0"]
+    #[max = "1.0"]
+    phi_x: f64,
+
+    #[unit = "s"]
+    #[min = "0.001"]
+    #[max = "10"]
+    period_y: f64,
+
+    #[unit = "m"]
+    #[min = "0.001"]
+    #[max = "100"]
+    ampl_y: f64,
+
+    #[unit = "PI"]
+    #[min = "0.0"]
+    #[max = "2.0"]
+    phi_y: f64,
+}
+
+const PARAMS: Params = Params {
+    period_x: PERIOD,
+    ampl_x: AMPL,
+    phi_x: 0.0,
+    period_y: PERIOD,
+    ampl_y: AMPL,
+    phi_y: 0.0,
+};
 
 //---------------------------------------------------------------------------------------
 
@@ -42,37 +93,66 @@ fn main() {
         .start_server(XcpTransportLayer::Udp, BIND_ADDR, 5555, 8000 - 20 - 8)
         .unwrap();
 
-    let mut event_point_cloud = daq_create_event!("point_cloud", 200);
+    let params = Xcp::create_calseg("Params", &PARAMS, true);
+
+    let mut event_point_cloud = daq_create_event!("point_cloud", POINT_COUNT * 12 + 8);
 
     let mut mainloop_counter1: u64 = 0;
     daq_register!(mainloop_counter1, event_point_cloud);
 
+    #[derive(Serialize)]
+    struct Point {
+        x: f32,
+        y: f32,
+        z: f32,
+    }
+
+    let mut point_cloud = Vec::with_capacity(4);
+    for _ in 0..POINT_COUNT {
+        point_cloud.push(Point {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+        });
+    }
+
+    let mut phi = 0.0;
+    let mut h = 0.0;
     loop {
-        thread::sleep(Duration::from_millis(50));
+        thread::sleep(Duration::from_millis(10));
+        let t = START_TIME.elapsed().as_micros() as f64 * 0.000001; // s
 
         mainloop_counter1 += 1;
-
-        // Serialize a struct into the event capture buffer
-        #[derive(Serialize)]
-        struct Point {
-            x: f32,
-            y: f32,
-            z: f32,
-        }
-        let mut point_cloud = Vec::with_capacity(4);
-        for i in 0..POINT_COUNT {
-            // Calculate demo measurement variable depending on calibration parameters (sine signal with ampl and period)
-            let time = START_TIME.elapsed().as_micros() as f64 * 0.000001; // s
-
-            let x: f32 = (AMPL * (PI * time / PERIOD).sin()) as f32;
-            let y: f32 = (AMPL * (PI * time / PERIOD).cos()) as f32;
-            let z: f32 = i as f32;
-            point_cloud.push(Point { x, y, z });
+        if mainloop_counter1 > 256 {
+            mainloop_counter1 = 0;
         }
 
+        phi += 2.0 * PI / POINT_COUNT as f64 * 0.001;
+        if phi > 2.0 * PI / POINT_COUNT as f64 {
+            phi = 0.0;
+        }
+        h += 0.01;
+        if h > 30.0 {
+            h = 0.0;
+        }
+        for (i, p) in point_cloud.iter_mut().enumerate() {
+            let a_x: f64 = params.ampl_x;
+            let a_y: f64 = params.ampl_y;
+            let omega_x = 2.0 * PI / params.period_x;
+            let omega_y = 2.0 * PI / params.period_y;
+            let phi_x = 1.0 * PI / POINT_COUNT as f64 * i as f64 + phi;
+            let phi_y = 1.0 * PI / POINT_COUNT as f64 * i as f64 + phi;
+
+            p.x = (a_x * (omega_x * t + phi_x).cos()) as f32;
+            p.y = (a_y * (omega_y * t + phi_y).sin()) as f32;
+            p.z = h * (i as f32 * 0.03);
+        }
+
+        // Serialize  into the event capture buffer
         daq_serialize!(point_cloud, event_point_cloud, "point cloud demo");
         event_point_cloud.trigger();
 
+        params.sync();
         xcp.write_a2l();
     }
 }
