@@ -516,15 +516,15 @@ impl XcpClient {
                 res = rx_daq_decoder.recv() => {
                     match res {
                         Some(c) => {
-                            debug!("receive_task: new daq decoder received connected={} running={}", c.connected, c.running);
+                            info!("receive_task: task control status changed: connected={} running={}", c.connected, c.running);
                             if !c.connected { // Handle the data from rx_daq_decoder
-                                debug!("receive_task: return, disconnected");
+                                info!("receive_task: stop, disconnected");
                                 return Ok(());
                             }
                             task_control = Some(c);
                         }
                         None => { // The sender has been dropped
-                            debug!("receive_task: return, channel closed");
+                            info!("receive_task: stop, channel closed");
                             return Ok(());
                         }
                     }
@@ -593,8 +593,10 @@ impl XcpClient {
                                         }
                                     }
                                     _ => {
-                                        // Handle DAQ data if we got a DAQ control
+                                        // Check that we got a DAQ control
                                         if let Some(c) = &task_control {
+
+                                            // Handle DAQ data if DAQ running
                                             if c.running {
                                                 let mut m = decode_daq.lock().unwrap();
                                                 m.decode(c, &buf[i + 4..i + 4 + len]);
@@ -649,7 +651,9 @@ impl XcpClient {
                         }
                     }
                     None => {
-                        panic!("xcp_command: bug in receive_task, no data in channel")
+                        // @@@@ Empty response, channel has been closed, return with XcpError Timeout
+                        error!("xcp_command: receive_task channel closed");
+                        Err(Box::new(XcpError::new(ERROR_CMD_TIMEOUT)) as Box<dyn Error>)
                     }
                 }
             }
@@ -1248,7 +1252,7 @@ impl XcpClient {
                 .unwrap();
         }
 
-        // Send throught the DAQ control channel to receive task
+        // Send running=true throught the DAQ control channel to the receive task
         self.task_control.running = true;
         self.tx_task_control
             .as_ref()
@@ -1269,6 +1273,7 @@ impl XcpClient {
         // Stop DAQ
         self.start_stop_sync(XcpClient::XCP_STOP_ALL).await.unwrap();
 
+        // Send running=false throught the DAQ control channel to the receive task
         self.task_control.running = false;
         self.tx_task_control
             .as_ref()

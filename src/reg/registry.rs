@@ -39,10 +39,12 @@ impl RegistryDataType {
             "u16" => RegistryDataType::Uword,
             "u32" => RegistryDataType::Ulong,
             "u64" => RegistryDataType::AUint64,
+            "usize" => RegistryDataType::AUint64, // @@@@ Check if usize is correct
             "i8" => RegistryDataType::Sbyte,
             "i16" => RegistryDataType::Sword,
             "i32" => RegistryDataType::Slong,
             "i64" => RegistryDataType::AInt64,
+            "isize" => RegistryDataType::AInt64, // @@@@ Check if isize is correct
             "f32" => RegistryDataType::Float32Ieee,
             "f64" => RegistryDataType::Float64Ieee,
             _ => RegistryDataType::Unknown,
@@ -323,9 +325,11 @@ impl RegistryEpk {
 pub struct RegistryMeasurement {
     name: String,
     datatype: RegistryDataType, // Basic types Ubyte, SByte, AUint64, Float64Ieee, ...  or Blob
-    dim: usize, // 1 = basic type (A2L MEASUREMENT), >1 = array[dim] of basic type (A2L MEASUREMENT with MATRIX_DIM)
+    x_dim: u16, // 1 = basic type (A2L MEASUREMENT), >1 = array[dim] of basic type (A2L MEASUREMENT with MATRIX_DIM x (max u16))
+    y_dim: u16, // 1 = basic type (A2L MEASUREMENT), >1 = array[x_dim,y_dim] of basic type (A2L MEASUREMENT with MATRIX_DIM x,y (max u16))
     event: XcpEvent,
-    event_offset: i16, // Address offset (signed) relative to event memory context (XCP_ADDR_EXT_DYN)
+    addr_offset: i16, // Address offset (signed!) relative to event memory context (XCP_ADDR_EXT_DYN)
+    addr:  u64,
     factor: f64,
     offset: f64,
     comment: &'static str,
@@ -338,21 +342,26 @@ impl RegistryMeasurement {
     pub fn new(
         name: String,
         datatype: RegistryDataType,
-        dim: usize,
+        x_dim: u16,
+        y_dim: u16,
         event: XcpEvent,
         event_offset: i16,
+        addr: u64,
         factor: f64,
         offset: f64,
         comment: &'static str,
         unit: &'static str,
         annotation: Option<String>,
     ) -> Self {
+        assert!((x_dim as usize * y_dim as usize) * datatype.get_size() <= u16::MAX as usize / 2);
         RegistryMeasurement {
             name,
             datatype,
-            dim,
+            x_dim,
+            y_dim,
             event,
-            event_offset,
+            addr_offset: event_offset,
+            addr,
             factor,
             offset,
             comment,
@@ -368,17 +377,26 @@ impl RegistryMeasurement {
     pub fn datatype(&self) -> RegistryDataType {
         self.datatype
     }
-
-    pub fn dim(&self) -> usize {
-        self.dim
+    pub fn dim(&self) -> u16 {
+        self.x_dim * self.y_dim
+    }
+    pub fn x_dim(&self) -> u16 {
+        self.x_dim
+    }
+    pub fn y_dim(&self) -> u16 {
+        self.y_dim
     }
 
     pub fn event(&self) -> XcpEvent {
         self.event
     }
 
-    pub fn event_offset(&self) -> i16 {
-        self.event_offset
+    pub fn addr_offset(&self) -> i16 {
+        self.addr_offset
+    }
+
+    pub fn addr(&self) -> u64 {
+        self.addr
     }
 
     pub fn factor(&self) -> f64 {
@@ -669,23 +687,15 @@ impl Registry {
     /// # panics
     ///   If a measurement with the same name already exists
     ///   If the registry is closed
-    ///
-    ///
-    ///
-    ///
-    ///
-    ///
-    ///
-    ///
-    ///
     pub fn add_measurement(&mut self, mut m: RegistryMeasurement) {
         debug!(
-            "add_measurement: {} type={:?}[{}] event={}+({})",
+            "add_measurement: {} type={:?}[{},{}] event={}+({})",
             m.name,
             m.datatype,
-            m.dim,
+            m.x_dim,
+            m.y_dim,
             m.event.get_num(),
-            m.event_offset
+            m.addr_offset
         );
 
         // Panic if registry is closed
@@ -798,7 +808,9 @@ mod registry_tests {
             "signal1".to_string(),
             RegistryDataType::Float64Ieee,
             1,
+            1,
             event,
+            0,
             0,
             1.0,
             0.0,

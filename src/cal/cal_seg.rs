@@ -91,7 +91,9 @@ where
     /// Sync the calibration segment
     /// If calibration changes from XCP tool happened since last sync, copy the xcp page to the ecu page
     /// Handle freeze and init operations on request here
-    pub fn sync(&self) {
+    /// # Returns
+    /// true, if the calibration segment was modified
+    pub fn sync(&self) -> bool {
         let xcp = Xcp::get();
 
         // Check for modifications and copy xcp_page to ecu_page, when active page is "RAM"
@@ -144,9 +146,11 @@ where
                         let size: usize = std::mem::size_of::<(usize, T)>();
                         core::ptr::copy_nonoverlapping(src_ptr, dst_ptr, size);
                     }
+                    return true;
                 }
             }
         }
+        false
     }
 }
 

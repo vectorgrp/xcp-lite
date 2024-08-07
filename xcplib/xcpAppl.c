@@ -226,8 +226,10 @@ uint8_t* ApplXcpGetBaseAddr() {
 
 uint32_t ApplXcpGetAddr(const uint8_t* p)
 {
-    ApplXcpGetBaseAddr();
-    return (uint32_t)(p - baseAddr);
+    uint8_t* b = ApplXcpGetBaseAddr();
+    assert(p >= b);
+    assert(((uint64_t)p - (uint64_t)b) <= 0xffffffff); // be sure that XCP address range is sufficient
+    return (uint32_t)(p - b);
 }
 
 #endif
@@ -257,7 +259,7 @@ uint8_t* ApplXcpGetBaseAddr() {
 
     if (!baseAddrValid) {
         //dump_so();
-        baseAddr = (uint8_t*)_dyld_get_image_header(0);
+        baseAddr = (uint8_t*)_dyld_get_image_header(0); // Module addr
         assert(baseAddr != NULL);
         baseAddrValid = 1;
         DBG_PRINTF4("baseAddr = %llX\n", (uint64_t)baseAddr);
@@ -268,8 +270,12 @@ uint8_t* ApplXcpGetBaseAddr() {
 
 uint32_t ApplXcpGetAddr(const uint8_t* p)
 {
-    ApplXcpGetBaseAddr();
-    return (uint32_t)(p - baseAddr);
+    uint8_t* b = ApplXcpGetBaseAddr();
+    if ( p < b || ((uint64_t)p - (uint64_t)b) > 0xffffffff) { // be sure that XCP address range is sufficient
+        DBG_PRINTF_ERROR("Address out of range! base = %llX, addr = %llX\n", (uint64_t)b, (uint64_t)p);
+        assert(0);
+    }    
+    return (uint32_t)(p - b);
 }
 
 #endif

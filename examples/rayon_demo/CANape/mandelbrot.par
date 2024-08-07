@@ -1,0 +1,9 @@
+CANape PAR V3.1: tokio_demo_autodetect.a2l 1 0 tokio_demo
+; 
+; 
+; 
+; 
+; 
+Mandelbrot.x [DOUBLE]  -1.3999999999999999112 ; -1.4
+Mandelbrot.y [DOUBLE]  0 ; 0
+Mandelbrot.width [DOUBLE]  0.10000000000000000555 ; 0.1

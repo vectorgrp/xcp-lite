@@ -23,7 +23,7 @@ const OPTION_SERVER_PORT: u16 = 5555;
 const OPTION_TRANSPORT_LAYER: XcpTransportLayer = XcpTransportLayer::Udp; // XcpTransportLayer::TcpIp or XcpTransportLayer::UdpIp
 const OPTION_SEGMENT_SIZE: u16 = 1500 - 28; // UDP MTU
 const OPTION_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Info;
-const OPTION_XCP_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Warn;
+const OPTION_XCP_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Info;
 //-----------------------------------------------------------------------------
 // Calibration Segment
 
@@ -194,7 +194,7 @@ async fn test_multi_thread() {
         v.push(t);
     }
 
-    test_executor(false, true, OPTION_LOG_LEVEL).await; // Start the test executor XCP client
+    test_executor(false, true).await; // Start the test executor XCP client
 
     for t in v {
         t.join().ok();

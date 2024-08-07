@@ -21,7 +21,7 @@
 #define XCP_PROTOCOL_LAYER_VERSION 0x0104  // PACKED_MODE, CC_START_STOP_SYNCH prepare
 
 /*----------------------------------------------------------------------------*/
-/* Driver features */
+/* Adress, address extension coding */
 
 #define XCP_ADDR_EXT_ABS 0x01 // Absolute address format 
 
@@ -33,8 +33,11 @@
 #define XCP_ENABLE_APP_ADDRESSING
 #define XCP_ADDR_EXT_APP 0x00 // Address format handled by application
 
-// Use addr_ext XCP_ADDR_EXT_A2L to indicate A2L uopload memory space
+// Use addr_ext XCP_ADDR_EXT_A2L to indicate A2L upload memory space
 #define XCP_ADDR_EXT_A2L 0xFF // Upload A2L address space
+
+// Undefined
+#define XCP_ADDR_EXT_UNDEFINED 0xFE // Undefined address extension
 
 /*----------------------------------------------------------------------------*/
 /* Protocol features */

@@ -47,8 +47,14 @@ impl GenerateA2l for XcpEvent {
         );
         // long name 100+1 characters
         // short name 8+1 characters
+        // format!(
+        //     r#"/begin EVENT "{:.100}" "{:.8}" {} DAQ 0xFF 0 0 0 CONSISTENCY EVENT /end EVENT"#,
+        //     indexed_name,
+        //     indexed_name,
+        //     self.get_num()
+        // )
         format!(
-            r#"/begin EVENT "{:.100}" "{:.8}" {} DAQ 0xFF 0 0 0 CONSISTENCY EVENT /end EVENT"#,
+            r#"/begin EVENT "{:.100}" "{:.8}" {} DAQ 0xFF 0 0 0 CONSISTENCY DAQ /end EVENT"#,
             indexed_name,
             indexed_name,
             self.get_num()
@@ -125,16 +131,21 @@ impl GenerateA2l for RegistryCalSegList {
 
 impl GenerateA2l for RegistryMeasurement {
     fn to_a2l_string(&self) -> String {
-        let (ext, addr) = self.event.get_daq_ext_addr(self.event_offset);
+        let (ext, addr) = if self.addr == 0 {
+            self.event.get_dyn_ext_addr(self.addr_offset)
+        } else {
+            self.event.get_abs_ext_addr(self.addr)
+        };
 
         trace!(
-            "write measurement: {} {} {}:0x{:08X} event={},{}",
+            "write measurement: {} {} {}:0x{:08X} event={}+{}, addr=0x{:08X}",
             self.name,
             self.datatype.get_type_str(),
             ext,
             addr,
             self.event.get_num(),
-            self.event_offset
+            self.addr_offset,
+            self.addr
         );
 
         let name = &self.name;
@@ -144,24 +155,57 @@ impl GenerateA2l for RegistryMeasurement {
         let max = self.datatype.get_max();
         let offset = self.offset;
         let type_str = self.datatype.get_type_str();
-        let dim = self.dim;
+        let x_dim = self.x_dim;
+        let y_dim = self.y_dim;
+
         let min = self.datatype.get_min();
         let event = self.event.get_num();
 
         //TODO: Maybe rework strings and add VALID and BUFFER constants
         // Dynamic object as CHARACTERISTIC ASCII string with IDL annotation
         if self.datatype == RegistryDataType::Blob {
-            let buffer_size = self.dim;
-
+            let buffer_size = self.x_dim * self.y_dim; // @@@@@ ToDo: Check if this is correct
             let annotation = self.annotation.as_ref().unwrap();
 
             let annotation = format!(
                 r#"
-                {annotation}
-                /begin ANNOTATION ANNOTATION_LABEL "IsVlsd" ANNOTATION_ORIGIN "" /begin ANNOTATION_TEXT  "true" /end ANNOTATION_TEXT /end ANNOTATION
-                /begin ANNOTATION ANNOTATION_LABEL "MaxBufferNeeded" ANNOTATION_ORIGIN "" /begin ANNOTATION_TEXT "{buffer_size}" /end ANNOTATION_TEXT /end ANNOTATION
-            "#
+/begin ANNOTATION ANNOTATION_LABEL "ObjectDescription" ANNOTATION_ORIGIN "application/dds" /begin ANNOTATION_TEXT
+        "<DynamicObject> "
+        "<RootType>Vector::PointCloud</RootType>"
+        "</DynamicObject>"
+        "module Vector {{"
+        "  struct Point {{"
+        "    float x;"
+        "    float y;"
+        "    float z;"
+        "  }};"
+        "  struct PointCloud {{"
+        "    sequence<Point> Points;"
+        "}}; }};"
+/end ANNOTATION_TEXT /end ANNOTATION
+/begin ANNOTATION ANNOTATION_LABEL "IsVlsd" ANNOTATION_ORIGIN "" /begin ANNOTATION_TEXT  "true" /end ANNOTATION_TEXT /end ANNOTATION
+/begin ANNOTATION ANNOTATION_LABEL "MaxBufferNeeded" ANNOTATION_ORIGIN "" /begin ANNOTATION_TEXT "{buffer_size}" /end ANNOTATION_TEXT /end ANNOTATION
+"#
             );
+
+            // /begin ANNOTATION ANNOTATION_LABEL "ObjectDescription" ANNOTATION_ORIGIN "application/dds" /begin ANNOTATION_TEXT
+            //         "<DynamicObject> "
+            //         "<RootType>Vector::PointCloud</RootType>"
+            //         "</DynamicObject>"
+            //         "module Vector {{"
+            //         "  struct Point {{"
+            //         "    float x;"
+            //         "    float y;"
+            //         "    float z;"
+            //         "  }};"
+            //         "  struct PointCloud {{"
+            //         "    sequence<Point> Points;"
+            //         "}}; }};"
+            // /end ANNOTATION_TEXT /end ANNOTATION
+            // /begin ANNOTATION ANNOTATION_LABEL "IsVlsd" ANNOTATION_ORIGIN "" /begin ANNOTATION_TEXT  "true" /end ANNOTATION_TEXT /end ANNOTATION
+            // /begin ANNOTATION ANNOTATION_LABEL "MaxBufferNeeded" ANNOTATION_ORIGIN "" /begin ANNOTATION_TEXT "{buffer_size}" /end ANNOTATION_TEXT /end ANNOTATION
+            // "#
+            //             );
 
             trace!("write measurement dynamic object description: {annotation}");
             // As BLOB (new in CANape 22 SP3)
@@ -174,8 +218,12 @@ impl GenerateA2l for RegistryMeasurement {
             )
         } else {
             // Measurement signals or array of signals
-            let matrix_dim = if dim > 1 {
-                format!("MATRIX_DIM {} ", dim)
+            let matrix_dim = if x_dim > 1 && y_dim > 1 {
+                format!("MATRIX_DIM {} {} ", x_dim, y_dim)
+            } else if x_dim > 1 {
+                format!("MATRIX_DIM {} ", x_dim)
+            } else if y_dim > 1 {
+                format!("MATRIX_DIM {} ", y_dim)
             } else {
                 "".to_string()
             };
@@ -331,13 +379,18 @@ impl A2lWriter {
         // Measurement groups
         let mut v = Vec::new();
         for e in registry.event_list.iter() {
+            if e.get_index() > 1 {
+                // Ignore all but the first event instance
+                continue;
+            }
+
             v.push(format!(
                 r#"/begin GROUP {} "" /begin REF_MEASUREMENT"#,
-                e.get_indexed_name()
+                e.get_name()
             ));
 
             for m in registry.measurement_list.iter() {
-                if m.event == *e {
+                if m.event.get_name() == e.get_name() {
                     v.push(m.name.clone());
                 }
             }

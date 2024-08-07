@@ -123,7 +123,7 @@ async fn test_multi_task() {
     });
 
     // Execute the test
-    test_executor(false, false, OPTION_LOG_LEVEL).await; // Start the test executor XCP client
+    test_executor(false, false).await; // Start the test executor XCP client
 
     t0.join().unwrap();
 
