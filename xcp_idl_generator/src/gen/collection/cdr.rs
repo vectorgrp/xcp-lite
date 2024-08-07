@@ -22,10 +22,10 @@ impl CdrGenerator {
                     translated_type = translated_type.replace(key, value);
                 }
 
-                format!("{} {};", translated_type, field.name())
+                format!("\"{} {};\"", translated_type, field.name())
             })
             .collect::<Vec<String>>()
-            .join("\n      ")
+            .join("\n")
     }
 }
 
@@ -44,7 +44,7 @@ impl Generator for CdrGenerator {
                     "</DynamicObject>"
                     "module {VECTOR_NAMESPACE} {{"
                     "  struct {type_name} {{"
-                    "      {fields_str}"
+                          {fields_str}
                     "  }};"
                     "
                     "  struct {type_name}{RUST_VECTOR} {{"
