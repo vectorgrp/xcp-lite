@@ -16,8 +16,12 @@ impl CdrGenerator {
             .fields()
             .iter()
             .map(|field| {
-                let datatype = field.datatype();
-                let translated_type = self.type_mapping().get(&datatype).unwrap(); //TODO: Error Handling
+                let mut translated_type = field.datatype().to_string();
+
+                for (key, value) in self.type_mapping().iter() {
+                    translated_type = translated_type.replace(key, value);
+                }
+
                 format!("{} {};", translated_type, field.name())
             })
             .collect::<Vec<String>>()
@@ -55,6 +59,7 @@ impl Generator for CdrGenerator {
         translation
     }
 
+    //TODO: Add other type mappings
     fn type_mapping(&self) -> &'static TypeMapping {
         static mut MAPPING: Option<TypeMapping> = None;
         static INIT: Once = Once::new();
@@ -63,6 +68,7 @@ impl Generator for CdrGenerator {
             INIT.call_once(|| {
                 let mut mapping = TypeMapping::new();
                 mapping.insert("u32", "uint32");
+                mapping.insert("Vec", "sequence");
 
                 MAPPING = Some(mapping);
             });
