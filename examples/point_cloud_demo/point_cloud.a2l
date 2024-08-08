@@ -129,38 +129,33 @@
 /begin CHARACTERISTIC Params.period_y "" VALUE 0x80010018 F64 0 NO_COMPU_METHOD 0.001 10 PHYS_UNIT "s" /end CHARACTERISTIC
 /begin CHARACTERISTIC Params.phi_x "" VALUE 0x80010010 F64 0 NO_COMPU_METHOD 0 1 PHYS_UNIT "PI" /end CHARACTERISTIC
 /begin CHARACTERISTIC Params.phi_y "" VALUE 0x80010028 F64 0 NO_COMPU_METHOD 0 2 PHYS_UNIT "PI" /end CHARACTERISTIC
-/begin GROUP Params "" /begin REF_CHARACTERISTIC
-Params.ampl_x
-Params.ampl_y
-Params.period_x
-Params.period_y
-Params.phi_x
-Params.phi_y
-/end REF_CHARACTERISTIC /end GROUP
+/begin GROUP Params "" /begin REF_CHARACTERISTICParams.ampl_x Params.ampl_y Params.period_x Params.period_y Params.phi_x Params.phi_y /end REF_CHARACTERISTIC /end GROUP
+
 
 /begin MEASUREMENT mainloop_counter1 "" A_UINT64 NO_COMPU_METHOD 0 0 0 1000000000000 PHYS_UNIT "" ECU_ADDRESS 0xD0 ECU_ADDRESS_EXTENSION 2 /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT 0 /end DAQ_EVENT /end IF_DATA /end MEASUREMENT
 /begin CHARACTERISTIC point_cloud "point cloud demo" ASCII 0x0 U8 0 NO_COMPU_METHOD 0 255 READ_ONLY NUMBER 200 ECU_ADDRESS_EXTENSION 2 
-/begin ANNOTATION ANNOTATION_LABEL "ObjectDescription" ANNOTATION_ORIGIN "application/dds" /begin ANNOTATION_TEXT
-        "<DynamicObject> "
-        "<RootType>Vector::PointCloud</RootType>"
-        "</DynamicObject>"
-        "module Vector {"
-        "  struct Point {"
-        "    float x;"
-        "    float y;"
-        "    float z;"
-        "  };"
-        "  struct PointCloud {"
-        "    sequence<Point> Points;"
-        "}; };"
-/end ANNOTATION_TEXT /end ANNOTATION
+            /begin ANNOTATION ANNOTATION_LABEL "ObjectDescription" ANNOTATION_ORIGIN "application/dds"
+                /begin ANNOTATION_TEXT
+                    "<DynamicObject> "
+                    "<RootType>Vector::PointVec</RootType>"
+                    "</DynamicObject>"
+                    "module Vector {"
+                    "  struct Point {"
+                    "      float x; float y; float z;"
+                    "  };"
+                    
+                    "  struct PointVec {"
+                    "    sequence<Point> points;"
+                    "  };
+                    };"
+                /end ANNOTATION_TEXT
+            /end ANNOTATION
+            
 /begin ANNOTATION ANNOTATION_LABEL "IsVlsd" ANNOTATION_ORIGIN "" /begin ANNOTATION_TEXT  "true" /end ANNOTATION_TEXT /end ANNOTATION
 /begin ANNOTATION ANNOTATION_LABEL "MaxBufferNeeded" ANNOTATION_ORIGIN "" /begin ANNOTATION_TEXT "200" /end ANNOTATION_TEXT /end ANNOTATION
- /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT 0 /end DAQ_EVENT /end IF_DATA /end CHARACTERISTIC
-/begin GROUP point_cloud "" /begin REF_MEASUREMENT
-mainloop_counter1
-point_cloud
-/end REF_MEASUREMENT /end GROUP
+  /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT 0 /end DAQ_EVENT /end IF_DATA /end CHARACTERISTIC
+
+/begin GROUP point_cloud "" /begin REF_MEASUREMENT mainloop_counter1 point_cloud /end REF_MEASUREMENT /end GROUP
 
         /end MODULE
     /end PROJECT

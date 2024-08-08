@@ -47,6 +47,8 @@ impl GenerateA2l for XcpEvent {
         );
         // long name 100+1 characters
         // short name 8+1 characters
+
+        // @@@@ ToDo: CANape does not accept CONSISTENCY EVENT for serialized data types
         // format!(
         //     r#"/begin EVENT "{:.100}" "{:.8}" {} DAQ 0xFF 0 0 0 CONSISTENCY EVENT /end EVENT"#,
         //     indexed_name,
@@ -157,61 +159,29 @@ impl GenerateA2l for RegistryMeasurement {
         let type_str = self.datatype.get_type_str();
         let x_dim = self.x_dim;
         let y_dim = self.y_dim;
-
         let min = self.datatype.get_min();
         let event = self.event.get_num();
 
-        //TODO: Maybe rework strings and add VALID and BUFFER constants
         // Dynamic object as CHARACTERISTIC ASCII string with IDL annotation
         if self.datatype == RegistryDataType::Blob {
-            let buffer_size = self.x_dim * self.y_dim; // @@@@@ ToDo: Check if this is correct
-            let annotation = self.annotation.as_ref().unwrap();
-
+            let buffer_size = self.x_dim;
+            assert!(self.x_dim > 0 && self.y_dim == 1);
+            let annotation_object_descr = self.annotation.as_ref().unwrap();
             let annotation = format!(
-                r#"
-/begin ANNOTATION ANNOTATION_LABEL "ObjectDescription" ANNOTATION_ORIGIN "application/dds" /begin ANNOTATION_TEXT
-        "<DynamicObject> "
-        "<RootType>Vector::PointCloud</RootType>"
-        "</DynamicObject>"
-        "module Vector {{"
-        "  struct Point {{"
-        "    float x;"
-        "    float y;"
-        "    float z;"
-        "  }};"
-        "  struct PointCloud {{"
-        "    sequence<Point> Points;"
-        "}}; }};"
-/end ANNOTATION_TEXT /end ANNOTATION
+                r#"{annotation_object_descr}
 /begin ANNOTATION ANNOTATION_LABEL "IsVlsd" ANNOTATION_ORIGIN "" /begin ANNOTATION_TEXT  "true" /end ANNOTATION_TEXT /end ANNOTATION
 /begin ANNOTATION ANNOTATION_LABEL "MaxBufferNeeded" ANNOTATION_ORIGIN "" /begin ANNOTATION_TEXT "{buffer_size}" /end ANNOTATION_TEXT /end ANNOTATION
-"#
+ "#
             );
 
-            // /begin ANNOTATION ANNOTATION_LABEL "ObjectDescription" ANNOTATION_ORIGIN "application/dds" /begin ANNOTATION_TEXT
-            //         "<DynamicObject> "
-            //         "<RootType>Vector::PointCloud</RootType>"
-            //         "</DynamicObject>"
-            //         "module Vector {{"
-            //         "  struct Point {{"
-            //         "    float x;"
-            //         "    float y;"
-            //         "    float z;"
-            //         "  }};"
-            //         "  struct PointCloud {{"
-            //         "    sequence<Point> Points;"
-            //         "}}; }};"
-            // /end ANNOTATION_TEXT /end ANNOTATION
-            // /begin ANNOTATION ANNOTATION_LABEL "IsVlsd" ANNOTATION_ORIGIN "" /begin ANNOTATION_TEXT  "true" /end ANNOTATION_TEXT /end ANNOTATION
-            // /begin ANNOTATION ANNOTATION_LABEL "MaxBufferNeeded" ANNOTATION_ORIGIN "" /begin ANNOTATION_TEXT "{buffer_size}" /end ANNOTATION_TEXT /end ANNOTATION
-            // "#
-            //             );
-
             trace!("write measurement dynamic object description: {annotation}");
-            // As BLOB (new in CANape 22 SP3)
+
+            // BLOB (new in CANape 22 SP3: use a BLOB instead of a CHARACTERISTIC)
             // format!(
             //     r#"/begin BLOB {name} "{comment}" 0x{addr:X} {buffer_size} ECU_ADDRESS_EXTENSION {ext} {annotation} /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT {event} /end DAQ_EVENT /end IF_DATA /end BLOB"#
             // )
+
+            // @@@@: Intermediate solution
             // As ASCII string (old representation)
             format!(
                 r#"/begin CHARACTERISTIC {name} "{comment}" ASCII 0x{addr:X} U8 0 NO_COMPU_METHOD 0 255 READ_ONLY NUMBER {buffer_size} ECU_ADDRESS_EXTENSION {ext} {annotation} /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT {event} /end DAQ_EVENT /end IF_DATA /end CHARACTERISTIC"#
@@ -383,20 +353,18 @@ impl A2lWriter {
                 // Ignore all but the first event instance
                 continue;
             }
-
             v.push(format!(
-                r#"/begin GROUP {} "" /begin REF_MEASUREMENT"#,
+                "\n/begin GROUP {} \"\" /begin REF_MEASUREMENT",
                 e.get_name()
             ));
-
             for m in registry.measurement_list.iter() {
                 if m.event.get_name() == e.get_name() {
                     v.push(m.name.clone());
                 }
             }
-            v.push((r#"/end REF_MEASUREMENT /end GROUP"#).to_string());
+            v.push(("/end REF_MEASUREMENT /end GROUP").to_string());
         }
-        let measurement_groups = v.join("\n");
+        let measurement_groups = v.join(" ");
 
         // EPK segment
         let mod_par = &registry.mod_par.to_a2l_string();
@@ -404,7 +372,7 @@ impl A2lWriter {
         // Memory segments from calibration segments
         let memory_segments = &registry.cal_seg_list.to_a2l_string();
 
-        // Parameter groups defined by calibration segments
+        // Parameter and their groups defined by calibration segments
         let mut v = Vec::new();
         for s in registry.cal_seg_list.iter() {
             for c in registry.characteristic_list.iter() {
@@ -412,16 +380,17 @@ impl A2lWriter {
                     v.push(c.to_a2l_string());
                 }
             }
-            v.push(format!(
-                r#"/begin GROUP {} "" /begin REF_CHARACTERISTIC"#,
-                s.name
-            ));
+
+            let mut groups: String =
+                format!("/begin GROUP {} \"\" /begin REF_CHARACTERISTIC ", s.name);
             for c in registry.characteristic_list.iter() {
                 if s.name == c.calseg_name() {
-                    v.push(c.name().to_string());
+                    groups += c.name();
+                    groups += " ";
                 }
             }
-            v.push((r#"/end REF_CHARACTERISTIC /end GROUP"#).to_string());
+            groups += "/end REF_CHARACTERISTIC /end GROUP\n";
+            v.push(groups);
         }
         let characteristics = v.join("\n");
 

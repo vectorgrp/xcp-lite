@@ -21,7 +21,7 @@ impl CdrGenerator {
                 format!("{} {};", translated_type, field.name())
             })
             .collect::<Vec<String>>()
-            .join("\n      ")
+            .join(" ")
     }
 }
 
@@ -42,7 +42,7 @@ impl Generator for CdrGenerator {
                     "  struct {type_name} {{"
                     "      {fields_str}"
                     "  }};"
-                    "
+                    
                     "  struct {type_name}{RUST_VECTOR} {{"
                     "    sequence<{type_name}> {lc_typename}s;"
                     "  }};
@@ -63,6 +63,7 @@ impl Generator for CdrGenerator {
             INIT.call_once(|| {
                 let mut mapping = TypeMapping::new();
                 mapping.insert("u32", "uint32");
+                mapping.insert("f32", "float");
 
                 MAPPING = Some(mapping);
             });

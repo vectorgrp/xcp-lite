@@ -178,7 +178,6 @@ impl<const N: usize> DaqEvent<N> {
         offset: f64,
         unit: &'static str,
         comment: &'static str,
-        annotation: Option<String>,
     ) {
         let p = ptr as usize; // variable address
         let b = &self.buffer as *const _ as usize; // base address
@@ -379,13 +378,14 @@ macro_rules! daq_capture {
     }};
 }
 
-/// Capture the serialized value of an instance for the given daq event
-/// Register the given meta data and the serialization schema once
+// @@@@ Experimental for point_cloud demo
+// Capture the serialized value of an instance for the given daq event
+// Register the given meta data and the serialization schema once
 #[allow(unused_macros)]
 #[macro_export]
 macro_rules! daq_serialize {
     // name, event, comment
-    ( $id:ident, $daq_event:expr, $comment:expr, $annotation:expr ) => {{
+    ( $id:ident, $daq_event:expr, $comment:expr) => {{
         static DAQ_OFFSET__: std::sync::atomic::AtomicI16 =
             std::sync::atomic::AtomicI16::new(-32768);
         let byte_offset;
@@ -395,28 +395,27 @@ macro_rules! daq_serialize {
             std::sync::atomic::Ordering::Relaxed,
             std::sync::atomic::Ordering::Relaxed,
         ) {
-            //assert!(std::mem::size_of_val(&$id) <= $daq_event.buffer.len(), "DAQ event buffer overflow");
             Ok(_) => {
+                // @@@@ Experimental: Hard coded type here for point_cloud demo
+                let annotation =
+                    GeneratorCollection::generate(&IDL::CDR, &Point::description()).unwrap();
                 byte_offset = $daq_event.add_capture(
                     stringify!($id),
                     std::mem::size_of_val(&$id),
                     RegistryDataType::Blob,
-                    $daq_event.buffer.len() as u16,  // x_dim
-                    1, // y_dim
+                    $daq_event.buffer.len() as u16, // x_dim is buffer size in bytes
+                    1,                              // y_dim
                     1.0,
                     0.0,
                     "",
                     $comment,
-                    $annotation
+                    Some(annotation),
                 );
                 DAQ_OFFSET__.store(byte_offset, std::sync::atomic::Ordering::Relaxed);
             }
             Err(offset) => byte_offset = offset,
         };
-        // bincode
-        // let v: Vec<u8> = bincode::serialize(&$id).unwrap();
-        let v =  cdr::serialize::<_, _, cdr::CdrBe>(&$id, cdr::Infinite).unwrap();
-        //trace!("serialize: {:?}", v);
+        let v = cdr::serialize::<_, _, cdr::CdrBe>(&$id, cdr::Infinite).unwrap();
         $daq_event.capture(&v, byte_offset);
     }};
 }
@@ -450,7 +449,6 @@ macro_rules! daq_register {
                 $offset,
                 $unit,
                 $comment,
-                None,
             );
         };
     }};
@@ -477,7 +475,6 @@ macro_rules! daq_register {
                 0.0,
                 $unit,
                 $comment,
-                None,
             );
         };
     }};
@@ -504,7 +501,6 @@ macro_rules! daq_register {
                 0.0,
                 "",
                 "",
-                None,
             );
         };
     }};
@@ -575,7 +571,6 @@ macro_rules! daq_register_array {
                 0.0,
                 "",
                 "",
-                None,
             );
         };
     }};
@@ -715,7 +710,6 @@ macro_rules! daq_register_instance {
                 0.0,
                 "",
                 "",
-                None,
             );
         };
     }};

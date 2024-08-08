@@ -140,23 +140,26 @@ Params.phi_y
 
 /begin MEASUREMENT mainloop_counter1 "" A_UINT64 NO_COMPU_METHOD 0 0 0 1000000000000 PHYS_UNIT "" ECU_ADDRESS 0xD0 ECU_ADDRESS_EXTENSION 2 /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT 0 /end DAQ_EVENT /end IF_DATA /end MEASUREMENT
 /begin CHARACTERISTIC point_cloud "point cloud demo" ASCII 0x0 U8 0 NO_COMPU_METHOD 0 255 READ_ONLY NUMBER 200 ECU_ADDRESS_EXTENSION 2 
-/begin ANNOTATION ANNOTATION_LABEL "ObjectDescription" ANNOTATION_ORIGIN "application/dds" /begin ANNOTATION_TEXT
-        "<DynamicObject> "
-        "<RootType>Vector::PointCloud</RootType>"
-        "</DynamicObject>"
-        "module Vector {"
-        "  struct Point {"
-        "    float x;"
-        "    float y;"
-        "    float z;"
-        "  };"
-        "  struct PointCloud {"
-        "    sequence<Point> Points;"
-        "}; };"
-/end ANNOTATION_TEXT /end ANNOTATION
+            /begin ANNOTATION ANNOTATION_LABEL "ObjectDescription" ANNOTATION_ORIGIN "application/dds"
+                /begin ANNOTATION_TEXT
+                    "<DynamicObject> "
+                    "<RootType>Vector::PointVec</RootType>"
+                    "</DynamicObject>"
+                    "module Vector {"
+                    "  struct Point {"
+                    "      float x; float y; float z;"
+                    "  };"
+                    
+                    "  struct PointVec {"
+                    "    sequence<Point> points;"
+                    "  };
+                    };"
+                /end ANNOTATION_TEXT
+            /end ANNOTATION
+            
 /begin ANNOTATION ANNOTATION_LABEL "IsVlsd" ANNOTATION_ORIGIN "" /begin ANNOTATION_TEXT  "true" /end ANNOTATION_TEXT /end ANNOTATION
 /begin ANNOTATION ANNOTATION_LABEL "MaxBufferNeeded" ANNOTATION_ORIGIN "" /begin ANNOTATION_TEXT "200" /end ANNOTATION_TEXT /end ANNOTATION
- /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT 0 /end DAQ_EVENT /end IF_DATA /end CHARACTERISTIC
+  /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT 0 /end DAQ_EVENT /end IF_DATA /end CHARACTERISTIC
 /begin GROUP point_cloud "" /begin REF_MEASUREMENT
 mainloop_counter1
 point_cloud

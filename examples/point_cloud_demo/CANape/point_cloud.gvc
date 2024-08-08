@@ -1,8 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<GfxStorageModel Hash="4D-00-53-C0-26-40-44-6B-58-7B-8C-2B-C9-97-16-1E" HashVersion="2.0.0.0">
+<GfxStorageModel Hash="0A-34-97-8A-B1-05-5D-00-70-8E-9A-B3-D2-87-CE-C1" HashVersion="2.0.0.0">
   <BindingIdToViewId>
     <Item XmlSingularArray="true">
-      <Key>9ee5ba33-4e4f-4116-a0e8-f2cf7e83dedf</Key>
+      <Key>448b3914-7e61-472e-94a0-c8ee4f837de1</Key>
       <Values>
         <Value XmlSingularArray="true">7d875669-2751-4051-9b26-103be1b7d5a5</Value>
       </Values>
@@ -10,17 +10,17 @@
   </BindingIdToViewId>
   <Bindings>
     <GfxBinding XmlSingularArray="true">
-      <BindingId>9ee5ba33-4e4f-4116-a0e8-f2cf7e83dedf</BindingId>
+      <BindingId>448b3914-7e61-472e-94a0-c8ee4f837de1</BindingId>
       <SourceIdentifier>
         <Version>2</Version>
         <ObjectName>point_cloud</ObjectName>
         <SourceName>xcp_lite</SourceName>
-        <TypeIdentifier>MEQwRUFBQjY2NjA0RjA4MDYwNjBCODFERjZCNTZBMzgtNURFNEVFNjlEQkU2NUM0NzhDNUE5ODU2RTNFMkVEQjI=</TypeIdentifier>
+        <TypeIdentifier>MDhBMDZFRjY3OTEyOTlGOUZDQkFBOTU3N0I3NUEwNzYtQ0VGNjQ4RDc5NjY4Q0ZEQkNFOEM0NkNBNzJFNjJCNUQ=</TypeIdentifier>
       </SourceIdentifier>
       <Model>
-        <UniqueName>point_cloud</UniqueName>
+        <UniqueName>point_cloud_1</UniqueName>
         <DataSource>
-          <SourceIdentifier>{"ObjectName":"point_cloud","SourceName":"xcp_lite","TypeIdentifier":"MEQwRUFBQjY2NjA0RjA4MDYwNjBCODFERjZCNTZBMzgtNURFNEVFNjlEQkU2NUM0NzhDNUE5ODU2RTNFMkVEQjI="}</SourceIdentifier>
+          <SourceIdentifier>{"ObjectName":"point_cloud","SourceName":"xcp_lite","TypeIdentifier":"MDhBMDZFRjY3OTEyOTlGOUZDQkFBOTU3N0I3NUEwNzYtQ0VGNjQ4RDc5NjY4Q0ZEQkNFOEM0NkNBNzJFNjJCNUQ="}</SourceIdentifier>
           <TemplateSourceName>point_cloud</TemplateSourceName>
           <NativeTemplateSourceName>point_cloud</NativeTemplateSourceName>
           <DisplayedSourceName>point_cloud</DisplayedSourceName>
@@ -30,13 +30,13 @@
             <DataDimensions />
           </DataDimensions>
           <CompositionType>0</CompositionType>
-          <ObjectType>Vector.PointCloud, Vector.DA.DynamicObject.D7-7F-54-F1-E9-53-81-8C-C1-89-89-17-99-27-5E-92, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null</ObjectType>
+          <ObjectType>Vector.PointVec, Vector.DA.DynamicObject.B1-CF-42-C1-96-AF-EA-EC-6F-3D-9E-36-7E-CC-DA-BA, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null</ObjectType>
           <Properties>
             <Property XmlSingularArray="true">
-              <Name>Points</Name>
-              <TemplateName>Points</TemplateName>
+              <Name>points</Name>
+              <TemplateName>points</TemplateName>
               <HasChildren>true</HasChildren>
-              <TypeName>Vector.Point, Vector.DA.DynamicObject.D7-7F-54-F1-E9-53-81-8C-C1-89-89-17-99-27-5E-92</TypeName>
+              <TypeName>Vector.Point, Vector.DA.DynamicObject.B1-CF-42-C1-96-AF-EA-EC-6F-3D-9E-36-7E-CC-DA-BA</TypeName>
               <DataDimensions>
                 <IsTemplate>true</IsTemplate>
                 <DataDimensions>
@@ -219,7 +219,7 @@ Z-Position eines Punktes mit kartesischen Koordinaten</Description>
                     <TypeDisplayName>Color</TypeDisplayName>
                     <IsConstant>true</IsConstant>
                     <IsAssignable>true</IsAssignable>
-                    <Value>#FFFF0000</Value>
+                    <Value>#FFFFFF00</Value>
                     <PhysicalQuantity />
                     <PhysicalQuantityConversion>
                       <Factor>1</Factor>
@@ -247,7 +247,7 @@ Z-Position eines Punktes mit kartesischen Koordinaten</Description>
                     </PhysicalQuantityConversion>
                   </Property>
                 </Properties>
-                <ColorFunctionName>ConstantColor_0</ColorFunctionName>
+                <ColorFunctionName>ConstantColor_1</ColorFunctionName>
                 <MultiColoredObject>true</MultiColoredObject>
               </PropertyCollection>
               <PropertyCollection Key="Identification">
@@ -331,9 +331,9 @@ X-Position eines Punktes mit kartesischen Koordinaten</Description>
                         <DataDimensions />
                       </DataDimensions>
                       <Parent>
-                        <Name>Points</Name>
-                        <TemplateName>Points</TemplateName>
-                        <TypeName>Vector.Point, Vector.DA.DynamicObject.D7-7F-54-F1-E9-53-81-8C-C1-89-89-17-99-27-5E-92</TypeName>
+                        <Name>points</Name>
+                        <TemplateName>points</TemplateName>
+                        <TypeName>Vector.Point, Vector.DA.DynamicObject.B1-CF-42-C1-96-AF-EA-EC-6F-3D-9E-36-7E-CC-DA-BA</TypeName>
                         <DataDimensions>
                           <IsTemplate>true</IsTemplate>
                           <DataDimensions>
@@ -380,9 +380,9 @@ Y-Position eines Punktes mit kartesischen Koordinaten</Description>
                         <DataDimensions />
                       </DataDimensions>
                       <Parent>
-                        <Name>Points</Name>
-                        <TemplateName>Points</TemplateName>
-                        <TypeName>Vector.Point, Vector.DA.DynamicObject.D7-7F-54-F1-E9-53-81-8C-C1-89-89-17-99-27-5E-92</TypeName>
+                        <Name>points</Name>
+                        <TemplateName>points</TemplateName>
+                        <TypeName>Vector.Point, Vector.DA.DynamicObject.B1-CF-42-C1-96-AF-EA-EC-6F-3D-9E-36-7E-CC-DA-BA</TypeName>
                         <DataDimensions>
                           <IsTemplate>true</IsTemplate>
                           <DataDimensions>
@@ -429,9 +429,9 @@ Z-Position eines Punktes mit kartesischen Koordinaten</Description>
                         <DataDimensions />
                       </DataDimensions>
                       <Parent>
-                        <Name>Points</Name>
-                        <TemplateName>Points</TemplateName>
-                        <TypeName>Vector.Point, Vector.DA.DynamicObject.D7-7F-54-F1-E9-53-81-8C-C1-89-89-17-99-27-5E-92</TypeName>
+                        <Name>points</Name>
+                        <TemplateName>points</TemplateName>
+                        <TypeName>Vector.Point, Vector.DA.DynamicObject.B1-CF-42-C1-96-AF-EA-EC-6F-3D-9E-36-7E-CC-DA-BA</TypeName>
                         <DataDimensions>
                           <IsTemplate>true</IsTemplate>
                           <DataDimensions>
@@ -1123,7 +1123,7 @@ Größe der Punkte in Pixeln.</Description>
                 <TypeDisplayName>Double</TypeDisplayName>
                 <IsConstant>true</IsConstant>
                 <IsAssignable>true</IsAssignable>
-                <Value>20</Value>
+                <Value>10</Value>
                 <PhysicalQuantity />
                 <PhysicalQuantityConversion>
                   <Factor>1</Factor>
@@ -1179,7 +1179,7 @@ Priorität (Reihenfolge des Zeichnens) des Objekts. 1 = höchste Priorität -&gt
           </Properties>
         </GfxModel>
         <IsAssigned>true</IsAssigned>
-        <BindingId>9ee5ba33-4e4f-4116-a0e8-f2cf7e83dedf</BindingId>
+        <BindingId>448b3914-7e61-472e-94a0-c8ee4f837de1</BindingId>
       </Model>
     </GfxBinding>
   </Bindings>
@@ -1187,8 +1187,8 @@ Priorität (Reihenfolge des Zeichnens) des Objekts. 1 = höchste Priorität -&gt
     <GlobalColorFunctions />
     <LocalColorFunctions>
       <ConstantColor XmlSingularArray="true">
-        <Name>ConstantColor_0</Name>
-        <Color>#FFFF0000</Color>
+        <Name>ConstantColor_1</Name>
+        <Color>#FFFFFF00</Color>
       </ConstantColor>
     </LocalColorFunctions>
   </ColorFunctions>

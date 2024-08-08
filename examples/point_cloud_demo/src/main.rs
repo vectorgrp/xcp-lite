@@ -14,9 +14,9 @@ use serde::{Deserialize, Serialize};
 //-----------------------------------------------------------------------------
 // Defaults
 
-//const BIND_ADDR: [u8; 4] = [192, 168, 0, 83]; // [172, 19, 11, 24]; // [192, 168, 0, 83]; // [127, 0, 0, 1];
+// [172, 19, 11, 24]; [192, 168, 0, 83]; [127, 0, 0, 1];
+const BIND_ADDR: [u8; 4] = [192, 168, 0, 83];
 
-const BIND_ADDR: [u8; 4] = [172, 16, 5, 156];
 const POINT_COUNT: usize = 16;
 const AMPL: f64 = 10.0;
 const PERIOD: f64 = 10.0;
@@ -25,7 +25,8 @@ const PERIOD: f64 = 10.0;
 // XCP
 
 use xcp::*;
-use xcp_type_description_derive::XcpTypeDescription;
+use xcp_idl_generator::prelude::*;
+use xcp_type_description::prelude::*;
 
 //-----------------------------------------------------------------------------
 // Application start time
@@ -39,34 +40,34 @@ lazy_static::lazy_static! {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
 struct Params {
-    #[unit = "s"]
-    #[min = "0.001"]
-    #[max = "10"]
+    #[type_description(unit = "s")]
+    #[type_description(min = "0.001")]
+    #[type_description(max = "10")]
     period_x: f64,
 
-    #[unit = "m"]
-    #[min = "0.001"]
-    #[max = "100"]
+    #[type_description(unit = "m")]
+    #[type_description(min = "0.001")]
+    #[type_description(max = "100")]
     ampl_x: f64,
 
-    #[unit = "PI"]
-    #[min = "0.0"]
-    #[max = "1.0"]
+    #[type_description(unit = "PI")]
+    #[type_description(min = "0.0")]
+    #[type_description(max = "1.0")]
     phi_x: f64,
 
-    #[unit = "s"]
-    #[min = "0.001"]
-    #[max = "10"]
+    #[type_description(unit = "s")]
+    #[type_description(min = "0.001")]
+    #[type_description(max = "10")]
     period_y: f64,
 
-    #[unit = "m"]
-    #[min = "0.001"]
-    #[max = "100"]
+    #[type_description(unit = "m")]
+    #[type_description(min = "0.001")]
+    #[type_description(max = "100")]
     ampl_y: f64,
 
-    #[unit = "PI"]
-    #[min = "0.0"]
-    #[max = "2.0"]
+    #[type_description(unit = "PI")]
+    #[type_description(min = "0.0")]
+    #[type_description(max = "2.0")]
     phi_y: f64,
 }
 
@@ -82,7 +83,7 @@ const PARAMS: Params = Params {
 //---------------------------------------------------------------------------------------
 
 fn main() {
-    println!("xcp_lite point cloud demo");
+    println!("xcp-lite point cloud demo");
 
     env_logger::Builder::new()
         .filter_level(log::LevelFilter::Debug)
@@ -101,7 +102,7 @@ fn main() {
     let mut mainloop_counter1: u64 = 0;
     daq_register!(mainloop_counter1, event_point_cloud);
 
-    #[derive(Serialize)]
+    #[derive(Serialize, IdlGenerator)]
     struct Point {
         x: f32,
         y: f32,
@@ -149,7 +150,7 @@ fn main() {
             p.z = h * (i as f32 * 0.03);
         }
 
-        // Serialize  into the event capture buffer
+        // Serialize point_cloud into the event capture buffer
         daq_serialize!(point_cloud, event_point_cloud, "point cloud demo");
         event_point_cloud.trigger();
 

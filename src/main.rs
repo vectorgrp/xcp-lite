@@ -38,9 +38,6 @@ use log::{debug, error, info, trace, warn};
 use clap::Parser;
 use std::net::Ipv4Addr;
 
-use xcp_idl_generator::prelude::*;
-use xcp_type_description::prelude::*;
-
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
@@ -73,7 +70,7 @@ struct Args {
 // XCP
 
 use xcp::*;
-use xcp_type_description_derive::XcpTypeDescription;
+use xcp_type_description::prelude::*;
 
 //-----------------------------------------------------------------------------
 // Application start time
@@ -254,7 +251,6 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
 
     // Create an event with capture capacity of 1024 bytes for point_cloud serialization
     let event = daq_create_event!("task1");
-    let mut event_point_cloud = daq_create_event!("task1_points", 64);
 
     // Register signals of bassic types or array to be captured directly from stack
     daq_register!(counter, event, "", "", 1.0, 0.0);
@@ -281,32 +277,9 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
         counter_u64 = counter_u64.wrapping_add(1);
         array1[(counter_u16 % (array1.len() as u16)) as usize] = counter as f64;
 
-        // Serialize a struct into the event capture buffer
-        #[derive(Serialize, IdlGenerator)]
-        struct Point {
-            x: u32,
-            y: u32,
-            z: u32,
-        }
-
-        let mut point_cloud = Vec::with_capacity(4);
-        let annotation = GeneratorCollection::generate(&IDL::CDR, &Point::description()).unwrap();
-        point_cloud.push(Point { x: 0, y: 0, z: 0 });
-        point_cloud.push(Point { x: 1, y: 0, z: 0 });
-        point_cloud.push(Point { x: 1, y: 1, z: 0 });
-        point_cloud.push(Point { x: 1, y: 1, z: 1 });
-
-        daq_serialize!(
-            point_cloud,
-            event_point_cloud,
-            "struct serializer demo",
-            Some(annotation)
-        );
-
         // Trigger single instance event "task1" for data acquisition
         // Capture variables from stack happens here
         event.trigger();
-        event_point_cloud.trigger();
 
         // Sync the calibration segment
         calseg1.sync();
