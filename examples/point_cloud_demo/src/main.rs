@@ -134,7 +134,7 @@ fn main() {
             phi = 0.0;
         }
         h += 0.01;
-        if h > 30.0 {
+        if h > 20.0 {
             h = 0.0;
         }
         for (i, p) in point_cloud.iter_mut().enumerate() {
@@ -142,12 +142,12 @@ fn main() {
             let a_y: f64 = params.ampl_y;
             let omega_x = 2.0 * PI / params.period_x;
             let omega_y = 2.0 * PI / params.period_y;
-            let phi_x = 1.0 * PI / POINT_COUNT as f64 * i as f64 + phi;
-            let phi_y = 1.0 * PI / POINT_COUNT as f64 * i as f64 + phi;
+            let phi_x = 1.8 * PI / POINT_COUNT as f64 * i as f64 + phi;
+            let phi_y = 1.8 * PI / POINT_COUNT as f64 * i as f64 + phi;
 
             p.x = (a_x * (omega_x * t + phi_x).cos()) as f32;
             p.y = (a_y * (omega_y * t + phi_y).sin()) as f32;
-            p.z = h * (i as f32 * 0.03);
+            p.z = h + (i as f32 * 0.05);
         }
 
         // Serialize point_cloud into the event capture buffer

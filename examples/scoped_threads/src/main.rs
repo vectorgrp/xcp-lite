@@ -13,20 +13,20 @@ use xcp_type_description_derive::XcpTypeDescription;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
 struct CalPage {
-    #[comment = "Max counter value"]
-    #[min = "0"]
-    #[max = "1023"]
+    #[type_description(comment = "Max counter value")]
+    #[type_description(min = "0")]
+    #[type_description(max = "1023")]
     max: u16,
 
-    #[comment = "Min counter value"]
-    #[min = "0"]
-    #[max = "1023"]
+    #[type_description(comment = "Min counter value")]
+    #[type_description(min = "0")]
+    #[type_description(max = "1023")]
     min: u16,
 
-    #[comment = "Task delay time in us"]
-    #[min = "0"]
-    #[max = "1000000"]
-    #[unit = "us"]
+    #[type_description(comment = "Task delay time in us")]
+    #[type_description(min = "0")]
+    #[mtype_description(ax = "1000000")]
+    #[utype_description(nit = "us")]
     delay: u32,
 }
 

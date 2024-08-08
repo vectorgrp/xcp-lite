@@ -20,21 +20,21 @@ use serde::{Deserialize, Serialize};
 // Define a struct with calibration parameters
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
 struct CalPage {
-    #[comment = "Amplitude of the sine signal"]
-    #[unit = "Volt"]
-    #[min = "0"]
-    #[max = "500"]
+    #[type_description(comment = "Amplitude of the sine signal")]
+    #[type_description(unit = "Volt")]
+    #[type_description(min = "0")]
+    #[type_description(max = "500")]
     ampl: f64,
 
-    #[comment = "Period of the sine signal"]
-    #[unit = "s"]
-    #[min = "0.001"]
-    #[max = "10"]
+    #[type_description(comment = "Period of the sine signal")]
+    #[type_description(unit = "s")]
+    #[type_description(min = "0.001")]
+    #[type_description(max = "10")]
     period: f64,
 
-    #[comment = "Counter maximum value"]
-    #[min = "0"]
-    #[max = "255"]
+    #[type_description(comment = "Counter maximum value")]
+    #[type_description(min = "0")]
+    #[type_description(max = "255")]
     counter_max: u32,
 }
 

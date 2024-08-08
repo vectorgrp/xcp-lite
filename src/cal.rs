@@ -20,15 +20,14 @@ use std::sync::{Arc, Mutex};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use crate::reg::RegistryCharacteristicBuilder;
 use serde::Serialize;
 
+use crate::reg::RegistryCharacteristicBuilder;
 use crate::xcp::*;
+use xcp_type_description::XcpTypeDescription;
 
 //-----------------------------------------------------------------------------
 // CalPage
-
-use xcp_type_description::XcpTypeDescription;
 
 pub trait CalPageTrait
 where

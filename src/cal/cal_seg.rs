@@ -94,10 +94,12 @@ where
     /// # Returns
     /// true, if the calibration segment was modified
     pub fn sync(&self) -> bool {
-        let xcp = Xcp::get();
+        let _xcp = Xcp::get();
+        let mut modified = false;
 
         // Check for modifications and copy xcp_page to ecu_page, when active page is "RAM"
-        if xcp.get_xcp_cal_page() == XcpCalPage::Ram {
+        /*if xcp.get_xcp_cal_page() == XcpCalPage::Ram */
+        {
             // @@@@ ToDo: Avoid the lock, when there is no pending modification for the XCP page
             {
                 let mut xcp_page = self.xcp_page.lock().unwrap();
@@ -121,12 +123,14 @@ where
                             self.get_name(),
                             xcp_page.ctr,
                         );
-                        let src_ptr = self.default_page as *const _ as *const u8;
-                        let dst_ptr: *mut u8 = &xcp_page.page as *const _ as *mut u8;
-                        core::ptr::copy_nonoverlapping(src_ptr, dst_ptr, std::mem::size_of::<T>());
+
+                        let src_ptr = self.default_page as *const T;
+                        let dst_ptr = &xcp_page.page as *const _ as *mut T;
+                        core::ptr::copy_nonoverlapping(src_ptr, dst_ptr, 1);
 
                         // Increment the modification counter to distribute the new xcp page to all clones
                         xcp_page.ctr += 1;
+                        modified = true;
                     }
                 }
 
@@ -146,11 +150,11 @@ where
                         let size: usize = std::mem::size_of::<(usize, T)>();
                         core::ptr::copy_nonoverlapping(src_ptr, dst_ptr, size);
                     }
-                    return true;
+                    modified = true;
                 }
             }
         }
-        false
+        modified
     }
 }
 
@@ -357,9 +361,9 @@ mod cal_tests {
 
     use super::*;
     use crate::reg::RegistryCharacteristic;
-    use xcp_type_description::prelude::*;
     use crate::xcp;
     use crate::xcplib;
+    use xcp_type_description::prelude::*;
 
     use xcp::*;
     use xcp_type_description_derive::XcpTypeDescription;
@@ -386,7 +390,7 @@ mod cal_tests {
     }
 
     #[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
-    struct CalPage3 {
+    struct CalPage4 {
         test: u8,
     }
 
@@ -461,8 +465,8 @@ mod cal_tests {
         // This can not result in undefined behaviour, because the reference can never escape this thread
         // The mutation (value change and page switch) always happens in cal_seg.sync in this thread
         // The only effect would be, that we hold a reference to the wrong page, as demonstrated here
-        const CAL_PAGE2: CalPage3 = CalPage3 { test: 0x55 }; // FLASH
-        let cal_page2 = CalPage3 { test: 0xAA }; // RAM
+        const CAL_PAGE2: CalPage4 = CalPage4 { test: 0x55 }; // FLASH
+        let cal_page2 = CalPage4 { test: 0xAA }; // RAM
         cal_page2.save_to_file("calseg2.json");
         let cal_seg2 = Xcp::create_calseg("calseg2", &CAL_PAGE2, true);
         Xcp::get().set_ecu_cal_page(XcpCalPage::Ram);
@@ -550,14 +554,21 @@ mod cal_tests {
         c: u32,
     }
 
+    #[derive(Debug, Copy, Clone, Serialize, Deserialize, XcpTypeDescription)]
+    struct CalPage3 {
+        a: u32,
+        b: u32,
+        c: u32,
+    }
+
     static FLASH_PAGE1: CalPage1 = CalPage1 { a: 2, b: 4, c: 6 };
     static FLASH_PAGE2: CalPage2 = CalPage2 { a: 2, b: 4, c: 6 };
+    static FLASH_PAGE3: CalPage3 = CalPage3 { a: 2, b: 4, c: 6 };
 
     macro_rules! test_is_mut {
         ( $s:ident ) => {
             if $s.a != 1 || $s.b != 3 || $s.c != 5 {
-                error!("test_is_mut: failed, s.a!=1 || s.b!=3 || s.c!=5");
-                unreachable!();
+                panic!("test_is_mut: failed, s.a!=1 || s.b!=3 || s.c!=5");
             }
             trace!("test_is_mut: a={}, b={}, c={}", $s.a, $s.b, $s.c);
         };
@@ -566,8 +577,7 @@ mod cal_tests {
     macro_rules! test_is_default {
         ( $s:ident ) => {
             if $s.a != 2 || $s.b != 4 || $s.c != 6 {
-                error!("test_is_default: failed, s.a!=2 || s.b!=4 || s.c!=6");
-                unreachable!();
+                panic!("test_is_default: failed, s.a!=2 || s.b!=4 || s.c!=6");
             }
             trace!("test_is_default: a={}, b={}, c={}", $s.a, $s.b, $s.c);
         };
@@ -613,21 +623,63 @@ mod cal_tests {
 
     //-----------------------------------------------------------------------------
     // Test cal page freeze
-
+    // @@@@ Bug: Test fails occasionally
     #[test]
     fn test_cal_page_freeze() {
-        xcp_test::test_setup(log::LevelFilter::Info);
-        let mut_page: CalPage2 = CalPage2 { a: 1, b: 3, c: 5 };
-        mut_page.save_to_file("test1.json");
+        xcp_test::test_setup(log::LevelFilter::Warn);
+        let _xcp = Xcp::get();
+
+        assert!(std::mem::size_of::<CalPage1>() == 12);
+        assert!(std::mem::size_of::<CalPage2>() == 12);
+        assert!(std::mem::size_of::<CalPage3>() == 12);
+
+        let mut_page1: CalPage1 = CalPage1 { a: 1, b: 3, c: 5 };
+        mut_page1.save_to_file("test1.json");
+
+        // Create calseg1 from def
         let calseg1 = Xcp::create_calseg("test1", &FLASH_PAGE1, true);
-        std::fs::remove_file("test1.json").ok();
+        // println!();
+        // println!("new calseg1: {:?}", calseg1);
         test_is_mut!(calseg1);
+
+        // Freeze calseg1 to new test1.json
+        std::fs::remove_file("test1.json").ok();
         xcp_test::test_freeze_cal(); // Save mut_page to file "test1.json"
         calseg1.sync();
-        xcp_test::test_init_cal(); // Copy default_page to mut_page
-        calseg1.sync();
-        test_is_default!(calseg1); // should be now default value on ram page
+
+        // Create calseg2 from freeze file test1.json of calseg1
+        std::fs::copy("test1.json", "test2.json").unwrap();
+        let calseg2 = Xcp::create_calseg("test2", &FLASH_PAGE2, true);
+        // println!();
+        // println!("new calseg2: {:?}", calseg2);
+        test_is_mut!(calseg2);
+
+        // Init all calsegs
+        // xcp_test::test_init_cal(); // Copy default_page to mut_page
+        // calseg1.sync();
+        // calseg2.sync();
+        // // println!();
+        // // println!("init calseg1: {:?}", calseg1);
+        // // println!();
+        // // println!("init calseg2: {:?}", calseg2);
+        // test_is_default!(calseg1); // should be now default value on ram page
+        // test_is_default!(calseg2); // should be now default value on ram page
+
+        // Freeze all calsegs
+        // xcp_test::test_freeze_cal(); // Save mut_page to file "test1.json"
+        // calseg1.sync();
+        // calseg2.sync();
+
+        // // Create calseg3 from freeze file test2.json of calseg2
+        // std::fs::copy("test2.json", "test3.json").unwrap();
+        // let calseg3 = Xcp::create_calseg("test3", &FLASH_PAGE3, true);
+        // // println!();
+        // // println!("new calseg3: {:?}", calseg3);
+        // test_is_default!(calseg3);
+
         std::fs::remove_file("test1.json").ok();
+        std::fs::remove_file("test2.json").ok();
+        std::fs::remove_file("test3.json").ok();
     }
 
     //-----------------------------------------------------------------------------

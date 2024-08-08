@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<GfxStorageModel Hash="6E-94-80-94-B0-E9-BF-F1-B1-9D-F0-FB-6E-10-40-8B" HashVersion="2.0.0.0">
+<GfxStorageModel Hash="C6-8E-5A-F0-C5-12-7D-23-07-03-0F-52-29-25-A5-BD" HashVersion="2.0.0.0">
   <BindingIdToViewId>
     <Item XmlSingularArray="true">
       <Key>9660f25f-d435-4740-b40d-16e2f6935681</Key>
@@ -52,6 +52,7 @@
               <Property XmlSingularArray="true">
                 <Name>Points[*]</Name>
                 <TemplateName>Points</TemplateName>
+                <DisplayName>Points[*]</DisplayName>
                 <HasChildren>true</HasChildren>
                 <TypeName>Vector.Point, Vector.DA.DynamicObject.1C-C3-40-E3-0B-46-65-18-55-AD-DF-CD-4F-E0-B4-46</TypeName>
                 <DataDimensions>

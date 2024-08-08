@@ -74,16 +74,16 @@ The registration of objects has to be completed, before the A2L file is generate
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
 struct CalPage {
 
-    #[comment = "Amplitude"]
-    #[unit = "Volt"]
-    #[min = "0"]
-    #[max = "400"]
+    #[type_description(comment = "Amplitude")]
+    #[type_description(unit = "Volt")]
+    #[type_description(min = "0")]
+    #[type_description(max = "400")]
     ampl: f64,
 
-    #[comment = "Period"]
-    #[unit = "s"]
-    #[min = "0"]
-    #[max = "1000"]
+    #[type_description(comment = "Period")]
+    #[type_description(unit = "s")]
+    #[type_description(min = "0")]
+    #[type_description(max = "1000")]
     period: f64,
 }
 
@@ -217,5 +217,7 @@ To use one of the CANape projects included, use 'Project/Open" and select the fi
 
 The examples are build with CANape 22 SP2.  
 Older versions were not tested.
+
+
 
 ![CANape](CANape.png)

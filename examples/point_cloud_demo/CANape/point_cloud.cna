@@ -10,7 +10,7 @@ PrgDate=08.07.2024
 Description=
 CreationTime=18:15
 CreationDate=08/05/2024 ; Month/Day/Year
-ModificationTime=08:40
+ModificationTime=17:15
 ModificationDate=08/08/2024 ; Month/Day/Year
 Protected=0
 CurrentWindowsACP=1252
@@ -112,7 +112,7 @@ OptionCSVListSeparator=0
 OptionCSVExport=0
 OptionMARMFExport=0
 OptionMARMFExtended=0
-OptionSuppressCASLRuntimeErrors=0
+OptionSuppressCASLRuntimeErrors=1
 FromTime=-1
 FromActive=0
 FromTimePartActive=0
@@ -225,15 +225,15 @@ DisplayCount=2
 [MEASUREMENT_OBJECT_2_CO1_DISPLAY_1]
 Window=4
 Index=2
-Color=65535
+Color=65280
 ApplyColorToBackground=0
 ColorFunction=0
 ColorFunctionScope=1
 LineTyp=2
 YMinHome=-20
-YMaxHome=30
+YMaxHome=20
 YMin=-20
-YMax=30
+YMax=20
 XOffsetNS=0
 XOffset=0
 ValueFormat=3
@@ -264,22 +264,22 @@ YAxisLabel=
 AxisCaption=
 Row=0
 Col=0
-YAxis_ID=0
+YAxis_ID=1
 AxisTemplate=
 GUID=DISPLAY_e7dcae0c-a55b-438b-b644-9a9c2a38a70b
 
 [MEASUREMENT_OBJECT_2_CO1_DISPLAY_2]
 Window=6
 Index=0
-Color=65535
+Color=65280
 ApplyColorToBackground=0
 ColorFunction=0
 ColorFunctionScope=1
 LineTyp=2
 YMinHome=-10
 YMaxHome=10
-YMin=-14
-YMax=6
+YMin=-10
+YMax=10
 XOffsetNS=0
 XOffset=0
 ValueFormat=3
@@ -332,10 +332,10 @@ ApplyColorToBackground=0
 ColorFunction=0
 ColorFunctionScope=1
 LineTyp=2
-YMinHome=-25
-YMaxHome=25
-YMin=-25
-YMax=25
+YMinHome=-20
+YMaxHome=20
+YMin=-20
+YMax=20
 XOffsetNS=0
 XOffset=0
 ValueFormat=3
@@ -366,7 +366,7 @@ YAxisLabel=
 AxisCaption=
 Row=0
 Col=0
-YAxis_ID=0
+YAxis_ID=1
 AxisTemplate=
 GUID=DISPLAY_b1f8f448-ab81-423a-9405-116c3bd600e7
 
@@ -429,15 +429,15 @@ DisplayCount=1
 [MEASUREMENT_OBJECT_2_CO3_DISPLAY_1]
 Window=4
 Index=0
-Color=65535
+Color=255
 ApplyColorToBackground=0
 ColorFunction=0
 ColorFunctionScope=1
 LineTyp=2
-YMinHome=-10
-YMaxHome=10
-YMin=-10
-YMax=10
+YMinHome=0
+YMaxHome=20
+YMin=0
+YMax=20
 XOffsetNS=0
 XOffset=0
 ValueFormat=3
@@ -587,9 +587,9 @@ WindowTextExtended=1
 WindowTextExtendedNew=1
 WindowSymbols=1
 GlobalCursor=1
-GlobalCursorTime=0
-GlobalCursorTimeNs=943250
-MainWindowPos=1, 28, 0, 3497, 2186 ;cmd, x, y, w, h
+GlobalCursorTime=3
+GlobalCursorTimeNs=3793666
+MainWindowPos=1, 43, 39, 3497, 2110 ;cmd, x, y, w, h
 
 [PAR_COMMENT]
 1="Name",""
@@ -895,8 +895,8 @@ DisplayMask=1 ; pages 1
 XLen=10999
 XMin=0
 XMinNs=0
-XMax=5656
-XMaxNs=5656264544
+XMax=402444
+XMaxNs=402444211838
 Grid=1
 Mark=1
 YValue=1
@@ -918,7 +918,7 @@ YAxisWidth=112
 YAxisWidth_dpi96=56
 RightYAxisWidth=0
 RightYAxisWidth_dpi96=0
-ObjectMode=1
+ObjectMode=0
 DisplayMode=2
 ShowSignalMode=0
 AxisScrollPos2=0
@@ -930,7 +930,7 @@ YAxisDynScaleEnabled=0
 YAxisDynScaleEnlarge=25
 TimeStickToZero=0
 XYModeRedrawEnabled=0
-MARKER_TIME_1=943250
+MARKER_TIME_1=3793666
 MARKER_TIME_2=15000000000
 OscilloscopeEnabled=0
 OsciEventCount=0
@@ -981,11 +981,11 @@ ShowSignalComments=1
 DisplayMask=1 ; pages 1
 
 [WINDOW_6]
-XLen=18988
+XLen=60000
 XMin=0
 XMinNs=0
-XMax=5656
-XMaxNs=5656264544
+XMax=402444
+XMaxNs=402444211838
 Grid=1
 Mark=1
 YValue=2
@@ -1019,7 +1019,7 @@ YAxisDynScaleEnabled=0
 YAxisDynScaleEnlarge=25
 TimeStickToZero=0
 XYModeRedrawEnabled=1
-MARKER_TIME_1=943250
+MARKER_TIME_1=3793666
 MARKER_TIME_2=15000000000
 OscilloscopeEnabled=0
 OsciEventCount=0
@@ -1148,7 +1148,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_e8610f2d-0aa1-4f96-a8b9-db5d331041ab
+GUID=DISPLAY_34cb9d4a-1fec-4d82-b74a-7933d3655925
 
 [WINDOW_8_OBJECT_2]
 Type=2
@@ -1197,7 +1197,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_abcc9a80-d438-4780-a581-3a14d4b12fd0
+GUID=DISPLAY_d26cb3e9-69db-4c28-9561-92cadb2b84d1
 
 [WINDOW_8_OBJECT_3]
 Type=2
@@ -1246,7 +1246,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_8c80001e-0745-4ef9-9615-f364a8f7648b
+GUID=DISPLAY_66c74ee1-2c44-404d-b7c6-ba30f5ac0c0a
 
 [WINDOW_8_OBJECT_4]
 Type=2
@@ -1295,7 +1295,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_9dc3d2f6-a813-4b47-98b7-76fd558aa62f
+GUID=DISPLAY_7d3680a9-4667-4b63-b6c4-06de14ed5669
 
 [WINDOW_8_OBJECT_5]
 Type=2
@@ -1344,7 +1344,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_65b12fd3-75d1-4524-9973-525c3ae4897f
+GUID=DISPLAY_b77fc6e6-ba5b-452a-a01c-2a04f26b8f26
 
 [WINDOW_8_OBJECT_6]
 Type=2
@@ -1393,11 +1393,26 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_d16e0a7f-d0b9-44ca-bf30-d93ae67bdda6
+GUID=DISPLAY_2bba6577-83fe-4bfe-8e95-6d842ebfe55c
 
 [WINDOWS]
 Count=8
 
+[Y_COMMON_AXIS_1]
+YMin=-20
+YMax=20
+ValueFormat=3
+AxisTemplate=
+LockScaling=0
+ID=1
+Comment=
+Color=65280
+Name=XY
+YMin-Home=-20
+YMax-Home=20
+DisplayOnlyComment=0
+XAxisGroup=0
+
 [Y_COMMON_AXIS_LIST]
-Count=0
+Count=1
 

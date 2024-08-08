@@ -72,7 +72,6 @@ pub struct XcpEvent {
 }
 
 impl XcpEvent {
-
     /// Maximum number of events
     pub const XCP_MAX_EVENTS: usize = 256;
 
@@ -84,7 +83,10 @@ impl XcpEvent {
 
     /// Create a new XCP event
     pub fn new(num: u16, index: u16) -> XcpEvent {
-        assert!((num as usize) < XcpEvent::XCP_MAX_EVENTS, "Maximum number of events exceeded");
+        assert!(
+            (num as usize) < XcpEvent::XCP_MAX_EVENTS,
+            "Maximum number of events exceeded"
+        );
         unsafe {
             XCP_EVENT_MAP[num as usize] = num;
         }
@@ -135,13 +137,13 @@ impl XcpEvent {
     /// Used by A2L writer
     pub fn get_abs_ext_addr(self, addr: u64) -> (u8, u32) {
         let a2l_ext = Xcp::XCP_ADDR_EXT_ABS;
-        let a2l_addr = unsafe { xcplib::ApplXcpGetAddr(addr as  *const u8) };
+        let a2l_addr = unsafe { xcplib::ApplXcpGetAddr(addr as *const u8) };
         (a2l_ext, a2l_addr)
     }
 
     /// Trigger a XCP event and provide a base pointer for relative addressing mode (XCP_ADDR_EXT_DYN)
     /// Address of the associated measurement variable must be relative to base
-    /// 
+    ///
     /// # Safety
     /// This is a C ffi call, which gets a pointer to a daq capture buffer
     /// The provenance of the pointer (len, lifetime) is is guaranteed , it refers to self
@@ -167,7 +169,7 @@ impl XcpEvent {
     /// Trigger a XCP event for measurement objects in absolute addressing mode (XCP_ADDR_EXT_DYN)
     /// Address of the associated measurement variable must be relative to module load addr
     /// In 64 applications, this offset might overflow in the A2L description - this is checked wenn generating A2L
-    /// 
+    ///
     /// # Safety
     /// This is a C ffi call, which gets a pointer to a daq capture buffer
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
@@ -463,18 +465,15 @@ lazy_static::lazy_static! {
 }
 
 impl Xcp {
-
-
     /// Absolute addressing mode of XCPlite
     pub const XCP_ADDR_EXT_ABS: u8 = 1; // Used for DAQ objects on heap (addr is relative to module load address)
     /// Relative addressing mode of XCPlite
     pub const XCP_ADDR_EXT_DYN: u8 = 2; // Used for DAQ objects on stack and capture DAQ ( event in addr high word, low word relative to base given to XcpEventExt )
     /// Segment relative addressing mode of XCPlite handled by applications read/write callbacks
     pub const XCP_ADDR_EXT_APP: u8 = 0; // Used for CAL objects (addr = index | 0x8000 in high word (CANape does not support addr_ext in memory segments))
-    
+
     /// Addr of the EPK
     pub const XCP_EPK_ADDR: u32 = 0x80000000;
-
 
     // new
     fn new() -> Xcp {
@@ -679,7 +678,7 @@ impl Xcp {
 
     /// Get the active calibration page for the XCP access
     pub fn get_xcp_cal_page(&self) -> XcpCalPage {
-        if self.ecu_cal_page.load(Ordering::Relaxed) == XcpCalPage::Ram as u8 {
+        if self.xcp_cal_page.load(Ordering::Relaxed) == XcpCalPage::Ram as u8 {
             XcpCalPage::Ram
         } else {
             XcpCalPage::Flash
@@ -896,16 +895,22 @@ pub mod xcp_test {
     pub fn test_reinit() {
         let xcp = Xcp::get();
         Xcp::set_server_log_level(XcpLogLevel::Warn);
+        {
+            let mut l = xcp.event_list.lock().unwrap();
+            l.clear();
+        }
+        {
+            let mut s = xcp.calseg_list.lock().unwrap();
+            s.clear();
+        }
+        {
+            let mut r = xcp.registry.lock().unwrap();
+            r.clear();
+            r.set_name("xcp_lite");
+            r.set_epk("TEST_EPK", Xcp::XCP_EPK_ADDR);
+        }
         xcp.set_ecu_cal_page(XcpCalPage::Ram);
         xcp.set_xcp_cal_page(XcpCalPage::Ram);
-        let mut l = xcp.event_list.lock().unwrap();
-        l.clear();
-        let mut s = xcp.calseg_list.lock().unwrap();
-        s.clear();
-        let mut r = xcp.registry.lock().unwrap();
-        r.clear();
-        r.set_name("xcp_lite");
-        r.set_epk("TEST_EPK", Xcp::XCP_EPK_ADDR);
     }
 
     // Direct calls to the XCP driver callbacks for init and freeze
