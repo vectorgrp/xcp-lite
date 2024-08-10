@@ -385,7 +385,7 @@ macro_rules! daq_capture {
 #[macro_export]
 macro_rules! daq_serialize {
     // name, event, comment
-    ( $id:ident, $daq_event:expr, $comment:expr) => {{
+    ( $id:ident, $daq_event:expr, $type_id: ident, $comment:expr) => {{
         static DAQ_OFFSET__: std::sync::atomic::AtomicI16 =
             std::sync::atomic::AtomicI16::new(-32768);
         let byte_offset;
@@ -398,7 +398,7 @@ macro_rules! daq_serialize {
             Ok(_) => {
                 // @@@@ Experimental: Hard coded type here for point_cloud demo
                 let annotation =
-                    GeneratorCollection::generate(&IDL::CDR, &Point::description()).unwrap();
+                    GeneratorCollection::generate(&IDL::CDR, &$type_id::description()).unwrap();
                 byte_offset = $daq_event.add_capture(
                     stringify!($id),
                     std::mem::size_of_val(&$id),

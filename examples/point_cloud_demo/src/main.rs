@@ -82,6 +82,47 @@ const PARAMS: Params = Params {
 
 //---------------------------------------------------------------------------------------
 
+#[derive(Debug, Serialize, IdlGenerator)]
+struct Point {
+    x: f32,
+    y: f32,
+    z: f32,
+}
+
+#[derive(Debug, Serialize, IdlGenerator)]
+struct PointCloud {
+    points: Vec<Point>,
+}
+
+fn create_point_cloud() -> PointCloud {
+    let mut point_cloud = PointCloud {
+        points: Vec::with_capacity(4),
+    };
+
+    for _ in 0..POINT_COUNT {
+        point_cloud.points.push(Point {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+        });
+    }
+
+    // Test
+    println!("-------------------------------------------------------------------------------");
+    println!("point_cloud = {:?}", point_cloud);
+    println!("-------------------------------------------------------------------------------");
+    let annotation = GeneratorCollection::generate(&IDL::CDR, &Point::description()).unwrap();
+    println!("Point = {}", annotation);
+    let annotation = GeneratorCollection::generate(&IDL::CDR, &PointCloud::description()).unwrap();
+    println!("PointCloud = {}", annotation);
+    println!("-------------------------------------------------------------------------------");
+    println!();
+
+    point_cloud
+}
+
+//---------------------------------------------------------------------------------------
+
 fn main() {
     println!("xcp-lite point cloud demo");
 
@@ -97,26 +138,11 @@ fn main() {
 
     let params = Xcp::create_calseg("Params", &PARAMS, true);
 
+    let mut point_cloud = create_point_cloud();
     let mut event_point_cloud = daq_create_event!("point_cloud", POINT_COUNT * 12 + 8);
 
     let mut mainloop_counter1: u64 = 0;
     daq_register!(mainloop_counter1, event_point_cloud);
-
-    #[derive(Serialize, IdlGenerator)]
-    struct Point {
-        x: f32,
-        y: f32,
-        z: f32,
-    }
-
-    let mut point_cloud = Vec::with_capacity(4);
-    for _ in 0..POINT_COUNT {
-        point_cloud.push(Point {
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
-        });
-    }
 
     let mut phi = 0.0;
     let mut h = 0.0;
@@ -137,7 +163,7 @@ fn main() {
         if h > 20.0 {
             h = 0.0;
         }
-        for (i, p) in point_cloud.iter_mut().enumerate() {
+        for (i, p) in point_cloud.points.iter_mut().enumerate() {
             let a_x: f64 = params.ampl_x;
             let a_y: f64 = params.ampl_y;
             let omega_x = 2.0 * PI / params.period_x;
@@ -151,7 +177,12 @@ fn main() {
         }
 
         // Serialize point_cloud into the event capture buffer
-        daq_serialize!(point_cloud, event_point_cloud, "point cloud demo");
+        daq_serialize!(
+            point_cloud,
+            event_point_cloud,
+            PointCloud,
+            "point cloud demo"
+        );
         event_point_cloud.trigger();
 
         params.sync();
