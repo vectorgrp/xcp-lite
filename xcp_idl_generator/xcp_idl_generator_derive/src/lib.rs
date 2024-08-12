@@ -1,6 +1,3 @@
-//TODO: Remove
-#![allow(warnings)]
-
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
@@ -24,15 +21,14 @@ pub fn idl_generator_derive(input: TokenStream) -> TokenStream {
 
                     let f_name_str = field_name.to_string();
                     let f_type_str = field_type.into_token_stream().to_string();
+                    let f_type_str = f_type_str.replace(" ", "");
 
-                    //TODO: Remove redundant to_string?
                     quote! {
                         struct_fields.push(Field::new(
                             #f_name_str,
                             #f_type_str
                         ));
                     }
-
                 })
                 .collect();
 

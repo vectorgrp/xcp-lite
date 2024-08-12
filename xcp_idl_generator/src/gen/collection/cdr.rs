@@ -16,12 +16,16 @@ impl CdrGenerator {
             .fields()
             .iter()
             .map(|field| {
-                let datatype = field.datatype();
-                let translated_type = self.type_mapping().get(&datatype).unwrap(); //TODO: Error Handling
-                format!("{} {};", translated_type, field.name())
+                let mut translated_type = field.datatype().to_string();
+
+                for (key, value) in self.type_mapping().iter() {
+                    translated_type = translated_type.replace(key, value);
+                }
+
+                format!("\"{} {};\"", translated_type, field.name())
             })
             .collect::<Vec<String>>()
-            .join(" ")
+            .join("\n")
     }
 }
 
@@ -40,9 +44,9 @@ impl Generator for CdrGenerator {
                     "</DynamicObject>"
                     "module {VECTOR_NAMESPACE} {{"
                     "  struct {type_name} {{"
-                    "      {fields_str}"
+                          {fields_str}
                     "  }};"
-                    
+
                     "  struct {type_name}{RUST_VECTOR} {{"
                     "    sequence<{type_name}> {lc_typename}s;"
                     "  }};
@@ -55,6 +59,7 @@ impl Generator for CdrGenerator {
         translation
     }
 
+    //TODO: Add other type mappings
     fn type_mapping(&self) -> &'static TypeMapping {
         static mut MAPPING: Option<TypeMapping> = None;
         static INIT: Once = Once::new();
@@ -64,6 +69,7 @@ impl Generator for CdrGenerator {
                 let mut mapping = TypeMapping::new();
                 mapping.insert("u32", "uint32");
                 mapping.insert("f32", "float");
+                mapping.insert("Vec", "sequence");
 
                 MAPPING = Some(mapping);
             });
