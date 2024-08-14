@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 // Defaults
 
 // [172, 19, 11, 24]; [192, 168, 0, 83]; [127, 0, 0, 1];
-const BIND_ADDR: [u8; 4] = [192, 168, 0, 83];
+const BIND_ADDR: [u8; 4] = [127, 0, 0, 1];
 
 const POINT_COUNT: usize = 16;
 const AMPL: f64 = 10.0;
@@ -107,13 +107,19 @@ fn create_point_cloud() -> PointCloud {
         });
     }
 
+    let point = Point {
+        x: 1.0,
+        y: 2.0,
+        z: 3.0,
+    };
+
     // Test
     println!("-------------------------------------------------------------------------------");
     println!("point_cloud = {:?}", point_cloud);
     println!("-------------------------------------------------------------------------------");
-    let annotation = GeneratorCollection::generate(&IDL::CDR, &Point::description()).unwrap();
+    let annotation = GeneratorCollection::generate(&IDL::CDR, &point.description()).unwrap();
     println!("Point = {}", annotation);
-    let annotation = GeneratorCollection::generate(&IDL::CDR, &PointCloud::description()).unwrap();
+    let annotation = GeneratorCollection::generate(&IDL::CDR, &point_cloud.description()).unwrap();
     println!("PointCloud = {}", annotation);
     println!("-------------------------------------------------------------------------------");
     println!();
@@ -180,7 +186,6 @@ fn main() {
         daq_serialize!(
             point_cloud,
             event_point_cloud,
-            PointCloud,
             "point cloud demo"
         );
         event_point_cloud.trigger();

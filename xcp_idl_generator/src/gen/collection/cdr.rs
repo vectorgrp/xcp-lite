@@ -1,8 +1,16 @@
-use crate::domain::{RUST_VECTOR, VECTOR_NAMESPACE};
+use crate::domain::VECTOR_NAMESPACE;
 use crate::gen::Generator;
 use crate::gen::TypeMapping;
 use crate::types::Struct;
+use crate::STRUCTS;
+use regex::Regex;
 use std::sync::Once;
+
+//TODO: Move to common package
+fn extract_types(input: &str) -> Vec<&str> {
+    let re = Regex::new(r"[^\w]+").unwrap();
+    re.split(input).filter(|s| !s.is_empty()).collect()
+}
 
 pub struct CdrGenerator;
 
@@ -32,29 +40,63 @@ impl CdrGenerator {
 impl Generator for CdrGenerator {
     fn generate(&self, input: &Struct) -> String {
         let type_name = input.type_name();
-        let lc_typename = type_name.to_ascii_lowercase();
         let fields_str = self.translate_fields(input);
 
-        let translation = format!(
+        let mut translation = format!(
             r#"
             /begin ANNOTATION ANNOTATION_LABEL "ObjectDescription" ANNOTATION_ORIGIN "application/dds"
                 /begin ANNOTATION_TEXT
                     "<DynamicObject> "
-                    "<RootType>{VECTOR_NAMESPACE}::{type_name}{RUST_VECTOR}</RootType>"
+                    "<RootType>{VECTOR_NAMESPACE}::{type_name}</RootType>"
                     "</DynamicObject>"
                     "module {VECTOR_NAMESPACE} {{"
                     "  struct {type_name} {{"
                           {fields_str}
                     "  }};"
-
-                    "  struct {type_name}{RUST_VECTOR} {{"
-                    "    sequence<{type_name}> {lc_typename}s;"
-                    "  }};
-                    }};"
+                    "}};"
                 /end ANNOTATION_TEXT
             /end ANNOTATION
             "#
         );
+
+        let struct_collection = STRUCTS.lock().unwrap();
+
+        let mut processed: Vec<&str> = Vec::new();
+
+        for field in input.fields().iter() {
+            let extracted_type_tree = extract_types(field.datatype());
+
+            for datatype in extracted_type_tree.iter() {
+                match self.type_mapping().get(datatype) {
+                    None => {
+                        if processed.contains(&datatype) {
+                            continue;
+                        }
+
+                        let s_slice: &str = &*datatype;
+                        let description = struct_collection.get(s_slice).unwrap();
+
+                        let inner_type_name = description.type_name();
+                        let inner_fields_str = self.translate_fields(description);
+
+                        let idl_str = format!(
+                            r#""struct {inner_type_name} {{"
+                                    {inner_fields_str}
+                                "}};"#
+                        );
+
+                        let tag = format!("module {VECTOR_NAMESPACE} {{");
+                        translation = translation.replace(
+                            &tag,
+                            &format!("module {VECTOR_NAMESPACE} {{\"\n{}", idl_str),
+                        );
+
+                        processed.push(&datatype);
+                    }
+                    Some(_) => { /* Rust primitive -> Ignored */ }
+                }
+            }
+        }
 
         translation
     }

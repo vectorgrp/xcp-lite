@@ -4,7 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+ctor = "0.2.8"
 lazy_static = "1.4"
+regex = "1.10.6"
 xcp_idl_generator_derive = { path = "./xcp_idl_generator_derive/" }
 
 [lib]

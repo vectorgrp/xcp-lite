@@ -1,4 +1,4 @@
-use std::fs::File;
+use std::fs::{remove_file, File};
 use std::io::Write;
 use xcp_idl_generator::prelude::*;
 
@@ -15,18 +15,27 @@ struct Measurement {
     _dummy_vec: Vec<Dummy>,
 }
 
+impl Measurement {
+    fn new() -> Self {
+        Self {
+            _id: 0,
+            _vec: vec![vec![0]],
+            _dummy: Dummy { _vec: vec![0] },
+            _dummy_vec: vec![Dummy { _vec: vec![0] }],
+        }
+    }
+}
+
 fn write_string_to_file(filename: &str, content: &str) {
+    let _ = remove_file(filename);
     let mut file = File::create(filename).unwrap();
     file.write_all(content.as_bytes()).unwrap();
 }
 
 fn main() {
-    let description = Measurement::description();
+    let measurement = Measurement::new();
+    let description = measurement.description();
 
-    dbg!(&description);
-
-    let idl_str = GeneratorCollection::generate(&IDL::CDR, &description).unwrap();
-    println!("{}", idl_str);
-
-    write_string_to_file("./gen.txt", &idl_str);
+    let val = GeneratorCollection::generate(&IDL::CDR, &description).unwrap();
+    write_string_to_file("./gen.txt", &val);
 }
