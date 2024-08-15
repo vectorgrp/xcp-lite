@@ -119,7 +119,7 @@
 
             /end DAQ
 
-/begin XCP_ON_UDP_IP 0x104 5555 ADDRESS "192.168.0.83" /end XCP_ON_UDP_IP
+/begin XCP_ON_UDP_IP 0x104 5555 ADDRESS "127.0.0.1" /end XCP_ON_UDP_IP
 
         /end IF_DATA
 
@@ -132,22 +132,23 @@
 /begin GROUP Params "" /begin REF_CHARACTERISTIC Params.ampl_x Params.ampl_y Params.period_x Params.period_y Params.phi_x Params.phi_y /end REF_CHARACTERISTIC /end GROUP
 
 
-/begin MEASUREMENT mainloop_counter1 "" A_UINT64 NO_COMPU_METHOD 0 0 0 1000000000000 PHYS_UNIT "" ECU_ADDRESS 0xD0 ECU_ADDRESS_EXTENSION 2 /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT 0 /end DAQ_EVENT /end IF_DATA /end MEASUREMENT
+/begin MEASUREMENT mainloop_counter1 "" A_UINT64 NO_COMPU_METHOD 0 0 0 1000000000000 PHYS_UNIT "" ECU_ADDRESS 0xFFD8 ECU_ADDRESS_EXTENSION 2 /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT 0 /end DAQ_EVENT /end IF_DATA /end MEASUREMENT
 /begin CHARACTERISTIC point_cloud "point cloud demo" ASCII 0x0 U8 0 NO_COMPU_METHOD 0 255 READ_ONLY NUMBER 200 ECU_ADDRESS_EXTENSION 2 
             /begin ANNOTATION ANNOTATION_LABEL "ObjectDescription" ANNOTATION_ORIGIN "application/dds"
                 /begin ANNOTATION_TEXT
                     "<DynamicObject> "
-                    "<RootType>Vector::PointVec</RootType>"
+                    "<RootType>Vector::PointCloud</RootType>"
                     "</DynamicObject>"
                     "module Vector {"
-                    "  struct Point {"
-                    "      float x; float y; float z;"
+"struct Point {"
+                                    "float x;"
+"float y;"
+"float z;"
+                                "};"
+                    "  struct PointCloud {"
+                          "sequence<Point> points;"
                     "  };"
-                    
-                    "  struct PointVec {"
-                    "    sequence<Point> points;"
-                    "  };
-                    };"
+                    "};"
                 /end ANNOTATION_TEXT
             /end ANNOTATION
             
