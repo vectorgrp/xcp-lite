@@ -54,32 +54,12 @@ pub use reg::RegistryCharacteristicBuilder;
 pub use reg::RegistryDataType;
 pub use reg::RegistryMeasurementBuilder;
 
-//TODO Cleanup imports
-pub use::xcp_idl_generator::*;
-use xcp_type_description::XcpTypeDescription;
-
 // @@@@ Reexport for integration tests
 pub use xcp::xcp_test::test_reinit;
 
 // XCPlite FFI bindings
 mod xcplib {
     include!("xcplite.rs");
-}
-
-//-----------------------------------------------------------------------------
-// Implement CalPageTrait for all types that may be a calibration page
-
-impl<T> CalPageTrait for T where
-    T: Sized
-        + Send
-        + Sync
-        + Copy
-        + Clone
-        + serde::Serialize
-        + serde::de::DeserializeOwned
-        + 'static
-        + XcpTypeDescription
-{
 }
 
 //-----------------------------------------------------------------------------

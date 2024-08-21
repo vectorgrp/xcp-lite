@@ -105,6 +105,7 @@ where
                 let mut xcp_page = self.xcp_page.lock().unwrap();
 
                 // Freeze - save xcp page to json file
+                #[cfg(feature = "json")]
                 if xcp_page.freeze_request {
                     xcp_page.freeze_request = false;
                     trace!("freeze: {})", self.get_name(),);

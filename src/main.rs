@@ -5,12 +5,17 @@
 //
 // Demonstrates the usage of xcp-lite for Rust together with a CANape project
 
+// Features:
+// json = [] # enable json persistence for CalSeg
+
 // Run:
 //  cargo run -- --port 5555 --bind 172.19.11.24 --tcp --no-a2l --log-level 4
 //  cargo run -- --port 5555 --bind 192.168.0.83  --segment-size 7972  --log-level 4
+//
 // Test:
 //  Tests may not run in parallel
-//  cargo test -- --test-threads=1 --nocapture
+//  Feature json must be enabled
+//  cargo test --features=json -- --test-threads=1 --nocapture
 
 #![allow(dead_code)] // Demo code
 #![allow(clippy::vec_init_then_push)]
@@ -23,8 +28,6 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
-
-use serde::{Deserialize, Serialize};
 
 //-----------------------------------------------------------------------------
 // Logging
@@ -90,7 +93,8 @@ lazy_static::lazy_static! {
 //---------------------------------------------------
 // CalPage
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
+#[derive(Debug, Clone, Copy, XcpTypeDescription)]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 struct CalPage {
     run: bool,
     run1: bool,
@@ -108,7 +112,8 @@ const CAL_PAGE: CalPage = CalPage {
 //---------------------------------------------------
 // CalPage1
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Copy, XcpTypeDescription)]
 struct TestInts {
     test_bool: bool,
     test_u8: u8,
@@ -123,7 +128,8 @@ struct TestInts {
     test_f64: f64,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Copy, XcpTypeDescription)]
 struct CalPage1 {
     #[type_description(comment = "Max value for counter", min = "0", max = "1000000")]
     counter_max: u32, // This will be a VALUE type
@@ -173,7 +179,8 @@ const CAL_PAGE1: CalPage1 = CalPage1 {
 //---------------------------------------------------
 // CalPage2
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Copy, XcpTypeDescription)]
 struct CalPage2 {
     #[type_description(comment = "Amplitude")]
     #[type_description(unit = "Volt")]
