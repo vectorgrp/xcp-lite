@@ -17,13 +17,13 @@ use std::sync::{Arc, Mutex};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use crate::reg::RegistryCharacteristicBuilder;
+use crate::reg::RegistryCharacteristic;
 use crate::xcp::*;
-use xcp_type_description::XcpTypeDescription;
 
 //-----------------------------------------------------------------------------
 // CalPageTrait
 
+#[cfg(feature = "auto_reg")]
 #[cfg(feature = "json")]
 pub trait CalPageTrait
 where
@@ -33,7 +33,7 @@ where
         + Copy
         + Clone
         + 'static
-        + XcpTypeDescription
+        + xcp_type_description::XcpTypeDescription
         + serde::Serialize
         + serde::de::DeserializeOwned,
 {
@@ -44,6 +44,7 @@ where
     fn register_fields(&self, calseg_name: &'static str);
 }
 
+#[cfg(feature = "auto_reg")]
 #[cfg(not(feature = "json"))]
 pub trait CalPageTrait
 where
@@ -52,9 +53,18 @@ where
     fn register_fields(&self, calseg_name: &'static str);
 }
 
+#[cfg(not(feature = "auto_reg"))]
+#[cfg(not(feature = "json"))]
+pub trait CalPageTrait
+where
+    Self: Sized + Send + Sync + Copy + Clone + 'static,
+{
+}
+
 //-----------------------------------------------------------------------------
 // Implement CalPageTrait for all types that may be a calibration page
 
+#[cfg(feature = "auto_reg")]
 #[cfg(feature = "json")]
 impl<T> CalPageTrait for T
 where
@@ -64,7 +74,7 @@ where
         + Copy
         + Clone
         + 'static
-        + XcpTypeDescription
+        + xcp_type_description::XcpTypeDescription
         + serde::Serialize
         + serde::de::DeserializeOwned,
 {
@@ -88,20 +98,19 @@ where
         trace!("Register all fields in {}", calseg_name);
 
         for field in self.type_description().unwrap().iter() {
-            let c = RegistryCharacteristicBuilder::default()
-                .name(field.name().to_string())
-                .comment(field.comment())
-                .min(field.min())
-                .max(field.max())
-                .unit(field.unit())
-                .datatype(field.datatype())
-                .x_dim(if field.x_dim() == 0 { 1 } else { field.x_dim() })
-                .y_dim(if field.y_dim() == 0 { 1 } else { field.y_dim() })
-                .offset(field.offset())
-                .extension(Xcp::XCP_ADDR_EXT_APP) // segment relative addressing
-                .calseg_name(calseg_name)
-                .build()
-                .unwrap();
+            let c = RegistryCharacteristic::new(
+                calseg_name,
+                field.name().to_string(),
+                field.datatype(),
+                field.comment(),
+                field.min(),
+                field.max(),
+                field.unit(),
+                if field.x_dim() == 0 { 1 } else { field.x_dim() },
+                if field.y_dim() == 0 { 1 } else { field.y_dim() },
+                field.offset(),
+                Xcp::XCP_ADDR_EXT_APP, // segment relative addressing
+            );
 
             Xcp::get()
                 .get_registry()
@@ -112,6 +121,7 @@ where
     }
 }
 
+#[cfg(feature = "auto_reg")]
 #[cfg(not(feature = "json"))]
 impl<T> CalPageTrait for T
 where
@@ -121,20 +131,19 @@ where
         trace!("Register all fields in {}", calseg_name);
 
         for field in self.type_description().unwrap().iter() {
-            let c = RegistryCharacteristicBuilder::default()
-                .name(field.name().to_string())
-                .comment(field.comment())
-                .min(field.min())
-                .max(field.max())
-                .unit(field.unit())
-                .datatype(field.datatype())
-                .x_dim(if field.x_dim() == 0 { 1 } else { field.x_dim() })
-                .y_dim(if field.y_dim() == 0 { 1 } else { field.y_dim() })
-                .offset(field.offset())
-                .extension(Xcp::XCP_ADDR_EXT_APP) // segment relative addressing
-                .calseg_name(calseg_name)
-                .build()
-                .unwrap();
+            let c = RegistryCharacteristic::new(
+                calseg_name,
+                field.name().to_string(),
+                field.datatype(),
+                field.comment(),
+                field.min(),
+                field.max(),
+                field.unit(),
+                if field.x_dim() == 0 { 1 } else { field.x_dim() },
+                if field.y_dim() == 0 { 1 } else { field.y_dim() },
+                field.offset(),
+                Xcp::XCP_ADDR_EXT_APP, // segment relative addressing
+            );
 
             Xcp::get()
                 .get_registry()
@@ -144,6 +153,10 @@ where
         }
     }
 }
+
+#[cfg(not(feature = "auto_reg"))]
+#[cfg(not(feature = "json"))]
+impl<T> CalPageTrait for T where T: Sized + Send + Sync + Copy + Clone + 'static {}
 
 //-----------------------------------------------------------------------------
 // CalSegDescriptor
@@ -207,6 +220,7 @@ impl CalSegList {
         });
 
         // Register all fields
+        #[cfg(feature = "auto_reg")]
         default_page.register_fields(name);
 
         // Load the active calibration page from file or set to default

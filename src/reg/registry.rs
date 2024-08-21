@@ -223,7 +223,7 @@ impl RegDataTypeProperties for RegistryDataType {
 // Transport layer parameters
 // For A2l XCP IF_DATA
 
-#[derive(Clone, Copy, Builder, Debug)]
+#[derive(Clone, Copy, Debug)]
 struct RegistryXcpTransportLayer {
     protocol_name: &'static str,
     ip: [u8; 4],
@@ -321,7 +321,7 @@ impl RegistryEpk {
 //-------------------------------------------------------------------------------------------------
 // Measurement signals
 
-#[derive(Builder, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct RegistryMeasurement {
     name: String,
     datatype: RegistryDataType, // Basic types Ubyte, SByte, AUint64, Float64Ieee, ...  or Blob
@@ -329,7 +329,7 @@ pub struct RegistryMeasurement {
     y_dim: u16, // 1 = basic type (A2L MEASUREMENT), >1 = array[x_dim,y_dim] of basic type (A2L MEASUREMENT with MATRIX_DIM x,y (max u16))
     event: XcpEvent,
     addr_offset: i16, // Address offset (signed!) relative to event memory context (XCP_ADDR_EXT_DYN)
-    addr:  u64,
+    addr: u64,
     factor: f64,
     offset: f64,
     comment: &'static str,
@@ -366,7 +366,7 @@ impl RegistryMeasurement {
             offset,
             comment,
             unit,
-            annotation
+            annotation,
         }
     }
 
@@ -440,7 +440,7 @@ impl RegistryMeasurementList {
 //-------------------------------------------------------------------------------------------------
 // Calibration parameters
 
-#[derive(Builder, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct RegistryCharacteristic {
     calseg_name: &'static str,
     name: String,
@@ -816,7 +816,7 @@ mod registry_tests {
             0.0,
             "unit",
             "comment",
-            Some("annotation".to_string())
+            Some("annotation".to_string()),
         ));
 
         std::fs::remove_file("test.a2h").ok();

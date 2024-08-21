@@ -21,10 +21,6 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-#[macro_use]
-extern crate derive_builder;
-
-#[allow(unused_imports)]
 //-----------------------------------------------------------------------------
 
 // Submodule xcp
@@ -50,9 +46,7 @@ pub use daq::DaqEvent;
 mod reg;
 pub use reg::RegDataTypeHandler;
 pub use reg::RegDataTypeProperties;
-pub use reg::RegistryCharacteristicBuilder;
 pub use reg::RegistryDataType;
-pub use reg::RegistryMeasurementBuilder;
 
 // @@@@ Reexport for integration tests
 pub use xcp::xcp_test::test_reinit;

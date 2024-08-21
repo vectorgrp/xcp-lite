@@ -73,6 +73,7 @@ struct Args {
 // XCP
 
 use xcp::*;
+#[cfg(feature = "auto_reg")]
 use xcp_type_description::prelude::*;
 
 //-----------------------------------------------------------------------------
@@ -92,9 +93,9 @@ lazy_static::lazy_static! {
 
 //---------------------------------------------------
 // CalPage
-
-#[derive(Debug, Clone, Copy, XcpTypeDescription)]
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "auto_reg", derive(XcpTypeDescription))]
+#[derive(Debug, Clone, Copy)]
 struct CalPage {
     run: bool,
     run1: bool,
@@ -113,7 +114,8 @@ const CAL_PAGE: CalPage = CalPage {
 // CalPage1
 
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone, Copy, XcpTypeDescription)]
+#[cfg_attr(feature = "auto_reg", derive(XcpTypeDescription))]
+#[derive(Debug, Clone, Copy)]
 struct TestInts {
     test_bool: bool,
     test_u8: u8,
@@ -129,15 +131,16 @@ struct TestInts {
 }
 
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone, Copy, XcpTypeDescription)]
+#[cfg_attr(feature = "auto_reg", derive(XcpTypeDescription))]
+#[derive(Debug, Clone, Copy)]
 struct CalPage1 {
-    #[type_description(comment = "Max value for counter", min = "0", max = "1000000")]
+    //#[type_description(comment = "Max value for counter", min = "0", max = "1000000")]
     counter_max: u32, // This will be a VALUE type
 
-    #[type_description(comment = "Demo curve", unit = "ms", min = "0", max = "100")]
+    //#[type_description(comment = "Demo curve", unit = "ms", min = "0", max = "100")]
     array: [f64; 16], // This will be a CURVE type (1 dimension)
 
-    #[type_description(comment = "Demo map", unit = "ms", min = "-100", max = "100")]
+    //#[type_description(comment = "Demo map", unit = "ms", min = "-100", max = "100")]
     map: [[u8; 9]; 8], // This will be a MAP type (2 dimensions)
 
     // Other basic types supported
@@ -178,9 +181,10 @@ const CAL_PAGE1: CalPage1 = CalPage1 {
 
 //---------------------------------------------------
 // CalPage2
-
+#[cfg(feature = "auto_reg")]
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone, Copy, XcpTypeDescription)]
+#[cfg_attr(feature = "auto_reg", derive(XcpTypeDescription))]
+#[derive(Debug, Clone, Copy)]
 struct CalPage2 {
     #[type_description(comment = "Amplitude")]
     #[type_description(unit = "Volt")]
@@ -192,6 +196,13 @@ struct CalPage2 {
     #[type_description(unit = "s")]
     #[type_description(min = "0")]
     #[type_description(max = "1000")]
+    period: f64,
+}
+
+#[cfg(not(feature = "auto_reg"))]
+#[derive(Debug, Clone, Copy)]
+struct CalPage2 {
+    ampl: f64,
     period: f64,
 }
 

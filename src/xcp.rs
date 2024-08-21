@@ -2,8 +2,8 @@
 // Module xcp
 
 use std::sync::{
-    atomic::{AtomicBool, AtomicU16, AtomicU8, Ordering},
-    Arc, Mutex, Once,
+    atomic::{AtomicU8, Ordering},
+    Arc, Mutex,
 };
 
 use crate::{cal, reg, xcplib};
