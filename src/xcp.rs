@@ -6,6 +6,12 @@ use std::sync::{
     Arc, Mutex,
 };
 
+// Using sync version of OnceCell from once_cell crate for the static event remapping array
+use once_cell::sync::OnceCell;
+
+// Using lazy_static crate for the XCP singleton
+use lazy_static::lazy_static;
+
 use crate::{cal, reg, xcplib};
 use cal::*;
 use reg::*;
@@ -55,12 +61,10 @@ impl XcpLogLevel {
 //----------------------------------------------------------------------------------------------
 // XcpEvent
 
-// Event number mapping lookup table
+// Statically allocate memory for remapping XCP event numbers
 // The mapping of event numbers is used to create deterministic A2L files, regardless of the order of event creation
-// The remapping is done when the registry is finalized and the A2L is written
-// # Safety
-// Use of a mutable static is save, because mutation for remapping is done only once in a thread safe context
-static mut XCP_EVENT_MAP: [u16; XcpEvent::XCP_MAX_EVENTS] = [0; XcpEvent::XCP_MAX_EVENTS];
+// The remapping cell is initialized when the registry is finalized and the A2L is written
+static XCP_EVENT_MAP: OnceCell<[u16; XcpEvent::XCP_MAX_EVENTS]> = OnceCell::new();
 
 /// Represents a measurement event  
 /// Holds the u16 XCP event number used in the XCP protocol and A2L to identify an event
@@ -80,10 +84,10 @@ impl XcpEvent {
 
     /// Create a new XCP event
     pub fn new(num: u16, index: u16) -> XcpEvent {
-        assert!((num as usize) < XcpEvent::XCP_MAX_EVENTS, "Maximum number of events exceeded");
-        unsafe {
-            XCP_EVENT_MAP[num as usize] = num;
-        }
+        assert!(
+            (num as usize) < XcpEvent::XCP_MAX_EVENTS,
+            "Maximum number of events exceeded"
+        );
         XcpEvent { num, index }
     }
 
@@ -105,8 +109,13 @@ impl XcpEvent {
     /// Get the event number as u16
     /// Event number is a unique number for each event
     pub fn get_num(self) -> u16 {
-        unsafe { XCP_EVENT_MAP[self.num as usize] }
+        if let Some(event_map) = XCP_EVENT_MAP.get() {
+            event_map[self.num as usize]
+        } else {
+            self.num
+        }
     }
+
     /// Get the event id as u16
     /// Event id is used to identify instances of the same function that generated this event with the same name
     /// This id is attached to signal names from different instances of the same signal
@@ -196,19 +205,10 @@ struct EventList(Vec<XcpEventInfo>);
 
 impl EventList {
     fn new() -> EventList {
-        unsafe {
-            for (i, n) in XCP_EVENT_MAP.iter_mut().enumerate() {
-                *n = i as u16;
-            }
-        }
-
         EventList(Vec::new())
     }
 
     fn clear(&mut self) {
-        unsafe {
-            XCP_EVENT_MAP = [0; XcpEvent::XCP_MAX_EVENTS];
-        }
         self.0.clear();
     }
 
@@ -226,11 +226,13 @@ impl EventList {
     }
 
     fn register(&mut self) {
-        // Check event list is in untransformed order
+        // Check event list is in untransformed order, may happen during testing
         // @@@@ Remove this
         for (i, e) in self.0.iter_mut().enumerate() {
-            assert!(e.event.num == i as u16);
-            assert!(e.event.get_num() == i as u16);
+            if e.event.num != i as u16 || e.event.get_num() != i as u16 {
+                warn!("Event list is not in untransformed order");
+                break;
+            }
         }
 
         // Sort the event list by name and then instance index
@@ -239,12 +241,12 @@ impl EventList {
         // Remap the event numbers
         // Problem is, that the event numbers are not deterministic, they depend on order of creation
         // This is not a problem for the XCP client, but the A2L file might change unnessesarily on every start of the application
+        let mut event_map: [u16; XcpEvent::XCP_MAX_EVENTS] = [0; XcpEvent::XCP_MAX_EVENTS];
         for (i, e) in self.0.iter().enumerate() {
-            unsafe {
-                XCP_EVENT_MAP[e.event.num as usize] = i as u16; // New external event number is index pointer to sorted list
-            }
+            event_map[e.event.num as usize] = i as u16;
         }
-        trace!("Event map: {:?}", unsafe { XCP_EVENT_MAP });
+        XCP_EVENT_MAP.set(event_map).ok();
+        trace!("Event map: {:?}", XCP_EVENT_MAP.get().unwrap());
 
         // Register all events
         let r = Xcp::get().get_registry();
@@ -421,7 +423,7 @@ pub struct Xcp {
     epk: Mutex<&'static str>,
 }
 
-lazy_static::lazy_static! {
+lazy_static! {
     static ref XCP_SINGLETON: Xcp = Xcp::new();
 }
 

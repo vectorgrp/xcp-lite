@@ -56,6 +56,9 @@ cdr = "0.2.4"
 # A macro for declaring lazily evaluated statics
 lazy_static = "1.4.0"
 
+# Single assignment cell
+once_cell = "1.19.0"
+
 # proc-macro A2L serializer for structs
 xcp_type_description  = { path = "./xcp_type_description/", optional = true}
 xcp_type_description_derive = { path = "./xcp_type_description/xcp_type_description_derive/", optional = true }
@@ -63,6 +66,7 @@ xcp_type_description_derive = { path = "./xcp_type_description/xcp_type_descript
 # proc-macro IDL generator
 xcp_idl_generator  = { path = "./xcp_idl_generator/"}
 xcp_idl_generator_derive  = { path = "./xcp_idl_generator/xcp_idl_generator_derive/"}
+
 
 
 [dev-dependencies]
