@@ -14,8 +14,9 @@ use serde::{Deserialize, Serialize};
 //-----------------------------------------------------------------------------
 // Defaults
 
-// [172, 19, 11, 24]; [192, 168, 0, 83]; [127, 0, 0, 1];
 const BIND_ADDR: [u8; 4] = [127, 0, 0, 1];
+//const BIND_ADDR: [u8; 4] = [192, 168, 0, 83];
+//const BIND_ADDR: [u8; 4] = [172, 19, 11, 24]; ;
 
 const POINT_COUNT: usize = 16;
 const AMPL: f64 = 10.0;
@@ -95,34 +96,11 @@ struct PointCloud {
 }
 
 fn create_point_cloud() -> PointCloud {
-    let mut point_cloud = PointCloud {
-        points: Vec::with_capacity(4),
-    };
+    let mut point_cloud = PointCloud { points: Vec::with_capacity(4) };
 
     for _ in 0..POINT_COUNT {
-        point_cloud.points.push(Point {
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
-        });
+        point_cloud.points.push(Point { x: 0.0, y: 0.0, z: 0.0 });
     }
-
-    let point = Point {
-        x: 1.0,
-        y: 2.0,
-        z: 3.0,
-    };
-
-    // Test
-    println!("-------------------------------------------------------------------------------");
-    println!("point_cloud = {:?}", point_cloud);
-    println!("-------------------------------------------------------------------------------");
-    let annotation = GeneratorCollection::generate(&IDL::CDR, &point.description()).unwrap();
-    println!("Point = {}", annotation);
-    let annotation = GeneratorCollection::generate(&IDL::CDR, &point_cloud.description()).unwrap();
-    println!("PointCloud = {}", annotation);
-    println!("-------------------------------------------------------------------------------");
-    println!();
 
     point_cloud
 }
@@ -132,9 +110,7 @@ fn create_point_cloud() -> PointCloud {
 fn main() {
     println!("xcp-lite point cloud demo");
 
-    env_logger::Builder::new()
-        .filter_level(log::LevelFilter::Debug)
-        .init();
+    env_logger::Builder::new().filter_level(log::LevelFilter::Debug).init();
 
     let xcp = XcpBuilder::new("point_cloud")
         .set_log_level(XcpLogLevel::Debug)
@@ -183,11 +159,7 @@ fn main() {
         }
 
         // Serialize point_cloud into the event capture buffer
-        daq_serialize!(
-            point_cloud,
-            event_point_cloud,
-            "point cloud demo"
-        );
+        daq_serialize!(point_cloud, event_point_cloud, "point cloud demo");
         event_point_cloud.trigger();
 
         params.sync();

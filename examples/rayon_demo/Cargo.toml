@@ -13,10 +13,12 @@ image = "0.13.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 lazy_static = "1.4.0"
-# xcp = { git = "https://github.com/vectorgrp/xcp-lite" }
-xcp = { path = "../../" }
-xcp_type_description_derive = { path = "../../xcp_type_description_derive/" } 
 
+
+
+xcp = { path = "../../", features = ["auto_reg","json"] }
+xcp_type_description  = { path = "../../xcp_type_description/"}
+xcp_type_description_derive = { path = "../../xcp_type_description/xcp_type_description_derive/" }
 
 [profile.dev.package."*"]
 debug = false

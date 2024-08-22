@@ -137,17 +137,18 @@
             /begin ANNOTATION ANNOTATION_LABEL "ObjectDescription" ANNOTATION_ORIGIN "application/dds"
                 /begin ANNOTATION_TEXT
                     "<DynamicObject> "
-                    "<RootType>Vector::PointVec</RootType>"
+                    "<RootType>Vector::PointCloud</RootType>"
                     "</DynamicObject>"
                     "module Vector {"
-                    "  struct Point {"
-                    "      float x; float y; float z;"
+"struct Point {"
+                                    "float x;"
+"float y;"
+"float z;"
+                                "};"
+                    "  struct PointCloud {"
+                          "sequence<Point> points;"
                     "  };"
-                    
-                    "  struct PointVec {"
-                    "    sequence<Point> points;"
-                    "  };
-                    };"
+                    "};"
                 /end ANNOTATION_TEXT
             /end ANNOTATION
             

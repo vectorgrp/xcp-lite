@@ -5,9 +5,8 @@ use log::{debug, error, info, trace, warn};
 use std::{fmt::Debug, thread, time::Duration};
 
 use serde::{Deserialize, Serialize};
-
 use xcp::*;
-use xcp_type_description_derive::XcpTypeDescription;
+use xcp_type_description::prelude::*;
 
 //-----------------------------------------------------------------------------
 
@@ -25,16 +24,12 @@ struct CalPage {
 
     #[type_description(comment = "Task delay time in us")]
     #[type_description(min = "0")]
-    #[mtype_description(ax = "1000000")]
-    #[utype_description(nit = "us")]
+    #[type_description(max = "1000000")]
+    #[type_description(unit = "us")]
     delay: u32,
 }
 
-const CAL_PAGE: CalPage = CalPage {
-    min: 5,
-    max: 10,
-    delay: 100000,
-};
+const CAL_PAGE: CalPage = CalPage { min: 5, max: 10, delay: 100000 };
 
 fn task1(calseg: CalSeg<CalPage>) {
     info!("Start task");
@@ -49,7 +44,7 @@ fn task1(calseg: CalSeg<CalPage>) {
         if counter > calseg.max {
             counter = calseg.min;
         }
-        info!("Counter: {}", counter);
+        // info!("Counter: {}", counter);
         event.trigger();
 
         thread::sleep(Duration::from_micros(calseg.delay as u64));
@@ -64,9 +59,7 @@ fn task1(calseg: CalSeg<CalPage>) {
 fn main() {
     println!("XCP Demo");
 
-    env_logger::Builder::new()
-        .filter_level(log::LevelFilter::Debug)
-        .init();
+    env_logger::Builder::new().filter_level(log::LevelFilter::Debug).init();
 
     XcpBuilder::new("xcp_demo")
         .set_log_level(XcpLogLevel::Debug)

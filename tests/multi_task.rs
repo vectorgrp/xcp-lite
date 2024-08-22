@@ -92,21 +92,15 @@ fn task0(cal_seg: CalSeg<CalPage1>) {
 
 #[tokio::test]
 async fn test_multi_task() {
-    env_logger::Builder::new()
-        .filter_level(OPTION_LOG_LEVEL.to_log_level_filter())
-        .init();
+    env_logger::Builder::new().filter_level(OPTION_LOG_LEVEL.to_log_level_filter()).init();
 
     // Initialize XCP driver singleton, the transport layer server and enable the A2L writer
-    match XcpBuilder::new("xcp_lite")
-        .set_log_level(OPTION_XCP_LOG_LEVEL)
-        .enable_a2l(true)
-        .set_epk("EPK_TEST")
-        .start_server(
-            OPTION_TRANSPORT_LAYER,
-            OPTION_SERVER_ADDR,
-            OPTION_SERVER_PORT,
-            OPTION_SEGMENT_SIZE,
-        ) {
+    match XcpBuilder::new("xcp_lite").set_log_level(OPTION_XCP_LOG_LEVEL).enable_a2l(true).set_epk("EPK_TEST").start_server(
+        OPTION_TRANSPORT_LAYER,
+        OPTION_SERVER_ADDR,
+        OPTION_SERVER_PORT,
+        OPTION_SEGMENT_SIZE,
+    ) {
         Err(res) => {
             error!("XCP initialization failed: {:?}", res);
             return;

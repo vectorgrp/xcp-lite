@@ -105,10 +105,7 @@ fn task(cal_seg: CalSeg<CalPage1>) {
 
         // Test XCP text messages if counter_max has changed
         if counter_max != cal_seg.counter_max {
-            xcp_println!(
-                "Task: counter_max calibrated: counter_max={} !!!",
-                cal_seg.counter_max
-            );
+            xcp_println!("Task: counter_max calibrated: counter_max={} !!!", cal_seg.counter_max);
         }
 
         // Create a calibratable wrapping counter signal
@@ -151,10 +148,7 @@ fn task(cal_seg: CalSeg<CalPage1>) {
         }
     }
 
-    debug!(
-        "Task terminated, loop counter = {}, {} changes observed",
-        loop_counter, changes
-    );
+    debug!("Task terminated, loop counter = {}, {} changes observed", loop_counter, changes);
 }
 
 //-----------------------------------------------------------------------------
@@ -162,9 +156,7 @@ fn task(cal_seg: CalSeg<CalPage1>) {
 
 #[tokio::test]
 async fn test_single_thread() {
-    env_logger::Builder::new()
-        .filter_level(OPTION_LOG_LEVEL.to_log_level_filter())
-        .init();
+    env_logger::Builder::new().filter_level(OPTION_LOG_LEVEL.to_log_level_filter()).init();
 
     info!("Running test_single_thread");
     if cfg!(target_endian = "little") {
@@ -173,23 +165,16 @@ async fn test_single_thread() {
         error!("The system is big endian! (Motorola)");
         panic!("Big endian is not supported!");
     }
-    info!(
-        "The system usize has {} bytes",
-        std::mem::size_of::<usize>()
-    );
+    info!("The system usize has {} bytes", std::mem::size_of::<usize>());
     info!("The system bool has {} bytes", std::mem::size_of::<bool>());
 
     // Initialize XCP driver singleton, the transport layer server and enable the A2L writer
-    match XcpBuilder::new("xcp_lite")
-        .set_log_level(OPTION_XCP_LOG_LEVEL)
-        .enable_a2l(true)
-        .set_epk("EPK_TEST")
-        .start_server(
-            OPTION_TRANSPORT_LAYER,
-            OPTION_SERVER_ADDR,
-            OPTION_SERVER_PORT,
-            OPTION_SEGMENT_SIZE,
-        ) {
+    match XcpBuilder::new("xcp_lite").set_log_level(OPTION_XCP_LOG_LEVEL).enable_a2l(true).set_epk("EPK_TEST").start_server(
+        OPTION_TRANSPORT_LAYER,
+        OPTION_SERVER_ADDR,
+        OPTION_SERVER_PORT,
+        OPTION_SEGMENT_SIZE,
+    ) {
         Err(res) => {
             error!("XCP initialization failed: {:?}", res);
             return;

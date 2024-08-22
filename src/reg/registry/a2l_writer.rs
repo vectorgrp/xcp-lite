@@ -25,10 +25,7 @@ impl GenerateA2l for RegistryXcpTransportLayer {
     fn to_a2l_string(&self) -> String {
         let protocol = self.protocol_name.to_uppercase();
         let port = self.port;
-        let ip = format!(
-            "{}.{}.{}.{}",
-            self.ip[0], self.ip[1], self.ip[2], self.ip[3]
-        );
+        let ip = format!("{}.{}.{}.{}", self.ip[0], self.ip[1], self.ip[2], self.ip[3]);
         trace!("write transport layer: {protocol} {ip}:{port}");
         format!(r#"/begin XCP_ON_{protocol}_IP 0x104 {port} ADDRESS "{ip}" /end XCP_ON_UDP_IP"#)
     }
@@ -39,12 +36,7 @@ impl GenerateA2l for RegistryXcpTransportLayer {
 impl GenerateA2l for XcpEvent {
     fn to_a2l_string(&self) -> String {
         let indexed_name = self.get_indexed_name();
-        trace!(
-            "write Event {} / {}  num={}",
-            self.get_name(),
-            self.get_indexed_name(),
-            self.get_num()
-        );
+        trace!("write Event {} / {}  num={}", self.get_name(), self.get_indexed_name(), self.get_num());
         // long name 100+1 characters
         // short name 8+1 characters
 
@@ -70,11 +62,7 @@ impl GenerateA2l for RegistryEpk {
     fn to_a2l_string(&self) -> String {
         // Add a EPK memory segment for the EPK, to include the EPK in HEX-files
         if let Some(epk) = self.epk {
-            trace!(
-                "write A2lEpkMemorySegment: epk={} epk_addr=0x{:08X}",
-                epk,
-                self.epk_addr
-            );
+            trace!("write A2lEpkMemorySegment: epk={} epk_addr=0x{:08X}", epk, self.epk_addr);
             format!(
                 r#"
         EPK "{}"
@@ -102,16 +90,9 @@ impl GenerateA2l for RegistryCalSegList {
         let mut n: u32 = 0;
         for calseg in self.iter() {
             n += 1;
-            trace!(
-                "write A2lMemorySegment: {}  {}:0x{:X} size={}",
-                calseg.name,
-                calseg.addr_ext,
-                calseg.addr,
-                calseg.size
-            );
-            s = s
-                + &format!(
-                    r#" 
+            trace!("write A2lMemorySegment: {}  {}:0x{:X} size={}", calseg.name, calseg.addr_ext, calseg.addr, calseg.size);
+            s = s + &format!(
+                r#" 
         /begin MEMORY_SEGMENT
             {} "" DATA FLASH INTERN 0x{:X} {} -1 -1 -1 -1 -1
             /begin IF_DATA XCP
@@ -122,8 +103,8 @@ impl GenerateA2l for RegistryCalSegList {
                 /end SEGMENT
             /end IF_DATA
         /end MEMORY_SEGMENT"#,
-                    calseg.name, calseg.addr, calseg.size, calseg.addr_ext,
-                );
+                calseg.name, calseg.addr, calseg.size, calseg.addr_ext,
+            );
         }
         s
     }
@@ -217,7 +198,8 @@ impl GenerateA2l for RegistryCharacteristic {
     fn to_a2l_string(&self) -> String {
         let characteristic_type = self.characteristic_type();
 
-        let datatype = RegistryDataType::from_rust_type(self.datatype).get_deposit_str();
+        //let datatype = RegistryDataType::from_rust_type(self.datatype).get_deposit_str();
+        let datatype = self.datatype.get_deposit_str();
 
         let (a2l_ext, a2l_addr) = Xcp::get_calseg_ext_addr(self.calseg_name, self.offset);
 
@@ -325,11 +307,7 @@ impl A2lWriter {
         let a2l_name = registry.name.unwrap();
 
         // Transport layer parameters in IF_DATA
-        let transport_layer = if let Some(tl_params) = registry.tl_params {
-            tl_params.to_a2l_string()
-        } else {
-            "".to_string()
-        };
+        let transport_layer = if let Some(tl_params) = registry.tl_params { tl_params.to_a2l_string() } else { "".to_string() };
 
         // Events
         let mut v = Vec::new();
@@ -353,10 +331,7 @@ impl A2lWriter {
                 // Ignore all but the first event instance
                 continue;
             }
-            v.push(format!(
-                "\n/begin GROUP {} \"\" /begin REF_MEASUREMENT",
-                e.get_name()
-            ));
+            v.push(format!("\n/begin GROUP {} \"\" /begin REF_MEASUREMENT", e.get_name()));
             for m in registry.measurement_list.iter() {
                 if m.event.get_name() == e.get_name() {
                     v.push(m.name.clone());
@@ -381,8 +356,7 @@ impl A2lWriter {
                 }
             }
 
-            let mut groups: String =
-                format!("/begin GROUP {} \"\" /begin REF_CHARACTERISTIC ", s.name);
+            let mut groups: String = format!("/begin GROUP {} \"\" /begin REF_CHARACTERISTIC ", s.name);
             for c in registry.characteristic_list.iter() {
                 if s.name == c.calseg_name() {
                     groups += c.name();

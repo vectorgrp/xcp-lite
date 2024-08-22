@@ -9,10 +9,9 @@ use std::{
     time::{Duration, Instant},
 };
 
-use xcp::*;
-use xcp_type_description_derive::XcpTypeDescription;
-
 use serde::{Deserialize, Serialize};
+use xcp::*;
+use xcp_type_description::prelude::*;
 
 //-----------------------------------------------------------------------------
 // Demo calibration parameters
@@ -53,9 +52,7 @@ fn main() {
     println!("XCPlite Single Thread Demo");
 
     // Logging
-    env_logger::Builder::new()
-        .filter_level(log::LevelFilter::Info)
-        .init();
+    env_logger::Builder::new().filter_level(log::LevelFilter::Info).init();
 
     // Initialize XCP driver singleton, the XCP transport layer server and enable the A2L file creator
     // The A2L file will be finalized on XCP connection and can be uploaded by CANape
@@ -63,12 +60,7 @@ fn main() {
         .set_log_level(XcpLogLevel::Info) // Set log level of the XCP server
         .enable_a2l(true) // Enabl A2L generation
         .set_epk("EPK_") // Set the EPK string for A2L version check, length must be %4
-        .start_server(
-            XcpTransportLayer::Udp,
-            [127, 0, 0, 1], /*[172, 19, 11, 24]*/
-            5555,
-            1464,
-        )
+        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1] /*[172, 19, 11, 24]*/, 5555, 1464)
         .unwrap();
 
     // Create a calibration parameter set "calseg"

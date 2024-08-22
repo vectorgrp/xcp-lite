@@ -23,7 +23,7 @@ fn main() {
     //     .allowlist_function("XcpEthServerStatus")
     //     .allowlist_function("ApplXcpSetLogLevel")
     //     .allowlist_function("ApplXcpSetA2lName")
-    //     .allowlist_function("ApplXcpGetAddr")    
+    //     .allowlist_function("ApplXcpGetAddr")
     //     .allowlist_function("ApplXcpRegisterCallbacks")
     //     //
     //     .generate()

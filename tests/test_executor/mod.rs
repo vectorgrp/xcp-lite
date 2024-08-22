@@ -12,8 +12,8 @@ use log::{debug, error, info, trace, warn};
 use tokio::time::{Duration, Instant};
 
 use xcp::Xcp;
-
 use xcp::XcpLogLevel;
+
 use xcp_client::a2l::*;
 use xcp_client::xcp_client::*;
 
@@ -108,18 +108,9 @@ impl XcpDaqDecoder for DaqDecoder {
         assert!(odt != 0x80, "DAQ buffer overflow");
         assert!(odt == 0);
         if odt == 0 && data.len() >= 14 {
-            let timestamp = data[2] as u32
-                | (data[3] as u32) << 8
-                | (data[4] as u32) << 16
-                | (data[5] as u32) << 24;
-            let counter_max = data[6] as u32
-                | (data[7] as u32) << 8
-                | (data[8] as u32) << 16
-                | (data[9] as u32) << 24;
-            let counter = data[10] as u32
-                | (data[11] as u32) << 8
-                | (data[12] as u32) << 16
-                | (data[13] as u32) << 24;
+            let timestamp = data[2] as u32 | (data[3] as u32) << 8 | (data[4] as u32) << 16 | (data[5] as u32) << 24;
+            let counter_max = data[6] as u32 | (data[7] as u32) << 8 | (data[8] as u32) << 16 | (data[9] as u32) << 24;
+            let counter = data[10] as u32 | (data[11] as u32) << 8 | (data[12] as u32) << 16 | (data[13] as u32) << 24;
             if data.len() >= 22 {
                 let cal_test = data[14] as u64
                     | (data[15] as u64) << 8
@@ -152,14 +143,8 @@ impl XcpDaqDecoder for DaqDecoder {
             );
 
             // Check each counter is incrementing
-            if self.daq_events[daq as usize] != 0
-                && counter != self.last_counter[daq as usize] + 1
-                && counter != 0
-            {
-                error!(
-                    "counter error: counter={} counter_max={} last_counter={} ",
-                    counter, counter_max, self.last_counter[daq as usize]
-                );
+            if self.daq_events[daq as usize] != 0 && counter != self.last_counter[daq as usize] + 1 && counter != 0 {
+                error!("counter error: counter={} counter_max={} last_counter={} ", counter, counter_max, self.last_counter[daq as usize]);
             }
             self.last_counter[daq as usize] = counter;
 
@@ -167,10 +152,7 @@ impl XcpDaqDecoder for DaqDecoder {
             if daq == 0 {
                 if self.daq_events[0] != 0 {
                     if timestamp < self.daq0_timestamp {
-                        error!(
-                            "declining timestamp: timestamp={} last={}",
-                            timestamp, self.daq0_timestamp
-                        );
+                        error!("declining timestamp: timestamp={} last={}", timestamp, self.daq0_timestamp);
                     } else {
                         let dt = timestamp - self.daq0_timestamp;
                         self.daq0_timestamp = timestamp;
@@ -207,10 +189,7 @@ pub async fn test_executor(single_thread: bool, multi_thread: bool) {
 
     let daq_decoder = Arc::new(Mutex::new(DaqDecoder::new()));
     let serv_text_decoder = ServTextDecoder::new();
-    xcp_client
-        .connect(Arc::clone(&daq_decoder), serv_text_decoder)
-        .await
-        .unwrap();
+    xcp_client.connect(Arc::clone(&daq_decoder), serv_text_decoder).await.unwrap();
     tokio::time::sleep(Duration::from_micros(10000)).await;
 
     //-------------------------------------------------------------------------------------------------------------------------------------
@@ -239,10 +218,7 @@ pub async fn test_executor(single_thread: bool, multi_thread: bool) {
             e.downcast_ref::<XcpError>()
                 .map(|e| {
                     assert_eq!(e.get_error_code(), CRC_CMD_SYNCH);
-                    debug!(
-                        "XCP error code CRC_CMD_SYNCH from SYNC as expected: {:?}",
-                        e
-                    );
+                    debug!("XCP error code CRC_CMD_SYNCH from SYNC as expected: {:?}", e);
                 })
                 .or_else(|| panic!("Should return XCP error from SYNC command"));
         }
@@ -281,17 +257,13 @@ pub async fn test_executor(single_thread: bool, multi_thread: bool) {
 
     // Create a calibration object for CalPage.run
     debug!("Create calibration object CalPage1.run");
-    let run = xcp_client
-        .create_calibration_object("CalPage1.run")
-        .await
-        .expect("could not create calibration object CalPage1.run");
+    let run = xcp_client.create_calibration_object("CalPage1.run").await.expect("could not create calibration object CalPage1.run");
     let v = xcp_client.get_value_u64(run);
     assert_eq!(v, 1);
 
     //-------------------------------------------------------------------------------------------------------------------------------------
     // DAQ test single_thread or multi_thread
     if single_thread || multi_thread {
-        
         tokio::time::sleep(Duration::from_micros(10000)).await;
         info!("Start data acquisition test");
 
@@ -304,10 +276,7 @@ pub async fn test_executor(single_thread: bool, multi_thread: bool) {
         xcp_client.set_value_u64(counter_max, 15).await.unwrap();
 
         // Set cycle time
-        xcp_client
-            .set_value_u64(cycle_time_us, TASK_SLEEP_TIME_US)
-            .await
-            .unwrap(); // 1us
+        xcp_client.set_value_u64(cycle_time_us, TASK_SLEEP_TIME_US).await.unwrap(); // 1us
 
         // Measurement test loop
         // Create a measurement DAQ list with all instances MULTI_THREAD_TASK_COUNT of measurement counter and counter_max
@@ -326,33 +295,15 @@ pub async fn test_executor(single_thread: bool, multi_thread: bool) {
                 let test3 = "test3_".to_string() + &i.to_string();
                 let test4 = "test4_".to_string() + &i.to_string();
 
-                xcp_client
-                    .create_measurement_object(counter_max.as_str())
-                    .unwrap();
-                xcp_client
-                    .create_measurement_object(counter.as_str())
-                    .unwrap();
-                xcp_client
-                    .create_measurement_object(cal_test.as_str())
-                    .unwrap();
-                xcp_client
-                    .create_measurement_object(loop_counter.as_str())
-                    .unwrap();
-                xcp_client
-                    .create_measurement_object(changes.as_str())
-                    .unwrap();
-                xcp_client
-                    .create_measurement_object(test1.as_str())
-                    .unwrap();
-                xcp_client
-                    .create_measurement_object(test2.as_str())
-                    .unwrap();
-                xcp_client
-                    .create_measurement_object(test3.as_str())
-                    .unwrap();
-                xcp_client
-                    .create_measurement_object(test4.as_str())
-                    .unwrap();
+                xcp_client.create_measurement_object(counter_max.as_str()).unwrap();
+                xcp_client.create_measurement_object(counter.as_str()).unwrap();
+                xcp_client.create_measurement_object(cal_test.as_str()).unwrap();
+                xcp_client.create_measurement_object(loop_counter.as_str()).unwrap();
+                xcp_client.create_measurement_object(changes.as_str()).unwrap();
+                xcp_client.create_measurement_object(test1.as_str()).unwrap();
+                xcp_client.create_measurement_object(test2.as_str()).unwrap();
+                xcp_client.create_measurement_object(test3.as_str()).unwrap();
+                xcp_client.create_measurement_object(test4.as_str()).unwrap();
 
                 bytes += 32 + 32; // counter 4 + counter_max 4 + cal_test 8 + loop_counter 8 + changes 8 + test1-4 32
             }
@@ -385,8 +336,7 @@ pub async fn test_executor(single_thread: bool, multi_thread: bool) {
                 info!("DAQ test thread count = {}", MULTI_THREAD_TASK_COUNT);
                 info!(
                     "DAQ test target data rate {} MByte/s",
-                    (1.0 / TASK_SLEEP_TIME_US as f64)
-                        * (bytes * MULTI_THREAD_TASK_COUNT as u32) as f64
+                    (1.0 / TASK_SLEEP_TIME_US as f64) * (bytes * MULTI_THREAD_TASK_COUNT as u32) as f64
                 );
             }
             info!("  signals = {}", MULTI_THREAD_TASK_COUNT * 8);
@@ -396,14 +346,8 @@ pub async fn test_executor(single_thread: bool, multi_thread: bool) {
             assert!(d.tot_events > 0);
             assert!(d.daq_events[0] > 0);
             info!("  test duration = {:.3}ms", duration_ms);
-            info!(
-                "  average datarate = {:.3} MByte/s",
-                (bytes as f64 * d.tot_events as f64) / 1000.0 / duration_ms,
-            );
-            assert!(
-                duration_ms > DURATION_DAQ_TEST_MS as f64
-                    && duration_ms < DURATION_DAQ_TEST_MS as f64 + 100.0
-            );
+            info!("  average datarate = {:.3} MByte/s", (bytes as f64 * d.tot_events as f64) / 1000.0 / duration_ms,);
+            assert!(duration_ms > DURATION_DAQ_TEST_MS as f64 && duration_ms < DURATION_DAQ_TEST_MS as f64 + 100.0);
             let avg_cycletime_us = (duration_ms * 1000.0) / d.daq_events[0] as f64;
             info!("  task cycle time:",);
             info!("    average = {}us", avg_cycletime_us,);
@@ -428,7 +372,6 @@ pub async fn test_executor(single_thread: bool, multi_thread: bool) {
             assert_eq!(d.odt_max, 0);
         }
     }
-    
 
     // Wait some time to be sure the queue is emptied
     // The XCP server should not respond to STOP while the queue is not empty
@@ -462,10 +405,7 @@ pub async fn test_executor(single_thread: bool, multi_thread: bool) {
         assert!(page == 0);
 
         // Mark the ram page in variable cal_seg.page
-        let mut cal_seg_page = xcp_client
-            .create_calibration_object("CalPage1.page")
-            .await
-            .expect("could not create calibration object CalPage1.page");
+        let mut cal_seg_page = xcp_client.create_calibration_object("CalPage1.page").await.expect("could not create calibration object CalPage1.page");
         xcp_client // init page variable in ram page of cal_seg
             .set_value_u64(cal_seg_page, 0)
             .await
@@ -475,10 +415,7 @@ pub async fn test_executor(single_thread: bool, multi_thread: bool) {
         xcp_client.set_xcp_page(1).await.unwrap();
         tokio::time::sleep(Duration::from_micros(100000)).await;
         // Check if cal_seg.page marker is default
-        cal_seg_page = xcp_client
-            .create_calibration_object("CalPage1.page")
-            .await
-            .expect("could not create calibration object CalPage1.page");
+        cal_seg_page = xcp_client.create_calibration_object("CalPage1.page").await.expect("could not create calibration object CalPage1.page");
         page = xcp_client.get_value_u64(cal_seg_page) as u8;
         assert_eq!(page, 1);
         // Check if get cal page returns default
@@ -501,18 +438,11 @@ pub async fn test_executor(single_thread: bool, multi_thread: bool) {
             info!("start calibration test");
 
             // Set task cycle time to TASK_SLEEP_TIME_US
-            xcp_client
-                .set_value_u64(cycle_time_us, TASK_SLEEP_TIME_US)
-                .await
-                .unwrap();
+            xcp_client.set_value_u64(cycle_time_us, TASK_SLEEP_TIME_US).await.unwrap();
             Xcp::set_server_log_level(LOG_LEVEL);
 
             // Create calibration variable CalPage1.cal_test
-            let res = a2l_reader::a2l_find_characteristic(
-                xcp_client.get_a2l_file().unwrap(),
-                "CalPage1.cal_test",
-            )
-            .unwrap();
+            let res = a2l_reader::a2l_find_characteristic(xcp_client.get_a2l_file().unwrap(), "CalPage1.cal_test").unwrap();
             let addr_cal_test = res.0.addr;
             debug!("download cal_test = 0x{:X}\n", res.0.addr);
 

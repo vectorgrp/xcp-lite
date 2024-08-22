@@ -10,8 +10,8 @@ PrgDate=08.07.2024
 Description=
 CreationTime=18:15
 CreationDate=08/05/2024 ; Month/Day/Year
-ModificationTime=17:15
-ModificationDate=08/08/2024 ; Month/Day/Year
+ModificationTime=16:34
+ModificationDate=08/22/2024 ; Month/Day/Year
 Protected=0
 CurrentWindowsACP=1252
 
@@ -589,7 +589,7 @@ WindowSymbols=1
 GlobalCursor=1
 GlobalCursorTime=3
 GlobalCursorTimeNs=3793666
-MainWindowPos=1, 43, 39, 3497, 2110 ;cmd, x, y, w, h
+MainWindowPos=1, 1931, 1016, 3497, 2110 ;cmd, x, y, w, h
 
 [PAR_COMMENT]
 1="Name",""
@@ -741,20 +741,20 @@ FocusID=2004
 ActiveTab=0
 FilterNodeID=Alle
 TreeExpand_0=@Alle
-TreeExpand_1=Alle\Geräte
-TreeExpand_2=Alle\Geräte\tokio_demo
-TreeExpand_3=Alle\Geräte\xcp_lite
-TreeExpand_4=Alle\Geräte\xcp_lite\point_cloud.a2l
-TreeExpand_5=Alle\Geräte\xcp_lite\point_cloud.a2l\point_cloud
-TreeExpand_6=Alle\Geräte\xcp_lite\xcp_lite_autodetect.a2l
-TreeExpand_7=Alle\Geräte\xcp_lite\xcp_lite_autodetect.a2l\point_cloud
-TreeExpand_8=Alle\Geräte\xcp_lite\xcp_lite_autodetect.a2l\point_cloud\point_cloud
-TreeExpand_9=Alle\Geräte\xcp_lite\xcp_lite_autodetect.a2l\point_cloud\point_cloud\point_cloud.Points
-TreeExpand_10=Alle\Geräte\xcp_lite\xcp_lite_autodetect.a2l\point_cloud\point_cloud\point_cloud.Points\Points
-TreeExpand_11=Alle\Geräte\xcp_lite\xcp_lite_autodetect.a2l\point_cloud\point_cloud\point_cloud.points
-TreeExpand_12=Alle\Geräte\xcp_lite\xcp_lite_autodetect.a2l\point_cloud\point_cloud\point_cloud.points\points
+TreeExpand_1=Alle\Geräte\tokio_demo
+TreeExpand_2=Alle\Geräte\xcp_lite
+TreeExpand_3=Alle\Geräte\xcp_lite\point_cloud.a2l
+TreeExpand_4=Alle\Geräte\xcp_lite\point_cloud.a2l\point_cloud
+TreeExpand_5=Alle\Geräte\xcp_lite\xcp_lite_autodetect.a2l
+TreeExpand_6=Alle\Geräte\xcp_lite\xcp_lite_autodetect.a2l\point_cloud
+TreeExpand_7=Alle\Geräte\xcp_lite\xcp_lite_autodetect.a2l\point_cloud\point_cloud
+TreeExpand_8=Alle\Geräte\xcp_lite\xcp_lite_autodetect.a2l\point_cloud\point_cloud\point_cloud.Points
+TreeExpand_9=Alle\Geräte\xcp_lite\xcp_lite_autodetect.a2l\point_cloud\point_cloud\point_cloud.Points\Points
+TreeExpand_10=Alle\Geräte\xcp_lite\xcp_lite_autodetect.a2l\point_cloud\point_cloud\point_cloud.points
+TreeExpand_11=Alle\Geräte\xcp_lite\xcp_lite_autodetect.a2l\point_cloud\point_cloud\point_cloud.points\points
+TreeExpand_12=Alle\Messungen
 TreeExpand_13=$Alle\Geräte
-TreeExpand_14=#Alle\Geräte\xcp_lite\xcp_lite_autodetect.a2l\point_cloud\point_cloud\point_cloud.points\points\x
+TreeExpand_14=#Alle\Geräte
 TextSearchCaseSensitive=0
 TextSearchUseMode=1
 TextSearchSearchFullText=1
@@ -895,8 +895,8 @@ DisplayMask=1 ; pages 1
 XLen=10999
 XMin=0
 XMinNs=0
-XMax=402444
-XMaxNs=402444211838
+XMax=32482
+XMaxNs=32482499248
 Grid=1
 Mark=1
 YValue=1
@@ -984,8 +984,8 @@ DisplayMask=1 ; pages 1
 XLen=60000
 XMin=0
 XMinNs=0
-XMax=402444
-XMaxNs=402444211838
+XMax=32482
+XMaxNs=32482499248
 Grid=1
 Mark=1
 YValue=2
@@ -1056,7 +1056,7 @@ COL_1_dpi96=1048578, 75
 [WINDOW_7]
 ProgID=
 PROPERTIES_COUNT=1
-PROPERTY_1=<SceneWidget><Base>7d875669-2751-4051-9b26-103be1b7d5a5</Base><Sub><SceneDataModel><VersionInfo>1.0.0.0</VersionInfo><ShowGrid>True</ShowGrid><ShowLegend>True</ShowLegend><ShowSurface>False</ShowSurface><SizeX>60</SizeX><SizeY>150</SizeY><SizeZ>10</SizeZ><SpacingX>10</SpacingX><SpacingY>10</SpacingY><SpacingZ>2</SpacingZ><OffsetX>0</OffsetX><OffsetY>50</OffsetY><OffsetZ>0</OffsetZ><ShiftedOriginWidth>False</ShiftedOriginWidth><ShiftedOriginDepth>True</ShiftedOriginDepth><ShiftedOriginHeight>True</ShiftedOriginHeight><SetCameraToGridDimension>False</SetCameraToGridDimension><LinesColor><A>255</A><R>63</R><G>63</G><B>63</B></LinesColor><BackgroundColor><A>255</A><R>0</R><G>0</G><B>0</B></BackgroundColor><LegendColor><A>255</A><R>75</R><G>73</G><B>73</B></LegendColor><CameraPosition><X>0.2594947</X><Y>-4.941285</Y><Z>4.334975</Z><Orthographic>false</Orthographic><Distance>22.4206</Distance><Yaw>-0.3899998</Yaw><Pitch>0.2435987</Pitch></CameraPosition><NavigationParameters><ScrollSpeed>50</ScrollSpeed><MouseRotateSpeed>50</MouseRotateSpeed><MouseMoveSpeed>50</MouseMoveSpeed><KeyRotateSpeed>50</KeyRotateSpeed><KeyMoveSpeed>50</KeyMoveSpeed><ActivateFineTuning>true</ActivateFineTuning><InvertRotationDirection>false</InvertRotationDirection><PlanarMoveButton>Left</PlanarMoveButton><RotateButton>Right</RotateButton><ContextMenuButton>Right</ContextMenuButton><CameraPositions /></NavigationParameters><HighFpsMode>False</HighFpsMode><IsRotateZ90>False</IsRotateZ90><Orthographic>False</Orthographic><DisplayGfxObjectPosition>True</DisplayGfxObjectPosition><HideHudButtons>False</HideHudButtons><HighlightInRegularMode>True</HighlightInRegularMode><AllowSelectStaticObjects>False</AllowSelectStaticObjects><Measurements><Lines /><Angles /></Measurements><Lines1Degree>False</Lines1Degree><Lines5Degree>True</Lines5Degree><Lines10Degree>True</Lines10Degree><RoundRadius>100</RoundRadius><RoundSpacing>10</RoundSpacing><ShowRoundGrid>False</ShowRoundGrid><InfiniteGrid>True</InfiniteGrid></SceneDataModel></Sub></SceneWidget>
+PROPERTY_1=<SceneWidget><Base>7d875669-2751-4051-9b26-103be1b7d5a5</Base><Sub><SceneDataModel><VersionInfo>1.0.0.0</VersionInfo><ShowGrid>True</ShowGrid><ShowLegend>True</ShowLegend><ShowSurface>False</ShowSurface><SizeX>60</SizeX><SizeY>150</SizeY><SizeZ>10</SizeZ><SpacingX>10</SpacingX><SpacingY>10</SpacingY><SpacingZ>2</SpacingZ><OffsetX>0</OffsetX><OffsetY>50</OffsetY><OffsetZ>0</OffsetZ><ShiftedOriginWidth>False</ShiftedOriginWidth><ShiftedOriginDepth>True</ShiftedOriginDepth><ShiftedOriginHeight>True</ShiftedOriginHeight><SetCameraToGridDimension>False</SetCameraToGridDimension><LinesColor><A>255</A><R>63</R><G>63</G><B>63</B></LinesColor><BackgroundColor><A>255</A><R>0</R><G>0</G><B>0</B></BackgroundColor><LegendColor><A>255</A><R>75</R><G>73</G><B>73</B></LegendColor><CameraPosition><X>1.33597</X><Y>-18.86349</Y><Z>13.03635</Z><Orthographic>false</Orthographic><Distance>21.2868</Distance><Yaw>-0.3899998</Yaw><Pitch>0.2435987</Pitch></CameraPosition><NavigationParameters><ScrollSpeed>50</ScrollSpeed><MouseRotateSpeed>50</MouseRotateSpeed><MouseMoveSpeed>50</MouseMoveSpeed><KeyRotateSpeed>50</KeyRotateSpeed><KeyMoveSpeed>50</KeyMoveSpeed><ActivateFineTuning>true</ActivateFineTuning><InvertRotationDirection>false</InvertRotationDirection><PlanarMoveButton>Left</PlanarMoveButton><RotateButton>Right</RotateButton><ContextMenuButton>Right</ContextMenuButton><CameraPositions /></NavigationParameters><HighFpsMode>False</HighFpsMode><IsRotateZ90>False</IsRotateZ90><Orthographic>False</Orthographic><DisplayGfxObjectPosition>True</DisplayGfxObjectPosition><HideHudButtons>False</HideHudButtons><HighlightInRegularMode>True</HighlightInRegularMode><AllowSelectStaticObjects>False</AllowSelectStaticObjects><Measurements><Lines /><Angles /></Measurements><Lines1Degree>False</Lines1Degree><Lines5Degree>True</Lines5Degree><Lines10Degree>True</Lines10Degree><RoundRadius>100</RoundRadius><RoundSpacing>10</RoundSpacing><ShowRoundGrid>False</ShowRoundGrid><InfiniteGrid>True</InfiniteGrid></SceneDataModel></Sub></SceneWidget>
 OBJECTS_COUNT=0
 ObjectCount=0
 HiddenDisplayCount=0
@@ -1148,7 +1148,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_34cb9d4a-1fec-4d82-b74a-7933d3655925
+GUID=DISPLAY_1f544691-efc0-49cb-9320-4c18cd7fc218
 
 [WINDOW_8_OBJECT_2]
 Type=2
@@ -1197,7 +1197,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_d26cb3e9-69db-4c28-9561-92cadb2b84d1
+GUID=DISPLAY_6b0e9115-4f0b-4d04-b69c-38c115676966
 
 [WINDOW_8_OBJECT_3]
 Type=2
@@ -1246,7 +1246,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_66c74ee1-2c44-404d-b7c6-ba30f5ac0c0a
+GUID=DISPLAY_cc0cc075-a994-4ce4-b646-a5a155d2df46
 
 [WINDOW_8_OBJECT_4]
 Type=2
@@ -1295,7 +1295,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_7d3680a9-4667-4b63-b6c4-06de14ed5669
+GUID=DISPLAY_14b8d345-8789-4a1c-a1e2-becb1d594609
 
 [WINDOW_8_OBJECT_5]
 Type=2
@@ -1344,7 +1344,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_b77fc6e6-ba5b-452a-a01c-2a04f26b8f26
+GUID=DISPLAY_ccedf9c4-2e47-483d-9907-4af0788fa9e9
 
 [WINDOW_8_OBJECT_6]
 Type=2
@@ -1393,7 +1393,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_2bba6577-83fe-4bfe-8e95-6d842ebfe55c
+GUID=DISPLAY_1d295255-f79f-43e4-a42c-fe91712fb62f
 
 [WINDOWS]
 Count=8

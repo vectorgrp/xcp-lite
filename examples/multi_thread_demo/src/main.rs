@@ -9,10 +9,9 @@ use std::{
     time::{Duration, Instant},
 };
 
-use xcp::*;
-use xcp_type_description_derive::XcpTypeDescription;
-
 use serde::{Deserialize, Serialize};
+use xcp::*;
+use xcp_type_description::prelude::*;
 
 // Static application start time
 lazy_static::lazy_static! {
@@ -36,9 +35,9 @@ struct CalPage1 {
     #[type_description(max = "10")]
     period: f64,
 
-    #[comment = "Counter maximum value")]
-    #[min = "0")]
-    #[max = "255")]
+    #[type_description(comment = "Counter maximum value")]
+    #[type_description(min = "0")]
+    #[type_description(max = "255")]
     counter_max: u32,
 }
 
@@ -95,9 +94,7 @@ fn main() {
     println!("XCPlite Multi Thread Demo");
 
     // Logging
-    env_logger::Builder::new()
-        .filter_level(log::LevelFilter::Warn)
-        .init();
+    env_logger::Builder::new().filter_level(log::LevelFilter::Warn).init();
 
     // Initialize XCP driver singleton, the transport layer server and enable the registry
     XcpBuilder::new("multi_thread_demo")

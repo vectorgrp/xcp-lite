@@ -9,13 +9,14 @@
 // json = [] # enable json persistence for CalSeg
 
 // Run:
+//  cargo run -- --bind 192.168.0.83
 //  cargo run -- --port 5555 --bind 172.19.11.24 --tcp --no-a2l --log-level 4
 //  cargo run -- --port 5555 --bind 192.168.0.83  --segment-size 7972  --log-level 4
 //
 // Test:
 //  Tests may not run in parallel
-//  Feature json must be enabled
-//  cargo test --features=json -- --test-threads=1 --nocapture
+//  Feature json and auto_reg must be enabled
+//  cargo test --features=json --features=auto_reg -- --test-threads=1 --nocapture
 
 #![allow(dead_code)] // Demo code
 #![allow(clippy::vec_init_then_push)]
@@ -134,14 +135,7 @@ struct TestInts {
 #[cfg_attr(feature = "auto_reg", derive(XcpTypeDescription))]
 #[derive(Debug, Clone, Copy)]
 struct CalPage1 {
-    //#[type_description(comment = "Max value for counter", min = "0", max = "1000000")]
-    counter_max: u32, // This will be a VALUE type
-
-    //#[type_description(comment = "Demo curve", unit = "ms", min = "0", max = "100")]
-    array: [f64; 16], // This will be a CURVE type (1 dimension)
-
-    //#[type_description(comment = "Demo map", unit = "ms", min = "-100", max = "100")]
-    map: [[u8; 9]; 8], // This will be a MAP type (2 dimensions)
+    counter_max: u32,
 
     // Other basic types supported
     test_ints: TestInts,
@@ -149,20 +143,6 @@ struct CalPage1 {
 
 const CAL_PAGE1: CalPage1 = CalPage1 {
     counter_max: 1000,
-
-    array: [
-        0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5,
-    ],
-    map: [
-        [0, 0, 0, 0, 0, 0, 0, 1, 2],
-        [0, 0, 0, 0, 0, 0, 0, 2, 3],
-        [0, 0, 0, 0, 0, 1, 1, 2, 3],
-        [0, 0, 0, 0, 1, 1, 2, 3, 4],
-        [0, 0, 1, 1, 2, 3, 4, 5, 7],
-        [0, 1, 1, 1, 2, 4, 6, 8, 9],
-        [0, 1, 1, 2, 4, 5, 8, 9, 10],
-        [0, 1, 1, 3, 5, 8, 9, 10, 10],
-    ],
 
     test_ints: TestInts {
         test_bool: false,
@@ -190,13 +170,19 @@ struct CalPage2 {
     #[type_description(unit = "Volt")]
     #[type_description(min = "0")]
     #[type_description(max = "400")]
-    ampl: f64,
+    ampl: f64, // This will be a VALUE type
 
     #[type_description(comment = "Period")]
     #[type_description(unit = "s")]
     #[type_description(min = "0")]
     #[type_description(max = "1000")]
-    period: f64,
+    period: f64, // This will be a VALUE type
+
+    #[type_description(comment = "Demo curve", unit = "ms", min = "0", max = "100")]
+    array: [f64; 16], // This will be a CURVE type (1 dimension)
+
+    #[type_description(comment = "Demo map", unit = "ms", min = "-100", max = "100")]
+    map: [[u8; 9]; 8], // This will be a MAP type (2 dimensions)
 }
 
 #[cfg(not(feature = "auto_reg"))]
@@ -204,11 +190,24 @@ struct CalPage2 {
 struct CalPage2 {
     ampl: f64,
     period: f64,
+    array: [f64; 16],
+    map: [[u8; 9]; 8],
 }
 
 const CAL_PAGE2: CalPage2 = CalPage2 {
     ampl: 100.0,
     period: 1.0,
+    array: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5],
+    map: [
+        [0, 0, 0, 0, 0, 0, 0, 1, 2],
+        [0, 0, 0, 0, 0, 0, 0, 2, 3],
+        [0, 0, 0, 0, 0, 1, 1, 2, 3],
+        [0, 0, 0, 0, 1, 1, 2, 3, 4],
+        [0, 0, 1, 1, 2, 3, 4, 5, 7],
+        [0, 1, 1, 1, 2, 4, 6, 8, 9],
+        [0, 1, 1, 2, 4, 5, 8, 9, 10],
+        [0, 1, 1, 3, 5, 8, 9, 10, 10],
+    ],
 };
 
 //-----------------------------------------------------------------------------
@@ -316,9 +315,7 @@ fn main() {
     let log_level = XcpLogLevel::from(args.log_level);
 
     // Logging
-    env_logger::Builder::new()
-        .filter_level(log_level.to_log_level_filter())
-        .init();
+    env_logger::Builder::new().filter_level(log_level.to_log_level_filter()).init();
 
     // Initialize XCP driver singleton, the transport layer server and enable the A2L writer
     let xcp_builder = XcpBuilder::new("xcp_lite")
@@ -328,16 +325,7 @@ fn main() {
         // .set_epk(build_info::format!("{}", $.timestamp)); // EPK from build info
         .set_epk("EPK_");
 
-    let xcp = match xcp_builder.start_server(
-        if args.tcp {
-            XcpTransportLayer::Tcp
-        } else {
-            XcpTransportLayer::Udp
-        },
-        args.bind.octets(),
-        args.port,
-        args.segment_size,
-    ) {
+    let xcp = match xcp_builder.start_server(if args.tcp { XcpTransportLayer::Tcp } else { XcpTransportLayer::Udp }, args.bind.octets(), args.port, args.segment_size) {
         Err(res) => {
             error!("XCP server initialization failed: {:?}", res);
             return;
@@ -352,12 +340,18 @@ fn main() {
     // FLASH or RAM can be switched during runtime (XCP set_cal_page), saved to json (XCP freeze), reinitialized from default FLASH page (XCP copy_cal_page)
     // The initial RAM page can be loaded from a json file (load_json=true) or set to the default FLASH page (load_json=false)
 
-    // Create calibration segments for CAL_PAGE, CAL_PAGE1 and CAL_PAGE2
-    let mut calseg = Xcp::create_calseg(
+    // Create calibration segments for CAL_PAGE, add fields manally
+    let mut calseg = Xcp::add_calseg(
         "CalPage", // name of the calibration segment and the .json file
         &CAL_PAGE, // default calibration values with static lifetime, trait bound from CalPageTrait must be possible
-        false,     // load RAM page from file "calseg1".json if existing
     );
+    calseg
+        .add_field(calseg_field!(CAL_PAGE.run, 0, 1, "boolean value"))
+        .add_field(calseg_field!(CAL_PAGE.run1, 0, 1, "boolean value"))
+        .add_field(calseg_field!(CAL_PAGE.run2, 0, 1, "boolean value"))
+        .add_field(calseg_field!(CAL_PAGE.cycle_time_us, "us", "task cycle time in us"));
+
+    // Create calibration segments for CAL_PAGE1 and CAL_PAGE2, add fields with macro derive(XcpTypeDescription))
     let calseg1 = Xcp::create_calseg("CalPage1", &CAL_PAGE1, true);
     let calseg2 = Xcp::create_calseg("CalPage2", &CAL_PAGE2, true);
 
@@ -386,7 +380,7 @@ fn main() {
     let mut mainloop_counter1: u64 = 0;
     let mut mainloop_counter2 = Box::new(0u64);
     let mut mainloop_counter3 = Box::new(0u64);
-    let mut mainloop_array = Box::new([[0u8; 16]; 16]);
+    let mut mainloop_map = Box::new([[0u8; 16]; 16]);
 
     let mut mainloop_event = daq_create_event!("mainloop", 64); // Capture buffer 64 bytes
     daq_register!(mainloop_counter1, mainloop_event);
@@ -402,20 +396,14 @@ fn main() {
         mainloop_counter1 += 1;
         *mainloop_counter2 += 2;
         *mainloop_counter3 += 3;
-        mainloop_array[0][0] = mainloop_counter1 as u8;
+        mainloop_map[0][0] = mainloop_counter1 as u8;
 
         // Capture variable from heap
         daq_capture!(mainloop_counter2, mainloop_event);
         daq_capture!(mainloop_counter3, mainloop_event);
 
         // Measure variable directly from heap with individual event "mainloop_array"
-        daq_event_ref!(
-            mainloop_array,
-            RegistryDataType::AUint64,
-            16,
-            16,
-            "array on heap"
-        );
+        daq_event_ref!(mainloop_map, RegistryDataType::AUint64, 16, 16, "2D map on heap");
 
         // Measure directly from stack with event "mainloop"
         mainloop_event.trigger();

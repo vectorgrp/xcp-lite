@@ -34,6 +34,7 @@ pub use xcp::XcpTransportLayer;
 
 // Submodule cal
 mod cal;
+pub use cal::CalPageField;
 pub use cal::CalPageTrait;
 pub use cal::CalSeg;
 pub use cal::CalSegTrait;

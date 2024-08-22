@@ -5,9 +5,8 @@ use log::{debug, error, info, trace, warn};
 use std::{fmt::Debug, thread, time::Duration};
 
 use serde::{Deserialize, Serialize};
-
 use xcp::*;
-use xcp_type_description_derive::XcpTypeDescription;
+use xcp_type_description::prelude::*;
 
 //-----------------------------------------------------------------------------
 
@@ -30,20 +29,14 @@ struct CalPage {
     delay: u32,
 }
 
-const CAL_PAGE: CalPage = CalPage {
-    min: 5,
-    max: 10,
-    delay: 100000,
-};
+const CAL_PAGE: CalPage = CalPage { min: 5, max: 10, delay: 100000 };
 
 //-----------------------------------------------------------------------------
 
 fn main() {
     println!("XCP Demo");
 
-    env_logger::Builder::new()
-        .filter_level(log::LevelFilter::Debug)
-        .init();
+    env_logger::Builder::new().filter_level(log::LevelFilter::Debug).init();
 
     XcpBuilder::new("xcp_demo")
         .set_log_level(XcpLogLevel::Debug)

@@ -4,9 +4,12 @@
 
 mod a2l_writer;
 
+use core::panic;
+
 use a2l_writer::A2lWriter;
 
-use crate::xcp::XcpEvent;
+use crate::xcp;
+use xcp::XcpEvent;
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
@@ -167,7 +170,8 @@ impl RegDataTypeProperties for RegistryDataType {
             RegistryDataType::AInt64 => 1e12,
             RegistryDataType::Float32Ieee => 1e12,
             RegistryDataType::Float64Ieee => 1e12,
-            _ => 0.0,
+            RegistryDataType::Blob => 0.0,
+            _ => panic!("get_max: Unsupported data type"),
         }
     }
     fn get_type_str(&self) -> &'static str {
@@ -183,7 +187,7 @@ impl RegDataTypeProperties for RegistryDataType {
             RegistryDataType::Float32Ieee => "FLOAT32_IEEE",
             RegistryDataType::Float64Ieee => "FLOAT64_IEEE",
             RegistryDataType::Blob => "BLOB",
-            RegistryDataType::Unknown => "UNKNOWN",
+            _ => panic!("get_type_str: Unsupported data type"),
         }
     }
     fn get_deposit_str(&self) -> &'static str {
@@ -199,7 +203,7 @@ impl RegDataTypeProperties for RegistryDataType {
             RegistryDataType::Float32Ieee => "F32",
             RegistryDataType::Float64Ieee => "F64",
             RegistryDataType::Blob => "BLOB",
-            RegistryDataType::Unknown => "UNKNOWN",
+            _ => panic!("get_deposit_str: Unsupported data type"),
         }
     }
     fn get_size(&self) -> usize {
@@ -214,7 +218,8 @@ impl RegDataTypeProperties for RegistryDataType {
             RegistryDataType::AInt64 => 8,
             RegistryDataType::Float32Ieee => 4,
             RegistryDataType::Float64Ieee => 8,
-            _ => 0,
+            RegistryDataType::Blob => 0,
+            _ => panic!("get_size: Unsupported data type"),
         }
     }
 }
@@ -275,12 +280,7 @@ struct RegistryCalSeg {
 
 impl RegistryCalSeg {
     fn new(name: &'static str, addr: u32, addr_ext: u8, size: u32) -> RegistryCalSeg {
-        RegistryCalSeg {
-            name,
-            addr,
-            addr_ext,
-            size,
-        }
+        RegistryCalSeg { name, addr, addr_ext, size }
     }
 }
 
@@ -311,10 +311,7 @@ struct RegistryEpk {
 
 impl RegistryEpk {
     fn new() -> RegistryEpk {
-        RegistryEpk {
-            epk: None,
-            epk_addr: 0,
-        }
+        RegistryEpk { epk: None, epk_addr: 0 }
     }
 }
 
@@ -325,8 +322,8 @@ impl RegistryEpk {
 pub struct RegistryMeasurement {
     name: String,
     datatype: RegistryDataType, // Basic types Ubyte, SByte, AUint64, Float64Ieee, ...  or Blob
-    x_dim: u16, // 1 = basic type (A2L MEASUREMENT), >1 = array[dim] of basic type (A2L MEASUREMENT with MATRIX_DIM x (max u16))
-    y_dim: u16, // 1 = basic type (A2L MEASUREMENT), >1 = array[x_dim,y_dim] of basic type (A2L MEASUREMENT with MATRIX_DIM x,y (max u16))
+    x_dim: u16,                 // 1 = basic type (A2L MEASUREMENT), >1 = array[dim] of basic type (A2L MEASUREMENT with MATRIX_DIM x (max u16))
+    y_dim: u16,                 // 1 = basic type (A2L MEASUREMENT), >1 = array[x_dim,y_dim] of basic type (A2L MEASUREMENT with MATRIX_DIM x,y (max u16))
     event: XcpEvent,
     addr_offset: i16, // Address offset (signed!) relative to event memory context (XCP_ADDR_EXT_DYN)
     addr: u64,
@@ -444,7 +441,8 @@ impl RegistryMeasurementList {
 pub struct RegistryCharacteristic {
     calseg_name: &'static str,
     name: String,
-    datatype: &'static str,
+    datatype: RegistryDataType,
+    //datatype: &'static str,
     comment: &'static str,
     min: f64,
     max: f64,
@@ -452,7 +450,7 @@ pub struct RegistryCharacteristic {
     x_dim: usize,
     y_dim: usize,
     offset: u16,
-    extension: u8, //TODO: Discuss hardcoding extension vs Xcp::get_calseg_ext_addr
+    extension: u8,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -460,7 +458,8 @@ impl RegistryCharacteristic {
     pub fn new(
         calseg_name: &'static str,
         name: String,
-        datatype: &'static str,
+        //datatype: &'static str,
+        datatype: RegistryDataType,
         comment: &'static str,
         min: f64,
         max: f64,
@@ -493,7 +492,7 @@ impl RegistryCharacteristic {
         self.name.as_str()
     }
 
-    pub fn datatype(&self) -> &str {
+    pub fn datatype(&self) -> RegistryDataType {
         self.datatype
     }
 
@@ -637,20 +636,12 @@ impl Registry {
         debug!("set_tl_params: {} {:?} {}", protocol_name, ip, port);
         assert!(self.name.is_some(), "Registry is closed");
 
-        self.tl_params = Some(RegistryXcpTransportLayer {
-            protocol_name,
-            ip,
-            port,
-        });
+        self.tl_params = Some(RegistryXcpTransportLayer { protocol_name, ip, port });
     }
 
     // Add an event
     pub fn add_event(&mut self, event: XcpEvent) {
-        debug!(
-            "add_event: num={}, index={}",
-            event.get_num(),
-            event.get_index()
-        );
+        debug!("add_event: num={}, index={}", event.get_num(), event.get_index());
         assert!(self.name.is_some(), "Registry is closed");
 
         self.event_list.push(event);
@@ -658,10 +649,7 @@ impl Registry {
 
     // Add a calibration segment
     pub fn add_cal_seg(&mut self, name: &'static str, addr: u32, addr_ext: u8, size: u32) {
-        debug!(
-            "add_cal_seg: {} {}:0x{:08X}-{} ",
-            name, addr_ext, addr, size
-        );
+        debug!("add_cal_seg: {} {}:0x{:08X}-{} ", name, addr_ext, addr, size);
         assert!(self.name.is_some(), "Registry is closed");
 
         // Length of calseg should be %4 to avoid problems with CANape and checksum calculations
@@ -678,8 +666,7 @@ impl Registry {
             assert!(s.name != name, "Duplicate calibration segment: {}", name);
         }
 
-        self.cal_seg_list
-            .push(RegistryCalSeg::new(name, addr, addr_ext, size));
+        self.cal_seg_list.push(RegistryCalSeg::new(name, addr, addr_ext, size));
     }
 
     /// Add an instance of a measurement signal associated to a measurement events
@@ -726,13 +713,8 @@ impl Registry {
     ///   If a measurement with the same name already exists
     ///   If the registry is closed
     pub fn add_characteristic(&mut self, c: RegistryCharacteristic) {
-        debug!(
-            "add_characteristic: {}/{} type={:?} offset={}",
-            c.calseg_name(),
-            c.name(),
-            c.datatype(),
-            c.offset()
-        );
+        debug!("add_characteristic: {}.{} type={:?} offset={}", c.calseg_name(), c.name(), c.datatype(), c.offset());
+        debug!("add_characteristic: {:?}", c);
 
         // Panic if registry is closed
         assert!(self.name.is_some(), "Registry is closed");

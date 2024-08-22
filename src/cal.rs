@@ -17,25 +17,34 @@ use std::sync::{Arc, Mutex};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use crate::reg::RegistryCharacteristic;
-use crate::xcp::*;
+use crate::xcp;
+use xcp::Xcp;
+
+#[cfg(feature = "auto_reg")]
+use crate::reg;
 
 //-----------------------------------------------------------------------------
 // CalPageTrait
+
+/// Calibration parameter page structs which can be wrapped by CalSeg, must implement this trait
+/// Calibration pages must be Sized + Send + Sync + Copy + Clone + 'static
+/// Optional:
+/// The CalPageTrait is used to register all fields in the XCP registry
+/// The CalPageTrait is used to load and save the calibration page from/to a json file
+///
+#[cfg(not(feature = "auto_reg"))]
+#[cfg(not(feature = "json"))]
+pub trait CalPageTrait
+where
+    Self: Sized + Send + Sync + Copy + Clone + 'static,
+{
+}
 
 #[cfg(feature = "auto_reg")]
 #[cfg(feature = "json")]
 pub trait CalPageTrait
 where
-    Self: Sized
-        + Send
-        + Sync
-        + Copy
-        + Clone
-        + 'static
-        + xcp_type_description::XcpTypeDescription
-        + serde::Serialize
-        + serde::de::DeserializeOwned,
+    Self: Sized + Send + Sync + Copy + Clone + 'static + xcp_type_description::XcpTypeDescription + serde::Serialize + serde::de::DeserializeOwned,
 {
     fn load_from_file(name: &str) -> Result<Self, std::io::Error>;
 
@@ -53,14 +62,6 @@ where
     fn register_fields(&self, calseg_name: &'static str);
 }
 
-#[cfg(not(feature = "auto_reg"))]
-#[cfg(not(feature = "json"))]
-pub trait CalPageTrait
-where
-    Self: Sized + Send + Sync + Copy + Clone + 'static,
-{
-}
-
 //-----------------------------------------------------------------------------
 // Implement CalPageTrait for all types that may be a calibration page
 
@@ -68,15 +69,7 @@ where
 #[cfg(feature = "json")]
 impl<T> CalPageTrait for T
 where
-    T: Sized
-        + Send
-        + Sync
-        + Copy
-        + Clone
-        + 'static
-        + xcp_type_description::XcpTypeDescription
-        + serde::Serialize
-        + serde::de::DeserializeOwned,
+    T: Sized + Send + Sync + Copy + Clone + 'static + xcp_type_description::XcpTypeDescription + serde::Serialize + serde::de::DeserializeOwned,
 {
     fn load_from_file(name: &str) -> Result<Self, std::io::Error> {
         trace!("Load parameter file {}", name);
@@ -98,10 +91,10 @@ where
         trace!("Register all fields in {}", calseg_name);
 
         for field in self.type_description().unwrap().iter() {
-            let c = RegistryCharacteristic::new(
+            let c = reg::RegistryCharacteristic::new(
                 calseg_name,
                 field.name().to_string(),
-                field.datatype(),
+                reg::RegistryDataType::from_rust_type(field.datatype()),
                 field.comment(),
                 field.min(),
                 field.max(),
@@ -112,11 +105,7 @@ where
                 Xcp::XCP_ADDR_EXT_APP, // segment relative addressing
             );
 
-            Xcp::get()
-                .get_registry()
-                .lock()
-                .unwrap()
-                .add_characteristic(c);
+            Xcp::get().get_registry().lock().unwrap().add_characteristic(c);
         }
     }
 }
@@ -131,7 +120,7 @@ where
         trace!("Register all fields in {}", calseg_name);
 
         for field in self.type_description().unwrap().iter() {
-            let c = RegistryCharacteristic::new(
+            let c = reg::RegistryCharacteristic::new(
                 calseg_name,
                 field.name().to_string(),
                 field.datatype(),
@@ -145,11 +134,7 @@ where
                 Xcp::XCP_ADDR_EXT_APP, // segment relative addressing
             );
 
-            Xcp::get()
-                .get_registry()
-                .lock()
-                .unwrap()
-                .add_characteristic(c);
+            Xcp::get().get_registry().lock().unwrap().add_characteristic(c);
         }
     }
 }
@@ -161,18 +146,14 @@ impl<T> CalPageTrait for T where T: Sized + Send + Sync + Copy + Clone + 'static
 //-----------------------------------------------------------------------------
 // CalSegDescriptor
 
-pub struct CalSegDescriptor {
+struct CalSegDescriptor {
     name: &'static str,
     calseg: Arc<Mutex<dyn CalSegTrait>>,
     size: usize,
 }
 
 impl CalSegDescriptor {
-    pub fn new(
-        name: &'static str,
-        calseg: Arc<Mutex<dyn CalSegTrait>>,
-        size: usize,
-    ) -> CalSegDescriptor {
+    pub fn new(name: &'static str, calseg: Arc<Mutex<dyn CalSegTrait>>, size: usize) -> CalSegDescriptor {
         CalSegDescriptor { name, calseg, size }
     }
     pub fn get_name(&self) -> &'static str {
@@ -205,12 +186,7 @@ impl CalSegList {
     /// Create a calibration segment
     /// # Panics
     /// Panics if the calibration segment name already exists
-    pub fn create_calseg<T>(
-        &mut self,
-        name: &'static str,
-        default_page: &'static T,
-        load_json: bool,
-    ) -> CalSeg<T>
+    pub fn create_calseg<T>(&mut self, name: &'static str, default_page: &'static T, auto_reg: bool, load_json: bool) -> CalSeg<T>
     where
         T: CalPageTrait,
     {
@@ -221,8 +197,9 @@ impl CalSegList {
 
         // Register all fields
         #[cfg(feature = "auto_reg")]
-        default_page.register_fields(name);
-
+        if auto_reg {
+            default_page.register_fields(name);
+        }
         // Load the active calibration page from file or set to default
         let mut page = *default_page;
 
@@ -297,12 +274,11 @@ impl CalSegList {
             for (i, d) in self.0.iter().enumerate() {
                 trace!("Register CalSeg {}, size={}", d.get_name(), d.get_size());
                 assert!(i == d.calseg.lock().unwrap().get_index());
-                Xcp::get().get_registry().lock().unwrap().add_cal_seg(
-                    d.get_name(),
-                    Xcp::get_calseg_addr_base(i),
-                    Xcp::XCP_ADDR_EXT_APP,
-                    d.get_size() as u32,
-                );
+                Xcp::get()
+                    .get_registry()
+                    .lock()
+                    .unwrap()
+                    .add_cal_seg(d.get_name(), Xcp::get_calseg_addr_base(i), Xcp::XCP_ADDR_EXT_APP, d.get_size() as u32);
             }
         }
     }

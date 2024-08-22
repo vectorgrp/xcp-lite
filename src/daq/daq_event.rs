@@ -11,32 +11,22 @@ use crate::{reg::RegistryMeasurement, xcp::*, RegistryDataType};
 
 impl Xcp {
     // Create a measurement event and a measurement variable directly associated to the event with memory offset 0
-    pub fn create_measurement_object(
-        &self,
-        name: &'static str,
-        data_type: RegistryDataType,
-        x_dim: u16,
-        y_dim: u16,
-        comment: &'static str,
-    ) -> XcpEvent {
+    pub fn create_measurement_object(&self, name: &'static str, data_type: RegistryDataType, x_dim: u16, y_dim: u16, comment: &'static str) -> XcpEvent {
         let event = self.create_event(name, false);
-        self.get_registry()
-            .lock()
-            .unwrap()
-            .add_measurement(RegistryMeasurement::new(
-                name.to_string(),
-                data_type,
-                x_dim,
-                y_dim,
-                event,
-                0, // byte_offset
-                0,
-                1.0, // factor
-                0.0, // offset
-                comment,
-                "", // unit
-                None,
-            ));
+        self.get_registry().lock().unwrap().add_measurement(RegistryMeasurement::new(
+            name.to_string(),
+            data_type,
+            x_dim,
+            y_dim,
+            event,
+            0, // byte_offset
+            0,
+            1.0, // factor
+            0.0, // offset
+            comment,
+            "", // unit
+            None,
+        ));
         event
     }
 }
@@ -94,11 +84,7 @@ impl<const N: usize> DaqEvent<N> {
 
     /// Allocate space in the capture buffer
     pub fn allocate(&mut self, size: usize) -> i16 {
-        trace!(
-            "Allocate DAQ buffer, size={}, len={}",
-            size,
-            self.buffer_len
-        );
+        trace!("Allocate DAQ buffer, size={}, len={}", size, self.buffer_len);
         let offset = self.buffer_len;
         assert!(offset + size <= self.buffer.len(), "DAQ buffer overflow");
         self.buffer_len += size;
@@ -137,114 +123,69 @@ impl<const N: usize> DaqEvent<N> {
         annotation: Option<String>,
     ) -> i16 {
         let event_offset: i16 = self.allocate(size); // Address offset (signed) relative to event memory context (XCP_ADDR_EXT_DYN)
-        trace!(
-            "Allocate DAQ buffer for {}, TLS OFFSET = {} {:?} and register measurement",
-            name,
-            event_offset,
-            datatype
-        );
+        trace!("Allocate DAQ buffer for {}, TLS OFFSET = {} {:?} and register measurement", name, event_offset, datatype);
         let event = self.get_xcp_event();
-        Xcp::get()
-            .get_registry()
-            .lock()
-            .unwrap()
-            .add_measurement(RegistryMeasurement::new(
-                name.to_string(),
-                datatype,
-                x_dim,
-                y_dim,
-                event,
-                event_offset,
-                0u64,
-                factor,
-                offset,
-                comment,
-                unit,
-                annotation,
-            ));
+        Xcp::get().get_registry().lock().unwrap().add_measurement(RegistryMeasurement::new(
+            name.to_string(),
+            datatype,
+            x_dim,
+            y_dim,
+            event,
+            event_offset,
+            0u64,
+            factor,
+            offset,
+            comment,
+            unit,
+            annotation,
+        ));
         event_offset
     }
 
     /// Associate a variable on stack to this DaqEvent and register it
     #[allow(clippy::too_many_arguments)]
-    pub fn add_stack(
-        &self,
-        name: &'static str,
-        ptr: *const u8,
-        datatype: RegistryDataType,
-        x_dim: u16,
-        y_dim: u16,
-        factor: f64,
-        offset: f64,
-        unit: &'static str,
-        comment: &'static str,
-    ) {
+    pub fn add_stack(&self, name: &'static str, ptr: *const u8, datatype: RegistryDataType, x_dim: u16, y_dim: u16, factor: f64, offset: f64, unit: &'static str, comment: &'static str) {
         let p = ptr as usize; // variable address
         let b = &self.buffer as *const _ as usize; // base address
-        debug!(
-            "add_stack: {} {:?} ptr={:p} base={:p}",
-            name, datatype, ptr, &self.buffer as *const _
-        );
+        debug!("add_stack: {} {:?} ptr={:p} base={:p}", name, datatype, ptr, &self.buffer as *const _);
         let o: i64 = p as i64 - b as i64; // variable - base address
-        assert!(
-            (-0x8000..=0x7FFF).contains(&o),
-            "memory offset out of range"
-        );
+        assert!((-0x8000..=0x7FFF).contains(&o), "memory offset out of range");
         let event_offset: i16 = o as i16;
-        Xcp::get()
-            .get_registry()
-            .lock()
-            .unwrap()
-            .add_measurement(RegistryMeasurement::new(
-                name.to_string(),
-                datatype,
-                x_dim,
-                y_dim,
-                self.event,
-                event_offset,
-                0u64,
-                factor,
-                offset,
-                comment,
-                unit,
-                None,
-            ));
+        Xcp::get().get_registry().lock().unwrap().add_measurement(RegistryMeasurement::new(
+            name.to_string(),
+            datatype,
+            x_dim,
+            y_dim,
+            self.event,
+            event_offset,
+            0u64,
+            factor,
+            offset,
+            comment,
+            unit,
+            None,
+        ));
     }
 
     /// Associate a variable on stack to this DaqEvent and register it
     #[allow(clippy::too_many_arguments)]
-    pub fn add_heap(
-        &self,
-        name: &'static str,
-        ptr: *const u8,
-        datatype: RegistryDataType,
-        x_dim: u16,
-        y_dim: u16,
-        factor: f64,
-        offset: f64,
-        unit: &'static str,
-        comment: &'static str,
-    ) {
+    pub fn add_heap(&self, name: &'static str, ptr: *const u8, datatype: RegistryDataType, x_dim: u16, y_dim: u16, factor: f64, offset: f64, unit: &'static str, comment: &'static str) {
         debug!("add_heap: {} {:?} ptr={:p} ", name, datatype, ptr,);
 
-        Xcp::get()
-            .get_registry()
-            .lock()
-            .unwrap()
-            .add_measurement(RegistryMeasurement::new(
-                name.to_string(),
-                datatype,
-                x_dim,
-                y_dim,
-                self.event,
-                0i16,
-                ptr as u64,
-                factor,
-                offset,
-                comment,
-                unit,
-                None,
-            ));
+        Xcp::get().get_registry().lock().unwrap().add_measurement(RegistryMeasurement::new(
+            name.to_string(),
+            datatype,
+            x_dim,
+            y_dim,
+            self.event,
+            0i16,
+            ptr as u64,
+            factor,
+            offset,
+            comment,
+            unit,
+            None,
+        ));
     }
 }
 
@@ -285,15 +226,9 @@ macro_rules! daq_create_event {
 macro_rules! daq_capture {
     // name, event, comment, unit, factor,offset
     ( $id:ident, $daq_event:expr, $comment:expr, $unit:expr, $factor:expr, $offset:expr ) => {{
-        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 =
-            std::sync::atomic::AtomicI16::new(-32768);
+        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 = std::sync::atomic::AtomicI16::new(-32768);
         let byte_offset;
-        match DAQ_OFFSET__.compare_exchange(
-            -32768,
-            0,
-            std::sync::atomic::Ordering::Relaxed,
-            std::sync::atomic::Ordering::Relaxed,
-        ) {
+        match DAQ_OFFSET__.compare_exchange(-32768, 0, std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed) {
             Ok(_) => {
                 byte_offset = $daq_event.add_capture(
                     stringify!($id),
@@ -317,15 +252,9 @@ macro_rules! daq_capture {
 
     // name, event, comment, unit
     ( $id:ident, $daq_event:expr, $comment:expr, $unit:expr ) => {{
-        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 =
-            std::sync::atomic::AtomicI16::new(-32768);
+        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 = std::sync::atomic::AtomicI16::new(-32768);
         let byte_offset;
-        match DAQ_OFFSET__.compare_exchange(
-            -32768,
-            0,
-            std::sync::atomic::Ordering::Relaxed,
-            std::sync::atomic::Ordering::Relaxed,
-        ) {
+        match DAQ_OFFSET__.compare_exchange(-32768, 0, std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed) {
             Ok(_) => {
                 byte_offset = $daq_event.add_capture(
                     stringify!($id),
@@ -348,15 +277,9 @@ macro_rules! daq_capture {
 
     // name, event
     ( $id:ident, $daq_event:expr ) => {{
-        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 =
-            std::sync::atomic::AtomicI16::new(-32768);
+        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 = std::sync::atomic::AtomicI16::new(-32768);
         let byte_offset;
-        match DAQ_OFFSET__.compare_exchange(
-            -32768,
-            0,
-            std::sync::atomic::Ordering::Relaxed,
-            std::sync::atomic::Ordering::Relaxed,
-        ) {
+        match DAQ_OFFSET__.compare_exchange(-32768, 0, std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed) {
             Ok(_) => {
                 byte_offset = $daq_event.add_capture(
                     stringify!($id),
@@ -386,19 +309,12 @@ macro_rules! daq_capture {
 macro_rules! daq_serialize {
     // name, event, comment
     ( $id:ident, $daq_event:expr, $comment:expr) => {{
-        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 =
-            std::sync::atomic::AtomicI16::new(-32768);
+        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 = std::sync::atomic::AtomicI16::new(-32768);
         let byte_offset;
-        match DAQ_OFFSET__.compare_exchange(
-            -32768,
-            0,
-            std::sync::atomic::Ordering::Relaxed,
-            std::sync::atomic::Ordering::Relaxed,
-        ) {
+        match DAQ_OFFSET__.compare_exchange(-32768, 0, std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed) {
             Ok(_) => {
                 // @@@@ Experimental: Hard coded type here for point_cloud demo
-                let annotation =
-                    GeneratorCollection::generate(&IDL::CDR, &$id.description()).unwrap();
+                let annotation = GeneratorCollection::generate(&IDL::CDR, &$id.description()).unwrap();
                 byte_offset = $daq_event.add_capture(
                     stringify!($id),
                     std::mem::size_of_val(&$id),
@@ -428,80 +344,32 @@ macro_rules! daq_serialize {
 macro_rules! daq_register {
     // name, event, comment, unit, factor, offset
     ( $id:ident, $daq_event:expr, $comment:expr, $unit:expr, $factor:expr, $offset:expr ) => {{
-        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 =
-            std::sync::atomic::AtomicI16::new(-32768);
+        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 = std::sync::atomic::AtomicI16::new(-32768);
         if DAQ_OFFSET__
-            .compare_exchange(
-                -32768,
-                0,
-                std::sync::atomic::Ordering::Relaxed,
-                std::sync::atomic::Ordering::Relaxed,
-            )
+            .compare_exchange(-32768, 0, std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed)
             .is_ok()
         {
-            $daq_event.add_stack(
-                stringify!($id),
-                &$id as *const _ as *const u8,
-                $id.get_type(),
-                1,
-                1,
-                $factor,
-                $offset,
-                $unit,
-                $comment,
-            );
+            $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, $id.get_type(), 1, 1, $factor, $offset, $unit, $comment);
         };
     }};
     // name, event, comment, unit
     ( $id:ident, $daq_event:expr, $comment:expr, $unit:expr ) => {{
-        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 =
-            std::sync::atomic::AtomicI16::new(-32768);
+        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 = std::sync::atomic::AtomicI16::new(-32768);
         if DAQ_OFFSET__
-            .compare_exchange(
-                -32768,
-                0,
-                std::sync::atomic::Ordering::Relaxed,
-                std::sync::atomic::Ordering::Relaxed,
-            )
+            .compare_exchange(-32768, 0, std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed)
             .is_ok()
         {
-            $daq_event.add_stack(
-                stringify!($id),
-                &$id as *const _ as *const u8,
-                $id.get_type(),
-                1,
-                1,
-                1.0,
-                0.0,
-                $unit,
-                $comment,
-            );
+            $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, $id.get_type(), 1, 1, 1.0, 0.0, $unit, $comment);
         };
     }};
     // name, event
     ( $id:ident, $daq_event:expr ) => {{
-        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 =
-            std::sync::atomic::AtomicI16::new(-32768);
+        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 = std::sync::atomic::AtomicI16::new(-32768);
         if DAQ_OFFSET__
-            .compare_exchange(
-                -32768,
-                0,
-                std::sync::atomic::Ordering::Relaxed,
-                std::sync::atomic::Ordering::Relaxed,
-            )
+            .compare_exchange(-32768, 0, std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed)
             .is_ok()
         {
-            $daq_event.add_stack(
-                stringify!($id),
-                &$id as *const _ as *const u8,
-                $id.get_type(),
-                1,
-                1,
-                1.0,
-                0.0,
-                "",
-                "",
-            );
+            $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, $id.get_type(), 1, 1, 1.0, 0.0, "", "");
         };
     }};
 }
@@ -514,29 +382,12 @@ macro_rules! daq_register {
 macro_rules! daq_register_ref {
     // name, event
     ( $id:ident, $daq_event:expr ) => {{
-        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 =
-            std::sync::atomic::AtomicI16::new(-32768);
+        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 = std::sync::atomic::AtomicI16::new(-32768);
         if DAQ_OFFSET__
-            .compare_exchange(
-                -32768,
-                0,
-                std::sync::atomic::Ordering::Relaxed,
-                std::sync::atomic::Ordering::Relaxed,
-            )
+            .compare_exchange(-32768, 0, std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed)
             .is_ok()
         {
-            $daq_event.add_heap(
-                stringify!($id),
-                &(*$id) as *const _ as *const u8,
-                (*$id).get_type(),
-                1,
-                1,
-                1.0,
-                0.0,
-                "",
-                "",
-                None,
-            );
+            $daq_event.add_heap(stringify!($id), &(*$id) as *const _ as *const u8, (*$id).get_type(), 1, 1, 1.0, 0.0, "", "", None);
         };
     }};
 }
@@ -549,29 +400,13 @@ macro_rules! daq_register_ref {
 macro_rules! daq_register_array {
     // name, event
     ( $id:ident, $daq_event:expr ) => {{
-        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 =
-            std::sync::atomic::AtomicI16::new(-32768);
+        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 = std::sync::atomic::AtomicI16::new(-32768);
         if DAQ_OFFSET__
-            .compare_exchange(
-                -32768,
-                0,
-                std::sync::atomic::Ordering::Relaxed,
-                std::sync::atomic::Ordering::Relaxed,
-            )
+            .compare_exchange(-32768, 0, std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed)
             .is_ok()
         {
             let dim = (std::mem::size_of_val(&$id) / std::mem::size_of_val(&$id[0])) as u16;
-            $daq_event.add_stack(
-                stringify!($id),
-                &$id as *const _ as *const u8,
-                ($id[0]).get_type(),
-                dim,
-                1,
-                1.0,
-                0.0,
-                "",
-                "",
-            );
+            $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, ($id[0]).get_type(), dim, 1, 1.0, 0.0, "", "");
         };
     }};
 }
@@ -593,19 +428,19 @@ macro_rules! daq_create_event_instance {
             static XCP_EVENT__: std::cell::Cell<XcpEvent> = const { std::cell::Cell::new(XcpEvent::UNDEFINED) }
         }
         if XCP_EVENT__.get() == XcpEvent::UNDEFINED {
-            XCP_EVENT__.set(Xcp::get().create_event($name,true));
+            XCP_EVENT__.set(Xcp::get().create_event($name, true));
         }
         DaqEvent::<$capacity>::new_from(&XCP_EVENT__.get())
-     }};
-     ( $name:expr ) => {{
+    }};
+    ( $name:expr ) => {{
         thread_local! {
             static XCP_EVENT__: std::cell::Cell<XcpEvent> = const { std::cell::Cell::new(XcpEvent::UNDEFINED) }
         }
         if XCP_EVENT__.get() == XcpEvent::UNDEFINED {
-            XCP_EVENT__.set(Xcp::get().create_event($name,true));
+            XCP_EVENT__.set(Xcp::get().create_event($name, true));
         }
         DaqEvent::<256>::new_from(&XCP_EVENT__.get())
-     }};
+    }};
 }
 
 /// Capture the value of a variable with basic type for the given multi instance daq event
@@ -700,17 +535,7 @@ macro_rules! daq_register_instance {
         }
         if DAQ_OFFSET__.get() == -32768 {
             DAQ_OFFSET__.set(0);
-            $daq_event.add_stack(
-                stringify!($id),
-                &$id as *const _ as *const u8,
-                $id.get_type(),
-                1,
-                1,
-                1.0,
-                0.0,
-                "",
-                "",
-            );
+            $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, $id.get_type(), 1, 1, 1.0, 0.0, "", "");
         };
     }};
 }

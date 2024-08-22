@@ -12,9 +12,10 @@ use std::{thread, time::Duration};
 
 use serde::{Deserialize, Serialize};
 use xcp::*;
-use xcp_type_description_derive::XcpTypeDescription;
+use xcp_idl_generator::prelude::*;
+use xcp_type_description::prelude::*;
 
-// Arrays measured may not exxed 2^15
+// Arrays measured may not exeed 2^15
 const X_RES: usize = 1024 * 2;
 const Y_RES: usize = 768 * 2;
 
@@ -32,11 +33,7 @@ struct Mandelbrot {
 //     width: 3.0,
 // };
 
-const MANDELBROT: Mandelbrot = Mandelbrot {
-    x: -1.4,
-    y: 0.0,
-    width: 0.015,
-};
+const MANDELBROT: Mandelbrot = Mandelbrot { x: -1.4, y: 0.0, width: 0.015 };
 
 //---------------------------------------------------------------------------------------
 // Image rendering
@@ -54,7 +51,7 @@ fn write_image(filename: &str, pixels: &[u8]) -> Result<(), std::io::Error> {
             129..=171 => (0, 255 - ((i - 129) as f32 * 6.0) as u8, 255), // Cyan to Blue
             172..=214 => (((i - 172) as f32 * 6.0) as u8, 0, 255),       // Blue to Magenta
             215..=255 => (255, 0, 255 - ((i - 215) as f32 * 6.0) as u8), // Magenta to Red
-            _ => (0, 0, 0), // Default case (should not be reached)
+            _ => (0, 0, 0),                                              // Default case (should not be reached)
         };
         let rgb = Rgb::<u8>([r, g, b]);
         color_map.push(rgb);
@@ -100,15 +97,8 @@ fn escape_time(c: Complex<f64>, limit: usize) -> Option<usize> {
 /// `pixel` is a (column, row) pair indicating a particular pixel in that image.
 /// The `upper_left` and `lower_right` parameters are points on the complex
 /// plane designating the area our image covers.
-fn pixel_to_point(
-    pixel: (usize, usize),
-    upper_left: Complex<f64>,
-    lower_right: Complex<f64>,
-) -> Complex<f64> {
-    let (width, height) = (
-        lower_right.re - upper_left.re,
-        upper_left.im - lower_right.im,
-    );
+fn pixel_to_point(pixel: (usize, usize), upper_left: Complex<f64>, lower_right: Complex<f64>) -> Complex<f64> {
+    let (width, height) = (lower_right.re - upper_left.re, upper_left.im - lower_right.im);
     Complex {
         re: upper_left.re + pixel.0 as f64 * width / X_RES as f64,
         im: upper_left.im - pixel.1 as f64 * height / Y_RES as f64,
@@ -116,13 +106,7 @@ fn pixel_to_point(
 }
 
 /// Render a line of the Mandelbrot set into a buffer of pixels.
-fn render(
-    pixels: &mut [u8],
-    row: usize,
-    length: usize,
-    upper_left: Complex<f64>,
-    lower_right: Complex<f64>,
-) {
+fn render(pixels: &mut [u8], row: usize, length: usize, upper_left: Complex<f64>, lower_right: Complex<f64>) {
     // Create event for this worker thread and register variable index, which is the upper left corner of the rectangle
     let event = daq_create_event_instance!("task");
 
@@ -149,11 +133,12 @@ fn render(
 fn main() {
     println!("xcp_lite rayon mandelbrot demo");
 
-    env_logger::Builder::new()
-        .filter_level(log::LevelFilter::Debug)
-        .init();
+    env_logger::Builder::new().filter_level(log::LevelFilter::Debug).init();
 
-    const BIND_ADDR: [u8; 4] = [192, 168, 0, 83]; // [172, 19, 11, 24]; // [192, 168, 0, 83]; // [127, 0, 0, 1];
+    const BIND_ADDR: [u8; 4] = [192, 168, 0, 83];
+    // const BIND_ADDR: [u8; 4] = [127, 0, 0, 1];
+    // const BIND_ADDR: [u8; 4] = [172, 19, 11, 24];
+
     XcpBuilder::new("mandelbrot")
         .set_log_level(XcpLogLevel::Debug)
         .enable_a2l(true)
@@ -218,10 +203,7 @@ fn main() {
 
             // Write image to file
             write_image("mandelbrot.png", &pixels).expect("error writing PNG file");
-            println!(
-                "Image written to mandelbrot.png, frame {} {:.4}s",
-                mainloop_counter, elapsed_time
-            );
+            println!("Image written to mandelbrot.png, frame {} {:.4}s", mainloop_counter, elapsed_time);
             update_counter += 1;
             event_update.trigger();
         }

@@ -76,17 +76,11 @@ impl XcpEvent {
     pub const XCP_MAX_EVENTS: usize = 256;
 
     // Uninitialized event
-    pub const UNDEFINED: XcpEvent = XcpEvent {
-        num: 0xFFFF,
-        index: 0,
-    };
+    pub const UNDEFINED: XcpEvent = XcpEvent { num: 0xFFFF, index: 0 };
 
     /// Create a new XCP event
     pub fn new(num: u16, index: u16) -> XcpEvent {
-        assert!(
-            (num as usize) < XcpEvent::XCP_MAX_EVENTS,
-            "Maximum number of events exceeded"
-        );
+        assert!((num as usize) < XcpEvent::XCP_MAX_EVENTS, "Maximum number of events exceeded");
         unsafe {
             XCP_EVENT_MAP[num as usize] = num;
         }
@@ -95,12 +89,7 @@ impl XcpEvent {
 
     /// Get the event name
     pub fn get_name(self) -> &'static str {
-        Xcp::get()
-            .event_list
-            .lock()
-            .unwrap()
-            .get_name(self)
-            .unwrap()
+        Xcp::get().event_list.lock().unwrap().get_name(self).unwrap()
     }
 
     // Get the event name with its index appended
@@ -233,13 +222,7 @@ impl EventList {
     }
 
     fn sort_by_name_and_index(&mut self) {
-        self.0.sort_by(|a, b| {
-            if a.name == b.name {
-                a.event.index.cmp(&b.event.index)
-            } else {
-                a.name.cmp(b.name)
-            }
-        });
+        self.0.sort_by(|a, b| if a.name == b.name { a.event.index.cmp(&b.event.index) } else { a.name.cmp(b.name) });
     }
 
     fn register(&mut self) {
@@ -265,9 +248,7 @@ impl EventList {
 
         // Register all events
         let r = Xcp::get().get_registry();
-        self.0
-            .iter()
-            .for_each(|e| r.lock().unwrap().add_event(e.event));
+        self.0.iter().for_each(|e| r.lock().unwrap().add_event(e.event));
     }
 
     fn create_event(&mut self, name: &'static str, indexed: bool) -> XcpEvent {
@@ -276,11 +257,7 @@ impl EventList {
 
         // In instance mode (daq_create_event_instance), check for other events in instance mode with duplicate name and create new instance index
         let index = if indexed {
-            self.0
-                .iter()
-                .filter(|e| e.name == name && e.event.get_index() > 0)
-                .count()
-                + 1
+            self.0.iter().filter(|e| e.name == name && e.event.get_index() > 0).count() + 1
         } else {
             0
         };
@@ -288,12 +265,7 @@ impl EventList {
         // Create XcpEvent
         let event = XcpEvent::new(num as u16, index as u16);
 
-        info!(
-            "Create event {} num={}, index={}",
-            name,
-            event.get_num(),
-            event.get_index()
-        );
+        info!("Create event {} num={}, index={}", name, event.get_num(), event.get_index());
 
         // Add XcpEventInfo to event list
         self.0.push(XcpEventInfo { name, event });
@@ -408,13 +380,7 @@ impl XcpBuilder {
 
     /// Start the XCP on Ethernet Transport Layer
     /// segment_size must fit the maximum UDP MTU supported by the system
-    pub fn start_server(
-        self,
-        tl: XcpTransportLayer,
-        addr: [u8; 4],
-        port: u16,
-        segment_size: u16,
-    ) -> Result<&'static Xcp, &'static str> {
+    pub fn start_server(self, tl: XcpTransportLayer, addr: [u8; 4], port: u16, segment_size: u16) -> Result<&'static Xcp, &'static str> {
         let xcp = Xcp::get();
 
         // Server parameters from XcpBuilder
@@ -432,12 +398,7 @@ impl XcpBuilder {
         // @@@@ unsafe - C library call
         unsafe {
             // Initialize the XCP Server and ETH transport layer
-            if 0 == xcplib::XcpEthServerInit(
-                addr.as_ptr(),
-                port,
-                if tl == XcpTransportLayer::Tcp { 1 } else { 0 },
-                segment_size,
-            ) {
+            if 0 == xcplib::XcpEthServerInit(addr.as_ptr(), port, if tl == XcpTransportLayer::Tcp { 1 } else { 0 }, segment_size) {
                 return Err("Error: XcpEthServerInit() failed");
             }
         }
@@ -553,16 +514,23 @@ impl Xcp {
     /// Create a calibration segment
     /// # Panics
     /// Panics if the calibration segment name already exists
-    pub fn create_calseg<T>(
-        name: &'static str,
-        default_page: &'static T,
-        load_json: bool,
-    ) -> CalSeg<T>
+    pub fn create_calseg<T>(name: &'static str, default_page: &'static T, load_json: bool) -> CalSeg<T>
     where
         T: CalPageTrait,
     {
         let mut m = Xcp::get().calseg_list.lock().unwrap();
-        m.create_calseg(name, default_page, load_json)
+        m.create_calseg(name, default_page, true, load_json)
+    }
+
+    /// Create a calibration segment, don't register fields and don't load json
+    /// # Panics
+    /// Panics if the calibration segment name already exists
+    pub fn add_calseg<T>(name: &'static str, default_page: &'static T) -> CalSeg<T>
+    where
+        T: CalPageTrait,
+    {
+        let mut m = Xcp::get().calseg_list.lock().unwrap();
+        m.create_calseg(name, default_page, false, false)
     }
 
     /// Get calibration segment index by name
@@ -732,10 +700,7 @@ extern "C" fn cb_connect() -> u8 {
 // Returns 0xFF on invalid mode, segment number is ignored, CAL_PAGE_MODE_ALL is ignored
 #[no_mangle]
 extern "C" fn cb_get_cal_page(segment: u8, mode: u8) -> u8 {
-    debug!(
-        "cb_get_cal_page: get cal page of segment {}, mode {:02X}",
-        segment, mode
-    );
+    debug!("cb_get_cal_page: get cal page of segment {}, mode {:02X}", segment, mode);
     let page: u8;
     if (mode & CAL_PAGE_MODE_ECU) != 0 {
         page = Xcp::get().get_ecu_cal_page() as u8;
@@ -751,12 +716,7 @@ extern "C" fn cb_get_cal_page(segment: u8, mode: u8) -> u8 {
 
 #[no_mangle]
 extern "C" fn cb_set_cal_page(segment: u8, page: u8, mode: u8) -> u8 {
-    debug!(
-        "cb_set_cal_page: set cal page to segment={}, page={:?}, mode={:02X}",
-        segment,
-        XcpCalPage::from(page),
-        mode
-    );
+    debug!("cb_set_cal_page: set cal page to segment={}, page={:?}, mode={:02X}", segment, XcpCalPage::from(page), mode);
     if (mode & CAL_PAGE_MODE_ALL) == 0 {
         return CRC_PAGE_MODE_NOT_VALID; // Switching individual segments not supported yet
     }
@@ -837,13 +797,7 @@ extern "C" fn cb_read(addr: u32, len: u8, dst: *mut u8) -> u8 {
 
 #[no_mangle]
 extern "C" fn cb_write(addr: u32, len: u8, src: *const u8, delay: u8) -> u8 {
-    trace!(
-        "cb_write: dst=0x{:08X}, len={}, src={:?}, delay={}",
-        addr,
-        len,
-        src,
-        delay
-    );
+    trace!("cb_write: dst=0x{:08X}, len={}, src={:?}, delay={}", addr, len, src, delay);
     assert!(len > 0, "cb_write: zero length");
 
     // Decode addr

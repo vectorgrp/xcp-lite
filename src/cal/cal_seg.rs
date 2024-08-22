@@ -13,8 +13,87 @@ use std::{
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use super::CalPageTrait;
-use crate::xcp::*;
+use crate::reg;
+use crate::xcp;
+use crate::{cal, RegDataTypeProperties};
+use cal::CalPageTrait;
+use xcp::Xcp;
+use xcp::XcpCalPage;
+
+//----------------------------------------------------------------------------------------------
+// Manually add calibration page fields to a calibration segment description
+
+#[derive(Debug, Clone, Copy)]
+pub struct CalPageField {
+    pub name: &'static str,
+    pub datatype: reg::RegistryDataType,
+    pub offset: u16,
+    pub dim: (usize, usize),
+    pub comment: Option<&'static str>,
+    pub min: Option<f64>,
+    pub max: Option<f64>,
+    pub unit: Option<&'static str>,
+}
+
+#[macro_export]
+macro_rules! calseg_field {
+    (   $name:ident.$field:ident ) => {{
+        let offset = (&($name.$field) as *const _ as *const u8 as u64).wrapping_sub(&$name as *const _ as *const u8 as u64);
+        assert!(offset < 0x10000, "offset too large");
+        CalPageField {
+            name: stringify!($field),
+            datatype: $name.$field.get_type(),
+            offset: offset as u16,
+            dim: (1, 1),
+            comment: None,
+            min: None,
+            max: None,
+            unit: None,
+        }
+    }};
+    (   $name:ident.$field:ident, $comment:expr ) => {{
+        let offset = (&($name.$field) as *const _ as *const u8 as u64).wrapping_sub(&$name as *const _ as *const u8 as u64);
+        assert!(offset < 0x10000, "offset too large");
+        CalPageField {
+            name: stringify!($field),
+            datatype: $name.$field.get_type(),
+            offset: offset as u16,
+            dim: (1, 1),
+            comment: Some($comment),
+            min: None,
+            max: None,
+            unit: None,
+        }
+    }};
+    (   $name:ident.$field:ident, $unit:expr, $comment:expr ) => {{
+        let offset = (&($name.$field) as *const _ as *const u8 as u64).wrapping_sub(&$name as *const _ as *const u8 as u64);
+        assert!(offset < 0x10000, "offset too large");
+        CalPageField {
+            name: stringify!($field),
+            datatype: $name.$field.get_type(),
+            offset: offset as u16,
+            dim: (1, 1),
+            comment: Some($comment),
+            min: None,
+            max: None,
+            unit: Some($unit),
+        }
+    }};
+    (   $name:ident.$field:ident, $min:expr, $max:expr, $unit:expr ) => {{
+        let offset = (&($name.$field) as *const _ as *const u8 as u64).wrapping_sub(&$name as *const _ as *const u8 as u64);
+        assert!(offset < 0x10000, "offset too large");
+        CalPageField {
+            name: stringify!($field),
+            datatype: $name.$field.get_type(),
+            offset: offset as u16,
+            dim: (1, 1),
+            comment: None,
+            min: Some($min as f64),
+            max: Some($max as f64),
+            unit: Some($unit),
+        }
+    }};
+}
 
 //----------------------------------------------------------------------------------------------
 // Calibration parameter page wrapper for T with modification counter, init and freeze requests
@@ -83,6 +162,34 @@ where
         }
     }
 
+    /// Manually add a field description
+    #[allow(clippy::too_many_arguments)]
+    pub fn add_field(&self, field: CalPageField) -> &CalSeg<T> {
+        trace!("add_field: {:?}", field);
+        let datatype = field.datatype;
+        let unit = if field.unit.is_some() { field.unit.unwrap() } else { "" };
+        let comment = if field.comment.is_some() { field.comment.unwrap() } else { "" };
+        let min = if field.min.is_some() { field.min.unwrap() } else { datatype.get_min() };
+        let max = if field.max.is_some() { field.max.unwrap() } else { datatype.get_max() };
+        let c = crate::reg::RegistryCharacteristic::new(
+            self.get_name(),
+            format!("{}.{}", self.get_name(), field.name.to_string()),
+            datatype,
+            comment,
+            min,
+            max,
+            unit,
+            field.dim.0,
+            field.dim.1,
+            field.offset,
+            Xcp::XCP_ADDR_EXT_APP, // segment relative addressing
+        );
+
+        Xcp::get().get_registry().lock().unwrap().add_characteristic(c);
+
+        self
+    }
+
     /// Get the calibration segment clone count
     pub fn get_clone_count(&self) -> u16 {
         Arc::strong_count(&self.xcp_page) as u16
@@ -119,11 +226,7 @@ where
                     xcp_page.init_request = false;
                     // @@@@ unsafe - Implementation of init cal page in sync() with non mut self
                     unsafe {
-                        trace!(
-                            "init: {}: default_page => xcp_page ({})",
-                            self.get_name(),
-                            xcp_page.ctr,
-                        );
+                        trace!("init: {}: default_page => xcp_page ({})", self.get_name(), xcp_page.ctr,);
 
                         let src_ptr = self.default_page as *const T;
                         let dst_ptr = &xcp_page.page as *const _ as *mut T;
@@ -279,10 +382,7 @@ where
     T: CalPageTrait,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        warn!(
-            "Unsafe deref mut to XCP page of {}, this is undefined behaviour !!",
-            self.get_name()
-        );
+        warn!("Unsafe deref mut to XCP page of {}, this is undefined behaviour !!", self.get_name());
         let mut p = self.xcp_page.lock().unwrap();
         p.ctr = p.ctr.wrapping_add(1);
         let r: *mut T = &mut p.page;
@@ -338,16 +438,10 @@ where
 /// CalSeg is not Sync, but Send
 /// # Safety
 /// This is safe, because CalSeg would be Send and Sync, but its disabled by PhantomData
-/// Send is reimplemeted here
+/// Send is reimplemented here
 /// Sync stays disabled, because this would allow to call calseg.sync() from multiple threads with references to the same CalSeg
 // @@@@ unsafe - Implementation of Send marker for CalSeg
 unsafe impl<T> Send for CalSeg<T> where T: CalPageTrait {}
-
-// @@@@ ToDo: Negative trait bounds are not yet fully implemented; use marker types for now
-// impl<T> !Sync for CalSeg<T> where
-//     T: Send + Copy + Clone + for<'de> serde::Deserialize<'de> + serde::Serialize
-// {
-// }
 
 //----------------------------------------------------------------------------------------------
 // Test
@@ -364,6 +458,7 @@ mod cal_tests {
     use crate::reg::RegistryCharacteristic;
     use crate::xcp;
     use crate::xcplib;
+    use reg::Registry;
     use xcp_type_description::prelude::*;
 
     use xcp::*;
@@ -451,12 +546,7 @@ mod cal_tests {
         t2.join().unwrap();
         let size = std::mem::size_of::<CalSeg<CalPage1>>();
         let clones = cal_seg1.get_clone_count();
-        info!(
-            "CalSeg: {} size = {} bytes, clone_count = {}",
-            cal_seg1.get_name(),
-            size,
-            clones
-        );
+        info!("CalSeg: {} size = {} bytes, clone_count = {}", cal_seg1.get_name(), size, clones);
         assert_eq!(size, 32);
         assert!(clones == 2); // 2 clones move to threads and dropped
         drop(cal_seg1);
@@ -592,11 +682,7 @@ mod cal_tests {
         mut_page.save_to_file("test1.json");
         mut_page.save_to_file("test2.json");
         let cal_seg = Xcp::create_calseg("test1", &FLASH_PAGE2, true); // active page is RAM from test1.json
-        assert_eq!(
-            xcp.get_ecu_cal_page(),
-            XcpCalPage::Ram,
-            "XCP should be on RAM page here, there is no independant page switching yet"
-        );
+        assert_eq!(xcp.get_ecu_cal_page(), XcpCalPage::Ram, "XCP should be on RAM page here, there is no independant page switching yet");
         test_is_mut!(cal_seg); // Default page must be mut_page
         xcp.set_ecu_cal_page(XcpCalPage::Flash); // Simulate a set cal page to default from XCP master
         cal_seg.sync();
@@ -639,8 +725,6 @@ mod cal_tests {
 
         // Create calseg1 from def
         let calseg1 = Xcp::create_calseg("test1", &FLASH_PAGE1, true);
-        // println!();
-        // println!("new calseg1: {:?}", calseg1);
         test_is_mut!(calseg1);
 
         // Freeze calseg1 to new test1.json
@@ -651,36 +735,10 @@ mod cal_tests {
         // Create calseg2 from freeze file test1.json of calseg1
         std::fs::copy("test1.json", "test2.json").unwrap();
         let calseg2 = Xcp::create_calseg("test2", &FLASH_PAGE2, true);
-        // println!();
-        // println!("new calseg2: {:?}", calseg2);
         test_is_mut!(calseg2);
-
-        // Init all calsegs
-        // xcp_test::test_init_cal(); // Copy default_page to mut_page
-        // calseg1.sync();
-        // calseg2.sync();
-        // // println!();
-        // // println!("init calseg1: {:?}", calseg1);
-        // // println!();
-        // // println!("init calseg2: {:?}", calseg2);
-        // test_is_default!(calseg1); // should be now default value on ram page
-        // test_is_default!(calseg2); // should be now default value on ram page
-
-        // Freeze all calsegs
-        // xcp_test::test_freeze_cal(); // Save mut_page to file "test1.json"
-        // calseg1.sync();
-        // calseg2.sync();
-
-        // // Create calseg3 from freeze file test2.json of calseg2
-        // std::fs::copy("test2.json", "test3.json").unwrap();
-        // let calseg3 = Xcp::create_calseg("test3", &FLASH_PAGE3, true);
-        // // println!();
-        // // println!("new calseg3: {:?}", calseg3);
-        // test_is_default!(calseg3);
 
         std::fs::remove_file("test1.json").ok();
         std::fs::remove_file("test2.json").ok();
-        std::fs::remove_file("test3.json").ok();
     }
 
     //-----------------------------------------------------------------------------
@@ -772,9 +830,7 @@ mod cal_tests {
         const CAL_PAGE: CalPage = CalPage {
             a: 1,
             b: 2,
-            curve: [
-                0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5,
-            ],
+            curve: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5],
             map: [
                 [0, 0, 0, 0, 0, 0, 0, 1, 2],
                 [0, 0, 0, 0, 0, 0, 0, 2, 3],
@@ -788,13 +844,7 @@ mod cal_tests {
         };
 
         let calseg = &Xcp::create_calseg("calseg", &CAL_PAGE, false);
-        let c: RegistryCharacteristic = Xcp::get()
-            .get_registry()
-            .lock()
-            .unwrap()
-            .find_characteristic("CalPage.a")
-            .unwrap()
-            .clone();
+        let c: RegistryCharacteristic = Xcp::get().get_registry().lock().unwrap().find_characteristic("CalPage.a").unwrap().clone();
 
         assert_eq!(calseg.get_name(), "calseg");
         assert_eq!(c.comment(), "Comment");
@@ -804,35 +854,17 @@ mod cal_tests {
         assert_eq!(c.x_dim(), 1);
         assert_eq!(c.y_dim(), 1);
         assert_eq!(c.offset(), 200);
-        assert_eq!(c.datatype(), "u32");
+        assert_eq!(c.datatype(), reg::RegistryDataType::Ulong);
 
-        let c: RegistryCharacteristic = Xcp::get()
-            .get_registry()
-            .lock()
-            .unwrap()
-            .find_characteristic("CalPage.b")
-            .unwrap()
-            .clone();
+        let c: RegistryCharacteristic = Xcp::get().get_registry().lock().unwrap().find_characteristic("CalPage.b").unwrap().clone();
         assert_eq!(c.offset(), 204);
 
-        let c: RegistryCharacteristic = Xcp::get()
-            .get_registry()
-            .lock()
-            .unwrap()
-            .find_characteristic("CalPage.curve")
-            .unwrap()
-            .clone();
+        let c: RegistryCharacteristic = Xcp::get().get_registry().lock().unwrap().find_characteristic("CalPage.curve").unwrap().clone();
         assert_eq!(c.offset(), 0);
         assert_eq!(c.x_dim(), 16);
         assert_eq!(c.y_dim(), 1);
 
-        let c: RegistryCharacteristic = Xcp::get()
-            .get_registry()
-            .lock()
-            .unwrap()
-            .find_characteristic("CalPage.map")
-            .unwrap()
-            .clone();
+        let c: RegistryCharacteristic = Xcp::get().get_registry().lock().unwrap().find_characteristic("CalPage.map").unwrap().clone();
         assert_eq!(c.offset(), 128);
         assert_eq!(c.x_dim(), 8);
         assert_eq!(c.y_dim(), 9);
