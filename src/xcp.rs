@@ -84,26 +84,13 @@ impl XcpEvent {
 
     /// Create a new XCP event
     pub fn new(num: u16, index: u16) -> XcpEvent {
-        assert!(
-            (num as usize) < XcpEvent::XCP_MAX_EVENTS,
-            "Maximum number of events exceeded"
-        );
+        assert!((num as usize) < XcpEvent::XCP_MAX_EVENTS, "Maximum number of events exceeded");
         XcpEvent { num, index }
     }
 
     /// Get the event name
     pub fn get_name(self) -> &'static str {
         Xcp::get().event_list.lock().unwrap().get_name(self).unwrap()
-    }
-
-    // Get the event name with its index appended
-    pub fn get_indexed_name(self) -> String {
-        let name = self.get_name();
-        if self.get_index() > 0 {
-            format!("{}_{}", name, self.get_index())
-        } else {
-            name.to_string()
-        }
     }
 
     /// Get the event number as u16

@@ -1,4 +1,4 @@
-// xcp_lite - tokio_demo
+// xcp-lite - tokio_demo
 // Visualizes in CANape how tokio starts tasks in its worker threaad pool
 
 #[allow(unused_imports)]
@@ -26,16 +26,11 @@ async fn task(task_index: u16) {
 
 #[tokio::main]
 async fn main() {
-    println!("xcp_lite_tokio_demo");
+    println!("xcp-lite tokio demo");
 
-    env_logger::Builder::new()
-        .filter_level(log::LevelFilter::Info)
-        .init();
+    env_logger::Builder::new().filter_level(log::LevelFilter::Info).init();
 
-    XcpBuilder::new("tokio_demo")
-        .enable_a2l(true)
-        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555, 1464)
-        .unwrap();
+    XcpBuilder::new("tokio_demo").enable_a2l(true).start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555, 1464).unwrap();
 
     trace!("Start");
 

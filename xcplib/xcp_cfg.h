@@ -71,7 +71,7 @@
 /* DAQ features and parameters */
 
 // No event list
-// Rust xcp_lite has its own event handling
+// Rust xcp-lite has its own event handling
 // #define XCP_ENABLE_DAQ_EVENT_INFO // Enable XCP_GET_EVENT_INFO, if this is enabled, A2L file event information will be ignored
 // #define XCP_ENABLE_DAQ_EVENT_LIST // Enable event list
 // #define XCP_MAX_EVENT 16 // Maximum number of events, size of event table
@@ -82,7 +82,7 @@
 #endif 
 
 // Make XcpEvent thread safe for same CAL event coming from different threads
-// Needed for xcp_lite, because CalSeg cal sync events may come from different threads
+// Needed for xcp-lite, because CalSeg cal sync events may come from different threads
 #define XCP_ENABLE_MULTITHREAD_CAL_EVENTS 
 
 // Enable packed mode 

@@ -7,6 +7,7 @@
 
 // Features:
 // json = [] # enable json persistence for CalSeg
+// auto_reg = [] # enable auto registration of fields in A2L registry
 
 // Run:
 //  cargo run -- --bind 192.168.0.83
@@ -87,7 +88,7 @@ lazy_static::lazy_static! {
 //-----------------------------------------------------------------------------
 // Demo calibration parameter pages
 
-// Definition of structures with calibration parameters
+// Definition of structures with calibration parameter constants
 // Implement Serialize, Deserialize for persistence to json
 // Implement XcpTypeDescription for auto registration of fields in A2L registry
 // Each page defines a MEMORY_SEGMENT in A2L and CANape
@@ -298,7 +299,7 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
         // Capture variables from stack happens here
         event.trigger();
 
-        // Sync the calibration segment
+        // Sync the calibration segments
         calseg1.sync();
         calseg.sync();
     }
@@ -309,7 +310,7 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
 // Demo application main
 
 fn main() {
-    println!("XCPlite for Rust - CANape Demo (project ./CANape)");
+    println!("XCP for Rust - CANape Demo (project ./CANape)");
 
     let args = Args::parse();
     let log_level = XcpLogLevel::from(args.log_level);
@@ -322,7 +323,7 @@ fn main() {
         .set_log_level(log_level)
         .enable_a2l(!args.no_a2l)
         // .set_segment_size(1500-20-8) // no jumbo frames
-        // .set_epk(build_info::format!("{}", $.timestamp)); // EPK from build info
+        // .set_epk(build_info::format!("{}", $.timestamp)); // Create new EPK from build info
         .set_epk("EPK_");
 
     let xcp = match xcp_builder.start_server(if args.tcp { XcpTransportLayer::Tcp } else { XcpTransportLayer::Udp }, args.bind.octets(), args.port, args.segment_size) {
@@ -340,7 +341,7 @@ fn main() {
     // FLASH or RAM can be switched during runtime (XCP set_cal_page), saved to json (XCP freeze), reinitialized from default FLASH page (XCP copy_cal_page)
     // The initial RAM page can be loaded from a json file (load_json=true) or set to the default FLASH page (load_json=false)
 
-    // Create calibration segments for CAL_PAGE, add fields manally
+    // Create a alibration segment wrapper for CAL_PAGE, add fields manually to registry
     let mut calseg = Xcp::add_calseg(
         "CalPage", // name of the calibration segment and the .json file
         &CAL_PAGE, // default calibration values with static lifetime, trait bound from CalPageTrait must be possible
@@ -402,7 +403,7 @@ fn main() {
         daq_capture!(mainloop_counter2, mainloop_event);
         daq_capture!(mainloop_counter3, mainloop_event);
 
-        // Measure variable directly from heap with individual event "mainloop_array"
+        // Measure a 2D map variable directly from heap with an individual event "mainloop_array"
         daq_event_ref!(mainloop_map, RegistryDataType::AUint64, 16, 16, "2D map on heap");
 
         // Measure directly from stack with event "mainloop"
