@@ -48,6 +48,7 @@ mod reg;
 pub use reg::RegDataTypeHandler;
 pub use reg::RegDataTypeProperties;
 pub use reg::RegistryDataType;
+pub use reg::RegistryMeasurement; // for aacp_xcp
 
 // @@@@ Reexport for integration tests
 pub use xcp::xcp_test::test_reinit;

@@ -51,6 +51,40 @@ The project creates a library crate xcp and a main application to showcase usage
 There is an integration test, where the crate a2lfile is used to verify the generated A2L file and a quick and dirty, tokio based XCP client with hardcoded DAQ decoding for blackbox testing. This includes performance testing which reaches up to 2GByte/s on Linux or MacOS.
 
 
+## Examples
+### hello_xcp
+A very basic example
+Measure local variables and calibrate parameters of basic types
+
+### single_thread_demo
+Shows how to measure and calibrate in a single instance task thread
+Shows how to clone a calibration parameter set, move it to a thread and sync its calibration changes 
+Shows how to define and calibrate 2D curves and 3D maps  
+
+### multi_thread_demo
+Shows how to measure and calibrate in a task instanciated in multiple threads with multiple instances of measurement events and local variables
+
+### rayon_demo
+Use CANape to observe rayon workers calculating a mandelbrot set by lines   
+
+### tokio_demo
+Observe tokio tasks  
+
+### point_cloud_demo
+Measure a lidar point cloud and visualize it in CANapes 3D scene window  
+Use CDR serialization over XCP and the CDR/IDL schema generator proc-macro 
+
+### protobuf_demo
+Measure a struct annotated with the prost message derive macro and protobuf tags
+Use ProtoBuf serialization over XCP and the proto schema generator proc-macro 
+
+### type_description_demo, xcp_idl_generator_demo
+Demonstrate A2L or CDR/IDL shema generation for structs by using the xcp-lite proc-macros  
+
+### xcp-lite (xcp-lite/src/main.rs)
+Main application
+Manually check various features with the CANape project xcp-lite/CANape  
+
 ## Code instrumentation for measurement and calibration:
   
 There are 3 important types: Xcp, XcpEvent and CalSeg.  
@@ -62,7 +96,7 @@ A CalSeg has interiour mutability. Parameter mutation happens only in the CalSeg
   
 A CalSeg may be shared among multiple threads. It it cloned like an Arc, implements the Deref trait for convinience and does not do any locks to deref to the inner calibration parameter page struct. A sync method must be called on each clone, to make new calibration changes visible in each thread. The sync method shares a mutex with all clones. Each clone holds a shadow copy of the calibration values on heap.
       
-Measurement code instrumentation provides event definition, registration or capture of measurement objects. Measurement objects can be captured (copied to a buffer inside the event) or accessed directly on stack memory after being registered. Capture works for variables on heap or stack. Measurement variables can be registered as single instance or multi instance, which creates one variaable instance for each thread instance. Variable names and event names are automaticaally extended with an index in this case.
+Measurement code instrumentation provides event definition, registration or capture of measurement objects. Measurement objects can be captured (copied to a buffer inside the event) or accessed directly on stack memory after being registered. Capture works for variables on heap or stack. Measurement variables can be registered as single instance or multi instance, which creates one variable instance for each thread instance. Variable names and event names are automaticaally extended with an index in this case.
 
 The registration of objects has to be completed, before the A2L file is generated. The A2l is created at latest on connect of the XCP client tool. Objects created later, will not be visible to CANape.  
   
@@ -206,9 +240,19 @@ The EPK version string in the A2L file can be set by the applicaation. It reside
 ## Future improvements
 
 - The A2L file should not be loaded to memory when it is provided for upload
-- Support more types as calibration parameters, include types for more complex curves and map
+- Support more types of calibration parameters, include types for curves and maps with axis
 - Improve the meta data annotations of the A2L serializer
-- Add support for dynamic data objects and variable length lists using the CANape CDR or Protobuf deserializers
+- Reduce number of heap allocations and strings in the proc-macros and in A2L generation, reduce the overall memory footprint
+- Avoid the mutex lock in CalSeg::Sync when there is no pending parameter modification
+- Add support to decribe the application clock domain in rust
+- Reintegrate the XCPlite C-code changes
+
+Suggest changes to the XCP standard
+- Support variable length DTOs for serialized data types
+- Support 64 Bit addresses
+
+
+
 
 
 ## CANape
