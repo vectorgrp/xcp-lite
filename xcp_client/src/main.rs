@@ -56,40 +56,16 @@ impl XcpDaqDecoder for DaqDecoder {
         let data_len = data.len() - 6;
 
         if odt == 0 {
-            let timestamp = data[2] as u32
-                | (data[3] as u32) << 8
-                | (data[4] as u32) << 16
-                | (data[5] as u32) << 24;
+            let timestamp = data[2] as u32 | (data[3] as u32) << 8 | (data[4] as u32) << 16 | (data[5] as u32) << 24;
             if data_len == 4 {
-                let counter = data[6] as u32
-                    | (data[7] as u32) << 8
-                    | (data[8] as u32) << 16
-                    | (data[9] as u32) << 24;
-                trace!(
-                    "DAQ: daq={}, odt={}: timestamp={} counter={}",
-                    _daq,
-                    odt,
-                    timestamp,
-                    counter
-                );
+                let counter = data[6] as u32 | (data[7] as u32) << 8 | (data[8] as u32) << 16 | (data[9] as u32) << 24;
+                trace!("DAQ: daq={}, odt={}: timestamp={} counter={}", _daq, odt, timestamp, counter);
             } else if data_len == 8 {
                 let b: [u8; 8] = data[6..14].try_into().unwrap();
                 let f = f64::from_le_bytes(b);
-                trace!(
-                    "DAQ: daq={}, odt={}: timestamp={} value_f64={}",
-                    _daq,
-                    odt,
-                    timestamp,
-                    f
-                );
+                trace!("DAQ: daq={}, odt={}: timestamp={} value_f64={}", _daq, odt, timestamp, f);
             } else {
-                trace!(
-                    "DAQ: daq={}, odt={}: timestamp={} data={:?}",
-                    _daq,
-                    odt,
-                    timestamp,
-                    data
-                );
+                trace!("DAQ: daq={}, odt={}: timestamp={} data={:?}", _daq, odt, timestamp, data);
             }
         } else {
             panic!("ODT != 0")
@@ -169,9 +145,7 @@ async fn main() {
     // Connect to the XCP server
     info!("XCP Connect");
     let daq_decoder = Arc::new(Mutex::new(DaqDecoder::new()));
-    let res = xcp_client
-        .connect(Arc::clone(&daq_decoder), ServTextDecoder::new())
-        .await;
+    let res = xcp_client.connect(Arc::clone(&daq_decoder), ServTextDecoder::new()).await;
     match res {
         Ok(_) => info!("Connected!"),
         Err(e) => {
@@ -192,10 +166,7 @@ async fn main() {
     // Calibration
     info!("XCP calibration");
     // Create a calibration object for CalPage1.counter_max
-    if let Ok(counter_max) = xcp_client
-        .create_calibration_object("CalPage1.counter_max")
-        .await
-    {
+    if let Ok(counter_max) = xcp_client.create_calibration_object("CalPage1.counter_max").await {
         // Get current value
         let v = xcp_client.get_value_u64(counter_max);
         info!("CalPage1.counter_max = {}", v);

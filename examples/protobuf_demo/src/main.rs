@@ -163,8 +163,19 @@ fn main() {
     // Data struct to be measured
     let mut test_data = TestData { counter: 0, signal: 0.0 };
 
+
+    /*
+    r#"/begin ANNOTATION ANNOTATION_LABEL "ObjectDescription" ANNOTATION_ORIGIN "application/dynamic-object-package" /begin ANNOTATION_TEXT 
+    "<DynamicObject>"
+    "<Package> {filename}.do.zip< /Package>"
+    "<RootType> {name} </RootType>"
+    "<RootFile> {file} </RootFile>"
+    "</DynamicObject>"
+    "/end ANNOTATION_TEXT /end ANNOTATION "
+     */
+
     // Create a proto description for the data struct
-    let annotation = r#"/begin ANNOTATION ANNOTATION_LABEL "ObjectDescription" ANNOTATION_ORIGIN "application/proto"
+    let annotation = r#"/begin ANNOTATION ANNOTATION_LABEL "ObjectDescription" ANNOTATION_ORIGIN "application/protobuf"
     /begin ANNOTATION_TEXT
         "<DynamicObject>"
         "<RootType>TestData</RootType>"

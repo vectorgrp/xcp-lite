@@ -14,6 +14,21 @@ homepage = "https://vector.com"
 repository = "https://github.com/vectorgrp/xcp-lite"
 categories = ["MC"] 
 
+[workspace]
+members = [    
+    "xcp_client",
+    "examples/hello_xcp",
+    "examples/single_thread_demo",
+    "examples/multi_thread_demo",
+    "examples/protobuf_demo",
+    "examples/point_cloud_demo",
+    "examples/rayon_demo",
+    "examples/tokio_demo",
+    "examples/type_description_demo",
+    "examples/xcp_idl_generator_demo",       
+]
+
+
 [features]
 
 # Feature json enables dependency to serde and serde_json

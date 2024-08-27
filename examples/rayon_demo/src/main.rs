@@ -12,7 +12,7 @@ use std::{thread, time::Duration};
 
 use serde::{Deserialize, Serialize};
 use xcp::*;
-use xcp_idl_generator::prelude::*;
+
 use xcp_type_description::prelude::*;
 
 // Arrays measured may not exeed 2^15

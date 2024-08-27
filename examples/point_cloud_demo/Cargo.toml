@@ -22,14 +22,4 @@ xcp_idl_generator  = { path = "../../xcp_idl_generator/"}
 xcp_idl_generator_derive  = { path = "../../xcp_idl_generator/xcp_idl_generator_derive/"}
 
 
-[profile.dev.package."*"]
-debug = false
-opt-level = 3
-
-[profile.dev]
-panic = 'abort'
-debug = true
-# lto = true
-opt-level = 2
-
 
