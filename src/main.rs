@@ -26,7 +26,10 @@
 use std::{
     f64::consts::PI,
     fmt::Debug,
-    sync::{Arc, Mutex, RwLock},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex, RwLock,
+    },
     thread,
     time::{Duration, Instant},
 };
@@ -83,6 +86,7 @@ use xcp_type_description::prelude::*;
 
 lazy_static::lazy_static! {
     static ref START_TIME: Instant = Instant::now();
+    static ref RUN: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
 }
 
 //-----------------------------------------------------------------------------
@@ -225,7 +229,7 @@ fn task2(task_id: usize, calseg: CalSeg<CalPage>, calseg2: CalSeg<CalPage2>) {
     // Create one static event for all instances of this thread, with 8 byte capture buffer
     let mut event = daq_create_event!("task2_static", 8);
 
-    loop {
+    while RUN.load(Ordering::Acquire) {
         // Sleep for a calibratable amount of microseconds, stop task if run is false
         if !calseg.run2 {
             break;
@@ -278,7 +282,7 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
     daq_register!(counter_u64, event, "wrapping counter: u64", "");
     daq_register_array!(array1, event);
 
-    loop {
+    while RUN.load(Ordering::Acquire) {
         if !calseg.run1 {
             break;
         }
@@ -342,7 +346,7 @@ fn main() {
     // The initial RAM page can be loaded from a json file (load_json=true) or set to the default FLASH page (load_json=false)
 
     // Create a alibration segment wrapper for CAL_PAGE, add fields manually to registry
-    let mut calseg = Xcp::add_calseg(
+    let calseg = Xcp::add_calseg(
         "CalPage", // name of the calibration segment and the .json file
         &CAL_PAGE, // default calibration values with static lifetime, trait bound from CalPageTrait must be possible
     );
@@ -387,7 +391,7 @@ fn main() {
     daq_register!(mainloop_counter1, mainloop_event);
     //daq_register_ref!(mainloop_counter2, mainloop_event);
 
-    loop {
+    while RUN.load(Ordering::Acquire) {
         // @@@@ Dev: Terminate mainloop for shutdown if calibration parameter run is false, for test automation
         if !calseg.run {
             break;
@@ -431,10 +435,7 @@ fn main() {
         }
     }
     info!("Main task finished");
-
-    // @@@@ Dev: Force alls threads to terminate (deref_mut of a calibration segment is undefined behaviour used for testing here)
-    calseg.run1 = false;
-    calseg.run2 = false;
+    RUN.store(false, Ordering::Relaxed);
 
     // Wait for the threads to finish
     t1.join().ok().unwrap();

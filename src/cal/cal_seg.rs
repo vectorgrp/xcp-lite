@@ -6,7 +6,7 @@
 
 use std::{
     marker::PhantomData,
-    ops::{Deref, DerefMut},
+    ops::Deref,
     sync::{Arc, Mutex},
 };
 
@@ -373,22 +373,23 @@ where
     }
 }
 
+//----------------------------------------------------------------------------------------------
 // Implement DerefMut for CalSegSync
 // @@@@ For testing only
 // Deref to XCP page and increment the modification counter
 // This is undefined behaviour, because the reference to XCP data page will escape from its mutex
-impl<T> DerefMut for CalSeg<T>
-where
-    T: CalPageTrait,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        warn!("Unsafe deref mut to XCP page of {}, this is undefined behaviour !!", self.get_name());
-        let mut p = self.xcp_page.lock().unwrap();
-        p.ctr = p.ctr.wrapping_add(1);
-        let r: *mut T = &mut p.page;
-        unsafe { &mut *r }
-    }
-}
+// impl<T> DerefMut for CalSeg<T>
+// where
+//     T: CalPageTrait,
+// {
+//     fn deref_mut(&mut self) -> &mut Self::Target {
+//         warn!("Unsafe deref mut to XCP page of {}, this is undefined behaviour !!", self.get_name());
+//         let mut p = self.xcp_page.lock().unwrap();
+//         p.ctr = p.ctr.wrapping_add(1);
+//         let r: *mut T = &mut p.page;
+//         unsafe { &mut *r }
+//     }
+// }
 
 //----------------------------------------------------------------------------------------------
 // Implement Clone for CalSegSync
