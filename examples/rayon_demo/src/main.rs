@@ -1,4 +1,4 @@
-// xcp_lite - rayon demo
+// xcp-lite - rayon demo
 // Visualize start and stop of synchronous tasks in worker thread pool
 // Taken from the mandelbrot rayon example in the book "Programming Rust" by Jim Blandy and Jason Orendorff
 
@@ -131,7 +131,7 @@ fn render(pixels: &mut [u8], row: usize, length: usize, upper_left: Complex<f64>
 //---------------------------------------------------------------------------------------
 
 fn main() {
-    println!("xcp_lite rayon mandelbrot demo");
+    println!("xcp-lite rayon mandelbrot demo");
 
     env_logger::Builder::new().filter_level(log::LevelFilter::Debug).init();
 

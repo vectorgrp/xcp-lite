@@ -1,4 +1,4 @@
-# xcp_lite - proc macro demo
+# xcp-lite - proc macro demo
 
 Demo which informations the XcpTypeDescription derive and its attributes provide.  
 

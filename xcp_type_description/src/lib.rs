@@ -24,17 +24,7 @@ pub struct FieldDescriptor {
 
 impl FieldDescriptor {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        name: String,
-        datatype: &'static str,
-        comment: &'static str,
-        min: f64,
-        max: f64,
-        unit: &'static str,
-        x_dim: usize,
-        y_dim: usize,
-        offset: u16,
-    ) -> Self {
+    pub fn new(name: String, datatype: &'static str, comment: &'static str, min: f64, max: f64, unit: &'static str, x_dim: usize, y_dim: usize, offset: u16) -> Self {
         FieldDescriptor {
             name,
             datatype,
@@ -110,10 +100,7 @@ macro_rules! impl_xcp_type_description_for_primitive {
     };
 }
 
-impl_xcp_type_description_for_primitive!(
-    u8, u16, u32, u64, usize, i8, i16, i32,
-    i64, isize, f32, f64, bool, char, String
-);
+impl_xcp_type_description_for_primitive!(u8, u16, u32, u64, usize, i8, i16, i32, i64, isize, f32, f64, bool, char, String);
 
 // The implementation of the XcpTypeDescription trait for
 // arrays is also a blanket (empty) trait implementation

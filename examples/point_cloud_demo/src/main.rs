@@ -1,4 +1,4 @@
-// xcp_lite - point cloud demo
+// xcp-lite - point cloud demo
 // Visualize a dynamic list of 3D points in CANape
 
 #[allow(unused_imports)]

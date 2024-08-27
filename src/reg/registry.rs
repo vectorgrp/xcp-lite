@@ -442,7 +442,6 @@ pub struct RegistryCharacteristic {
     calseg_name: &'static str,
     name: String,
     datatype: RegistryDataType,
-    //datatype: &'static str,
     comment: &'static str,
     min: f64,
     max: f64,
@@ -458,7 +457,6 @@ impl RegistryCharacteristic {
     pub fn new(
         calseg_name: &'static str,
         name: String,
-        //datatype: &'static str,
         datatype: RegistryDataType,
         comment: &'static str,
         min: f64,

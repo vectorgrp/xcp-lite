@@ -1,4 +1,4 @@
-// xcp_lite - single_thread_demo
+// xcp-lite - single_thread_demo
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};

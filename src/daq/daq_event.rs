@@ -595,8 +595,6 @@ mod daq_tests {
             }
         }
         xcp.write_a2l();
-        // std::fs::remove_file("xcp_lite.a2h").ok();
-        // std::fs::remove_file("xcp_lite.a2l").ok();
     }
 
     //-----------------------------------------------------------------------------

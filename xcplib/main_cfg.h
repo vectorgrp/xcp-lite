@@ -7,7 +7,7 @@
    Licensed under the MIT license.See LICENSE file in the project root for details. */
 
 
-// When static library is used for Rust xcp_lite, consider the following options which are compiled into it
+// When static library is used for Rust xcp-lite, consider the following options which are compiled into it
 /*
 
   main_cfg.h:

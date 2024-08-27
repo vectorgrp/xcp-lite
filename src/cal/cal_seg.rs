@@ -173,7 +173,7 @@ where
         let max = if field.max.is_some() { field.max.unwrap() } else { datatype.get_max() };
         let c = crate::reg::RegistryCharacteristic::new(
             self.get_name(),
-            format!("{}.{}", self.get_name(), field.name.to_string()),
+            format!("{}.{}", self.get_name(), field.name),
             datatype,
             comment,
             min,

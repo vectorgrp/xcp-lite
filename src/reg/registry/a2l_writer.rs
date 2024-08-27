@@ -35,24 +35,20 @@ impl GenerateA2l for RegistryXcpTransportLayer {
 
 impl GenerateA2l for XcpEvent {
     fn to_a2l_string(&self) -> String {
-        let indexed_name = self.get_indexed_name();
-        trace!("write Event {} / {}  num={}", self.get_name(), self.get_indexed_name(), self.get_num());
-        // long name 100+1 characters
-        // short name 8+1 characters
+        let name = self.get_name();
+        let index = self.get_index();
+        let num = self.get_num();
+
+        trace!("Write event {} index={}  num={}", name, index, num);
 
         // @@@@ ToDo: CANape does not accept CONSISTENCY EVENT for serialized data types
-        // format!(
-        //     r#"/begin EVENT "{:.100}" "{:.8}" {} DAQ 0xFF 0 0 0 CONSISTENCY EVENT /end EVENT"#,
-        //     indexed_name,
-        //     indexed_name,
-        //     self.get_num()
-        // )
-        format!(
-            r#"/begin EVENT "{:.100}" "{:.8}" {} DAQ 0xFF 0 0 0 CONSISTENCY DAQ /end EVENT"#,
-            indexed_name,
-            indexed_name,
-            self.get_num()
-        )
+        // long name 100+1 characters
+        // short name 8+1 characters
+        if index > 0 {
+            format!(r#"/begin EVENT "{:.98}_{}" "{:.6}_{}" {} DAQ 0xFF 0 0 0 CONSISTENCY DAQ /end EVENT"#, name, index, name, index, num)
+        } else {
+            format!(r#"/begin EVENT "{:.100}" "{:.8}" {} DAQ 0xFF 0 0 0 CONSISTENCY DAQ /end EVENT"#, name, name, num)
+        }
     }
 }
 

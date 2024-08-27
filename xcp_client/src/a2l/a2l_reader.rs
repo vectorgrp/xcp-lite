@@ -57,25 +57,15 @@ pub fn a2l_load(filename: &str) -> Result<a2lfile::A2lFile, a2lfile::A2lError> {
     Ok(a2l_file)
 }
 
-pub fn a2l_find_characteristic(
-    a2l_file: &A2lFile,
-    name: &str,
-) -> Option<(A2lAddr, A2lType, A2lLimits)> {
-    let o = a2l_file.project.module[0]
-        .characteristic
-        .iter()
-        .find(|m| m.name == name);
+pub fn a2l_find_characteristic(a2l_file: &A2lFile, name: &str) -> Option<(A2lAddr, A2lType, A2lLimits)> {
+    let o = a2l_file.project.module[0].characteristic.iter().find(|m| m.name == name);
     if o.is_none() {
         None
     } else {
         let c = o.unwrap();
         debug!("Found characteristic {}", c.name);
         let a2l_addr = c.address;
-        let a2l_ext = c
-            .ecu_address_extension
-            .clone()
-            .map(|e| e.extension)
-            .unwrap_or_default();
+        let a2l_ext = c.ecu_address_extension.clone().map(|e| e.extension).unwrap_or_default();
         let characteristic_type = c.characteristic_type; //Ascii,Curve,Map,Cuboid,Cube4,Cube5,ValBlk,Value
         let deposit = c.deposit.clone(); // record layout name
 
@@ -84,31 +74,17 @@ pub fn a2l_find_characteristic(
         let a2l_upper_limit = c.upper_limit;
         debug!(
             "addr: {}:{:08X} type: {:?} deposit :{:?} conversion: {:?} lower: {} upper: {}",
-            a2l_ext,
-            a2l_addr,
-            characteristic_type,
-            deposit,
-            conversion,
-            a2l_lower_limit,
-            a2l_upper_limit
+            a2l_ext, a2l_addr, characteristic_type, deposit, conversion, a2l_lower_limit, a2l_upper_limit
         );
 
         let a2l_size: u8;
         let a2l_encoding: A2lTypeEncoding;
         if deposit == "U8" || deposit == "S8" {
             a2l_size = 1;
-            a2l_encoding = if deposit == "U8" {
-                A2lTypeEncoding::Unsigned
-            } else {
-                A2lTypeEncoding::Signed
-            };
+            a2l_encoding = if deposit == "U8" { A2lTypeEncoding::Unsigned } else { A2lTypeEncoding::Signed };
         } else if deposit == "U16" || deposit == "S16" {
             a2l_size = 2;
-            a2l_encoding = if deposit == "U16" {
-                A2lTypeEncoding::Unsigned
-            } else {
-                A2lTypeEncoding::Signed
-            };
+            a2l_encoding = if deposit == "U16" { A2lTypeEncoding::Unsigned } else { A2lTypeEncoding::Signed };
         } else if deposit == "U32" || deposit == "S32" || deposit == "F32" {
             a2l_size = 4;
             a2l_encoding = if deposit == "U32" {
@@ -135,11 +111,7 @@ pub fn a2l_find_characteristic(
             A2lAddr {
                 ext: a2l_ext as u8,
                 addr: a2l_addr,
-                event: if a2l_ext == 0 {
-                    (a2l_addr >> 16) as u16
-                } else {
-                    0
-                },
+                event: if a2l_ext == 0 { (a2l_addr >> 16) as u16 } else { 0 },
             },
             A2lType {
                 size: a2l_size,
@@ -154,20 +126,9 @@ pub fn a2l_find_characteristic(
 }
 
 pub fn a2l_find_measurement(a2l_file: &A2lFile, name: &str) -> Option<(A2lAddr, A2lType)> {
-    let m = a2l_file.project.module[0]
-        .measurement
-        .iter()
-        .find(|m| m.name == name)?;
-    let a2l_addr: u32 = m
-        .ecu_address
-        .clone()
-        .expect("measurement ecu_address not defined!")
-        .address;
-    let a2l_ext: i16 = m
-        .ecu_address_extension
-        .clone()
-        .expect("ecu_address_extension not defined!")
-        .extension;
+    let m = a2l_file.project.module[0].measurement.iter().find(|m| m.name == name)?;
+    let a2l_addr: u32 = m.ecu_address.clone().expect("measurement ecu_address not defined!").address;
+    let a2l_ext: i16 = m.ecu_address_extension.clone().expect("ecu_address_extension not defined!").extension;
     let get_type = m.datatype;
     let a2l_size: u8 = match get_type {
         DataType::Sbyte => 1,
@@ -239,10 +200,7 @@ pub fn a2l_printf_info(a2l_file: &A2lFile) {
             info!(" epk={}", epk.identifier);
         }
         for mem_seg in &mod_par.memory_segment {
-            info!(
-                " mem_seg {} {:0X}:{}",
-                mem_seg.name, mem_seg.address, mem_seg.size
-            );
+            info!(" mem_seg {} {:0X}:{}", mem_seg.name, mem_seg.address, mem_seg.size);
             //info!(" if_data: {:?}", mem_seg.if_data);
         }
     }
@@ -250,20 +208,9 @@ pub fn a2l_printf_info(a2l_file: &A2lFile) {
     // MEASUREMENT
     info!("MEASUREMENT:");
     for measurement in &a2l_file.project.module[0].measurement {
-        let addr = measurement
-            .ecu_address
-            .clone()
-            .expect("ecu_address not defined!")
-            .address;
-        let ext = measurement
-            .ecu_address_extension
-            .clone()
-            .expect("ecu_address_extentsion not defined!")
-            .extension;
-        info!(
-            " {} {} {}:0x{:X}",
-            measurement.name, measurement.datatype, ext, addr
-        );
+        let addr = measurement.ecu_address.clone().expect("ecu_address not defined!").address;
+        let ext = measurement.ecu_address_extension.clone().expect("ecu_address_extentsion not defined!").extension;
+        info!(" {} {} {}:0x{:X}", measurement.name, measurement.datatype, ext, addr);
     }
 
     // CHARACTERISTIC
@@ -289,10 +236,5 @@ pub fn a2l_printf_info(a2l_file: &A2lFile) {
 
     // Write A2L to a file
     let filename = "a2lfile.a2l";
-    a2l_file
-        .write(
-            std::ffi::OsString::from(filename),
-            Some("Rewritten by xcp_lite"),
-        )
-        .expect("failed to write output");
+    a2l_file.write(std::ffi::OsString::from(filename), Some("Rewritten by xcp-lite")).expect("failed to write output");
 }
