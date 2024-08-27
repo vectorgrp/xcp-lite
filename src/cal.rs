@@ -92,7 +92,7 @@ where
 
         for field in self.type_description().unwrap().iter() {
             let c = reg::RegistryCharacteristic::new(
-                calseg_name,
+                Some(calseg_name),
                 field.name().to_string(),
                 reg::RegistryDataType::from_rust_type(field.datatype()),
                 field.comment(),
@@ -101,8 +101,7 @@ where
                 field.unit(),
                 if field.x_dim() == 0 { 1 } else { field.x_dim() },
                 if field.y_dim() == 0 { 1 } else { field.y_dim() },
-                field.offset(),
-                Xcp::XCP_ADDR_EXT_APP, // segment relative addressing
+                field.offset() as u64,
             );
 
             Xcp::get().get_registry().lock().unwrap().add_characteristic(c);

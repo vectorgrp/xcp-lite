@@ -172,7 +172,7 @@ where
         let min = if field.min.is_some() { field.min.unwrap() } else { datatype.get_min() };
         let max = if field.max.is_some() { field.max.unwrap() } else { datatype.get_max() };
         let c = crate::reg::RegistryCharacteristic::new(
-            self.get_name(),
+            Some(self.get_name()),
             format!("{}.{}", self.get_name(), field.name),
             datatype,
             comment,
@@ -181,8 +181,7 @@ where
             unit,
             field.dim.0,
             field.dim.1,
-            field.offset,
-            Xcp::XCP_ADDR_EXT_APP, // segment relative addressing
+            field.offset as u64,
         );
 
         Xcp::get().get_registry().lock().unwrap().add_characteristic(c);

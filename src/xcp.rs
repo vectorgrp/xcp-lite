@@ -118,14 +118,6 @@ impl XcpEvent {
         (a2l_ext, a2l_addr)
     }
 
-    /// Get address extension and address for A2L generation for XCP_ADDR_EXT_ABS addressing mode
-    /// Used by A2L writer
-    pub fn get_abs_ext_addr(self, addr: u64) -> (u8, u32) {
-        let a2l_ext = Xcp::XCP_ADDR_EXT_ABS;
-        let a2l_addr = unsafe { xcplib::ApplXcpGetAddr(addr as *const u8) };
-        (a2l_ext, a2l_addr)
-    }
-
     /// Trigger a XCP event and provide a base pointer for relative addressing mode (XCP_ADDR_EXT_DYN)
     /// Address of the associated measurement variable must be relative to base
     ///
@@ -424,6 +416,14 @@ impl Xcp {
 
     /// Addr of the EPK
     pub const XCP_EPK_ADDR: u32 = 0x80000000;
+
+    /// Get address extension and address for A2L generation for XCP_ADDR_EXT_ABS addressing mode
+    /// Used by A2L writer
+    pub fn get_abs_ext_addr(addr: u64) -> (u8, u32) {
+        let a2l_ext = Xcp::XCP_ADDR_EXT_ABS;
+        let a2l_addr = unsafe { xcplib::ApplXcpGetAddr(addr as *const u8) };
+        (a2l_ext, a2l_addr)
+    }
 
     // new
     fn new() -> Xcp {

@@ -439,7 +439,7 @@ impl RegistryMeasurementList {
 
 #[derive(Clone, Debug)]
 pub struct RegistryCharacteristic {
-    calseg_name: &'static str,
+    calseg_name: Option<&'static str>,
     name: String,
     datatype: RegistryDataType,
     comment: &'static str,
@@ -448,14 +448,13 @@ pub struct RegistryCharacteristic {
     unit: &'static str,
     x_dim: usize,
     y_dim: usize,
-    offset: u16,
-    extension: u8,
+    addr_offset: u64,
 }
 
 #[allow(clippy::too_many_arguments)]
 impl RegistryCharacteristic {
     pub fn new(
-        calseg_name: &'static str,
+        calseg_name: Option<&'static str>,
         name: String,
         datatype: RegistryDataType,
         comment: &'static str,
@@ -464,8 +463,7 @@ impl RegistryCharacteristic {
         unit: &'static str,
         x_dim: usize,
         y_dim: usize,
-        offset: u16,
-        extension: u8,
+        addr_offset: u64,
     ) -> Self {
         RegistryCharacteristic {
             calseg_name,
@@ -477,12 +475,11 @@ impl RegistryCharacteristic {
             x_dim,
             y_dim,
             unit,
-            offset,
-            extension,
+            addr_offset,
         }
     }
 
-    pub fn calseg_name(&self) -> &'static str {
+    pub fn calseg_name(&self) -> Option<&'static str> {
         self.calseg_name
     }
 
@@ -528,12 +525,8 @@ impl RegistryCharacteristic {
         }
     }
 
-    pub fn offset(&self) -> u16 {
-        self.offset
-    }
-
-    pub fn extension(&self) -> u8 {
-        self.extension
+    pub fn addr_offset(&self) -> u64 {
+        self.addr_offset
     }
 }
 
@@ -711,7 +704,7 @@ impl Registry {
     ///   If a measurement with the same name already exists
     ///   If the registry is closed
     pub fn add_characteristic(&mut self, c: RegistryCharacteristic) {
-        debug!("add_characteristic: {}.{} type={:?} offset={}", c.calseg_name(), c.name(), c.datatype(), c.offset());
+        debug!("add_characteristic: {:?}.{} type={:?} offset={}", c.calseg_name(), c.name(), c.datatype(), c.addr_offset());
         debug!("add_characteristic: {:?}", c);
 
         // Panic if registry is closed

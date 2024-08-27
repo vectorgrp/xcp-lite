@@ -113,7 +113,7 @@ impl GenerateA2l for RegistryMeasurement {
         let (ext, addr) = if self.addr == 0 {
             self.event.get_dyn_ext_addr(self.addr_offset)
         } else {
-            self.event.get_abs_ext_addr(self.addr)
+            Xcp::get_abs_ext_addr(self.addr)
         };
 
         trace!(
@@ -193,11 +193,15 @@ impl GenerateA2l for RegistryMeasurement {
 impl GenerateA2l for RegistryCharacteristic {
     fn to_a2l_string(&self) -> String {
         let characteristic_type = self.characteristic_type();
-
-        //let datatype = RegistryDataType::from_rust_type(self.datatype).get_deposit_str();
         let datatype = self.datatype.get_deposit_str();
-
-        let (a2l_ext, a2l_addr) = Xcp::get_calseg_ext_addr(self.calseg_name, self.offset);
+        let (a2l_ext, a2l_addr) = if let Some(calseg_name) = self.calseg_name {
+            // Segment relatice addressing
+            assert!(self.addr_offset <= 0xFFFF);
+            Xcp::get_calseg_ext_addr(calseg_name, self.addr_offset as u16)
+        } else {
+            // Absolute addressing
+            Xcp::get_abs_ext_addr(self.addr_offset)
+        };
 
         let mut result = format!(
             r#"/begin CHARACTERISTIC {} "{}" {} 0x{:X} {} 0 NO_COMPU_METHOD {} {}"#,
@@ -343,20 +347,31 @@ impl A2lWriter {
         // Memory segments from calibration segments
         let memory_segments = &registry.cal_seg_list.to_a2l_string();
 
-        // Parameter and their groups defined by calibration segments
+        // Parameters not in a calibration segment
         let mut v = Vec::new();
+        for c in registry.characteristic_list.iter() {
+            if c.calseg_name().is_none() {
+                v.push(c.to_a2l_string());
+            }
+        }
+
+        // Parameters defined in calibration segments
         for s in registry.cal_seg_list.iter() {
             for c in registry.characteristic_list.iter() {
-                if s.name == c.calseg_name() {
-                    v.push(c.to_a2l_string());
+                if let Some(calseg_name) = c.calseg_name() {
+                    if s.name == calseg_name {
+                        v.push(c.to_a2l_string());
+                    }
                 }
             }
-
+            // Create a group for each calibration segment
             let mut groups: String = format!("/begin GROUP {} \"\" /begin REF_CHARACTERISTIC ", s.name);
             for c in registry.characteristic_list.iter() {
-                if s.name == c.calseg_name() {
-                    groups += c.name();
-                    groups += " ";
+                if let Some(calseg_name) = c.calseg_name() {
+                    if s.name == calseg_name {
+                        groups += c.name();
+                        groups += " ";
+                    }
                 }
             }
             groups += "/end REF_CHARACTERISTIC /end GROUP\n";

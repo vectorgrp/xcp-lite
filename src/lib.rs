@@ -47,8 +47,9 @@ pub use daq::DaqEvent;
 mod reg;
 pub use reg::RegDataTypeHandler;
 pub use reg::RegDataTypeProperties;
+pub use reg::RegistryCharacteristic;
 pub use reg::RegistryDataType;
-pub use reg::RegistryMeasurement; // for aacp_xcp
+pub use reg::RegistryMeasurement;
 
 // @@@@ Reexport for integration tests
 pub use xcp::xcp_test::test_reinit;
@@ -56,6 +57,20 @@ pub use xcp::xcp_test::test_reinit;
 // XCPlite FFI bindings
 mod xcplib {
     include!("xcplite.rs");
+}
+
+//----------------------------------------------------------------------------------------------
+// Manually register a static calibration variable
+
+#[macro_export]
+macro_rules! cal_register {
+    (   $name:ident ) => {{
+        let name = stringify!($name);
+        let datatype = unsafe { $name.get_type() };
+        let addr = unsafe { &($name) as *const _ as u64 };
+        let c = RegistryCharacteristic::new(None, name.to_string(), datatype, "", datatype.get_min(), datatype.get_max(), "", 1, 1, addr);
+        Xcp::get().get_registry().lock().unwrap().add_characteristic(c);
+    }};
 }
 
 //-----------------------------------------------------------------------------

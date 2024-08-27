@@ -90,6 +90,10 @@ lazy_static::lazy_static! {
 }
 
 //-----------------------------------------------------------------------------
+// Static calibration variable
+static mut STATIC_VAR: u32 = 0;
+
+//-----------------------------------------------------------------------------
 // Demo calibration parameter pages
 
 // Definition of structures with calibration parameter constants
@@ -337,6 +341,9 @@ fn main() {
         }
         Ok(xcp) => xcp,
     };
+
+    // Create a static calibration variable
+    cal_register!(STATIC_VAR);
 
     // Create calibration parameter sets
     // Calibration segments have "static" lifetime, the Xcp singleton holds a smart pointer clone to each
