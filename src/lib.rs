@@ -64,10 +64,10 @@ mod xcplib {
 
 #[macro_export]
 macro_rules! cal_register {
-    (   $name:ident ) => {{
-        let name = stringify!($name);
-        let datatype = unsafe { $name.get_type() };
-        let addr = unsafe { &($name) as *const _ as u64 };
+    (   $cell:ident.$field:ident ) => {{
+        let name = format!("{}.{}", stringify!($cell), stringify!($field));
+        let datatype = unsafe { $cell.$field.get_type() };
+        let addr = unsafe { &($cell.$field) as *const _ as u64 };
         let c = RegistryCharacteristic::new(None, name.to_string(), datatype, "", datatype.get_min(), datatype.get_max(), "", 1, 1, addr);
         Xcp::get().get_registry().lock().unwrap().add_characteristic(c);
     }};

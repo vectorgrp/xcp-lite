@@ -49,7 +49,7 @@ impl DaqDecoder {
 
 impl XcpDaqDecoder for DaqDecoder {
     // Handle incomming text data from XCP server
-    // Hard coded decoder for DAQ data with measurement of counter:u32 or channel1/2:f64
+    // Hard coded decoder for DAQ data with measurement of counter:u32 or channel_x:f64
     fn decode(&mut self, _control: &XcpTaskControl, data: &[u8]) {
         let odt = data[0];
         let _daq = data[1];
@@ -59,6 +59,9 @@ impl XcpDaqDecoder for DaqDecoder {
             let timestamp = data[2] as u32 | (data[3] as u32) << 8 | (data[4] as u32) << 16 | (data[5] as u32) << 24;
             if data_len == 4 {
                 let counter = data[6] as u32 | (data[7] as u32) << 8 | (data[8] as u32) << 16 | (data[9] as u32) << 24;
+                if counter >= 256 {
+                    warn!("Unexpected counter value {}", counter);
+                }
                 trace!("DAQ: daq={}, odt={}: timestamp={} counter={}", _daq, odt, timestamp, counter);
             } else if data_len == 8 {
                 let b: [u8; 8] = data[6..14].try_into().unwrap();
@@ -132,8 +135,12 @@ struct Args {
 async fn main() {
     let args = Args::parse();
     let log_level = args.log_level.to_log_level_filter();
-
     env_logger::Builder::new().filter_level(log_level).init();
+
+    println!("Test XCP client demo application");
+    println!("Calibrate and measure objects from xcp-lite main demo application");
+    println!("Measure counter from task1 and all channel_x from all task2 instances");
+    println!("Calibrate the task cycle time and counter_max");
 
     // Create xcp_client
     let dest_addr: Result<SocketAddr, _> = args.dest_addr.parse();
@@ -167,13 +174,25 @@ async fn main() {
     info!("XCP calibration");
     // Create a calibration object for CalPage1.counter_max
     if let Ok(counter_max) = xcp_client.create_calibration_object("CalPage1.counter_max").await {
-        // Get current value
         let v = xcp_client.get_value_u64(counter_max);
-        info!("CalPage1.counter_max = {}", v);
-
-        // Set value to 1000
-        info!("CalPage1.counter_max = {}", v);
-        xcp_client.set_value_u64(counter_max, 256).await.unwrap();
+        info!("Set CalPage1.counter_max = {}", v);
+        xcp_client.set_value_u64(counter_max, 255).await.unwrap();
+    } else {
+        warn!("CalPage1.counter_max not found");
+    }
+    if let Ok(cycle_time_us) = xcp_client.create_calibration_object("calpage0.task1_cycle_time_us").await {
+        let v = xcp_client.get_value_u64(cycle_time_us);
+        info!("Set calpage0.cycle_time_us = {} (counter task)", v);
+        xcp_client.set_value_u64(cycle_time_us, 1000).await.unwrap();
+    } else {
+        warn!("Set calpage0.cycle_time_us not found");
+    }
+    if let Ok(cycle_time_us) = xcp_client.create_calibration_object("calpage0.task2_cycle_time_us").await {
+        let v = xcp_client.get_value_u64(cycle_time_us);
+        info!("calpage0.cycle_time_us = {} (channel_x task)", v);
+        xcp_client.set_value_u64(cycle_time_us, 50).await.unwrap();
+    } else {
+        warn!("calpage0.cycle_time_us not found");
     }
 
     info!("XCP Measurement");
@@ -204,11 +223,13 @@ async fn main() {
             break;
         };
     }
+    let start_time = tokio::time::Instant::now();
     xcp_client.start_measurement().await.unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
     xcp_client.stop_measurement().await.unwrap();
+    let elapsed_time = start_time.elapsed().as_micros();
     let event_count = daq_decoder.lock().unwrap().event_count;
-    info!("Measurement done, {} events", event_count);
+    info!("Measurement done, {} events, {:.0} event/s", event_count, event_count as f64 * 1_000_000.0 / elapsed_time as f64);
     assert_ne!(event_count, 0);
 
     // Stop demo task

@@ -348,12 +348,17 @@ impl A2lWriter {
         let memory_segments = &registry.cal_seg_list.to_a2l_string();
 
         // Parameters not in a calibration segment
+        let mut group: String = format!("/begin GROUP Cal \"\" /begin REF_CHARACTERISTIC ");
         let mut v = Vec::new();
         for c in registry.characteristic_list.iter() {
             if c.calseg_name().is_none() {
                 v.push(c.to_a2l_string());
+                group += c.name();
+                group += " ";
             }
         }
+        group += "/end REF_CHARACTERISTIC /end GROUP\n";
+        v.push(group);
 
         // Parameters defined in calibration segments
         for s in registry.cal_seg_list.iter() {
@@ -365,17 +370,17 @@ impl A2lWriter {
                 }
             }
             // Create a group for each calibration segment
-            let mut groups: String = format!("/begin GROUP {} \"\" /begin REF_CHARACTERISTIC ", s.name);
+            let mut group: String = format!("/begin GROUP {} \"\" /begin REF_CHARACTERISTIC ", s.name);
             for c in registry.characteristic_list.iter() {
                 if let Some(calseg_name) = c.calseg_name() {
                     if s.name == calseg_name {
-                        groups += c.name();
-                        groups += " ";
+                        group += c.name();
+                        group += " ";
                     }
                 }
             }
-            groups += "/end REF_CHARACTERISTIC /end GROUP\n";
-            v.push(groups);
+            group += "/end REF_CHARACTERISTIC /end GROUP\n";
+            v.push(group);
         }
         let characteristics = v.join("\n");
 

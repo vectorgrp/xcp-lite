@@ -82,24 +82,48 @@ use xcp::*;
 use xcp_type_description::prelude::*;
 
 //-----------------------------------------------------------------------------
-// Application start time
+// Static variables
 
 lazy_static::lazy_static! {
+
+    // Application start time
     static ref START_TIME: Instant = Instant::now();
-    static ref RUN: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
+
+    // Stop all tasks if false
+    static ref RUN: AtomicBool = AtomicBool::new(true);
 }
 
 //-----------------------------------------------------------------------------
-// Static calibration variable
-static mut STATIC_VAR: u32 = 0;
+// Static calibration data example
+// This is the classical address oriented calibration approach for indivual calibration parameters or structs
+// The calibration parameters are defined as static instances with constant memory address
+// Each variable or struct field has to be registered manually in the A2L registry
+// A2L addresses are absolute in the application process memory space (which means relative to the module load address)
+
+// This approach uses a OnceCell to initialize a static instance of calibration data, a mutable static instead would need unsafe, a static might be in write protected memory and a const has no memory address
+// The inner UnsafeCell allows interiour mutability, but this could theoretically cause undefined behaviour or inconsistencies depending on the nature of the platform
+// Many C,C++ implementations of XCP do not care about this, but this approach is not recommended for rust projects
+
+struct CalPage0 {
+    task1_cycle_time_us: u32, // Cycle time of task1 in microseconds
+    task2_cycle_time_us: u32, // Cycle time of task2 in microseconds
+}
+
+static CAL_PAGE0: once_cell::sync::OnceCell<CalPage0> = once_cell::sync::OnceCell::with_value(CalPage0 {
+    task1_cycle_time_us: 1000, // 1ms
+    task2_cycle_time_us: 1000, // 1ms
+});
 
 //-----------------------------------------------------------------------------
-// Demo calibration parameter pages
-
-// Definition of structures with calibration parameter constants
-// Implement Serialize, Deserialize for persistence to json
-// Implement XcpTypeDescription for auto registration of fields in A2L registry
+// Dynamic calibration data example
+// This approach uses the segment oriented calibration approach with a calibrastion segment wrapper cell type
+// It provides defined behaviour, thread safety and data consistency
+// Fields may be automatically added to the A2L registry by the auto_reg feature and the XcpTypeDescription derive macro
 // Each page defines a MEMORY_SEGMENT in A2L and CANape
+// A2l addresses are relative to the segment start address, the segment numer is coded in the address
+
+// Implement Serialize, Deserialize for json file persistency
+// Implement XcpTypeDescription for auto registration of fields in the A2L registry
 
 //---------------------------------------------------
 // CalPage
@@ -107,22 +131,21 @@ static mut STATIC_VAR: u32 = 0;
 #[cfg_attr(feature = "auto_reg", derive(XcpTypeDescription))]
 #[derive(Debug, Clone, Copy)]
 struct CalPage {
-    run: bool,
-    run1: bool,
-    run2: bool,
-    cycle_time_us: u32,
+    run: bool,          // Stop all tasks
+    run1: bool,         // Stop demo task1
+    run2: bool,         // Stop demo task2
+    cycle_time_us: u32, // Cycle time of main loop in microseconds
 }
 
 const CAL_PAGE: CalPage = CalPage {
     run: true,
     run1: true,
     run2: true,
-    cycle_time_us: 1000, // 1ms
+    cycle_time_us: 50000, // 50ms
 };
 
 //---------------------------------------------------
 // CalPage1
-
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "auto_reg", derive(XcpTypeDescription))]
 #[derive(Debug, Clone, Copy)]
@@ -197,10 +220,10 @@ struct CalPage2 {
 #[cfg(not(feature = "auto_reg"))]
 #[derive(Debug, Clone, Copy)]
 struct CalPage2 {
-    ampl: f64,
-    period: f64,
-    array: [f64; 16],
-    map: [[u8; 9]; 8],
+    ampl: f64,         // Amplitude of the demo sine signals
+    period: f64,       // Period of the demo sine signals
+    array: [f64; 16],  // Demo curve
+    map: [[u8; 9]; 8], // Demo map
 }
 
 const CAL_PAGE2: CalPage2 = CalPage2 {
@@ -225,7 +248,8 @@ const CAL_PAGE2: CalPage2 = CalPage2 {
 // A task which calculates some measurement signals depending on calibration parameters in a shared calibration segment
 // This task is instantiated multiple times
 fn task2(task_id: usize, calseg: CalSeg<CalPage>, calseg2: CalSeg<CalPage2>) {
-    // Create events for data acquisition
+    // Static calibration parameters
+    let calpage0 = CAL_PAGE0.get().unwrap();
 
     // Create an event instance for each thread, with 8 byte capture buffer
     let mut instance_event = daq_create_event_instance!("task2_inst", 8);
@@ -234,11 +258,13 @@ fn task2(task_id: usize, calseg: CalSeg<CalPage>, calseg2: CalSeg<CalPage2>) {
     let mut event = daq_create_event!("task2_static", 8);
 
     while RUN.load(Ordering::Acquire) {
-        // Sleep for a calibratable amount of microseconds, stop task if run is false
+        // Stop task if calibration parameter run2 is false
         if !calseg.run2 {
             break;
         }
-        thread::sleep(Duration::from_micros(calseg.cycle_time_us as u64));
+
+        // Sleep for a calibratable amount of microseconds
+        thread::sleep(Duration::from_micros(calpage0.task2_cycle_time_us as u64));
 
         // Calculate demo measurement variable depending on calibration parameters (sine signal with ampl and period)
         let time = START_TIME.elapsed().as_micros() as f64 * 0.000001; // s
@@ -275,6 +301,9 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
         *a = i as f64;
     }
 
+    // Static calibration parameters
+    let calpage0 = CAL_PAGE0.get().unwrap();
+
     // Create an event with capture capacity of 1024 bytes for point_cloud serialization
     let event = daq_create_event!("task1");
 
@@ -287,10 +316,13 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
     daq_register_array!(array1, event);
 
     while RUN.load(Ordering::Acquire) {
+        // Stop task if calibration parameter run1 is false
         if !calseg.run1 {
             break;
         }
-        thread::sleep(Duration::from_micros(calseg.cycle_time_us as u64));
+
+        // Sleep for a calibratable amount of microseconds
+        thread::sleep(Duration::from_micros(calpage0.task1_cycle_time_us as u64));
 
         // Basic types and array variables on stack
         counter = counter.wrapping_add(1);
@@ -342,8 +374,10 @@ fn main() {
         Ok(xcp) => xcp,
     };
 
-    // Create a static calibration variable
-    cal_register!(STATIC_VAR);
+    // Register a static calibration page
+    let calpage0 = CAL_PAGE0.get().unwrap();
+    cal_register!(calpage0.task1_cycle_time_us);
+    cal_register!(calpage0.task2_cycle_time_us);
 
     // Create calibration parameter sets
     // Calibration segments have "static" lifetime, the Xcp singleton holds a smart pointer clone to each
@@ -358,10 +392,10 @@ fn main() {
         &CAL_PAGE, // default calibration values with static lifetime, trait bound from CalPageTrait must be possible
     );
     calseg
-        .add_field(calseg_field!(CAL_PAGE.run, 0, 1, "boolean value"))
-        .add_field(calseg_field!(CAL_PAGE.run1, 0, 1, "boolean value"))
-        .add_field(calseg_field!(CAL_PAGE.run2, 0, 1, "boolean value"))
-        .add_field(calseg_field!(CAL_PAGE.cycle_time_us, "us", "task cycle time in us"));
+        .add_field(calseg_field!(CAL_PAGE.run, 0, 1, "bool"))
+        .add_field(calseg_field!(CAL_PAGE.run1, 0, 1, "bool"))
+        .add_field(calseg_field!(CAL_PAGE.run2, 0, 1, "bool"))
+        .add_field(calseg_field!(CAL_PAGE.cycle_time_us, "us", "main task cycle time"));
 
     // Create calibration segments for CAL_PAGE1 and CAL_PAGE2, add fields with macro derive(XcpTypeDescription))
     let calseg1 = Xcp::create_calseg("CalPage1", &CAL_PAGE1, true);
@@ -403,7 +437,7 @@ fn main() {
         if !calseg.run {
             break;
         }
-        thread::sleep(Duration::from_millis(50));
+        thread::sleep(Duration::from_micros(calseg.cycle_time_us as u64));
 
         mainloop_counter1 += 1;
         *mainloop_counter2 += 2;

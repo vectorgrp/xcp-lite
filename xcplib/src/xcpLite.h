@@ -139,11 +139,12 @@ extern BOOL ApplXcpPrepareDaq();
 extern BOOL ApplXcpStartDaq();
 extern void ApplXcpStopDaq();
 
-/* Address conversions from A2L address to pointer and vice versa */
-/* Note that xcpAddrExt 0x01 and 0xFF are reserved for special use cases (0x01 if XCP_ENABLE_DYN_ADDRESSING, 0xFF if XCP_ENABLE_IDT_A2L_UPLOAD) */
+/* Address conversions from A2L address to pointer and vice versa in absolute addressing mode */
+#ifdef XCP_ENABLE_ABS_ADDRESSING
 extern uint8_t* ApplXcpGetPointer(uint8_t xcpAddrExt, uint32_t xcpAddr); /* Create a pointer (uint8_t*) from xcpAddrExt and xcpAddr, returns NULL if no access */
 extern uint32_t ApplXcpGetAddr(const uint8_t* p); // Calculate the xcpAddr address from a pointer
 extern uint8_t *ApplXcpGetBaseAddr(); // Get the base address for DAQ data access */
+#endif
 
 /* Read and write memory */
 #ifdef XCP_ENABLE_APP_ADDRESSING

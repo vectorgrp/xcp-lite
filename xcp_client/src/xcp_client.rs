@@ -21,10 +21,7 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::time::{timeout, Duration};
 
 #[allow(unused_imports)]
-use crate::a2l::a2l_reader::{
-    a2l_find_characteristic, a2l_find_measurement, a2l_load, a2l_printf_info, A2lAddr, A2lLimits,
-    A2lType,
-};
+use crate::a2l::a2l_reader::{a2l_find_characteristic, a2l_find_measurement, a2l_load, a2l_printf_info, A2lAddr, A2lLimits, A2lType};
 
 //--------------------------------------------------------------------------------------------------------------------------------------------------
 // XCP Parameters
@@ -240,9 +237,7 @@ pub struct XcpCommandBuilder {
 
 impl XcpCommandBuilder {
     pub fn new(command_code: u8) -> XcpCommandBuilder {
-        let mut cmd = XcpCommandBuilder {
-            data: BytesMut::with_capacity(12),
-        };
+        let mut cmd = XcpCommandBuilder { data: BytesMut::with_capacity(12) };
         cmd.data.put_u16_le(0);
         cmd.data.put_u16_le(0);
         cmd.data.put_u8(command_code);
@@ -297,12 +292,7 @@ pub struct XcpCalibrationObject {
 }
 
 impl XcpCalibrationObject {
-    pub fn new(
-        name: &str,
-        a2l_addr: A2lAddr,
-        get_type: A2lType,
-        a2l_limits: A2lLimits,
-    ) -> XcpCalibrationObject {
+    pub fn new(name: &str, a2l_addr: A2lAddr, get_type: A2lType, a2l_limits: A2lLimits) -> XcpCalibrationObject {
         XcpCalibrationObject {
             name: name.to_string(),
             a2l_addr,
@@ -433,18 +423,9 @@ impl XcpDaqDecoder for DefaultDaqDecoder {
             }
             let odt = data[0];
             if odt == 0 {
-                let timestamp = data[2] as u32
-                    | (data[3] as u32) << 8
-                    | (data[4] as u32) << 16
-                    | (data[5] as u32) << 24;
+                let timestamp = data[2] as u32 | (data[3] as u32) << 8 | (data[4] as u32) << 16 | (data[5] as u32) << 24;
 
-                println!(
-                    "DAQ: daq = {}, odt = {} timestamp = {} data={:?})",
-                    daq,
-                    odt,
-                    timestamp,
-                    &data[6..]
-                );
+                println!("DAQ: daq = {}, odt = {} timestamp = {} data={:?})", daq, odt, timestamp, &data[6..]);
             } else {
                 panic!("ODT != 0");
             }
@@ -464,10 +445,7 @@ pub struct XcpTaskControl {
 impl XcpTaskControl {
     #[allow(clippy::new_without_default)]
     pub fn new() -> XcpTaskControl {
-        XcpTaskControl {
-            running: false,
-            connected: false,
-        }
+        XcpTaskControl { running: false, connected: false }
     }
 }
 
@@ -571,7 +549,7 @@ impl XcpClient {
                                     0xFE => {
                                         // Command error response
                                         let response = &buf[(i + 4)..(i + 6)];
-                                        trace!("xcp_receive: XCP errorcode = 0x{:?} ", response);
+                                        debug!("xcp_receive: XCP errorcode = {}", XcpError::new(response[1]));
                                         tx_resp.send(response.to_vec()).await?;
                                     }
                                     0xFD => {
@@ -667,11 +645,7 @@ impl XcpClient {
     //------------------------------------------------------------------------
     // Connect/disconnect to server, create receive task
 
-    pub async fn connect<D, T>(
-        &mut self,
-        daq_decoder: Arc<Mutex<D>>,
-        text_decoder: T,
-    ) -> Result<(), Box<dyn Error>>
+    pub async fn connect<D, T>(&mut self, daq_decoder: Arc<Mutex<D>>, text_decoder: T) -> Result<(), Box<dyn Error>>
     where
         T: XcpTextDecoder + Copy + Send + 'static,
         D: XcpDaqDecoder + Copy + Send + 'static,
@@ -689,50 +663,32 @@ impl XcpClient {
             let (tx_daq, rx_daq) = mpsc::channel(3);
             self.tx_task_control = Some(tx_daq); // tx XCP DAQ control channel
             tokio::spawn(async move {
-                let _res =
-                    XcpClient::receive_task(socket, tx_resp, rx_daq, text_decoder, daq_decoder)
-                        .await;
+                let _res = XcpClient::receive_task(socket, tx_resp, rx_daq, text_decoder, daq_decoder).await;
             });
         }
 
-        let data = self
-            .send_command(XcpCommandBuilder::new(CC_CONNECT).add_u8(0).build())
-            .await?;
+        let data = self.send_command(XcpCommandBuilder::new(CC_CONNECT).add_u8(0).build()).await?;
 
         let max_cto_size: u8 = data[3];
         let max_dto_size: u16 = data[4] as u16 | (data[5] as u16) << 8;
-        info!(
-            "XCP client connected, max_cto_size = {}, max_dto_size = {}",
-            max_cto_size, max_dto_size
-        );
+        info!("XCP client connected, max_cto_size = {}, max_dto_size = {}", max_cto_size, max_dto_size);
         self.max_cto_size = max_cto_size;
         self.max_dto_size = max_dto_size;
 
         self.task_control.connected = true; // the task will end, when it gets connected = false over the XcpControl channel
         self.task_control.running = false;
-        self.tx_task_control
-            .as_ref()
-            .unwrap()
-            .send(self.task_control)
-            .await
-            .unwrap();
+        self.tx_task_control.as_ref().unwrap().send(self.task_control).await.unwrap();
 
         Ok(())
     }
 
     //------------------------------------------------------------------------
     pub async fn disconnect(&mut self) -> Result<(), Box<dyn Error>> {
-        self.send_command(XcpCommandBuilder::new(CC_DISCONNECT).add_u8(0).build())
-            .await?;
+        self.send_command(XcpCommandBuilder::new(CC_DISCONNECT).add_u8(0).build()).await?;
 
         self.task_control.connected = false;
         self.task_control.running = false;
-        self.tx_task_control
-            .as_ref()
-            .unwrap()
-            .send(self.task_control)
-            .await
-            .unwrap();
+        self.tx_task_control.as_ref().unwrap().send(self.task_control).await.unwrap();
 
         Ok(())
     }
@@ -741,9 +697,7 @@ impl XcpClient {
     // Get server identification
     // @@@@ Impl: other types, only  XCP_IDT_ASAM_UPLOAD supported
     pub async fn get_id(&mut self, id_type: u8) -> Result<u32, Box<dyn Error>> {
-        let data = self
-            .send_command(XcpCommandBuilder::new(CC_GET_ID).add_u8(id_type).build())
-            .await?;
+        let data = self.send_command(XcpCommandBuilder::new(CC_GET_ID).add_u8(id_type).build()).await?;
 
         assert_eq!(data[0], 0xFF);
         assert_eq!(id_type, XCP_IDT_ASAM_UPLOAD); // others not supported yet
@@ -760,8 +714,7 @@ impl XcpClient {
     //------------------------------------------------------------------------
     // Execute a XCP command with no other parameters
     pub async fn command(&mut self, command_code: u8) -> Result<Vec<u8>, Box<dyn Error>> {
-        self.send_command(XcpCommandBuilder::new(command_code).build())
-            .await
+        self.send_command(XcpCommandBuilder::new(command_code).build()).await
     }
 
     //------------------------------------------------------------------------
@@ -770,14 +723,7 @@ impl XcpClient {
     pub async fn get_ecu_page(&mut self) -> Result<u8, Box<dyn Error>> {
         let mode = CAL_PAGE_MODE_ECU | 0x80;
         let segment = 0;
-        let data = self
-            .send_command(
-                XcpCommandBuilder::new(CC_GET_CAL_PAGE)
-                    .add_u8(mode)
-                    .add_u8(segment)
-                    .build(),
-            )
-            .await?;
+        let data = self.send_command(XcpCommandBuilder::new(CC_GET_CAL_PAGE).add_u8(mode).add_u8(segment).build()).await?;
         let page = if data[3] != 0 { 1 } else { 0 };
         Ok(page)
     }
@@ -785,14 +731,7 @@ impl XcpClient {
     pub async fn get_xcp_page(&mut self) -> Result<u8, Box<dyn Error>> {
         let mode = CAL_PAGE_MODE_XCP | 0x80;
         let segment = 0;
-        let data = self
-            .send_command(
-                XcpCommandBuilder::new(CC_GET_CAL_PAGE)
-                    .add_u8(mode)
-                    .add_u8(segment)
-                    .build(),
-            )
-            .await?;
+        let data = self.send_command(XcpCommandBuilder::new(CC_GET_CAL_PAGE).add_u8(mode).add_u8(segment).build()).await?;
         let page = if data[3] != 0 { 1 } else { 0 };
         Ok(page)
     }
@@ -800,48 +739,23 @@ impl XcpClient {
     pub async fn set_ecu_page(&mut self, page: u8) -> Result<(), Box<dyn Error>> {
         let mode = CAL_PAGE_MODE_ECU | 0x80;
         let segment = 0;
-        self.send_command(
-            XcpCommandBuilder::new(CC_SET_CAL_PAGE)
-                .add_u8(mode)
-                .add_u8(segment)
-                .add_u8(page)
-                .build(),
-        )
-        .await?;
+        self.send_command(XcpCommandBuilder::new(CC_SET_CAL_PAGE).add_u8(mode).add_u8(segment).add_u8(page).build()).await?;
         Ok(())
     }
 
     pub async fn set_xcp_page(&mut self, page: u8) -> Result<(), Box<dyn Error>> {
         let mode = CAL_PAGE_MODE_XCP | 0x80;
         let segment = 0;
-        self.send_command(
-            XcpCommandBuilder::new(CC_SET_CAL_PAGE)
-                .add_u8(mode)
-                .add_u8(segment)
-                .add_u8(page)
-                .build(),
-        )
-        .await?;
+        self.send_command(XcpCommandBuilder::new(CC_SET_CAL_PAGE).add_u8(mode).add_u8(segment).add_u8(page).build()).await?;
         Ok(())
     }
 
     //------------------------------------------------------------------------
     // XCP memory access services (calibration and polling of measurememt vvalues)
 
-    pub async fn short_download(
-        &mut self,
-        addr: u32,
-        ext: u8,
-        data_bytes: &[u8],
-    ) -> Result<(), Box<dyn Error>> {
+    pub async fn short_download(&mut self, addr: u32, ext: u8, data_bytes: &[u8]) -> Result<(), Box<dyn Error>> {
         let len = data_bytes.len() as u8;
-        trace!(
-            "short_download addr={}:{:08X},{} data={:?}",
-            ext,
-            addr,
-            len,
-            data_bytes
-        );
+        trace!("short_download addr={}:{:08X},{} data={:?}", ext, addr, len, data_bytes);
         self.send_command(
             XcpCommandBuilder::new(CC_SHORT_DOWNLOAD)
                 .add_u8(len)
@@ -854,30 +768,16 @@ impl XcpClient {
         .await?;
         Ok(())
     }
-    pub async fn short_upload(
-        &mut self,
-        addr: u32,
-        ext: u8,
-        size: u8,
-    ) -> Result<Vec<u8>, Box<dyn Error>> {
+    pub async fn short_upload(&mut self, addr: u32, ext: u8, size: u8) -> Result<Vec<u8>, Box<dyn Error>> {
         let data = self
-            .send_command(
-                XcpCommandBuilder::new(CC_SHORT_UPLOAD)
-                    .add_u8(size)
-                    .add_u8(0)
-                    .add_u8(ext)
-                    .add_u32(addr)
-                    .build(),
-            )
+            .send_command(XcpCommandBuilder::new(CC_SHORT_UPLOAD).add_u8(size).add_u8(0).add_u8(ext).add_u32(addr).build())
             .await?;
 
         Ok(data)
     }
 
     pub async fn upload(&mut self, size: u8) -> Result<Vec<u8>, Box<dyn Error>> {
-        let data = self
-            .send_command(XcpCommandBuilder::new(CC_UPLOAD).add_u8(size).build())
-            .await?;
+        let data = self.send_command(XcpCommandBuilder::new(CC_UPLOAD).add_u8(size).build()).await?;
         Ok(data)
     }
 
@@ -885,62 +785,28 @@ impl XcpClient {
     // XCP DAQ services
 
     async fn free_daq(&mut self) -> Result<(), Box<dyn Error>> {
-        self.send_command(XcpCommandBuilder::new(CC_FREE_DAQ).build())
-            .await?;
+        self.send_command(XcpCommandBuilder::new(CC_FREE_DAQ).build()).await?;
         Ok(())
     }
 
     async fn alloc_daq(&mut self, count: u16) -> Result<(), Box<dyn Error>> {
-        self.send_command(
-            XcpCommandBuilder::new(CC_ALLOC_DAQ)
-                .add_u8(0)
-                .add_u16(count)
-                .build(),
-        )
-        .await?;
+        self.send_command(XcpCommandBuilder::new(CC_ALLOC_DAQ).add_u8(0).add_u16(count).build()).await?;
         Ok(())
     }
 
     async fn alloc_odt(&mut self, daq: u16, odt: u8) -> Result<(), Box<dyn Error>> {
-        self.send_command(
-            XcpCommandBuilder::new(CC_ALLOC_ODT)
-                .add_u8(0)
-                .add_u16(daq)
-                .add_u8(odt)
-                .build(),
-        )
-        .await?;
+        self.send_command(XcpCommandBuilder::new(CC_ALLOC_ODT).add_u8(0).add_u16(daq).add_u8(odt).build()).await?;
         Ok(())
     }
 
-    async fn alloc_odt_entries(
-        &mut self,
-        daq: u16,
-        odt: u8,
-        count: u8,
-    ) -> Result<(), Box<dyn Error>> {
-        self.send_command(
-            XcpCommandBuilder::new(CC_ALLOC_ODT_ENTRY)
-                .add_u8(0)
-                .add_u16(daq)
-                .add_u8(odt)
-                .add_u8(count)
-                .build(),
-        )
-        .await?;
+    async fn alloc_odt_entries(&mut self, daq: u16, odt: u8, count: u8) -> Result<(), Box<dyn Error>> {
+        self.send_command(XcpCommandBuilder::new(CC_ALLOC_ODT_ENTRY).add_u8(0).add_u16(daq).add_u8(odt).add_u8(count).build())
+            .await?;
         Ok(())
     }
 
     async fn set_daq_ptr(&mut self, daq: u16, odt: u8, idx: u8) -> Result<(), Box<dyn Error>> {
-        self.send_command(
-            XcpCommandBuilder::new(CC_SET_DAQ_PTR)
-                .add_u8(0)
-                .add_u16(daq)
-                .add_u8(odt)
-                .add_u8(idx)
-                .build(),
-        )
-        .await?;
+        self.send_command(XcpCommandBuilder::new(CC_SET_DAQ_PTR).add_u8(0).add_u16(daq).add_u8(odt).add_u8(idx).build()).await?;
         Ok(())
     }
 
@@ -957,11 +823,7 @@ impl XcpClient {
         Ok(())
     }
 
-    async fn set_daq_list_mode(
-        &mut self,
-        daq: u16,
-        eventchannel: u16,
-    ) -> Result<(), Box<dyn Error>> {
+    async fn set_daq_list_mode(&mut self, daq: u16, eventchannel: u16) -> Result<(), Box<dyn Error>> {
         const XCP_DAQ_MODE_TIMESTAMP: u8 = 0x10; // Timestamp always on, no other mode supported by XCPlite
         let mode: u8 = XCP_DAQ_MODE_TIMESTAMP;
         let priority = 0x00; // Always use priority 0, not DAQ list flushing for specific events, priorization supported by XCPlite
@@ -983,13 +845,7 @@ impl XcpClient {
     const XCP_START: u8 = 1;
     const XCP_SELECT: u8 = 2;
     async fn start_stop_daq_list(&mut self, mode: u8, daq: u16) -> Result<(), Box<dyn Error>> {
-        self.send_command(
-            XcpCommandBuilder::new(CC_START_STOP_DAQ_LIST)
-                .add_u8(mode)
-                .add_u16(daq)
-                .build(),
-        )
-        .await?;
+        self.send_command(XcpCommandBuilder::new(CC_START_STOP_DAQ_LIST).add_u8(mode).add_u16(daq).build()).await?;
         Ok(())
     }
 
@@ -999,12 +855,7 @@ impl XcpClient {
     const XCP_STOP_SELECTED: u8 = 2;
     const XCP_PREPARE_START_SELECTED: u8 = 3;
     async fn start_stop_sync(&mut self, mode: u8) -> Result<(), Box<dyn Error>> {
-        self.send_command(
-            XcpCommandBuilder::new(CC_START_STOP_SYNCH)
-                .add_u8(mode)
-                .build(),
-        )
-        .await?;
+        self.send_command(XcpCommandBuilder::new(CC_START_STOP_SYNCH).add_u8(mode).build()).await?;
         Ok(())
     }
 
@@ -1049,10 +900,7 @@ impl XcpClient {
     // XcpCalibrationObject, XcpCalibrationObjectHandle (index pointer to XcpCalibrationObject),
     // XcpXcpCalibrationObjectHandle is assumed immutable and the actual value is cached
 
-    pub async fn create_calibration_object(
-        &mut self,
-        name: &str,
-    ) -> Result<XcpCalibrationObjectHandle, Box<dyn Error>> {
+    pub async fn create_calibration_object(&mut self, name: &str) -> Result<XcpCalibrationObjectHandle, Box<dyn Error>> {
         let res = a2l_find_characteristic(self.a2l_file.as_ref().unwrap(), name);
         if res.is_none() {
             Err(Box::new(XcpError::new(ERROR_A2L)) as Box<dyn Error>)
@@ -1060,68 +908,42 @@ impl XcpClient {
             let (a2l_addr, get_type, a2l_limits) = res.unwrap();
 
             let mut o = XcpCalibrationObject::new(name, a2l_addr, get_type, a2l_limits);
-            let resp = self
-                .short_upload(o.a2l_addr.addr, o.a2l_addr.ext, o.get_type.size)
-                .await?;
+            let resp = self.short_upload(o.a2l_addr.addr, o.a2l_addr.ext, o.get_type.size).await?;
             o.value = resp[1..=o.get_type.size as usize].to_vec();
-            trace!(
-                "upload {}: addr = {:?} type = {:?} limit={:?} value={:?}\n",
-                name,
-                a2l_addr,
-                get_type,
-                a2l_limits,
-                o.value
-            );
+            trace!("upload {}: addr = {:?} type = {:?} limit={:?} value={:?}\n", name, a2l_addr, get_type, a2l_limits, o.value);
             self.calibration_objects.push(o);
-            Ok(XcpCalibrationObjectHandle(
-                self.calibration_objects.len() - 1,
-            ))
+            Ok(XcpCalibrationObjectHandle(self.calibration_objects.len() - 1))
         }
     }
 
-    pub async fn set_value_u64(
-        &mut self,
-        handle: XcpCalibrationObjectHandle,
-        value: u64,
-    ) -> Result<(), Box<dyn Error>> {
+    pub async fn set_value_u64(&mut self, handle: XcpCalibrationObjectHandle, value: u64) -> Result<(), Box<dyn Error>> {
         let obj = &self.calibration_objects[handle.0];
         if (value as f64) > obj.a2l_limits.upper || (value as f64) < obj.a2l_limits.lower {
             return Err(Box::new(XcpError::new(ERROR_LIMIT)) as Box<dyn Error>);
         }
         let size: usize = obj.get_type.size as usize;
         let slice = &value.to_le_bytes()[0..size];
-        self.short_download(obj.a2l_addr.addr, obj.a2l_addr.ext, slice)
-            .await?;
+        self.short_download(obj.a2l_addr.addr, obj.a2l_addr.ext, slice).await?;
         self.calibration_objects[handle.0].set_value(slice);
         Ok(())
     }
-    pub async fn set_value_i64(
-        &mut self,
-        handle: XcpCalibrationObjectHandle,
-        value: i64,
-    ) -> Result<(), Box<dyn Error>> {
+    pub async fn set_value_i64(&mut self, handle: XcpCalibrationObjectHandle, value: i64) -> Result<(), Box<dyn Error>> {
         let obj = &self.calibration_objects[handle.0];
         if (value as f64) > obj.a2l_limits.upper || (value as f64) < obj.a2l_limits.lower {
             return Err(Box::new(XcpError::new(ERROR_LIMIT)) as Box<dyn Error>);
         }
         let size: usize = obj.get_type.size as usize;
         let slice = &value.to_le_bytes()[0..size];
-        self.short_download(obj.a2l_addr.addr, obj.a2l_addr.ext, slice)
-            .await?;
+        self.short_download(obj.a2l_addr.addr, obj.a2l_addr.ext, slice).await?;
         self.calibration_objects[handle.0].set_value(slice);
         Ok(())
     }
 
-    pub async fn read_value_u64(
-        &mut self,
-        index: XcpCalibrationObjectHandle,
-    ) -> Result<u64, Box<dyn Error>> {
+    pub async fn read_value_u64(&mut self, index: XcpCalibrationObjectHandle) -> Result<u64, Box<dyn Error>> {
         let a2l_addr = self.calibration_objects[index.0].a2l_addr;
         let get_type = self.calibration_objects[index.0].get_type;
 
-        let resp = self
-            .short_upload(a2l_addr.addr, a2l_addr.ext, get_type.size)
-            .await?;
+        let resp = self.short_upload(a2l_addr.addr, a2l_addr.ext, get_type.size).await?;
 
         let value = resp[1..=get_type.size as usize].to_vec();
         self.calibration_objects[index.0].value = value;
@@ -1145,14 +967,9 @@ impl XcpClient {
     pub fn create_measurement_object(&mut self, name: &str) -> Option<XcpMeasurementObjectHandle> {
         let (a2l_addr, get_type) = a2l_find_measurement(self.a2l_file.as_ref().unwrap(), name)?;
         let o = XcpMeasurementObject::new(name, a2l_addr, get_type);
-        debug!(
-            "Create measurement object {}: addr = {:?} type = {:?}",
-            name, a2l_addr, get_type,
-        );
+        debug!("Create measurement object {}: addr = {:?} type = {:?}", name, a2l_addr, get_type,);
         self.measurement_objects.push(o);
-        Some(XcpMeasurementObjectHandle(
-            self.measurement_objects.len() - 1,
-        ))
+        Some(XcpMeasurementObjectHandle(self.measurement_objects.len() - 1))
     }
 
     //------------------------------------------------------------------------
@@ -1194,13 +1011,8 @@ impl XcpClient {
             let element = event_list.iter().nth(daq as usize).unwrap();
             let odt_entry_count = *element.1;
             assert!(odt_entry_count <= 0xFF);
-            self.alloc_odt_entries(daq as u16, 0, odt_entry_count as u8)
-                .await
-                .unwrap();
-            debug!(
-                "Alloc odt_entries: daq={}, odt={}, odt_entry_count={}",
-                daq, 0, odt_entry_count
-            );
+            self.alloc_odt_entries(daq as u16, 0, odt_entry_count as u8).await.unwrap();
+            debug!("Alloc odt_entries: daq={}, odt={}, odt_entry_count={}", daq, 0, odt_entry_count);
         }
 
         // Write ODT entries
@@ -1216,8 +1028,7 @@ impl XcpClient {
                 if a2l_addr.event == event {
                     self.set_daq_ptr(daq as u16, odt, odt_entry).await.unwrap();
                     let get_type = self.measurement_objects[i].get_type;
-                    self.write_daq(a2l_addr.ext, a2l_addr.addr, get_type.size)
-                        .await?;
+                    self.write_daq(a2l_addr.ext, a2l_addr.addr, get_type.size).await?;
 
                     self.measurement_objects[i].daq = daq;
                     self.measurement_objects[i].odt = odt;
@@ -1225,7 +1036,13 @@ impl XcpClient {
 
                     debug!(
                         "Write daq={}, odt={}, odt_entry={}, ext={}, addr=0x{:08X}, size={}, offset={}",
-                        daq, odt, odt_entry, a2l_addr.ext, a2l_addr.addr, get_type.size, odt_size + 6
+                        daq,
+                        odt,
+                        odt_entry,
+                        a2l_addr.ext,
+                        a2l_addr.addr,
+                        get_type.size,
+                        odt_size + 6
                     );
 
                     odt_entry += 1;
@@ -1247,24 +1064,15 @@ impl XcpClient {
 
         // Select all DAQ lists
         for daq in 0..daq_count {
-            self.start_stop_daq_list(XcpClient::XCP_SELECT, daq as u16)
-                .await
-                .unwrap();
+            self.start_stop_daq_list(XcpClient::XCP_SELECT, daq as u16).await.unwrap();
         }
 
         // Send running=true throught the DAQ control channel to the receive task
         self.task_control.running = true;
-        self.tx_task_control
-            .as_ref()
-            .unwrap()
-            .send(self.task_control)
-            .await
-            .unwrap();
+        self.tx_task_control.as_ref().unwrap().send(self.task_control).await.unwrap();
 
         // Start DAQ
-        self.start_stop_sync(XcpClient::XCP_START_SELECTED)
-            .await
-            .unwrap();
+        self.start_stop_sync(XcpClient::XCP_START_SELECTED).await.unwrap();
 
         Ok(())
     }
@@ -1275,12 +1083,7 @@ impl XcpClient {
 
         // Send running=false throught the DAQ control channel to the receive task
         self.task_control.running = false;
-        self.tx_task_control
-            .as_ref()
-            .unwrap()
-            .send(self.task_control)
-            .await
-            .unwrap();
+        self.tx_task_control.as_ref().unwrap().send(self.task_control).await.unwrap();
 
         Ok(())
     }

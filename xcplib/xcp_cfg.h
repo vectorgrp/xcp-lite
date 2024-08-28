@@ -23,6 +23,8 @@
 /*----------------------------------------------------------------------------*/
 /* Adress, address extension coding */
 
+// Use addr_ext XCP_ADDR_EXT_ABS to indicate absulute addr format (ApplXcpGetBaseAddr()+(uint32_t)addr) 
+#define XCP_ENABLE_ABS_ADDRESSING
 #define XCP_ADDR_EXT_ABS 0x01 // Absolute address format 
 
 // Use addr_ext XCP_ADDR_EXT_DYN to indicate relative addr format (event<<16)|offset 
@@ -33,11 +35,14 @@
 #define XCP_ENABLE_APP_ADDRESSING
 #define XCP_ADDR_EXT_APP 0x00 // Address format handled by application
 
+// Internally used address extensions
 // Use addr_ext XCP_ADDR_EXT_A2L to indicate A2L upload memory space
-#define XCP_ADDR_EXT_A2L 0xFF // Upload A2L address space
+#define XCP_ADDR_EXT_A2L 0xFD
+// Use addr_ext XCP_ADDR_EXT_PTR to indicate gXcp.MtaPtr is valid 
+#define XCP_ADDR_EXT_PTR 0xFE
 
-// Undefined
-#define XCP_ADDR_EXT_UNDEFINED 0xFE // Undefined address extension
+// Undefined address extension
+#define XCP_ADDR_EXT_UNDEFINED 0xFF // Undefined address extension
 
 /*----------------------------------------------------------------------------*/
 /* Protocol features */

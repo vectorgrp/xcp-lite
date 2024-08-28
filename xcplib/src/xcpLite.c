@@ -376,7 +376,7 @@ Its primary responsibility is only to copy memory. Any considerations regarding 
 This is also a requirement to the tool, which must ensure that the data is consistent by choosing the right granularity for DOWNLOAD and SHORT_DOWNLOAD operations.
 */
 
-// Write n bytes. Copying of size bytes from data to gXcp.MtaPtr or gXcp.MtaAddr
+// Copy of size bytes from data to gXcp.MtaPtr or gXcp.MtaAddr depending on the addressing mode
 static uint8_t XcpWriteMta( uint8_t size, const uint8_t* data )
 {
   // EXT == XCP_ADDR_EXT_APP Application specific memory access
@@ -388,8 +388,8 @@ static uint8_t XcpWriteMta( uint8_t size, const uint8_t* data )
   }
 #endif
 
-  // Ext == XCP_ADDR_EXT_ABS Standard memory access by absolute address pointer
-  if (gXcp.MtaExt == XCP_ADDR_EXT_ABS) {
+  // Standard memory access by pointer gXcp.MtaPtr
+  if (gXcp.MtaExt == XCP_ADDR_EXT_PTR) {
 
       if (gXcp.MtaPtr == NULL) return CRC_ACCESS_DENIED;
 
@@ -412,10 +412,10 @@ static uint8_t XcpWriteMta( uint8_t size, const uint8_t* data )
       return 0; // Ok
   }
 
-    return CRC_ACCESS_DENIED; // Access violation, illegal address or extension
+  return CRC_ACCESS_DENIED; // Access violation, illegal address or extension
 }
 
-// Read n bytes. Copying of size bytes from data to gXcp.MtaPtr or gXcp.MtaAddr
+// Copying of size bytes from data to gXcp.MtaPtr or gXcp.MtaAddr, depending on the addressing mode
 static uint8_t XcpReadMta( uint8_t size, uint8_t* data )
 {
 
@@ -429,7 +429,7 @@ static uint8_t XcpReadMta( uint8_t size, uint8_t* data )
 #endif
 
   // Ext == XCP_ADDR_EXT_ABS Standard memory access by absolute address pointer
-  if (gXcp.MtaExt == XCP_ADDR_EXT_ABS) {
+  if (gXcp.MtaExt == XCP_ADDR_EXT_PTR) {
       if (gXcp.MtaPtr == NULL) return CRC_ACCESS_DENIED;
       memcpy(data, gXcp.MtaPtr, size);
       gXcp.MtaPtr += size;
@@ -448,6 +448,39 @@ static uint8_t XcpReadMta( uint8_t size, uint8_t* data )
   return CRC_ACCESS_DENIED; // Access violation, illegal address or extension
 }
 
+// Set MTA
+static uint8_t XcpSetMta( uint8_t ext, uint32_t addr ) {
+     
+  gXcp.MtaExt = ext;
+  gXcp.MtaAddr = addr;
+#ifdef XCP_ENABLE_DYN_ADDRESSING
+  // Relative addressing mode, MtaPtr unknown yet
+  if (gXcp.MtaExt == XCP_ADDR_EXT_DYN) { 
+    gXcp.MtaPtr = NULL; // MtaPtr not used
+  }
+  else 
+#endif
+#ifdef XCP_ENABLE_APP_ADDRESSING
+  // Application specific addressing mode
+  if (gXcp.MtaExt == XCP_ADDR_EXT_APP) { 
+    gXcp.MtaPtr = NULL; // MtaPtr not used
+  }
+  else
+#endif
+#ifdef XCP_ENABLE_ABS_ADDRESSING
+  // Absolute addressing mode
+  if (gXcp.MtaExt == XCP_ADDR_EXT_ABS) { 
+      gXcp.MtaPtr = ApplXcpGetPointer(gXcp.MtaExt, gXcp.MtaAddr);
+      gXcp.MtaExt = XCP_ADDR_EXT_PTR;
+  }
+  else 
+#endif
+  {
+    return CRC_OUT_OF_RANGE; // Unsupported addressing mode
+  }
+
+  return CRC_CMD_OK;
+}
 
 
 /****************************************************************************/
@@ -593,13 +626,8 @@ static uint8_t XcpAddOdtEntry(uint32_t addr, uint8_t ext, uint8_t size) {
     if (daq_ext != XCP_ADDR_EXT_UNDEFINED && ext != daq_ext) return CRC_DAQ_CONFIG; // Error not unique address extension
     DaqListAddrExt(gXcp.WriteDaqDaq) = ext;
 
-#ifndef XCP_ENABLE_DYN_ADDRESSING
-    if (ext != XCP_ADDR_EXT_ABS) return CRC_ACCESS_DENIED; // Illegal address extension for DAQ, DAQ can only handle absolute addressing
-#else
-    if (ext != XCP_ADDR_EXT_DYN && ext != XCP_ADDR_EXT_ABS) return CRC_ACCESS_DENIED; // Illegal address extension for DAQ, DAQ can only handle absolute and relative addressing
- 
-    int32_t base_offset;
-
+    int32_t base_offset = 0;
+#ifdef XCP_ENABLE_DYN_ADDRESSING
     // DYN addressing mode, base pointer will given to XcpEventExt()
     // Max address range base-0x8000 - base+0x7FFF
     if (ext == XCP_ADDR_EXT_DYN) { // relative addressing mode
@@ -609,12 +637,12 @@ static uint8_t XcpAddOdtEntry(uint32_t addr, uint8_t ext, uint8_t size) {
         uint16_t e0 = DaqListEventChannel(gXcp.WriteDaqDaq);
         if (e0 != XCP_UNDEFINED_EVENT && e0 != event) return CRC_OUT_OF_RANGE; // Error event channel redefinition
         DaqListEventChannel(gXcp.WriteDaqDaq) = event;
-     }
-    else
+     } else
 #endif
+#ifdef XCP_ENABLE_ABS_ADDRESSING
     // ABS adressing mode, base pointer will ApplXcpGetBaseAddr()
     // Max address range 0-0x7FFFFFFF
-    {
+    if (ext == XCP_ADDR_EXT_ABS) { // absolute addressing mode{
         uint8_t* p;
         int64_t a;
         p = ApplXcpGetPointer(ext, addr);
@@ -622,7 +650,9 @@ static uint8_t XcpAddOdtEntry(uint32_t addr, uint8_t ext, uint8_t size) {
         a = p - ApplXcpGetBaseAddr();
         if (a>0x7FFFFFFF || a<0) return CRC_ACCESS_DENIED; // Access out of range
         base_offset = (int32_t)a;
-    }
+    } else
+#endif
+    return CRC_ACCESS_DENIED;
 
     OdtEntrySize(gXcp.WriteDaqOdtEntry) = size;
     OdtEntryAddr(gXcp.WriteDaqOdtEntry) = base_offset; // Signed offset relative to base pointer given to XcpEvent_
@@ -875,17 +905,21 @@ static void XcpEvent_(uint16_t event, const uint8_t* base, uint64_t clock)
 
 // ABS adressing mode event with clock
 // Base is ApplXcpGetBaseAddr()
+#ifdef XCP_ENABLE_ABS_ADDRESSING
 void XcpEventAt(uint16_t event, uint64_t clock) {
     if (!isDaqRunning()) return; // DAQ not running
     XcpEvent_(event, ApplXcpGetBaseAddr(), clock);
 }
+#endif
 
 // ABS addressing mode event
 // Base is ApplXcpGetBaseAddr()
+#ifdef XCP_ENABLE_ABS_ADDRESSING
 void XcpEvent(uint16_t event) {
     if (!isDaqRunning()) return; // DAQ not running
     XcpEvent_(event, ApplXcpGetBaseAddr(), 0);
 }
+#endif
 
 // Dyn addressing mode event
 // Base is given as parameter
@@ -914,9 +948,9 @@ uint8_t XcpEventExt(uint16_t event, const uint8_t* base, uint32_t len) {
     mutexUnlock(&gXcp.CmdPendingMutex);
 #endif
     if (cmdPending) {
-        // Convert relative addr in MtaPtr to absolute addr in context base
+        // Convert relative addr in MtaAddr to pointer MtaPtr
         gXcp.MtaPtr = (uint8_t*)base + (gXcp.MtaAddr & 0xFFFF);
-        gXcp.MtaExt = XCP_ADDR_EXT_ABS;
+        gXcp.MtaExt = XCP_ADDR_EXT_PTR;
         if (CRC_CMD_OK==XcpAsyncCommand(TRUE,(const uint32_t*)&gXcp.CmdPending, gXcp.CmdPendingLen)) {
           uint8_t cmd = gXcp.CmdPending.b[0];
           if (cmd==CC_SHORT_DOWNLOAD||cmd==CC_DOWNLOAD) return CRC_CMD_PENDING; // Write operation done
@@ -1189,30 +1223,7 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint16_t cmd
         case CC_SET_MTA:
           {            
             check_len(CRO_SET_MTA_LEN);
-            gXcp.MtaExt = CRO_SET_MTA_EXT;
-            gXcp.MtaAddr = CRO_SET_MTA_ADDR;
-#ifdef XCP_ENABLE_DYN_ADDRESSING
-              // Relative addressing mode, MtaPtr unknown yet
-            if (gXcp.MtaExt == XCP_ADDR_EXT_DYN) { 
-              gXcp.MtaPtr = NULL;
-            }
-            else 
-#endif
-#ifdef XCP_ENABLE_APP_ADDRESSING
-              // Application specific addressing mode
-            if (gXcp.MtaExt == XCP_ADDR_EXT_APP) { 
-              // MtaPtr not used
-              gXcp.MtaPtr = NULL;
-            }
-            else
-#endif
-                // Absolute addressing mode
-            if (gXcp.MtaExt == XCP_ADDR_EXT_ABS) { 
-                gXcp.MtaPtr = ApplXcpGetPointer(gXcp.MtaExt, gXcp.MtaAddr);
-            }
-            else {
-              error(CRC_OUT_OF_RANGE);
-            }
+            check_error(XcpSetMta(CRO_SET_MTA_EXT, CRO_SET_MTA_ADDR));
           }
           break;
 
@@ -1237,13 +1248,7 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint16_t cmd
             uint8_t size = CRO_SHORT_DOWNLOAD_SIZE; // Variable CRO_LEN
             if (size > CRO_SHORT_DOWNLOAD_MAX_SIZE || size > CRO_LEN - CRO_SHORT_DOWNLOAD_LEN) error(CRC_CMD_SYNTAX);
             if (!async) { // When SHORT_DOWNLOAD is executed async, MtaXxx was already set
-              gXcp.MtaExt = CRO_SHORT_DOWNLOAD_EXT;
-              gXcp.MtaAddr = CRO_SHORT_DOWNLOAD_ADDR;
-#ifdef XCP_ENABLE_ABS_ADDRESSING
-              gXcp.MtaPtr = ApplXcpGetPointer(gXcp.MtaExt, gXcp.MtaAddr);
-#else
-              gXcp.MtaPtr = NULL;
-#endif
+              check_error(XcpSetMta(CRO_SHORT_DOWNLOAD_EXT, CRO_SHORT_DOWNLOAD_ADDR));
             }
 #ifdef XCP_ENABLE_DYN_ADDRESSING
             if (gXcp.MtaExt == XCP_ADDR_EXT_DYN) { 
@@ -1277,13 +1282,7 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint16_t cmd
             uint8_t size = CRO_SHORT_UPLOAD_SIZE;
             if (size > CRM_SHORT_UPLOAD_MAX_SIZE) error(CRC_OUT_OF_RANGE);
             if (!async) { // When SHORT_UPLOAD is executed async, MtaXxx was already set
-              gXcp.MtaExt = CRO_SHORT_UPLOAD_EXT;
-              gXcp.MtaAddr = CRO_SHORT_UPLOAD_ADDR;
-#ifdef XCP_ENABLE_ABS_ADDRESSING
-              gXcp.MtaPtr = ApplXcpGetPointer(gXcp.MtaExt, gXcp.MtaAddr);
-#else
-              gXcp.MtaPtr = NULL;
-#endif
+              check_error(XcpSetMta(CRO_SHORT_UPLOAD_EXT,CRO_SHORT_UPLOAD_ADDR));
             }
 #ifdef XCP_ENABLE_DYN_ADDRESSING
             if (gXcp.MtaExt == XCP_ADDR_EXT_DYN) { 
@@ -1441,7 +1440,7 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint16_t cmd
             CRM_GET_DAQ_EVENT_INFO_TIME_UNIT = event->timeUnit;
             CRM_GET_DAQ_EVENT_INFO_PRIORITY = event->priority;
             gXcp.MtaPtr = (uint8_t*)event->name;
-            gXcp.MtaExt = XCP_ADDR_EXT_ABS;
+            gXcp.MtaExt = XCP_ADDR_EXT_PTR;
           }
           break;
 #endif // XCP_ENABLE_DAQ_EVENT_INFO
@@ -1635,7 +1634,7 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint16_t cmd
   #endif // XCP_ENABLE_PTP
             if (CRO_TIME_SYNCH_PROPERTIES_GET_PROPERTIES_REQUEST & TIME_SYNCH_GET_PROPERTIES_GET_CLK_INFO) { // check whether MTA based upload is requested
                 gXcp.MtaPtr = (uint8_t*)&gXcp.ClockInfo.server;
-                gXcp.MtaExt = XCP_ADDR_EXT_ABS;
+                gXcp.MtaExt = XCP_ADDR_EXT_PTR;
             }
           }
           break;

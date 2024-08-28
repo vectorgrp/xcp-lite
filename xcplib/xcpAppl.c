@@ -144,8 +144,7 @@ BOOL ApplXcpGetClockInfoGrandmaster(uint8_t* uuid, uint8_t* epoch, uint8_t* stra
 // This allows using Microsoft linker PDB files for address update
 // In Microsoft Visual Studio set option "Generate Debug Information" to "optimized for sharing and publishing (/DEBUG:FULL)"
 
-
-
+#ifdef XCP_ENABLE_ABS_ADDRESSING
 uint8_t* ApplXcpGetPointer(uint8_t addr_ext, uint32_t addr) {
 
     if (addr_ext != XCP_ADDR_EXT_ABS) return NULL;
@@ -158,7 +157,7 @@ uint8_t* ApplXcpGetPointer(uint8_t addr_ext, uint32_t addr) {
     p = ApplXcpGetBaseAddr() + addr;
     return p;
 }
-
+#endif
 
 #ifdef _WIN
 
