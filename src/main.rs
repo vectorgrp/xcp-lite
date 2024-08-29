@@ -449,6 +449,8 @@ fn main() {
     daq_register!(mainloop_counter1, mainloop_event);
     //daq_register_ref!(mainloop_counter2, mainloop_event);
 
+    let mut static_event = xcp.create_event("mainloop_static", false);
+    
     while RUN.load(Ordering::Acquire) {
         // @@@@ Dev: Terminate mainloop for shutdown if calibration parameter run is false, for test automation
         if !calseg.run {
@@ -472,6 +474,9 @@ fn main() {
 
         // Measure directly from stack with event "mainloop"
         mainloop_event.trigger();
+
+        // Measure static variables
+        static_event.trigger_abs();
 
         // Sync
         calseg.sync();
