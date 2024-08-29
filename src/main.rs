@@ -104,15 +104,23 @@ lazy_static::lazy_static! {
 // The inner UnsafeCell allows interiour mutability, but this could theoretically cause undefined behaviour or inconsistencies depending on the nature of the platform
 // Many C,C++ implementations of XCP do not care about this, but this approach is not recommended for rust projects
 
-struct CalPage0 {
+struct CalPage00 {
     task1_cycle_time_us: u32, // Cycle time of task1 in microseconds
     task2_cycle_time_us: u32, // Cycle time of task2 in microseconds
 }
 
-static CAL_PAGE0: once_cell::sync::OnceCell<CalPage0> = once_cell::sync::OnceCell::with_value(CalPage0 {
+static CAL_PAGE0: once_cell::sync::OnceCell<CalPage00> = once_cell::sync::OnceCell::with_value(CalPage00 {
     task1_cycle_time_us: 1000, // 1ms
     task2_cycle_time_us: 1000, // 1ms
 });
+
+struct CalPage01 {
+    test_u32: u32,
+    test_f64: f32,
+}
+
+// Statically allocate memory for a `u32`.
+static CAL_PAGE01: static_cell::StaticCell<CalPage01> = static_cell::StaticCell::new();
 
 //-----------------------------------------------------------------------------
 // Dynamic calibration data example
@@ -375,10 +383,19 @@ fn main() {
     };
 
     // Register a static calibration page
-    let calpage0 = CAL_PAGE0.get().unwrap();
-    cal_register!(calpage0.task1_cycle_time_us);
-    cal_register!(calpage0.task2_cycle_time_us);
+    let calpage00 = CAL_PAGE0.get().unwrap();
+    cal_register!(calpage00.task1_cycle_time_us);
+    cal_register!(calpage00.task2_cycle_time_us);
 
+    // Register a matable static calibration page
+    let calpage01: &'static mut CalPage01 = CAL_PAGE01.init(CalPage01 { test_u32: 0, test_f64: 0.0 });
+    calpage01.test_u32 = 1;
+    assert_eq!(calpage01.test_u32, 1);
+    cal_register!(calpage01.test_u32);
+    cal_register!(calpage01.test_f64);
+
+    // Trying to call `.init()` again would panic, because the StaticCell is already initialized.
+    // SOME_INT.init(42);
     // Create calibration parameter sets
     // Calibration segments have "static" lifetime, the Xcp singleton holds a smart pointer clone to each
     // When a calibration segment is dropped by the application and sync is no longer called, the XCP tool will get a timeout when attempting to access it
@@ -443,6 +460,8 @@ fn main() {
         *mainloop_counter2 += 2;
         *mainloop_counter3 += 3;
         mainloop_map[0][0] = mainloop_counter1 as u8;
+        calpage01.test_u32 += 1;
+        calpage01.test_f64 += 0.1;
 
         // Capture variable from heap
         daq_capture!(mainloop_counter2, mainloop_event);
