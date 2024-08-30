@@ -93,6 +93,14 @@ lazy_static::lazy_static! {
     static ref RUN: AtomicBool = AtomicBool::new(true);
 }
 
+struct StaticVars {
+    test_u32: u32,
+    test_f64: f32,
+}
+
+// Statically allocate memory for a `u32`.
+static STATIC_VARS: static_cell::StaticCell<StaticVars> = static_cell::StaticCell::new();
+
 //-----------------------------------------------------------------------------
 // Static calibration data example
 // This is the classical address oriented calibration approach for indivual calibration parameters or structs
@@ -113,14 +121,6 @@ static CAL_PAGE0: once_cell::sync::OnceCell<CalPage00> = once_cell::sync::OnceCe
     task1_cycle_time_us: 1000, // 1ms
     task2_cycle_time_us: 1000, // 1ms
 });
-
-struct CalPage01 {
-    test_u32: u32,
-    test_f64: f32,
-}
-
-// Statically allocate memory for a `u32`.
-static CAL_PAGE01: static_cell::StaticCell<CalPage01> = static_cell::StaticCell::new();
 
 //-----------------------------------------------------------------------------
 // Dynamic calibration data example
@@ -384,15 +384,8 @@ fn main() {
 
     // Register a static calibration page
     let calpage00 = CAL_PAGE0.get().unwrap();
-    cal_register!(calpage00.task1_cycle_time_us);
-    cal_register!(calpage00.task2_cycle_time_us);
-
-    // Register a matable static calibration page
-    let calpage01: &'static mut CalPage01 = CAL_PAGE01.init(CalPage01 { test_u32: 0, test_f64: 0.0 });
-    calpage01.test_u32 = 1;
-    assert_eq!(calpage01.test_u32, 1);
-    cal_register!(calpage01.test_u32);
-    cal_register!(calpage01.test_f64);
+    cal_register_static!(calpage00.task1_cycle_time_us, "task1 cycle time", "us");
+    cal_register_static!(calpage00.task2_cycle_time_us, "task2 cycle time", "us");
 
     // Trying to call `.init()` again would panic, because the StaticCell is already initialized.
     // SOME_INT.init(42);
@@ -440,17 +433,22 @@ fn main() {
     // Mainloop
     xcp_println!("Main task starts");
 
+    // Variables on heap and stack
     let mut mainloop_counter1: u64 = 0;
     let mut mainloop_counter2 = Box::new(0u64);
-    let mut mainloop_counter3 = Box::new(0u64);
     let mut mainloop_map = Box::new([[0u8; 16]; 16]);
 
     let mut mainloop_event = daq_create_event!("mainloop", 64); // Capture buffer 64 bytes
     daq_register!(mainloop_counter1, mainloop_event);
-    //daq_register_ref!(mainloop_counter2, mainloop_event);
 
-    let mut static_event = xcp.create_event("mainloop_static", false);
-    
+    // Mutable static variables
+    let static_event = xcp.create_event("static_event");
+    let static_vars: &'static mut StaticVars = STATIC_VARS.init(StaticVars { test_u32: 0, test_f64: 0.0 });
+    static_vars.test_u32 = 1;
+    assert_eq!(static_vars.test_u32, 1);
+    daq_register_static!(static_vars.test_u32, static_event, "Test static u32");
+    daq_register_static!(static_vars.test_f64, static_event, "Test static f64");
+
     while RUN.load(Ordering::Acquire) {
         // @@@@ Dev: Terminate mainloop for shutdown if calibration parameter run is false, for test automation
         if !calseg.run {
@@ -458,25 +456,24 @@ fn main() {
         }
         thread::sleep(Duration::from_micros(calseg.cycle_time_us as u64));
 
+        // Variables on stack and heap
         mainloop_counter1 += 1;
         *mainloop_counter2 += 2;
-        *mainloop_counter3 += 3;
         mainloop_map[0][0] = mainloop_counter1 as u8;
-        calpage01.test_u32 += 1;
-        calpage01.test_f64 += 0.1;
 
         // Capture variable from heap
         daq_capture!(mainloop_counter2, mainloop_event);
-        daq_capture!(mainloop_counter3, mainloop_event);
 
         // Measure a 2D map variable directly from heap with an individual event "mainloop_array"
         daq_event_ref!(mainloop_map, RegistryDataType::AUint64, 16, 16, "2D map on heap");
 
-        // Measure directly from stack with event "mainloop"
         mainloop_event.trigger();
 
         // Measure static variables
-        static_event.trigger_abs();
+        static_vars.test_u32 += 1;
+        static_vars.test_f64 += 0.1;
+
+        static_event.trigger();
 
         // Sync
         calseg.sync();

@@ -10,7 +10,7 @@ PrgDate=08.07.2024
 Description=
 CreationTime=23:25
 CreationDate=04/18/2021 ; Month/Day/Year
-ModificationTime=10:47
+ModificationTime=12:06
 ModificationDate=08/30/2024 ; Month/Day/Year
 Protected=0
 CurrentWindowsACP=1252
@@ -2091,8 +2091,8 @@ GlobalCursorTime=0
 GlobalCursorTimeNs=0
 GlobalTimeAxis=1
 GlobalTimeAxisStartTime=0
-GlobalTimeAxisEndTime=32273797747
-MainWindowPos=1, 389, 46, 3416, 2068 ;cmd, x, y, w, h
+GlobalTimeAxisEndTime=56416106286
+MainWindowPos=1, 184, 58, 3416, 2068 ;cmd, x, y, w, h
 
 [PAR_COMMENT]
 1="Name",""
@@ -2400,8 +2400,8 @@ DisplayMask=1 ; pages 1
 XLen=28204
 XMin=0
 XMinNs=0
-XMax=32273
-XMaxNs=32273797747
+XMax=56416
+XMaxNs=56416106286
 Grid=1
 Mark=0
 YValue=2
@@ -2471,8 +2471,8 @@ COL_0_dpi96=31, 120
 XLen=28204
 XMin=0
 XMinNs=0
-XMax=32273
-XMaxNs=32273797747
+XMax=56416
+XMaxNs=56416106286
 Grid=1
 Mark=1
 YValue=2
@@ -2541,7 +2541,7 @@ COL_0_dpi96=31, 120
 [WINDOW_5]
 ProgID=
 PROPERTIES_COUNT=1
-PROPERTY_1={"Version":"1.3.0.0","Configuration":{"ArrayWindowSubControlConfiguration":{"NumericGraphicCompositeWidth":337,"NumericGraphicCompositeHeight":271,"LegendCoordinatePoint":{"X":0,"Y":0},"LegendWidth":0,"LegendHeight":0,"LegendLayoutGroupSizeWidth":0,"LegendLayoutGroupSizeHeight":0,"NumericCoordinatePoint":{"X":1,"Y":24},"NumericWidth":335,"NumericHeight":246,"NumericLayoutGroupSizeWidth":335,"NumericLayoutGroupSizeHeight":246,"Intersection2DXWCoordinatePoint":{"X":0,"Y":0},"Intersection2DXWWidth":0,"Intersection2DXWHeight":0,"Intersection2DXWLayoutGroupSizeWidth":0,"Intersection2DXWLayoutGroupSizeHeight":0,"Intersection2DYWCoordinatePoint":{"X":0,"Y":0},"Intersection2DYWWidth":0,"Intersection2DYWHeight":0,"Intersection2DYWLayoutGroupSizeWidth":0,"Intersection2DYWLayoutGroupSizeHeight":0,"Graphic3DCoordinatePoint":{"X":0,"Y":0},"Graphic3DWidth":0,"Graphic3DHeight":0,"Graphic3DLayoutGroupSizeWidth":0,"Graphic3DLayoutGroupSizeHeight":0},"ShowCalibrationBar":true,"ShowHorizontalChartLines":false,"ShowVerticalChartLines":false,"NonSelectedIntersectionLineTransparency":0.75,"FocusedValueSymbol":"DEVICE:\"xcp_lite\":\"CalPage.run1\":P","ValueObjectConfigurations":[{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage.cycle_time_us\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":1000000000000,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"calpage00.task1_cycle_time_us\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":4294967295,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"calpage00.task2_cycle_time_us\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":4294967295,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage.run\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":255,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage.run1\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":255,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage.run2\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":255,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage2.period\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":1000,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage2.ampl\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":400,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage1.counter_max\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":1000000,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage1.TestInts.test_bool\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":255,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage1.TestInts.test_i8\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":-128,"ValueAxisMax":127,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage1.TestInts.test_u8\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":2,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":255,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage1.TestInts.test_i16\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":-32768,"ValueAxisMax":32767,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage1.TestInts.test_u16\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":2,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":65535,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage1.TestInts.test_f32\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":-1000000000000,"ValueAxisMax":1000000000000,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage1.TestInts.test_i32\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":-2147483648,"ValueAxisMax":2147483647,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage1.TestInts.test_u32\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":2,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":4294967295,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage1.TestInts.test_f64\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":-1000000000000,"ValueAxisMax":1000000000000,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"static_vars.test_u32\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":4294967295,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"static_vars.test_f64\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":-1000000000000,"ValueAxisMax":1000000000000,"CustomAxisLabels":["","","","","",""]}],"NumericGraphicControlPosition":0,"NumericGraphicControlSelectedTab":0,"GraphicControlPosition":4,"Height2DXControl":1,"Height2DYControl":1,"Height3DControl":2,"HeightNumericControl":1,"HeightChartControl":1,"HeightLegendControl":0.45,"Width2DXControl":1,"Width2DYControl":1,"Width3DControl":2,"WidthNumericControl":2,"WidthChartControl":2,"WidthLegendControl":0.3,"HeightValueControl":1,"WidthValueControl":1,"HeightNumericGraphicControl":1,"WidthNumericGraphicControl":1,"Height2DChartsControl":1,"Width2DChartsControl":1,"IsXAxisHeightSynchronizedBetweenCharts":true,"SyncedXAxisHeight":NaN,"XWChartXAxisHeight":NaN,"YWChartXAxisHeight":NaN,"LegendPosition":0,"LegendViewType":0,"LegendTableColumnAttributes":[{"TypeId":"1048594","Size":40},{"TypeId":"1048601","Size":45},{"TypeId":"31","Size":100},{"TypeId":"3","Size":250},{"TypeId":"16","Size":70},{"TypeId":"1048627","Size":100},{"TypeId":"1048631","Size":100},{"TypeId":"1048634","Size":100}],"LegendTabItemAttributes":[{"TypeId":"31","Size":100}],"FlipAxes":false,"AxisDisplayNameMode":3,"ReversedAxis":[false,false],"ShowUnits":false,"ShowObjectColor":false,"SortDescending":false,"SortAttributeId":null,"ShowWorkingPointHistory":false,"NumericViewValueObjectDisplayOption":1,"ValueColumnWidth":102,"ValueColumnWidthDouble":102,"ParameterGroup":"","ModuleName":"","GroupIsFunction":false,"NumericControlAxisAttributes":[],"NumericControlColumnAttributes":[{"TypeId":"31","Size":207.5}],"ChartViewValueObjectDisplayOption":1,"SerializationCameraPosition":{"X":1,"Y":1,"Z":-1},"SerializationCameraTarget":{"X":0,"Y":0.5,"Z":0},"IsValueAnnotationRotated":false,"EquidistantAxisPoints":false,"BarThickness":1,"WorkingPointMarker":0,"LinearWorkingPointInterpolation":true,"ShowAllIntersectionLines":false,"IsValueAxisIndependent":true,"TickLabelRotationAngle":-90,"IsTickLabelRotationEnabled":false,"IsTickLabelRightAligned":false,"ShowBoundarySurface":true,"ShowBoundarySurfaceGradient":false,"ShowCursorAsCrosshair":false,"XAxisAutoRange":true,"ValueAxisAutoRange":true,"ShowAllValueAxes":false,"CurrentColumnChartType":0,"SerializationCursorCrosshairColor":{"R":0,"G":0,"B":0,"A":255},"AlignBarToZero":true,"DefaultChartViewType":2,"AttributeColumnPositioning":2}}
+PROPERTY_1={"Version":"1.3.0.0","Configuration":{"ArrayWindowSubControlConfiguration":{"NumericGraphicCompositeWidth":337,"NumericGraphicCompositeHeight":271,"LegendCoordinatePoint":{"X":0,"Y":0},"LegendWidth":0,"LegendHeight":0,"LegendLayoutGroupSizeWidth":0,"LegendLayoutGroupSizeHeight":0,"NumericCoordinatePoint":{"X":1,"Y":24},"NumericWidth":335,"NumericHeight":246,"NumericLayoutGroupSizeWidth":335,"NumericLayoutGroupSizeHeight":246,"Intersection2DXWCoordinatePoint":{"X":0,"Y":0},"Intersection2DXWWidth":0,"Intersection2DXWHeight":0,"Intersection2DXWLayoutGroupSizeWidth":0,"Intersection2DXWLayoutGroupSizeHeight":0,"Intersection2DYWCoordinatePoint":{"X":0,"Y":0},"Intersection2DYWWidth":0,"Intersection2DYWHeight":0,"Intersection2DYWLayoutGroupSizeWidth":0,"Intersection2DYWLayoutGroupSizeHeight":0,"Graphic3DCoordinatePoint":{"X":0,"Y":0},"Graphic3DWidth":0,"Graphic3DHeight":0,"Graphic3DLayoutGroupSizeWidth":0,"Graphic3DLayoutGroupSizeHeight":0},"ShowCalibrationBar":true,"ShowHorizontalChartLines":false,"ShowVerticalChartLines":false,"NonSelectedIntersectionLineTransparency":0.75,"FocusedValueSymbol":"DEVICE:\"xcp_lite\":\"CalPage1.counter_max\":P","ValueObjectConfigurations":[{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage.cycle_time_us\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":1000000000000,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"calpage00.task1_cycle_time_us\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":4294967295,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"calpage00.task2_cycle_time_us\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":4294967295,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage.run\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":255,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage.run1\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":255,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage.run2\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":255,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage2.period\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":1000,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage2.ampl\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":400,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage1.counter_max\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":1000000,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage1.TestInts.test_bool\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":255,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage1.TestInts.test_i8\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":-128,"ValueAxisMax":127,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage1.TestInts.test_u8\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":2,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":255,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage1.TestInts.test_i16\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":-32768,"ValueAxisMax":32767,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage1.TestInts.test_u16\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":2,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":65535,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage1.TestInts.test_f32\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":-1000000000000,"ValueAxisMax":1000000000000,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage1.TestInts.test_i32\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":-2147483648,"ValueAxisMax":2147483647,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage1.TestInts.test_u32\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":2,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":4294967295,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"CalPage1.TestInts.test_f64\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":-1000000000000,"ValueAxisMax":1000000000000,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"static_vars.test_u32\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":0,"ValueAxisMax":4294967295,"CustomAxisLabels":["","","","","",""]},{"Symbol":"DEVICE:\"xcp_lite\":\"static_vars.test_f64\":P","SerializationColor":{"R":0,"G":0,"B":0,"A":255},"Collapsed":false,"SerializationFrameColor":{"R":0,"G":0,"B":0,"A":255},"ValueFormat":0,"AxisValueFormats":[],"NumericFormat":4,"AxisNumericFormats":[],"NumericFormatDigits":6,"IsActive":true,"CurrentChartViewType":2,"PointMarker":1,"IsValueAnnotationEnabled":false,"ValueAxisMin":-1000000000000,"ValueAxisMax":1000000000000,"CustomAxisLabels":["","","","","",""]}],"NumericGraphicControlPosition":0,"NumericGraphicControlSelectedTab":0,"GraphicControlPosition":4,"Height2DXControl":1,"Height2DYControl":1,"Height3DControl":2,"HeightNumericControl":1,"HeightChartControl":1,"HeightLegendControl":0.45,"Width2DXControl":1,"Width2DYControl":1,"Width3DControl":2,"WidthNumericControl":2,"WidthChartControl":2,"WidthLegendControl":0.3,"HeightValueControl":1,"WidthValueControl":1,"HeightNumericGraphicControl":1,"WidthNumericGraphicControl":1,"Height2DChartsControl":1,"Width2DChartsControl":1,"IsXAxisHeightSynchronizedBetweenCharts":true,"SyncedXAxisHeight":NaN,"XWChartXAxisHeight":NaN,"YWChartXAxisHeight":NaN,"LegendPosition":0,"LegendViewType":0,"LegendTableColumnAttributes":[{"TypeId":"1048594","Size":40},{"TypeId":"1048601","Size":45},{"TypeId":"31","Size":100},{"TypeId":"3","Size":250},{"TypeId":"16","Size":70},{"TypeId":"1048627","Size":100},{"TypeId":"1048631","Size":100},{"TypeId":"1048634","Size":100}],"LegendTabItemAttributes":[{"TypeId":"31","Size":100}],"FlipAxes":false,"AxisDisplayNameMode":3,"ReversedAxis":[false,false],"ShowUnits":false,"ShowObjectColor":false,"SortDescending":false,"SortAttributeId":null,"ShowWorkingPointHistory":false,"NumericViewValueObjectDisplayOption":1,"ValueColumnWidth":124,"ValueColumnWidthDouble":124,"ParameterGroup":"","ModuleName":"","GroupIsFunction":false,"NumericControlAxisAttributes":[],"NumericControlColumnAttributes":[{"TypeId":"31","Size":189}],"ChartViewValueObjectDisplayOption":1,"SerializationCameraPosition":{"X":1,"Y":1,"Z":-1},"SerializationCameraTarget":{"X":0,"Y":0.5,"Z":0},"IsValueAnnotationRotated":false,"EquidistantAxisPoints":false,"BarThickness":1,"WorkingPointMarker":0,"LinearWorkingPointInterpolation":true,"ShowAllIntersectionLines":false,"IsValueAxisIndependent":true,"TickLabelRotationAngle":-90,"IsTickLabelRotationEnabled":false,"IsTickLabelRightAligned":false,"ShowBoundarySurface":true,"ShowBoundarySurfaceGradient":false,"ShowCursorAsCrosshair":false,"XAxisAutoRange":true,"ValueAxisAutoRange":true,"ShowAllValueAxes":false,"CurrentColumnChartType":0,"SerializationCursorCrosshairColor":{"R":0,"G":0,"B":0,"A":255},"AlignBarToZero":true,"DefaultChartViewType":2,"AttributeColumnPositioning":2}}
 OBJECTS_COUNT=20
 OBJECT_1=DEVICE:"xcp_lite":"CalPage.cycle_time_us":P
 OBJECT_2=DEVICE:"xcp_lite":"calpage00.task1_cycle_time_us":P
@@ -4650,7 +4650,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_cc08fcfa-7db0-445c-afb1-111aad90411b
+GUID=DISPLAY_e2568018-fa76-4f21-a3d7-61379b913f1e
 
 [WINDOW_5_OBJECT_10]
 Type=2
@@ -4699,7 +4699,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_2acb5739-f604-4f97-9102-6113163f7070
+GUID=DISPLAY_723cbf0b-180a-42b4-99fb-1a31a4ded791
 
 [WINDOW_5_OBJECT_11]
 Type=2
@@ -4748,7 +4748,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_62f95157-543c-46f0-8dd0-40c4bf557bc5
+GUID=DISPLAY_28e7b57a-f846-40d1-83f2-68586448cb2a
 
 [WINDOW_5_OBJECT_12]
 Type=2
@@ -4797,7 +4797,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_bd241869-cf40-4989-b1ad-c227bd185e74
+GUID=DISPLAY_ccebc079-5eb3-441b-96aa-2c8f537687d2
 
 [WINDOW_5_OBJECT_13]
 Type=2
@@ -4846,7 +4846,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_569f025b-8b83-4482-a002-55c5fbe0dae9
+GUID=DISPLAY_04c43b1b-7968-4393-8f85-b9cf2e282c55
 
 [WINDOW_5_OBJECT_14]
 Type=2
@@ -4895,7 +4895,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_d72b55c1-5505-4a05-903f-1b2cf81dfb41
+GUID=DISPLAY_5f46c7db-5907-4598-babd-8798e875579d
 
 [WINDOW_5_OBJECT_15]
 Type=2
@@ -4944,7 +4944,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_dccbead0-3277-4d63-bfc7-b0ea702e8273
+GUID=DISPLAY_55aa2bbf-7870-4c01-8e00-fe6b73d715eb
 
 [WINDOW_5_OBJECT_16]
 Type=2
@@ -4993,7 +4993,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_4b8d4575-4608-426d-9a6b-5df325043ae4
+GUID=DISPLAY_ec693511-281b-4319-af6a-92e629852cc0
 
 [WINDOW_5_OBJECT_17]
 Type=2
@@ -5042,7 +5042,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_c47829fc-f779-43dc-83ce-755a78a6d4b1
+GUID=DISPLAY_18048b63-a63d-451b-bddc-ed578945a90b
 
 [WINDOW_5_OBJECT_18]
 Type=2
@@ -5091,7 +5091,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_bfa999af-3b3e-49a7-acbb-4de042d11ec5
+GUID=DISPLAY_c535b6f4-6cf1-4ab5-bdab-7460fc0ea420
 
 [WINDOW_5_OBJECT_19]
 Type=2
@@ -5140,7 +5140,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_267c0afe-9315-467f-a887-575e5d5c7519
+GUID=DISPLAY_2cbc37c0-a155-428b-9c48-68ae4e9e5e24
 
 [WINDOW_5_OBJECT_2]
 Type=2
@@ -5189,7 +5189,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_5a9a115a-91b3-45db-9e86-b8a2d41e0bb1
+GUID=DISPLAY_a6f4b83a-0eb8-437c-9b97-aea60aec93ed
 
 [WINDOW_5_OBJECT_20]
 Type=2
@@ -5238,7 +5238,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_c3dc3172-83c1-4cf9-a94e-a8bc5e32819d
+GUID=DISPLAY_4b9b88be-a03d-45ba-83c2-53886bb8c782
 
 [WINDOW_5_OBJECT_3]
 Type=2
@@ -5287,7 +5287,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_9a2fac19-5971-40c3-b8b4-341a04c4be81
+GUID=DISPLAY_c445f3e0-f773-477d-8e21-1e3cc10fb244
 
 [WINDOW_5_OBJECT_4]
 Type=2
@@ -5336,7 +5336,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_8778c5fd-317b-4145-9f60-b9f3550d3128
+GUID=DISPLAY_a0fdab0b-da22-485e-a0a8-90be30bca152
 
 [WINDOW_5_OBJECT_5]
 Type=2
@@ -5385,7 +5385,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_feb22014-ccb2-499d-99bc-989c0f85cdb3
+GUID=DISPLAY_6769bc05-d9a9-4b46-a416-be95d71a7c29
 
 [WINDOW_5_OBJECT_6]
 Type=2
@@ -5434,7 +5434,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_1e8ffb36-0d01-4958-ae9d-6e2795da697a
+GUID=DISPLAY_3663dfa6-535a-4206-b150-946df27f0130
 
 [WINDOW_5_OBJECT_7]
 Type=2
@@ -5483,7 +5483,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_3f518ccb-f694-4c85-877a-29be9fbdc921
+GUID=DISPLAY_cd7b4fdb-4b62-48e6-b9db-5a4155a74736
 
 [WINDOW_5_OBJECT_8]
 Type=2
@@ -5532,7 +5532,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_c77d57de-f1dc-4008-b86e-9bddeba46538
+GUID=DISPLAY_9fa2ded2-1efa-4b82-829a-9d4e484cb8e3
 
 [WINDOW_5_OBJECT_9]
 Type=2
@@ -5581,7 +5581,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_4a5e27f8-6104-43ca-b7e1-332de8fd0302
+GUID=DISPLAY_4b05452a-771e-4d6a-a58a-49834bb8c5f9
 
 [WINDOW_6]
 ProgID=CNPTRACE.TraceCtrl.1
