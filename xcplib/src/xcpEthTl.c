@@ -657,20 +657,19 @@ extern void* XcpTlMulticastThread(void* par)
     for (;;) {
         n = socketRecvFrom(gXcpTl.MulticastSock, buffer, (uint16_t)sizeof(buffer), srcAddr, &srcPort, NULL);
         if (n <= 0) break; // Terminate on error or socket close 
-#if XCLTL_RESTRICT_MULTICAST
+#ifdef XCLTL_RESTRICT_MULTICAST
         // Accept multicast from active master only
         if (gXcpTl.MasterAddrValid && memcmp(gXcpTl.MasterAddr, srcAddr, 4) == 0) {
-            handleXcpMulticastCommand(n, (tXcpCtoMessage*)buffer);
+            handleXcpMulticastCommand(n, (tXcpCtoMessage*)buffer, srcAddr, srcPort);
         }
         else {
             DBG_PRINTF_WARNING("WARNING: Ignored Multicast from %u.%u.%u.%u:%u\n", srcAddr[0], srcAddr[1], srcAddr[2], srcAddr[3], srcPort);
         }
 #else
-        handleXcpMulticastCommand(n, (tXcpCtoMessage*)buffer, NULL, NULL);
+        handleXcpMulticastCommand(n, (tXcpCtoMessage*)buffer, srcAddr, srcPort);
 #endif
     }
-
-    DBG_PRINT3("Terminate XCP multicast thread\n");
+    DBG_PRINT3("XCP multicast thread terminated\n");
     socketClose(&gXcpTl.MulticastSock);
     return 0;
 }
@@ -760,7 +759,7 @@ BOOL XcpEthTlInit(const uint8_t* addr, uint16_t port, BOOL useTCP, uint16_t segm
       DBG_PRINTF3("  Bind XCP multicast socket to %u.%u.%u.%u:%u\n", gXcpTl.ServerAddr[0], gXcpTl.ServerAddr[1], gXcpTl.ServerAddr[2], gXcpTl.ServerAddr[3], XCPTL_MULTICAST_PORT);
       if (!socketBind(gXcpTl.MulticastSock, gXcpTl.ServerAddr, XCPTL_MULTICAST_PORT)) return FALSE; // Bind to ANY, when serverAddr=255.255.255.255
       uint16_t cid = XcpGetClusterId();
-      uint8_t maddr[4] = XCPTL_MULTICAST_ADDR; // 0xEFFFiiii
+      uint8_t maddr[4] = { 239,255,0,0 }; // XCPTL_MULTICAST_ADDR = 0xEFFFiiii; 
       maddr[2] = (uint8_t)(cid >> 8);
       maddr[3] = (uint8_t)(cid);
       if (!socketJoin(gXcpTl.MulticastSock, maddr)) return FALSE;
@@ -785,17 +784,18 @@ void XcpTlShutdown() {
 
 void XcpEthTlShutdown() {
 
-    XcpTlShutdown();
-
+    // Close all sockets to enable all threads to terminate
 #ifdef XCPTL_ENABLE_MULTICAST
     socketClose(&gXcpTl.MulticastSock);
-    sleepMs(200);
-    cancel_thread(gXcpTl.MulticastThreadHandle);
+    join_thread(gXcpTl.MulticastThreadHandle);
 #endif
 #ifdef XCPTL_ENABLE_TCP
     if (isTCP()) socketClose(&gXcpTl.ListenSock);
 #endif
     socketClose(&gXcpTl.Sock);
+
+    // Free other resources
+    XcpTlShutdown();
 }
 
 

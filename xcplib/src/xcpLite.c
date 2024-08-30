@@ -949,7 +949,7 @@ uint8_t XcpEventExt(uint16_t event, const uint8_t* base, uint32_t len) {
 #endif
     if (cmdPending) {
         // Convert relative signed 16 bit addr in MtaAddr to pointer MtaPtr
-        gXcp.MtaPtr = base + (int16_t)(gXcp.MtaAddr & 0xFFFF);
+        gXcp.MtaPtr = (uint8_t*)(base + (int16_t)(gXcp.MtaAddr & 0xFFFF));
         gXcp.MtaExt = XCP_ADDR_EXT_PTR;
         if (CRC_CMD_OK==XcpAsyncCommand(TRUE,(const uint32_t*)&gXcp.CmdPending, gXcp.CmdPendingLen)) {
           uint8_t cmd = gXcp.CmdPending.b[0];

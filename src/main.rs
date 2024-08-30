@@ -491,9 +491,18 @@ fn main() {
         // Without this, the A2L file will be automatically written on XCP connect, to be available for download by CANape
         if !args.no_a2l && mainloop_counter1 == 1 {
             thread::sleep(Duration::from_secs(2));
-            xcp.write_a2l(); // Test A2L write
-                             // xcp.set_init_request(); // Test init request
-                             // xcp.set_freeze_request(); // Test freeze request
+
+            // Test A2L write
+            xcp.write_a2l();
+
+            // Test init request
+            // xcp.set_init_request();
+
+            // Test freeze request
+            // xcp.set_freeze_request();
+
+            // Test shutdown
+            // break;
         }
     }
     info!("Main task finished");
