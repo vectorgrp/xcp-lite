@@ -234,14 +234,15 @@ async fn main() {
 
     // Stop demo task
     // Create a calibration object for CalPage1.counter_max
-    /*
-        if let Ok(run) = xcp_client.create_calibration_object("CalPage.run").await {
-            let v = xcp_client.get_value_u64(run);
-            info!("CalPage.run = {}", v);
-            assert_eq!(v, 1);
-            xcp_client.set_value_u64(run, 0).await.unwrap();
-        }
-    */
+
+    if let Ok(run) = xcp_client.create_calibration_object("CalPage.run").await {
+        let v = xcp_client.get_value_u64(run);
+        info!("CalPage.run = {}", v);
+        assert_eq!(v, 1);
+        xcp_client.set_value_u64(run, 0).await.unwrap();
+    } else {
+        warn!("CalPage.run not found");
+    }
 
     // Disconnect
     info!("XCP Disconnect");

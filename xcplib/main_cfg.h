@@ -23,7 +23,6 @@
 
 */
 
-
 // Application configuration:
 // XCP configuration is in xcp_cfg.h (Protocol Layer) and xcptl_cfg.h (Transport Layer)
 
@@ -38,8 +37,5 @@
 #define CLOCK_USE_APP_TIME_US
 //#define CLOCK_USE_UTC_TIME_NS
 
-
 // Ethernet Transport Layer
-
 #define OPTION_MTU                      8000            // Ethernet MTU
-

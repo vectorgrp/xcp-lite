@@ -436,6 +436,44 @@ impl RegistryCharacteristic {
         }
     }
 
+    pub fn get_calseg_name(&self) -> Option<&'static str> {
+        self.calseg_name
+    }
+    pub fn get_name(&self) -> &str {
+        &self.name
+    }
+    pub fn get_datatype(&self) -> RegistryDataType {
+        self.datatype
+    }
+    pub fn get_comment(&self) -> &str {
+        self.comment
+    }
+    pub fn get_min(&self) -> f64 {
+        self.min
+    }
+    pub fn get_max(&self) -> f64 {
+        self.max
+    }
+    pub fn get_unit(&self) -> &str {
+        self.unit
+    }
+    pub fn get_x_dim(&self) -> usize {
+        self.x_dim
+    }
+    pub fn get_y_dim(&self) -> usize {
+        self.y_dim
+    }
+    pub fn get_addr_offset(&self) -> u64 {
+        self.addr_offset
+    }
+
+    pub fn get_event(&self) -> Option<XcpEvent> {
+        self.event
+    }
+    pub fn set_event(&mut self, event: XcpEvent) {
+        self.event = Some(event);
+    }
+
     pub fn get_type_str(&self) -> &'static str {
         if self.x_dim > 1 && self.y_dim > 1 {
             "MAP"
@@ -444,10 +482,6 @@ impl RegistryCharacteristic {
         } else {
             "VALUE"
         }
-    }
-
-    pub fn set_event(&mut self, event: XcpEvent) {
-        self.event = Some(event);
     }
 }
 
