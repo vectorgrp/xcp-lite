@@ -12,7 +12,7 @@ use crate::{reg::RegistryMeasurement, xcp::*, RegistryDataType};
 impl Xcp {
     // Create a measurement event and a measurement variable directly associated to the event with memory offset 0
     pub fn create_measurement_object(&self, name: &'static str, data_type: RegistryDataType, x_dim: u16, y_dim: u16, comment: &'static str) -> XcpEvent {
-        let event = self.create_event(name, false);
+        let event = self.create_event(name);
         self.get_registry().lock().unwrap().add_measurement(RegistryMeasurement::new(
             name.to_string(),
             data_type,
@@ -46,7 +46,7 @@ macro_rules! daq_event_ref {
         lazy_static::lazy_static! {
             static ref XCP_EVENT__: XcpEvent = Xcp::get().create_measurement_object(stringify!($id), $data_type, $x_dim, $y_dim, $comment);
         }
-        XCP_EVENT__.trigger(&(*$id) as *const _ as *const u8, 0);
+        XCP_EVENT__.trigger_ext(&(*$id) as *const _ as *const u8, 0);
     }};
 }
 
@@ -65,7 +65,7 @@ impl<const N: usize> DaqEvent<N> {
     pub fn new(name: &'static str) -> DaqEvent<N> {
         let xcp = Xcp::get();
         DaqEvent {
-            event: xcp.create_event(name, false),
+            event: xcp.create_event_ext(name, false),
             buffer_len: 0,
             buffer: [0; N],
         }
@@ -99,7 +99,7 @@ impl<const N: usize> DaqEvent<N> {
     /// Trigger for stack or capture buffer measurement with base pointer relative addressing
     pub fn trigger(&self) {
         let base: *const u8 = &self.buffer as *const u8;
-        self.event.trigger(base, self.buffer_len as u32);
+        self.event.trigger_ext(base, self.buffer_len as u32);
     }
 
     /// Trigger for stack measurement with absolute addressing
@@ -205,7 +205,7 @@ macro_rules! daq_create_event {
     ( $name:expr, $capacity: expr ) => {{
         // Scope for lazy static XCP_EVENT__, create the XCP event only once
         lazy_static::lazy_static! {
-            static ref XCP_EVENT__: XcpEvent = Xcp::get().create_event($name, false);
+            static ref XCP_EVENT__: XcpEvent = Xcp::get().create_event($name);
         }
         // Create the DAQ event every time the thread is running through this code
         DaqEvent::<{ $capacity }>::new_from(&XCP_EVENT__)
@@ -213,7 +213,7 @@ macro_rules! daq_create_event {
     // With capture buffer capacity
     ( $name:expr ) => {{
         lazy_static::lazy_static! {
-            static ref XCP_EVENT__: XcpEvent = Xcp::get().create_event($name, false);
+            static ref XCP_EVENT__: XcpEvent = Xcp::get().create_event($name);
         }
         DaqEvent::<0>::new_from(&XCP_EVENT__)
     }};
@@ -428,7 +428,7 @@ macro_rules! daq_create_event_instance {
             static XCP_EVENT__: std::cell::Cell<XcpEvent> = const { std::cell::Cell::new(XcpEvent::UNDEFINED) }
         }
         if XCP_EVENT__.get() == XcpEvent::UNDEFINED {
-            XCP_EVENT__.set(Xcp::get().create_event($name, true));
+            XCP_EVENT__.set(Xcp::get().create_event_ext($name, true));
         }
         DaqEvent::<$capacity>::new_from(&XCP_EVENT__.get())
     }};
@@ -437,7 +437,7 @@ macro_rules! daq_create_event_instance {
             static XCP_EVENT__: std::cell::Cell<XcpEvent> = const { std::cell::Cell::new(XcpEvent::UNDEFINED) }
         }
         if XCP_EVENT__.get() == XcpEvent::UNDEFINED {
-            XCP_EVENT__.set(Xcp::get().create_event($name, true));
+            XCP_EVENT__.set(Xcp::get().create_event_ext($name, true));
         }
         DaqEvent::<256>::new_from(&XCP_EVENT__.get())
     }};

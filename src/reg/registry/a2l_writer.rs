@@ -174,14 +174,18 @@ impl GenerateA2l for RegistryMeasurement {
             } else {
                 "".to_string()
             };
+
+            // Fixed event
+            let if_data = format!("/begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT {event} /end DAQ_EVENT /end IF_DATA");
+
             if self.factor != 1.0 || self.offset != 0.0 || !self.unit.is_empty() {
                 format!(
                     r#"/begin COMPU_METHOD {name}.Conv "" LINEAR "%6.3" "{unit}" COEFFS_LINEAR {factor} {offset} /end COMPU_METHOD
-/begin MEASUREMENT {name} "{comment}" {type_str} {name}.Conv 0 0 {min} {max} PHYS_UNIT "{unit}" ECU_ADDRESS 0x{addr:X} ECU_ADDRESS_EXTENSION {ext} {matrix_dim}/begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT {event} /end DAQ_EVENT /end IF_DATA /end MEASUREMENT"#
+/begin MEASUREMENT {name} "{comment}" {type_str} {name}.Conv 0 0 {min} {max} PHYS_UNIT "{unit}" ECU_ADDRESS 0x{addr:X} ECU_ADDRESS_EXTENSION {ext} {matrix_dim} {if_data} /end MEASUREMENT"#
                 )
             } else {
                 format!(
-                    r#"/begin MEASUREMENT {name} "{comment}" {type_str} NO_COMPU_METHOD 0 0 {min} {max} PHYS_UNIT "{unit}" ECU_ADDRESS 0x{addr:X} ECU_ADDRESS_EXTENSION {ext} {matrix_dim}/begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT {event} /end DAQ_EVENT /end IF_DATA /end MEASUREMENT"#
+                    r#"/begin MEASUREMENT {name} "{comment}" {type_str} NO_COMPU_METHOD 0 0 {min} {max} PHYS_UNIT "{unit}" ECU_ADDRESS 0x{addr:X} ECU_ADDRESS_EXTENSION {ext} {matrix_dim} {if_data} /end MEASUREMENT"#
                 )
             }
         }
@@ -192,7 +196,7 @@ impl GenerateA2l for RegistryMeasurement {
 
 impl GenerateA2l for RegistryCharacteristic {
     fn to_a2l_string(&self) -> String {
-        let characteristic_type = self.characteristic_type();
+        let characteristic_type = self.get_type_str();
         let datatype = self.datatype.get_deposit_str();
         let (a2l_ext, a2l_addr) = if let Some(calseg_name) = self.calseg_name {
             // Segment relatice addressing
@@ -233,11 +237,14 @@ impl GenerateA2l for RegistryCharacteristic {
         }
 
         if a2l_ext != 0 {
-            result += &format!(r#" ECU_ADDRESS_EXTENSION {}"#, a2l_ext);
+            result += &format!(" ECU_ADDRESS_EXTENSION {}", a2l_ext);
         }
 
-        result += r#" /end CHARACTERISTIC"#;
+        if let Some(event) = self.event {
+            result += &format!(" /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT {} /end DAQ_EVENT /end IF_DATA", event.get_num());
+        }
 
+        result += " /end CHARACTERISTIC";
         result
     }
 }
@@ -351,9 +358,9 @@ impl A2lWriter {
         let mut group: String = format!("/begin GROUP Cal \"\" /begin REF_CHARACTERISTIC ");
         let mut v = Vec::new();
         for c in registry.characteristic_list.iter() {
-            if c.calseg_name().is_none() {
+            if c.calseg_name.is_none() {
                 v.push(c.to_a2l_string());
-                group += c.name();
+                group += c.name.as_str();
                 group += " ";
             }
         }
@@ -363,7 +370,7 @@ impl A2lWriter {
         // Parameters defined in calibration segments
         for s in registry.cal_seg_list.iter() {
             for c in registry.characteristic_list.iter() {
-                if let Some(calseg_name) = c.calseg_name() {
+                if let Some(calseg_name) = c.calseg_name {
                     if s.name == calseg_name {
                         v.push(c.to_a2l_string());
                     }
@@ -372,9 +379,9 @@ impl A2lWriter {
             // Create a group for each calibration segment
             let mut group: String = format!("/begin GROUP {} \"\" /begin REF_CHARACTERISTIC ", s.name);
             for c in registry.characteristic_list.iter() {
-                if let Some(calseg_name) = c.calseg_name() {
+                if let Some(calseg_name) = c.calseg_name {
                     if s.name == calseg_name {
-                        group += c.name();
+                        group += c.name.as_str();
                         group += " ";
                     }
                 }

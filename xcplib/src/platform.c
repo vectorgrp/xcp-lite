@@ -18,7 +18,6 @@
 #include "platform.h"
 #include "dbg_print.h"
 
-
 #if defined(_WIN) // Windows // Windows needs to link with Ws2_32.lib
 
 #pragma comment(lib, "ws2_32.lib")
@@ -31,6 +30,8 @@
 /**************************************************************************/
 
 #ifdef _LINUX
+
+#ifdef PLATFORM_ENABLE_KEYBOARD
 
 int _getch() {
   struct termios oldt, newt;
@@ -66,7 +67,7 @@ int _kbhit() {
   return 0;
 }
 
-
+#endif
 #endif
 
 
@@ -251,6 +252,9 @@ BOOL socketClose(SOCKET *sp) {
 }
 
 
+
+#ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
+
 #ifndef __APPLE__
 #include <linux/if_packet.h>
 #else
@@ -330,9 +334,9 @@ BOOL socketGetLocalAddr(uint8_t* mac, uint8_t* addr) {
 
 
 
+#endif // PLATFORM_ENABLE_GET_LOCAL_ADDR
 
 #endif // _LINUX
-
 
 #if defined(_WIN)
 
@@ -470,6 +474,7 @@ BOOL socketClose(SOCKET* sockp) {
     return TRUE;
 }
 
+#ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
 
 #include <iphlpapi.h>
 #pragma comment(lib, "IPHLPAPI.lib")
@@ -531,6 +536,9 @@ BOOL socketGetLocalAddr(uint8_t* mac, uint8_t* addr) {
     }
     return FALSE;
 }
+
+#endif // PLATFORM_ENABLE_GET_LOCAL_ADDR
+
 
 #endif // _WIN
 

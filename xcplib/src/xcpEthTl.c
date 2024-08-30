@@ -79,7 +79,9 @@ static struct {
 #ifdef XCPTL_ENABLE_TCP
     SOCKET ListenSock;
 #endif
+#ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
     uint8_t ServerMac[6];
+#endif
     uint8_t ServerAddr[4];
     uint16_t ServerPort;
     BOOL ServerUseTCP;
@@ -746,7 +748,9 @@ BOOL XcpEthTlInit(const uint8_t* addr, uint16_t port, BOOL useTCP, uint16_t segm
         DBG_PRINTF3("  Listening for XCP commands on UDP %u.%u.%u.%u port %u\n", gXcpTl.ServerAddr[0], gXcpTl.ServerAddr[1], gXcpTl.ServerAddr[2], gXcpTl.ServerAddr[3], gXcpTl.ServerPort);
     }
 
+#ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
     socketGetLocalAddr(gXcpTl.ServerMac, NULL); // Store MAC for later use
+#endif
 
     // Multicast UDP commands
 #ifdef XCPTL_ENABLE_MULTICAST
@@ -833,6 +837,7 @@ int32_t XcpTlGetLastError() {
 
 //-------------------------------------------------------------------------------------------------------
 
+#ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
 void XcpEthTlGetInfo(BOOL* isTcp, uint8_t* mac, uint8_t* addr, uint16_t *port) {
   
     *isTcp = gXcpTl.ServerUseTCP;
@@ -840,7 +845,7 @@ void XcpEthTlGetInfo(BOOL* isTcp, uint8_t* mac, uint8_t* addr, uint16_t *port) {
     memcpy(mac, gXcpTl.ServerMac, 4);
     *port = gXcpTl.ServerPort;
 }
-
+#endif
 
 //-------------------------------------------------------------------------------------------------------
 

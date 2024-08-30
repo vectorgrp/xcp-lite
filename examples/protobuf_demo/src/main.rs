@@ -163,9 +163,8 @@ fn main() {
     // Data struct to be measured
     let mut test_data = TestData { counter: 0, signal: 0.0 };
 
-
     /*
-    r#"/begin ANNOTATION ANNOTATION_LABEL "ObjectDescription" ANNOTATION_ORIGIN "application/dynamic-object-package" /begin ANNOTATION_TEXT 
+    r#"/begin ANNOTATION ANNOTATION_LABEL "ObjectDescription" ANNOTATION_ORIGIN "application/dynamic-object-package" /begin ANNOTATION_TEXT
     "<DynamicObject>"
     "<Package> {filename}.do.zip< /Package>"
     "<RootType> {name} </RootType>"
@@ -191,7 +190,7 @@ fn main() {
     // Register the data struct and create a buffer
 
     let mut buf = Vec::new();
-    let event = xcp.create_event("test_data", false);
+    let event = xcp.create_event("test_data");
     xcp.get_registry().lock().unwrap().add_measurement(RegistryMeasurement::new(
         "test_data".to_string(),
         RegistryDataType::Blob,

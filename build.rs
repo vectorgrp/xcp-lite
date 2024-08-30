@@ -49,6 +49,7 @@ fn main() {
     println!("cargo:rerun-if-changed=xcplib/xcptl_cfg.h");
     println!("cargo:rerun-if-changed=xcplib/xcp_cfg.h");
     println!("cargo:rerun-if-changed=xcplib/xcpAppl.c");
+    println!("cargo:rerun-if-changed=xcplib/src/main.h");
     println!("cargo:rerun-if-changed=xcplib/src/platform.h");
     println!("cargo:rerun-if-changed=xcplib/src/platform.c");
     println!("cargo:rerun-if-changed=xcplib/src/xcpEthTl.h");

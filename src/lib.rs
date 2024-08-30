@@ -60,18 +60,71 @@ mod xcplib {
 }
 
 //----------------------------------------------------------------------------------------------
-// Manually register a static calibration variable
+// Manually register a static measurement and calibration variables
 
 #[macro_export]
-macro_rules! cal_register {
-    (   $cell:ident.$field:ident ) => {{
-        let name = format!("{}.{}", stringify!($cell), stringify!($field));
-        let datatype = unsafe { $cell.$field.get_type() };
-        let addr = unsafe { &($cell.$field) as *const _ as u64 };
+macro_rules! cal_register_static {
+    (   $variable:expr ) => {{
+        let name = stringify!($variable);
+        let datatype = unsafe { ($variable).get_type() };
+        let addr = unsafe { &($variable) as *const _ as u64 };
         let c = RegistryCharacteristic::new(None, name.to_string(), datatype, "", datatype.get_min(), datatype.get_max(), "", 1, 1, addr);
         Xcp::get().get_registry().lock().unwrap().add_characteristic(c);
     }};
+    (   $variable:expr, $comment:expr ) => {{
+        let name = stringify!($variable);
+        let datatype = unsafe { ($variable).get_type() };
+        let addr = unsafe { &($variable) as *const _ as u64 };
+        let c = RegistryCharacteristic::new(None, name.to_string(), datatype, $comment, datatype.get_min(), datatype.get_max(), "", 1, 1, addr);
+        Xcp::get().get_registry().lock().unwrap().add_characteristic(c);
+    }};
+
+    (   $variable:expr, $comment:expr, $unit:expr ) => {{
+        let name = stringify!($variable);
+        let datatype = unsafe { ($variable).get_type() };
+        let addr = unsafe { &($variable) as *const _ as u64 };
+        let c = RegistryCharacteristic::new(None, name.to_string(), datatype, $comment, datatype.get_min(), datatype.get_max(), $unit, 1, 1, addr);
+        Xcp::get().get_registry().lock().unwrap().add_characteristic(c);
+    }};
 }
+
+#[macro_export]
+macro_rules! daq_register_static {
+    (   $variable:expr, $event:ident ) => {{
+        let name = stringify!($variable);
+        let datatype = unsafe { ($variable).get_type() };
+        let addr = unsafe { &($variable) as *const _ as u64 };
+        let mut c = RegistryCharacteristic::new(None, name.to_string(), datatype, "", datatype.get_min(), datatype.get_max(), "", 1, 1, addr);
+        c.set_event($event);
+        Xcp::get().get_registry().lock().unwrap().add_characteristic(c);
+    }};
+    (   $variable:expr, $event:ident, $comment:expr ) => {{
+        let name = stringify!($variable);
+        let datatype = unsafe { ($variable).get_type() };
+        let addr = unsafe { &($variable) as *const _ as u64 };
+        let mut c = RegistryCharacteristic::new(None, name.to_string(), datatype, $comment, datatype.get_min(), datatype.get_max(), "", 1, 1, addr);
+        c.set_event($event);
+        Xcp::get().get_registry().lock().unwrap().add_characteristic(c);
+    }};
+
+    (   $variable:expr, $event:ident, $comment:expr, $unit:expr ) => {{
+        let name = stringify!($variable);
+        let datatype = unsafe { ($variable).get_type() };
+        let addr = unsafe { &($variable) as *const _ as u64 };
+        let mut c = RegistryCharacteristic::new(None, name.to_string(), datatype, $comment, datatype.get_min(), datatype.get_max(), $unit, 1, 1, addr);
+        c.set_event($event);
+        Xcp::get().get_registry().lock().unwrap().add_characteristic(c);
+    }};
+}
+
+//
+// (   $cell:ident.$field:ident ) => {{
+//     let name = format!("{}.{}", stringify!($cell), stringify!($field));
+//     let datatype = unsafe { $cell.$field.get_type() };
+//     let addr = unsafe { &($cell.$field) as *const _ as u64 };
+//     let c = RegistryCharacteristic::new(None, name.to_string(), datatype, "", datatype.get_min(), datatype.get_max(), "", 1, 1, addr);
+//     Xcp::get().get_registry().lock().unwrap().add_characteristic(c);
+// }};
 
 //-----------------------------------------------------------------------------
 // XCP println macro

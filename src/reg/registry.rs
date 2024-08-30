@@ -366,51 +366,6 @@ impl RegistryMeasurement {
             annotation,
         }
     }
-
-    pub fn name(&self) -> &str {
-        self.name.as_str()
-    }
-
-    pub fn datatype(&self) -> RegistryDataType {
-        self.datatype
-    }
-    pub fn dim(&self) -> u16 {
-        self.x_dim * self.y_dim
-    }
-    pub fn x_dim(&self) -> u16 {
-        self.x_dim
-    }
-    pub fn y_dim(&self) -> u16 {
-        self.y_dim
-    }
-
-    pub fn event(&self) -> XcpEvent {
-        self.event
-    }
-
-    pub fn addr_offset(&self) -> i16 {
-        self.addr_offset
-    }
-
-    pub fn addr(&self) -> u64 {
-        self.addr
-    }
-
-    pub fn factor(&self) -> f64 {
-        self.factor
-    }
-
-    pub fn offset(&self) -> f64 {
-        self.offset
-    }
-
-    pub fn comment(&self) -> &str {
-        self.comment
-    }
-
-    pub fn unit(&self) -> &str {
-        self.unit
-    }
 }
 
 #[derive(Debug)]
@@ -449,6 +404,7 @@ pub struct RegistryCharacteristic {
     x_dim: usize,
     y_dim: usize,
     addr_offset: u64,
+    event: Option<XcpEvent>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -476,46 +432,11 @@ impl RegistryCharacteristic {
             y_dim,
             unit,
             addr_offset,
+            event: None,
         }
     }
 
-    pub fn calseg_name(&self) -> Option<&'static str> {
-        self.calseg_name
-    }
-
-    pub fn name(&self) -> &str {
-        self.name.as_str()
-    }
-
-    pub fn datatype(&self) -> RegistryDataType {
-        self.datatype
-    }
-
-    pub fn comment(&self) -> &str {
-        self.comment
-    }
-
-    pub fn min(&self) -> f64 {
-        self.min
-    }
-
-    pub fn max(&self) -> f64 {
-        self.max
-    }
-
-    pub fn unit(&self) -> &str {
-        self.unit
-    }
-
-    pub fn x_dim(&self) -> usize {
-        self.x_dim
-    }
-
-    pub fn y_dim(&self) -> usize {
-        self.y_dim
-    }
-
-    pub fn characteristic_type(&self) -> &'static str {
+    pub fn get_type_str(&self) -> &'static str {
         if self.x_dim > 1 && self.y_dim > 1 {
             "MAP"
         } else if self.x_dim > 1 || self.y_dim > 1 {
@@ -525,8 +446,8 @@ impl RegistryCharacteristic {
         }
     }
 
-    pub fn addr_offset(&self) -> u64 {
-        self.addr_offset
+    pub fn set_event(&mut self, event: XcpEvent) {
+        self.event = Some(event);
     }
 }
 
@@ -704,7 +625,7 @@ impl Registry {
     ///   If a measurement with the same name already exists
     ///   If the registry is closed
     pub fn add_characteristic(&mut self, c: RegistryCharacteristic) {
-        debug!("add_characteristic: {:?}.{} type={:?} offset={}", c.calseg_name(), c.name(), c.datatype(), c.addr_offset());
+        debug!("add_characteristic: {:?}.{} type={:?} offset={}", c.calseg_name, c.name, c.datatype, c.addr_offset);
         debug!("add_characteristic: {:?}", c);
 
         // Panic if registry is closed
@@ -712,7 +633,7 @@ impl Registry {
 
         // Panic if duplicate
         for c1 in self.characteristic_list.iter() {
-            if c.name == c1.name() {
+            if c.name == c1.name {
                 panic!("Duplicate characteristic: {}", c.name);
             }
         }
@@ -725,7 +646,7 @@ impl Registry {
     }
 
     pub fn find_characteristic(&self, name: &str) -> Option<&RegistryCharacteristic> {
-        self.characteristic_list.iter().find(|c| c.name() == name)
+        self.characteristic_list.iter().find(|c| c.name == name)
     }
 
     /// Generate A2L file from registry
@@ -776,7 +697,7 @@ mod registry_tests {
         r.add_cal_seg("test_memory_segment_1", 0x80010000, 0, 4);
         r.add_cal_seg("test_memory_segment_2", 0x80020000, 0, 4);
 
-        let event = xcp.create_event("test_event", false);
+        let event = xcp.create_event("test_event");
         r.add_measurement(RegistryMeasurement::new(
             "signal1".to_string(),
             RegistryDataType::Float64Ieee,

@@ -996,6 +996,7 @@ static void XcpSendResponse(const tXcpCto* crm, uint8_t crmLen) {
 
 // Transmit multicast command response
 #if XCP_TRANSPORT_LAYER_TYPE==XCP_TRANSPORT_LAYER_ETH
+#ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
 static void XcpSendMulticastResponse( const tXcpCto* crm, uint8_t crmLen, uint8_t *addr, uint16_t port) {
 
   XcpEthTlSendMulticastCrm((const uint8_t*)crm, crmLen, addr, port);
@@ -1003,6 +1004,7 @@ static void XcpSendMulticastResponse( const tXcpCto* crm, uint8_t crmLen, uint8_
   if (DBG_LEVEL >= 4) XcpPrintRes(crm);
 #endif
 }
+#endif
 #endif
 
 //  Push XCP command which can not be executes in this context for later async execution
@@ -1684,40 +1686,42 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint16_t cmd
               break;
               #endif // XCP_ENABLE_DAQ_CLOCK_MULTICAST
 
-                  #if XCP_TRANSPORT_LAYER_TYPE!=XCP_TRANSPORT_LAYER_CAN
-                  case CC_TL_GET_SERVER_ID:
+              #if XCP_TRANSPORT_LAYER_TYPE!=XCP_TRANSPORT_LAYER_CAN
+              case CC_TL_GET_SERVER_ID:
                     goto no_response; // Not supported, no response, response has atypical layout
 
-                  case CC_TL_GET_SERVER_ID_EXTENDED:
-                    check_len(CRO_TL_GET_SERVER_ID_LEN);
-                    BOOL server_isTCP;
-                    uint16_t server_port;
-                    uint8_t server_addr[4];
-                    uint8_t server_mac[6];
-                    uint16_t client_port;
-                    uint8_t client_addr[4];
-                    client_port = CRO_TL_GET_SERVER_ID_PORT;
-                    memcpy(client_addr, &CRO_TL_GET_SERVER_ID_ADDR(0), 4);
-                    XcpEthTlGetInfo(&server_isTCP, server_mac, server_addr, &server_port);
-                    memcpy(&CRM_TL_GET_SERVER_ID_ADDR(0),server_addr,4);
-                    CRM_TL_GET_SERVER_ID_PORT = server_port;
-                    CRM_TL_GET_SERVER_ID_STATUS = 
-                      (server_isTCP ? GET_SERVER_ID_STATUS_PROTOCOL_TCP : GET_SERVER_ID_STATUS_PROTOCOL_UDP) | // protocol type
-                      (isConnected() ? GET_SERVER_ID_STATUS_SLV_AVAILABILITY_BUSY : 0) | // In use
-                      0; // TL_SLV_DETECT_STATUS_SLV_ID_EXT_SUPPORTED; // GET_SERVER_ID_EXTENDED supported
-                    CRM_TL_GET_SERVER_ID_RESOURCE  = RM_DAQ;                 
-                    CRM_TL_GET_SERVER_ID_ID_LEN = (uint8_t)ApplXcpGetId(IDT_ASCII, &CRM_TL_GET_SERVER_ID_ID, CRM_TL_GET_SERVER_ID_MAX_LEN);
-                    memcpy((uint8_t*)&CRM_TL_GET_SERVER_ID_MAC(CRM_TL_GET_SERVER_ID_ID_LEN), server_mac, 6);
-                    CRM_LEN = (uint8_t)CRM_TL_GET_SERVER_ID_LEN(CRM_TL_GET_SERVER_ID_ID_LEN);
-                    XcpSendMulticastResponse(&CRM, CRM_LEN,client_addr,client_port); // Transmit multicast command response
+              case CC_TL_GET_SERVER_ID_EXTENDED:
+                    #ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
+                      check_len(CRO_TL_GET_SERVER_ID_LEN);
+                      BOOL server_isTCP;
+                      uint16_t server_port;
+                      uint8_t server_addr[4];
+                      uint8_t server_mac[6];
+                      uint16_t client_port;
+                      uint8_t client_addr[4];
+                      client_port = CRO_TL_GET_SERVER_ID_PORT;
+                      memcpy(client_addr, &CRO_TL_GET_SERVER_ID_ADDR(0), 4);
+                      XcpEthTlGetInfo(&server_isTCP, server_mac, server_addr, &server_port);
+                      memcpy(&CRM_TL_GET_SERVER_ID_ADDR(0),server_addr,4);
+                      CRM_TL_GET_SERVER_ID_PORT = server_port;
+                      CRM_TL_GET_SERVER_ID_STATUS = 
+                        (server_isTCP ? GET_SERVER_ID_STATUS_PROTOCOL_TCP : GET_SERVER_ID_STATUS_PROTOCOL_UDP) | // protocol type
+                        (isConnected() ? GET_SERVER_ID_STATUS_SLV_AVAILABILITY_BUSY : 0) | // In use
+                        0; // TL_SLV_DETECT_STATUS_SLV_ID_EXT_SUPPORTED; // GET_SERVER_ID_EXTENDED supported
+                      CRM_TL_GET_SERVER_ID_RESOURCE  = RM_DAQ;                 
+                      CRM_TL_GET_SERVER_ID_ID_LEN = (uint8_t)ApplXcpGetId(IDT_ASCII, &CRM_TL_GET_SERVER_ID_ID, CRM_TL_GET_SERVER_ID_MAX_LEN);
+                      memcpy((uint8_t*)&CRM_TL_GET_SERVER_ID_MAC(CRM_TL_GET_SERVER_ID_ID_LEN), server_mac, 6);
+                      CRM_LEN = (uint8_t)CRM_TL_GET_SERVER_ID_LEN(CRM_TL_GET_SERVER_ID_ID_LEN);
+                      XcpSendMulticastResponse(&CRM, CRM_LEN,client_addr,client_port); // Transmit multicast command response
+                    #endif // PLATFORM_ENABLE_GET_LOCAL_ADDR
                     goto no_response;
-                    #endif
+              #endif // !XCP_TRANSPORT_LAYER_CAN
 
-                  case 0:
-                  default: /* unknown transport layer command */
+              case 0:
+              default: /* unknown transport layer command */
                     error(CRC_CMD_UNKNOWN);
 
-              }
+          }
           break;
 #endif // >= 0x0103
 

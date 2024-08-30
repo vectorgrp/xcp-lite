@@ -119,14 +119,14 @@ impl XcpEvent {
     }
 
     /// Trigger a XCP event and provide a base pointer for relative addressing mode (XCP_ADDR_EXT_DYN)
-    /// Address of the associated measurement variable must be relative to base
+    /// Address of the associated measurement variables must be relative to base
     ///
     /// # Safety
     /// This is a C ffi call, which gets a pointer to a daq capture buffer
     /// The provenance of the pointer (len, lifetime) is is guaranteed , it refers to self
     /// The buffer must match its registry description, to avoid corrupt data given to the XCP tool
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
-    pub fn trigger(self, base: *const u8, len: u32) -> u8 {
+    pub fn trigger_ext(self, base: *const u8, len: u32) -> u8 {
         // trace!(
         //     "Trigger event {} num={}, index={}, base=0x{:X}, len={}",
         //     self.get_name(),
@@ -140,6 +140,28 @@ impl XcpEvent {
         unsafe {
             // Trigger event
             xcplib::XcpEventExt(self.get_num(), base, len)
+        }
+    }
+
+    /// Trigger a XCP event for absolute addressing DAQ lists (XCP_ADDR_EXT_ABS)
+    /// Address of the associated measurement variables must be absolute (relative to ApplXcpGetBaseAddr)
+    ///
+    /// # Safety
+    /// This is a C ffi call, which gets a pointer to static memory segment
+    /// The buffer must match its registry description, to avoid corrupt data given to the XCP tool
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
+    pub fn trigger(self) {
+        // trace!(
+        //     "Trigger event {} num={}, index={}",
+        //     self.get_name(),
+        //     self.get_num(),
+        //     self.get_index(),
+        // );
+        // @@@@ unsafe - C library call
+        // @@@@ unsafe - Transfering a pointer and its valid memory range to XCPlite FFI
+        unsafe {
+            // Trigger event
+            xcplib::XcpEvent(self.get_num());
         }
     }
 
@@ -232,7 +254,7 @@ impl EventList {
         self.0.iter().for_each(|e| r.lock().unwrap().add_event(e.event));
     }
 
-    fn create_event(&mut self, name: &'static str, indexed: bool) -> XcpEvent {
+    fn create_event_ext(&mut self, name: &'static str, indexed: bool) -> XcpEvent {
         // Allocate a new, sequential event number
         let num = self.0.len();
 
@@ -562,8 +584,14 @@ impl Xcp {
     // Create daq event
     // index==0 event is owned by a static in a function  (macro daq_create_event)
     // index>0 event is hold in thread local memory, index is the thread instance count (macro daq_create_event_instance)
-    pub fn create_event(&self, name: &'static str, indexed: bool) -> XcpEvent {
-        self.event_list.lock().unwrap().create_event(name, indexed)
+    pub fn create_event_ext(&self, name: &'static str, indexed: bool) -> XcpEvent {
+        self.event_list.lock().unwrap().create_event_ext(name, indexed)
+    }
+
+    // Create daq event
+    // Event is owned by a static in a function  (macro daq_create_event)
+    pub fn create_event(&self, name: &'static str) -> XcpEvent {
+        self.event_list.lock().unwrap().create_event_ext(name, false)
     }
 
     //------------------------------------------------------------------------------------------

@@ -1,5 +1,6 @@
 #pragma once
 
+
 /* main.h */
 /*
 | Code released into public domain, no attribution required
@@ -39,9 +40,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <inttypes.h>
-#include <math.h>
+//#include <math.h>
 #include <assert.h>
-
 
 #ifndef _WIN // Linux
 
@@ -50,17 +50,18 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/time.h>
-#include <time.h>
+//#include <time.h>
+
 #include <sys/stat.h>
 #include <pthread.h>
-#include <ifaddrs.h>
-#include <fcntl.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
+//#include <ifaddrs.h>
+//#include <fcntl.h>
+//#include <netinet/in.h>
+//#include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
-#define MAX_PATH 256
+//#define MAX_PATH 256
 
 #else // Windows
 
@@ -82,10 +83,10 @@
 #define FALSE 0
 #define TRUE 1
 
-#ifdef _WIN
-#define M_PI 3.14159265358979323846
-#endif
-#define M_2PI (M_PI*2)
+// #ifdef _WIN
+// #define M_PI 3.14159265358979323846
+// #endif
+// #define M_2PI (M_PI*2)
 
 #include "main_cfg.h"
 
