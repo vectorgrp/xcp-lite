@@ -655,7 +655,7 @@ static uint8_t XcpAddOdtEntry(uint32_t addr, uint8_t ext, uint8_t size) {
     return CRC_ACCESS_DENIED;
 
     OdtEntrySize(gXcp.WriteDaqOdtEntry) = size;
-    OdtEntryAddr(gXcp.WriteDaqOdtEntry) = base_offset; // Signed offset relative to base pointer given to XcpEvent_
+    OdtEntryAddr(gXcp.WriteDaqOdtEntry) = base_offset; // Signed 32 bit offset relative to base pointer given to XcpEvent_
     if (!XcpAdjustOdtSize(gXcp.WriteDaqDaq, gXcp.WriteDaqOdt, size)) return CRC_DAQ_CONFIG;
     gXcp.WriteDaqOdtEntry++; // Autoincrement to next ODT entry, no autoincrementing over ODTs
     return 0;
@@ -948,8 +948,8 @@ uint8_t XcpEventExt(uint16_t event, const uint8_t* base, uint32_t len) {
     mutexUnlock(&gXcp.CmdPendingMutex);
 #endif
     if (cmdPending) {
-        // Convert relative addr in MtaAddr to pointer MtaPtr
-        gXcp.MtaPtr = (uint8_t*)base + (gXcp.MtaAddr & 0xFFFF);
+        // Convert relative signed 16 bit addr in MtaAddr to pointer MtaPtr
+        gXcp.MtaPtr = base + (int16_t)(gXcp.MtaAddr & 0xFFFF);
         gXcp.MtaExt = XCP_ADDR_EXT_PTR;
         if (CRC_CMD_OK==XcpAsyncCommand(TRUE,(const uint32_t*)&gXcp.CmdPending, gXcp.CmdPendingLen)) {
           uint8_t cmd = gXcp.CmdPending.b[0];
