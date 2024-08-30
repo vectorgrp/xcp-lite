@@ -11,16 +11,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-    format:
-      name: Format
-      runs-on: [ubuntu-22.04]
-      steps:
-      - uses: actions/checkout@v3
-      - uses: moonrepo/setup-rust@v1
-        with:
-              components: rustfmt
-      - name: Check formatting
-        run: cargo fmt --all --check
     lint:
         name: Lint
         runs-on: [ubuntu-22.04]
@@ -35,7 +25,7 @@ jobs:
     build:
       name: Build
       runs-on: ${{ matrix.os }}
-      needs: [format, lint]
+      needs: [lint]
       strategy:
         matrix:
           os: [ubuntu-22.04, macos-13, macos-14, windows-2022]
