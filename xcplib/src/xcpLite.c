@@ -205,11 +205,11 @@ typedef struct {
     uint16_t SessionStatus;
                 
     tXcpCto Crm;                           /* response message buffer */
-    uint8_t CmdPendingLen;                 /* pending command message length */
+    uint8_t CrmLen;                        /* RES,ERR message length */   
 
 #ifdef XCP_ENABLE_DYN_ADDRESSING
     tXcpCto CmdPending;                    /* pending command message buffer */
-    uint8_t CrmLen;                        /* RES,ERR message length */   
+    uint8_t CmdPendingLen;                 /* pending command message length */
 
   #ifdef XCP_ENABLE_MULTITHREAD_CAL_EVENTS
     MUTEX CmdPendingMutex;

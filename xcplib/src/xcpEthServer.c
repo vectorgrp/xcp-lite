@@ -61,15 +61,6 @@ BOOL XcpEthServerInit(const uint8_t* addr, uint16_t port, BOOL useTCP, uint16_t 
     // Init network sockets
     if (!socketStartup()) return FALSE;
     
-    // just to be sure
-    assert(sizeof(uint8_t) == 1);
-    assert(sizeof(uint16_t) == 2);
-    assert(sizeof(uint32_t) == 4);
-    assert(sizeof(int32_t) == 4);
-    assert(sizeof(uint64_t) == 8);
-    assert(sizeof(int64_t) == 8);
-    assert(sizeof(BOOL) == 4);
-
     gXcpServer.TransmitThreadRunning = 0;
     gXcpServer.ReceiveThreadRunning = 0;
 

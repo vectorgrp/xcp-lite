@@ -40,7 +40,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <inttypes.h>
-//#include <math.h>
+#include <math.h>
 #include <assert.h>
 
 #ifndef _WIN // Linux

@@ -33,6 +33,8 @@
 
 #ifdef PLATFORM_ENABLE_KEYBOARD
 
+#include <fcntl.h>
+
 int _getch() {
   struct termios oldt, newt;
   int ch;
