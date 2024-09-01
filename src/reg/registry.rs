@@ -2,10 +2,10 @@
 // Module registry
 // Registry for calibration segments, parameters and measurement signals
 
-mod a2l_writer;
-
 use core::panic;
+use std::net::Ipv4Addr;
 
+mod a2l_writer;
 use a2l_writer::A2lWriter;
 
 use crate::xcp;
@@ -231,7 +231,7 @@ impl RegDataTypeProperties for RegistryDataType {
 #[derive(Clone, Copy, Debug)]
 struct RegistryXcpTransportLayer {
     protocol_name: &'static str,
-    ip: [u8; 4],
+    addr: Ipv4Addr,
     port: u16,
 }
 
@@ -239,7 +239,7 @@ impl Default for RegistryXcpTransportLayer {
     fn default() -> Self {
         RegistryXcpTransportLayer {
             protocol_name: "UDP",
-            ip: [127, 0, 0, 1],
+            addr: Ipv4Addr::new(127, 0, 0, 1),
             port: 5555,
         }
     }
@@ -578,11 +578,11 @@ impl Registry {
     }
 
     // Set transport layer parameters
-    pub fn set_tl_params(&mut self, protocol_name: &'static str, ip: [u8; 4], port: u16) {
-        debug!("set_tl_params: {} {:?} {}", protocol_name, ip, port);
+    pub fn set_tl_params(&mut self, protocol_name: &'static str, addr: Ipv4Addr, port: u16) {
+        debug!("set_tl_params: {} {} {}", protocol_name, addr, port);
         assert!(self.name.is_some(), "Registry is closed");
 
-        self.tl_params = Some(RegistryXcpTransportLayer { protocol_name, ip, port });
+        self.tl_params = Some(RegistryXcpTransportLayer { protocol_name, addr, port });
     }
 
     // Add an event
@@ -727,7 +727,7 @@ mod registry_tests {
 
         r.set_name("test");
         r.set_epk("TEST_EPK", 0x80000000);
-        r.set_tl_params("UDP", [127, 0, 0, 1], 5555);
+        r.set_tl_params("UDP", Ipv4Addr::new(127, 0, 0, 1), 5555);
         r.add_cal_seg("test_memory_segment_1", 0x80010000, 0, 4);
         r.add_cal_seg("test_memory_segment_2", 0x80020000, 0, 4);
 

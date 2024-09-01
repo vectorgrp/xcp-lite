@@ -25,9 +25,9 @@ impl GenerateA2l for RegistryXcpTransportLayer {
     fn to_a2l_string(&self) -> String {
         let protocol = self.protocol_name.to_uppercase();
         let port = self.port;
-        let ip = format!("{}.{}.{}.{}", self.ip[0], self.ip[1], self.ip[2], self.ip[3]);
-        trace!("write transport layer: {protocol} {ip}:{port}");
-        format!(r#"/begin XCP_ON_{protocol}_IP 0x104 {port} ADDRESS "{ip}" /end XCP_ON_UDP_IP"#)
+        let addr = self.addr;
+        trace!("write transport layer: {protocol} {addr}:{port}");
+        format!(r#"/begin XCP_ON_{protocol}_IP 0x104 {port} ADDRESS "{addr}" /end XCP_ON_UDP_IP"#)
     }
 }
 

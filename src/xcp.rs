@@ -1,9 +1,12 @@
 //----------------------------------------------------------------------------------------------
 // Module xcp
 
-use std::sync::{
-    atomic::{AtomicU8, Ordering},
-    Arc, Mutex,
+use std::{
+    net::Ipv4Addr,
+    sync::{
+        atomic::{AtomicU8, Ordering},
+        Arc, Mutex,
+    },
 };
 
 // Using sync version of OnceCell from once_cell crate for the static event remapping array
@@ -383,7 +386,12 @@ impl XcpBuilder {
 
     /// Start the XCP on Ethernet Transport Layer
     /// segment_size must fit the maximum UDP MTU supported by the system
-    pub fn start_server(self, tl: XcpTransportLayer, addr: [u8; 4], port: u16, segment_size: u16) -> Result<&'static Xcp, &'static str> {
+
+    pub fn start_server<A>(self, tl: XcpTransportLayer, addr: A, port: u16, segment_size: u16) -> Result<&'static Xcp, &'static str>
+    where
+        A: Into<Ipv4Addr>,
+    {
+        let ipv4_addr: Ipv4Addr = addr.into();
         let xcp = Xcp::get();
 
         // Server parameters from XcpBuilder
@@ -394,14 +402,15 @@ impl XcpBuilder {
         {
             let mut r = xcp.registry.lock().unwrap();
             r.set_name(self.name);
-            r.set_tl_params(tl.protocol_name(), addr, port); // Transport layer parameters
+            r.set_tl_params(tl.protocol_name(), ipv4_addr, port); // Transport layer parameters
             r.set_epk(self.epk, Xcp::XCP_EPK_ADDR); // EPK
         }
 
         // @@@@ unsafe - C library call
         unsafe {
             // Initialize the XCP Server and ETH transport layer
-            if 0 == xcplib::XcpEthServerInit(addr.as_ptr(), port, if tl == XcpTransportLayer::Tcp { 1 } else { 0 }, segment_size) {
+            let a: [u8; 4] = ipv4_addr.octets();
+            if 0 == xcplib::XcpEthServerInit(&a as *const u8, port, if tl == XcpTransportLayer::Tcp { 1 } else { 0 }, segment_size) {
                 return Err("Error: XcpEthServerInit() failed");
             }
         }

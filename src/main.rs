@@ -374,7 +374,7 @@ fn main() {
         // .set_epk(build_info::format!("{}", $.timestamp)); // Create new EPK from build info
         .set_epk("EPK_");
 
-    let xcp = match xcp_builder.start_server(if args.tcp { XcpTransportLayer::Tcp } else { XcpTransportLayer::Udp }, args.bind.octets(), args.port, args.segment_size) {
+    let xcp = match xcp_builder.start_server(if args.tcp { XcpTransportLayer::Tcp } else { XcpTransportLayer::Udp }, args.bind, args.port, args.segment_size) {
         Err(res) => {
             error!("XCP server initialization failed: {:?}", res);
             return;
