@@ -26,6 +26,7 @@
 use std::{
     f64::consts::PI,
     fmt::Debug,
+    net::Ipv4Addr,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex, RwLock,
@@ -44,7 +45,6 @@ use log::{debug, error, info, trace, warn};
 // Command line arguments
 
 use clap::Parser;
-use std::net::Ipv4Addr;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
