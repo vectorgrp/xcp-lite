@@ -108,7 +108,7 @@ fn main() {
     // Calibration segments have 2 pages, a constant default "FLASH" page and a mutable "RAM" page
     // FLASH or RAM can be selected runtime (XCP set_cal_page), saves to json (XCP freeze) freeze, reinitialized from FLASH (XCP copy_cal_page)
     // RAM page can be loaded from json in new
-    let calseg = Xcp::create_calseg(
+    let calseg = xcp.create_calseg(
         "calseg",  // name of the calibration segment and the .json file
         &CAL_PAGE, // default calibration values
         true,      // load RAM page from file "cal_seg1".json

@@ -513,7 +513,7 @@ mod cal_tests {
 
     #[test]
     fn test_calibration_segment_basics() {
-        xcp_test::test_setup(log::LevelFilter::Info);
+        let xcp = xcp_test::test_setup(log::LevelFilter::Info);
 
         is_sync::<Xcp>();
         is_sync::<XcpEvent>();
@@ -529,7 +529,7 @@ mod cal_tests {
         const CAL_PAGE: CalPage0 = CalPage0 { stop: true };
 
         // Intended use
-        let cal_seg1 = Xcp::create_calseg("calseg1", &CAL_PAGE, false);
+        let cal_seg1 = xcp.create_calseg("calseg1", &CAL_PAGE, false);
         cal_seg1.sync();
         assert!(cal_seg1.stop);
         let c1 = CalSeg::clone(&cal_seg1);
@@ -559,7 +559,7 @@ mod cal_tests {
         const CAL_PAGE2: CalPage4 = CalPage4 { test: 0x55 }; // FLASH
         let cal_page2 = CalPage4 { test: 0xAA }; // RAM
         cal_page2.save_to_file("calseg2.json");
-        let cal_seg2 = Xcp::create_calseg("calseg2", &CAL_PAGE2, true);
+        let cal_seg2 = xcp.create_calseg("calseg2", &CAL_PAGE2, true);
         Xcp::get().set_ecu_cal_page(XcpCalPage::Ram);
         let r = &cal_seg2.test;
         assert_eq!(*r, 0xAA); // RAM page
@@ -605,7 +605,7 @@ mod cal_tests {
         mut_page.save_to_file("test_cal_seg.json");
 
         // Create a cal_seg with a mut_page from file test_cal_seg.json aka CAL_PAR_RAM, and a default page from CAL_PAR_FLASH
-        let cal_seg = &Xcp::create_calseg("test_cal_seg", &CAL_PAR_FLASH, true);
+        let cal_seg = &xcp.create_calseg("test_cal_seg", &CAL_PAR_FLASH, true);
         let cal_seg1 = cal_seg.clone();
         let cal_seg2 = cal_seg.clone();
 
@@ -681,7 +681,7 @@ mod cal_tests {
         let mut_page: CalPage2 = CalPage2 { a: 1, b: 3, c: 5 };
         mut_page.save_to_file("test1.json");
         mut_page.save_to_file("test2.json");
-        let cal_seg = Xcp::create_calseg("test1", &FLASH_PAGE2, true); // active page is RAM from test1.json
+        let cal_seg = xcp.create_calseg("test1", &FLASH_PAGE2, true); // active page is RAM from test1.json
         assert_eq!(xcp.get_ecu_cal_page(), XcpCalPage::Ram, "XCP should be on RAM page here, there is no independant page switching yet");
         test_is_mut!(cal_seg); // Default page must be mut_page
         xcp.set_ecu_cal_page(XcpCalPage::Flash); // Simulate a set cal page to default from XCP master
@@ -713,8 +713,7 @@ mod cal_tests {
     // @@@@ Bug: Test fails occasionally
     #[test]
     fn test_cal_page_freeze() {
-        xcp_test::test_setup(log::LevelFilter::Warn);
-        let _xcp = Xcp::get();
+        let xcp = xcp_test::test_setup(log::LevelFilter::Warn);
 
         assert!(std::mem::size_of::<CalPage1>() == 12);
         assert!(std::mem::size_of::<CalPage2>() == 12);
@@ -724,7 +723,7 @@ mod cal_tests {
         mut_page1.save_to_file("test1.json");
 
         // Create calseg1 from def
-        let calseg1 = Xcp::create_calseg("test1", &FLASH_PAGE1, true);
+        let calseg1 = xcp.create_calseg("test1", &FLASH_PAGE1, true);
         test_is_mut!(calseg1);
 
         // Freeze calseg1 to new test1.json
@@ -734,7 +733,7 @@ mod cal_tests {
 
         // Create calseg2 from freeze file test1.json of calseg1
         std::fs::copy("test1.json", "test2.json").unwrap();
-        let calseg2 = Xcp::create_calseg("test2", &FLASH_PAGE2, true);
+        let calseg2 = xcp.create_calseg("test2", &FLASH_PAGE2, true);
         test_is_mut!(calseg2);
 
         std::fs::remove_file("test1.json").ok();
@@ -746,7 +745,7 @@ mod cal_tests {
 
     #[test]
     fn test_cal_page_trait() {
-        xcp_test::test_setup(log::LevelFilter::Info);
+        let xcp = xcp_test::test_setup(log::LevelFilter::Info);
 
         #[derive(Debug, Copy, Clone, Serialize, Deserialize, XcpTypeDescription)]
         struct Page1 {
@@ -767,9 +766,9 @@ mod cal_tests {
 
         const PAGE3: Page3 = Page3 { c: 1 };
 
-        let s1 = &Xcp::create_calseg("test1", &PAGE1, true);
-        let s2 = &Xcp::create_calseg("test2", &PAGE2, true);
-        let s3 = &Xcp::create_calseg("test3", &PAGE3, true);
+        let s1 = &xcp.create_calseg("test1", &PAGE1, true);
+        let s2 = &xcp.create_calseg("test2", &PAGE2, true);
+        let s3 = &xcp.create_calseg("test3", &PAGE3, true);
 
         info!("s1: {}", s1.get_name());
         info!("s2: {}", s2.get_name());
@@ -814,7 +813,7 @@ mod cal_tests {
 
     #[test]
     fn test_attribute_macros() {
-        xcp_test::test_setup(log::LevelFilter::Info);
+        let xcp = xcp_test::test_setup(log::LevelFilter::Info);
 
         #[derive(Debug, Copy, Clone, Serialize, Deserialize, XcpTypeDescription)]
         struct CalPage {
@@ -843,7 +842,7 @@ mod cal_tests {
             ],
         };
 
-        let calseg = &Xcp::create_calseg("calseg", &CAL_PAGE, false);
+        let calseg = xcp.create_calseg("calseg", &CAL_PAGE, false);
         let c: RegistryCharacteristic = Xcp::get().get_registry().lock().unwrap().find_characteristic("CalPage.a").unwrap().clone();
 
         assert_eq!(calseg.get_name(), "calseg");

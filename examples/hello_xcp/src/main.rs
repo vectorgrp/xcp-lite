@@ -38,14 +38,14 @@ fn main() {
 
     env_logger::Builder::new().filter_level(log::LevelFilter::Debug).init();
 
-    XcpBuilder::new("xcp_demo")
+    let xcp = XcpBuilder::new("xcp_demo")
         .set_log_level(XcpLogLevel::Debug)
         .enable_a2l(true)
         .set_epk("EPK_")
         .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555, 1464)
         .unwrap();
 
-    let calseg = Xcp::create_calseg("calseg", &CAL_PAGE, true);
+    let calseg = xcp.create_calseg("calseg", &CAL_PAGE, true);
 
     let mut counter: u16 = calseg.min;
 

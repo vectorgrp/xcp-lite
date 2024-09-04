@@ -397,7 +397,7 @@ fn main() {
     // The initial RAM page can be loaded from a json file (load_json=true) or set to the default FLASH page (load_json=false)
 
     // Create a alibration segment wrapper for CAL_PAGE, add fields manually to registry
-    let calseg = Xcp::add_calseg(
+    let calseg = xcp.add_calseg(
         "CalPage", // name of the calibration segment and the .json file
         &CAL_PAGE, // default calibration values with static lifetime, trait bound from CalPageTrait must be possible
     );
@@ -408,8 +408,8 @@ fn main() {
         .add_field(calseg_field!(CAL_PAGE.cycle_time_us, "us", "main task cycle time"));
 
     // Create calibration segments for CAL_PAGE1 and CAL_PAGE2, add fields with macro derive(XcpTypeDescription))
-    let calseg1 = Xcp::create_calseg("CalPage1", &CAL_PAGE1, true);
-    let calseg2 = Xcp::create_calseg("CalPage2", &CAL_PAGE2, true);
+    let calseg1 = xcp.create_calseg("CalPage1", &CAL_PAGE1, true);
+    let calseg2 = xcp.create_calseg("CalPage2", &CAL_PAGE2, true);
 
     // Task2 - 9 instances
     // To demonstrate the difference between single instance and multi instance events and measurement values
@@ -449,6 +449,7 @@ fn main() {
     daq_register_static!(static_vars.test_u32, static_event, "Test static u32");
     daq_register_static!(static_vars.test_f64, static_event, "Test static f64");
 
+    let mut current_session_status = xcp.get_session_status();
     while RUN.load(Ordering::Acquire) {
         // @@@@ Dev: Terminate mainloop for shutdown if calibration parameter run is false, for test automation
         if !calseg.run {
@@ -480,9 +481,16 @@ fn main() {
 
         // Check if the XCP server is still alive
         // Optional
-        if !Xcp::check_server() {
+        if !xcp.check_server() {
             warn!("XCP server shutdown!");
             break;
+        }
+
+        // Check if the XCP session status has changed and print info
+        let session_status = xcp.get_session_status();
+        if session_status != current_session_status {
+            info!("XCP session status: {:?}", session_status);
+            current_session_status = session_status;
         }
 
         // @@@@ Dev:
@@ -514,5 +522,5 @@ fn main() {
     info!("All tasks finished");
 
     // Stop and shutdown the XCP server
-    Xcp::stop_server();
+    xcp.stop_server();
 }

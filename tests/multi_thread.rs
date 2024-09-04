@@ -142,7 +142,7 @@ fn task(cal_seg: CalSeg<CalPage1>) {
                 break;
             }
 
-            if !Xcp::check_server() {
+            if !Xcp::get().check_server() {
                 panic!("XCP server shutdown!");
             }
         }
@@ -159,7 +159,7 @@ async fn test_multi_thread() {
     env_logger::Builder::new().filter_level(OPTION_LOG_LEVEL.to_log_level_filter()).init();
 
     // Initialize XCP driver singleton, the transport layer server and enable the A2L writer
-    match XcpBuilder::new("xcp_lite").set_log_level(OPTION_XCP_LOG_LEVEL).enable_a2l(true).set_epk("EPK_TEST").start_server(
+    let xcp = match XcpBuilder::new("xcp_lite").set_log_level(OPTION_XCP_LOG_LEVEL).enable_a2l(true).set_epk("EPK_TEST").start_server(
         OPTION_TRANSPORT_LAYER,
         OPTION_SERVER_ADDR,
         OPTION_SERVER_PORT,
@@ -173,7 +173,7 @@ async fn test_multi_thread() {
     };
 
     // Create a calibration segment
-    let cal_seg = Xcp::create_calseg("cal_seg", &CAL_PAR1, true);
+    let cal_seg = xcp.create_calseg("cal_seg", &CAL_PAR1, true);
 
     // Create n test tasks
     let mut v = Vec::new();
@@ -191,6 +191,6 @@ async fn test_multi_thread() {
         t.join().ok();
     }
 
-    Xcp::stop_server();
+    xcp.stop_server();
     std::fs::remove_file("xcp_client.a2l").ok();
 }

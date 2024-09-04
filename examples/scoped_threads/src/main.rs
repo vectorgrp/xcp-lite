@@ -68,7 +68,7 @@ fn main() {
         .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555, 1464)
         .unwrap();
 
-    let calseg = Xcp::create_calseg("calseg", &CAL_PAGE, true);
+    let calseg = xcp.create_calseg("calseg", &CAL_PAGE, true);
 
     thread::scope(|s| {
         for _ in 0..2 {

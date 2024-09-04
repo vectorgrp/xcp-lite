@@ -146,7 +146,7 @@ fn main() {
         .start_server(XcpTransportLayer::Udp, BIND_ADDR, 5555, 8000 - 20 - 8)
         .unwrap();
 
-    let mandelbrot = Xcp::create_calseg("mandelbrot", &MANDELBROT, true);
+    let mandelbrot = xcp.create_calseg("mandelbrot", &MANDELBROT, true);
 
     // The pixel array on heap
     let mut pixels = vec![0; X_RES * Y_RES];

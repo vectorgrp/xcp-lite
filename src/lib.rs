@@ -30,6 +30,7 @@ pub use xcp::XcpBuilder;
 pub use xcp::XcpCalPage;
 pub use xcp::XcpEvent;
 pub use xcp::XcpLogLevel;
+pub use xcp::XcpSessionStatus;
 pub use xcp::XcpTransportLayer;
 
 // Submodule cal
@@ -134,9 +135,9 @@ macro_rules! daq_register_static {
 #[macro_export]
 macro_rules! xcp_println {
     ( $fmt:expr ) => {
-        Xcp::print(&format!($fmt));
+        Xcp::get().print(&format!($fmt));
     };
     ( $fmt:expr, $( $arg:expr ),* ) => {
-        Xcp::print(&format!($fmt, $( $arg ),*));
+        Xcp::get().print(&format!($fmt, $( $arg ),*));
     };
 }

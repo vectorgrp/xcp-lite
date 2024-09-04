@@ -366,6 +366,40 @@ impl RegistryMeasurement {
             annotation,
         }
     }
+
+    pub fn get_name(&self) -> &str {
+        &self.name
+    }
+    pub fn get_datatype(&self) -> RegistryDataType {
+        self.datatype
+    }
+    pub fn get_dim(&self) -> (u16, u16) {
+        (self.x_dim, self.y_dim)
+    }
+    pub fn get_event(&self) -> XcpEvent {
+        self.event
+    }
+    pub fn get_addr_offset(&self) -> i16 {
+        self.addr_offset
+    }
+    pub fn get_addr(&self) -> u64 {
+        self.addr
+    }
+    pub fn get_factor(&self) -> f64 {
+        self.factor
+    }
+    pub fn get_offset(&self) -> f64 {
+        self.offset
+    }
+    pub fn get_comment(&self) -> &str {
+        self.comment
+    }
+    pub fn get_unit(&self) -> &str {
+        self.unit
+    }
+    pub fn get_annotation(&self) -> Option<&String> {
+        self.annotation.as_ref()
+    }
 }
 
 #[derive(Debug)]
@@ -379,6 +413,10 @@ impl RegistryMeasurementList {
     pub fn push(&mut self, m: RegistryMeasurement) {
         self.0.push(m);
     }
+
+    // pub fn len(&self) -> usize {
+    //     self.0.len()
+    // }
 
     pub fn iter(&self) -> std::slice::Iter<RegistryMeasurement> {
         self.0.iter()
@@ -540,7 +578,7 @@ impl Registry {
         }
     }
 
-    /// Clear
+    /// Clear (for test only)
     pub fn clear(&mut self) {
         debug!("Clear and close registry");
         self.name = None;
@@ -550,6 +588,12 @@ impl Registry {
         self.characteristic_list = RegistryCharacteristicList::new();
         self.event_list = RegistryEventList::new();
         self.measurement_list = RegistryMeasurementList::new();
+    }
+
+    /// Close registry
+    pub fn close(&mut self) {
+        debug!("Close registry");
+        self.name = None;
     }
 
     /// Set name
@@ -613,6 +657,11 @@ impl Registry {
         }
 
         self.cal_seg_list.push(RegistryCalSeg::new(name, addr, addr_ext, size));
+    }
+
+    pub fn get_measurement_list(&self) -> &Vec<RegistryMeasurement> {
+        println!("get_measurement_list, len = {}", self.measurement_list.0.len());
+        &self.measurement_list.0
     }
 
     /// Add an instance of a measurement signal associated to a measurement events

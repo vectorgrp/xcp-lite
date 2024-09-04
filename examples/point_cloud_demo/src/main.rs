@@ -118,7 +118,7 @@ fn main() {
         .start_server(XcpTransportLayer::Udp, BIND_ADDR, 5555, 8000 - 20 - 8)
         .unwrap();
 
-    let params = Xcp::create_calseg("Params", &PARAMS, true);
+    let params = xcp.create_calseg("Params", &PARAMS, true);
 
     let mut point_cloud = create_point_cloud();
     let mut event_point_cloud = daq_create_event!("point_cloud", POINT_COUNT * 12 + 8);

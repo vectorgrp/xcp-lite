@@ -69,7 +69,7 @@ fn main() {
     // FLASH or RAM can be switched during runtime (XCP set_cal_page), saved to json (XCP freeze) freeze, reinitialized from FLASH (XCP copy_cal_page)
     // The RAM page can be reloaded from a json file (load_json==true)
     // If A2L is enabled (enable_a2l), the A2L description will be generated and provided for upload by CANape
-    let calseg = Xcp::create_calseg(
+    let calseg = xcp.create_calseg(
         "calseg",  // name of the calibration segment and the .json file
         &CAL_PAGE, // default calibration values
         true,      // load RAM page from file "cal_seg".json

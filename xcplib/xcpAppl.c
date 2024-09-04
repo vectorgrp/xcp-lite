@@ -39,6 +39,9 @@ void ApplXcpSetLogLevel(uint8_t level) {
 /**************************************************************************/
 
 static uint8_t (*callback_connect)() = NULL;
+static uint8_t (*callback_prepare_daq)() = NULL;
+static uint8_t (*callback_start_daq)() = NULL;
+static void (*callback_stop_daq)() = NULL;
 static uint8_t (*callback_get_cal_page)(uint8_t segment, uint8_t mode) = NULL;
 static uint8_t (*callback_set_cal_page)(uint8_t segment, uint8_t page, uint8_t mode) = NULL;
 static uint8_t (*callback_init_cal)(uint8_t src_page,uint8_t dst_page) = NULL;
@@ -50,6 +53,9 @@ static uint8_t (*callback_flush)()  = NULL;
 
 void ApplXcpRegisterCallbacks(
     uint8_t (*cb_connect)(),
+    uint8_t (*cb_prepare_daq)(),
+    uint8_t (*cb_start_daq)(),
+    void (*cb_stop_daq)(),
     uint8_t (*cb_get_cal_page)(uint8_t segment, uint8_t mode),
     uint8_t (*cb_set_cal_page)(uint8_t segment, uint8_t page, uint8_t mode),
     uint8_t (*cb_freeze_cal)(),
@@ -63,6 +69,9 @@ void ApplXcpRegisterCallbacks(
 {
 
     callback_connect = cb_connect;
+    callback_prepare_daq = cb_prepare_daq;
+    callback_start_daq = cb_start_daq;
+    callback_stop_daq = cb_stop_daq;
     callback_get_cal_page = cb_get_cal_page;
     callback_set_cal_page = cb_set_cal_page;
     callback_freeze_cal = cb_freeze_cal;
@@ -91,17 +100,20 @@ BOOL ApplXcpConnect() {
 #if XCP_PROTOCOL_LAYER_VERSION >= 0x0104
 BOOL ApplXcpPrepareDaq() { 
     DBG_PRINT3("XCP prepare DAQ\n");
+    if (callback_prepare_daq!=NULL) return callback_prepare_daq();
     return TRUE;
 }
 #endif
 
 BOOL ApplXcpStartDaq() {
     DBG_PRINT3("XCP start DAQ\n");
+    if (callback_start_daq!=NULL) return callback_start_daq();
     return TRUE;
 }
 
 void ApplXcpStopDaq() {
     DBG_PRINT3("XCP stop DAQ\n");
+    if (callback_stop_daq!=NULL) callback_stop_daq();
 }
 
 

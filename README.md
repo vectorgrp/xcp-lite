@@ -167,13 +167,13 @@ fn task(calseg: CalSeg<CalPage>) {
 fn main() {
 
     // Initialize XCP driver singleton, the transport layer UDP and enable the automatic A2L writer and upload
-    XcpBuilder::new("xcp_lite").set_log_level(XcpLogLevel::Warn).enable_a2l(true).set_epk("???")
+    let xcp = XcpBuilder::new("xcp_lite").set_log_level(XcpLogLevel::Warn).enable_a2l(true).set_epk("???")
       .start_server(XcpTransportLayer::Udp,[127, 0, 0, 1],5555, 1400,).unwrap();
 
     // Create a calibration parameter set named "calsseg" (struct CalSeg, a MEMORY_SEGMENT in A2L and CANape)
     // Calibration segments have 2 pages, a constant default "FLASH" page (CAL_PAGE) and a mutable "RAM" page
     // The RAM page can be loaded from a json file (load_json=true)
-     let calseg = Xcp::create_calseg(
+     let calseg = xcp.create_calseg(
         "calseg", // name of the calibration segment in A2L as MEMORY_SEGMENT and as .json file
         &CAL_PAGE, // default calibration values
         true,      // load RAM page from file "cal_seg1".json

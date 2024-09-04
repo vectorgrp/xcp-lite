@@ -143,7 +143,7 @@ fn task(cal_seg: CalSeg<CalPage1>) {
         }
 
         // Check if the XCP server is still alive
-        if loop_counter % 256 == 0 && !Xcp::check_server() {
+        if loop_counter % 256 == 0 && !Xcp::get().check_server() {
             panic!("XCP server shutdown!");
         }
     }
@@ -169,7 +169,7 @@ async fn test_single_thread() {
     info!("The system bool has {} bytes", std::mem::size_of::<bool>());
 
     // Initialize XCP driver singleton, the transport layer server and enable the A2L writer
-    match XcpBuilder::new("xcp_lite").set_log_level(OPTION_XCP_LOG_LEVEL).enable_a2l(true).set_epk("EPK_TEST").start_server(
+    let xcp = match XcpBuilder::new("xcp_lite").set_log_level(OPTION_XCP_LOG_LEVEL).enable_a2l(true).set_epk("EPK_TEST").start_server(
         OPTION_TRANSPORT_LAYER,
         OPTION_SERVER_ADDR,
         OPTION_SERVER_PORT,
@@ -183,7 +183,7 @@ async fn test_single_thread() {
     };
 
     // Create a calibration segment
-    let cal_seg = Xcp::create_calseg("cal_seg", &CAL_PAR1, false);
+    let cal_seg = xcp.create_calseg("cal_seg", &CAL_PAR1, false);
 
     // Create a test task
     let t1 = thread::spawn(move || {
@@ -193,6 +193,6 @@ async fn test_single_thread() {
     test_executor(true, false).await; // Start the test executor XCP client
 
     t1.join().ok();
-    Xcp::stop_server();
+    xcp.stop_server();
     std::fs::remove_file("xcp_client.a2l").ok();
 }

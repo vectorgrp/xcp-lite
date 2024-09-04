@@ -439,7 +439,7 @@ pub async fn test_executor(single_thread: bool, multi_thread: bool) {
 
             // Set task cycle time to TASK_SLEEP_TIME_US
             xcp_client.set_value_u64(cycle_time_us, TASK_SLEEP_TIME_US).await.unwrap();
-            Xcp::set_server_log_level(LOG_LEVEL);
+            Xcp::get().set_server_log_level(LOG_LEVEL);
 
             // Create calibration variable CalPage1.cal_test
             let res = a2l_reader::a2l_find_characteristic(xcp_client.get_a2l_file().unwrap(), "CalPage1.cal_test").unwrap();

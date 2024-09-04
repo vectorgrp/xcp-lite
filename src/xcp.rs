@@ -15,6 +15,9 @@ use once_cell::sync::OnceCell;
 // Using lazy_static crate for the XCP singleton
 use lazy_static::lazy_static;
 
+// Using bitflags crate for the XCP session status flags
+use bitflags::bitflags;
+
 use crate::{cal, reg, xcplib};
 use cal::*;
 use reg::*;
@@ -58,6 +61,20 @@ impl XcpLogLevel {
             XcpLogLevel::Debug => log::LevelFilter::Debug,
             XcpLogLevel::Trace => log::LevelFilter::Trace,
         }
+    }
+}
+
+//----------------------------------------------------------------------------------------------
+// Session statuc
+
+bitflags! {
+    /// Represents a set of flags for the XCP session status
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct XcpSessionStatus: u16 {
+        const SS_DAQ            = 0x0040; // DAQ running
+        const SS_INITIALIZED    = 0x8000;
+        const SS_STARTED        = 0x4000;
+        const SS_CONNECTED      = 0x2000;
     }
 }
 
@@ -366,12 +383,12 @@ impl XcpBuilder {
         self
     }
 
-    /// Start the XCP protocol layer (used for testing only)
+    // Start the XCP protocol layer (used for testing only)
     pub fn start_protocol_layer(self) -> Result<&'static Xcp, &'static str> {
         let xcp = Xcp::get();
 
         // Server parameters from XcpBuilder
-        Xcp::set_server_log_level(self.log_level);
+        xcp.set_server_log_level(self.log_level);
         xcp.set_epk(self.epk);
 
         // Registry parameters from XcpBuiler
@@ -386,16 +403,15 @@ impl XcpBuilder {
 
     /// Start the XCP on Ethernet Transport Layer
     /// segment_size must fit the maximum UDP MTU supported by the system
-
     pub fn start_server<A>(self, tl: XcpTransportLayer, addr: A, port: u16, segment_size: u16) -> Result<&'static Xcp, &'static str>
     where
         A: Into<Ipv4Addr>,
     {
         let ipv4_addr: Ipv4Addr = addr.into();
-        let xcp = Xcp::get();
+        let xcp = &XCP_SINGLETON;
 
         // Server parameters from XcpBuilder
-        Xcp::set_server_log_level(self.log_level);
+        xcp.set_server_log_level(self.log_level);
         xcp.set_epk(self.epk);
 
         // Registry parameters from XcpBuiler
@@ -457,14 +473,19 @@ impl Xcp {
     }
 
     // new
+    // Lazy static initialization of the Xcp singleton
     fn new() -> Xcp {
         // @@@@ unsafe - C library call
         unsafe {
+            // Initialize the XCP protocol layer
             xcplib::XcpInit();
 
-            // Register the callbacks for xcplib
+            // Register the callbacks from xcplib
             xcplib::ApplXcpRegisterCallbacks(
                 Some(cb_connect),
+                Some(cb_prepare_daq),
+                Some(cb_start_daq),
+                Some(cb_stop_daq),
                 Some(cb_get_cal_page),
                 Some(cb_set_cal_page),
                 Some(cb_freeze_cal),
@@ -488,14 +509,22 @@ impl Xcp {
     /// Get the Xcp singleton instance
     #[inline(always)]
     pub fn get() -> &'static Xcp {
+        // XCP_SINGLETON will be initialized by lazy_static
         &XCP_SINGLETON
     }
 
     //------------------------------------------------------------------------------------------
     // Associated functions
 
+    /// Get XCP session status flags
+    pub fn get_session_status(&self) -> XcpSessionStatus {
+        // @@@@ unsafe - C library call
+        let session_status: u16 = unsafe { xcplib::XcpGetSessionStatus() } & 0xE040;
+        XcpSessionStatus::from_bits(session_status).unwrap()
+    }
+
     /// Set the log level for XCP protocol layer
-    pub fn set_server_log_level(level: XcpLogLevel) {
+    pub fn set_server_log_level(&self, level: XcpLogLevel) {
         // @@@@ unsafe - C library call
         unsafe {
             xcplib::ApplXcpSetLogLevel(level as u8);
@@ -503,7 +532,7 @@ impl Xcp {
     }
 
     /// Check if the XCP server is ok and running
-    pub fn check_server() -> bool {
+    pub fn check_server(&self) -> bool {
         // @@@@ unsafe - C library call
         unsafe {
             // Return server status
@@ -512,7 +541,7 @@ impl Xcp {
     }
 
     /// Stop the XCP server
-    pub fn stop_server() {
+    pub fn stop_server(&self) {
         // @@@@ unsafe - C library call
         unsafe {
             xcplib::XcpEthServerShutdown();
@@ -520,7 +549,7 @@ impl Xcp {
     }
 
     /// Print a formated text message to the XCP client tool console
-    pub fn print(msg: &str) {
+    pub fn print(&self, msg: &str) {
         let msg = std::ffi::CString::new(msg).unwrap();
         // @@@@ unsafe - C library call
         unsafe {
@@ -534,22 +563,22 @@ impl Xcp {
     /// Create a calibration segment
     /// # Panics
     /// Panics if the calibration segment name already exists
-    pub fn create_calseg<T>(name: &'static str, default_page: &'static T, load_json: bool) -> CalSeg<T>
+    pub fn create_calseg<T>(&self, name: &'static str, default_page: &'static T, load_json: bool) -> CalSeg<T>
     where
         T: CalPageTrait,
     {
-        let mut m = Xcp::get().calseg_list.lock().unwrap();
+        let mut m = self.calseg_list.lock().unwrap();
         m.create_calseg(name, default_page, true, load_json)
     }
 
     /// Create a calibration segment, don't register fields and don't load json
     /// # Panics
     /// Panics if the calibration segment name already exists
-    pub fn add_calseg<T>(name: &'static str, default_page: &'static T) -> CalSeg<T>
+    pub fn add_calseg<T>(&self, name: &'static str, default_page: &'static T) -> CalSeg<T>
     where
         T: CalPageTrait,
     {
-        let mut m = Xcp::get().calseg_list.lock().unwrap();
+        let mut m = self.calseg_list.lock().unwrap();
         m.create_calseg(name, default_page, false, false)
     }
 
@@ -563,6 +592,10 @@ impl Xcp {
         let m = self.calseg_list.lock().unwrap();
         m.get_name(index)
     }
+
+    //------------------------------------------------------------------------------------------
+    // Associated functions
+    // @@@@ Move to somewhere else ??
 
     /// Get registry addr base for a CalSeg
     pub fn get_calseg_addr_base(calseg_index: usize) -> u32 {
@@ -578,6 +611,7 @@ impl Xcp {
         let addr: u32 = offset as u32 + Xcp::get_calseg_addr_base(calseg_index);
         (addr_ext, addr)
     }
+
     //------------------------------------------------------------------------------------------
     // EPK
 
@@ -636,7 +670,7 @@ impl Xcp {
             // A2l is no longer needed yet, free memory
             // Another call to a2l_write will do nothing
             // All registrations from now on, will cause panic
-            r.clear();
+            r.close();
         }
     }
 
@@ -720,6 +754,23 @@ extern "C" fn cb_connect() -> u8 {
     let xcp = Xcp::get();
     xcp.write_a2l();
     TRUE
+}
+
+#[no_mangle]
+extern "C" fn cb_prepare_daq() -> u8 {
+    trace!("cb_prepare_daq");
+    TRUE
+}
+
+#[no_mangle]
+extern "C" fn cb_start_daq() -> u8 {
+    trace!("cb_start_daq");
+    TRUE
+}
+
+#[no_mangle]
+extern "C" fn cb_stop_daq() {
+    trace!("cb_stop_daq");
 }
 
 // Switching individual segments (CANape option CALPAGE_SINGLE_SEGMENT_SWITCHING) not supported, not needed and CANape is buggy
@@ -863,18 +914,18 @@ pub mod xcp_test {
 
     // Setup the test environment
     #[allow(dead_code)]
-    pub fn test_setup(x: log::LevelFilter) {
+    pub fn test_setup(x: log::LevelFilter) -> &'static Xcp {
         TEST_INIT.call_once(|| {
             env_logger::Builder::new().filter_level(x).init();
         });
 
-        test_reinit();
+        test_reinit()
     }
 
     // Reinit XCP singleton before the next test
-    pub fn test_reinit() {
+    pub fn test_reinit() -> &'static Xcp {
         let xcp = Xcp::get();
-        Xcp::set_server_log_level(XcpLogLevel::Warn);
+        xcp.set_server_log_level(XcpLogLevel::Warn);
         {
             let mut l = xcp.event_list.lock().unwrap();
             l.clear();
@@ -891,6 +942,7 @@ pub mod xcp_test {
         }
         xcp.set_ecu_cal_page(XcpCalPage::Ram);
         xcp.set_xcp_cal_page(XcpCalPage::Ram);
+        xcp
     }
 
     // Direct calls to the XCP driver callbacks for init and freeze

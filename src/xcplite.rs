@@ -6,18 +6,15 @@ extern "C" {
 extern "C" {
     pub fn ApplXcpRegisterCallbacks(
         cb_connect: ::std::option::Option<unsafe extern "C" fn() -> u8>,
+        cb_prepare_daq: ::std::option::Option<unsafe extern "C" fn() -> u8>,
+        cb_start_daq: ::std::option::Option<unsafe extern "C" fn() -> u8>,
+        cb_stop_daq: ::std::option::Option<unsafe extern "C" fn()>,
         cb_get_cal_page: ::std::option::Option<unsafe extern "C" fn(segment: u8, mode: u8) -> u8>,
-        cb_set_cal_page: ::std::option::Option<
-            unsafe extern "C" fn(segment: u8, page: u8, mode: u8) -> u8,
-        >,
+        cb_set_cal_page: ::std::option::Option<unsafe extern "C" fn(segment: u8, page: u8, mode: u8) -> u8>,
         cb_freeze_cal: ::std::option::Option<unsafe extern "C" fn() -> u8>,
         cb_init_cal: ::std::option::Option<unsafe extern "C" fn(src_page: u8, dst_page: u8) -> u8>,
-        cb_read: ::std::option::Option<
-            unsafe extern "C" fn(src: u32, size: u8, dst: *mut u8) -> u8,
-        >,
-        cb_write: ::std::option::Option<
-            unsafe extern "C" fn(dst: u32, size: u8, src: *const u8, delay: u8) -> u8,
-        >,
+        cb_read: ::std::option::Option<unsafe extern "C" fn(src: u32, size: u8, dst: *mut u8) -> u8>,
+        cb_write: ::std::option::Option<unsafe extern "C" fn(dst: u32, size: u8, src: *const u8, delay: u8) -> u8>,
         cb_flush: ::std::option::Option<unsafe extern "C" fn() -> u8>,
     );
 }
@@ -37,15 +34,13 @@ extern "C" {
     pub fn XcpPrint(str_: *const ::std::os::raw::c_char);
 }
 extern "C" {
+    pub fn XcpGetSessionStatus() -> u16;
+}
+extern "C" {
     pub fn ApplXcpGetAddr(p: *const u8) -> u32;
 }
 extern "C" {
-    pub fn XcpEthServerInit(
-        addr: *const u8,
-        port: u16,
-        useTCP: ::std::os::raw::c_int,
-        segmentSize: u16,
-    ) -> ::std::os::raw::c_int;
+    pub fn XcpEthServerInit(addr: *const u8, port: u16, useTCP: ::std::os::raw::c_int, segmentSize: u16) -> ::std::os::raw::c_int;
 }
 extern "C" {
     pub fn XcpEthServerShutdown() -> ::std::os::raw::c_int;
