@@ -5,20 +5,6 @@
 //
 // Demonstrates the usage of xcp-lite for Rust together with a CANape project
 
-// Features:
-// json = [] # enable json persistence for CalSeg
-// auto_reg = [] # enable auto registration of fields in A2L registry
-
-// Run:
-//  cargo run -- --bind 192.168.179.2
-//  cargo run -- --port 5555 --bind 172.19.11.24 --tcp --no-a2l --log-level 4
-//  cargo run -- --port 5555 --bind 192.168.179.2  --segment-size 7972  --log-level 4
-//
-// Test:
-//  Tests may not run in parallel
-//  Feature json and auto_reg must be enabled
-//  cargo test --features=json --features=auto_reg -- --test-threads=1 --nocapture
-
 #![allow(dead_code)] // Demo code
 #![allow(clippy::vec_init_then_push)]
 #![allow(unused_imports)]

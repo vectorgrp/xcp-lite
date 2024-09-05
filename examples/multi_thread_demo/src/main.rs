@@ -97,7 +97,7 @@ fn main() {
     env_logger::Builder::new().filter_level(log::LevelFilter::Warn).init();
 
     // Initialize XCP driver singleton, the transport layer server and enable the registry
-    XcpBuilder::new("multi_thread_demo")
+    let xcp = XcpBuilder::new("multi_thread_demo")
         .set_log_level(XcpLogLevel::Warn)
         .enable_a2l(true)
         .set_epk("EPK_12345678")
@@ -131,5 +131,5 @@ fn main() {
     t.into_iter().for_each(|t| t.join().unwrap());
 
     // Stop the XCP server
-    Xcp::stop_server();
+    xcp.stop_server();
 }

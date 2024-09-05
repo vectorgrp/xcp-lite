@@ -56,7 +56,7 @@ fn main() {
 
     // Initialize XCP driver singleton, the XCP transport layer server and enable the A2L file creator
     // The A2L file will be finalized on XCP connection and can be uploaded by CANape
-    XcpBuilder::new("single_thread_demo")
+    let xcp = XcpBuilder::new("single_thread_demo")
         .set_log_level(XcpLogLevel::Info) // Set log level of the XCP server
         .enable_a2l(true) // Enabl A2L generation
         .set_epk("EPK_") // Set the EPK string for A2L version check, length must be %4

@@ -139,7 +139,7 @@ fn main() {
     // const BIND_ADDR: [u8; 4] = [127, 0, 0, 1];
     // const BIND_ADDR: [u8; 4] = [172, 19, 11, 24];
 
-    XcpBuilder::new("mandelbrot")
+    let xcp = XcpBuilder::new("mandelbrot")
         .set_log_level(XcpLogLevel::Debug)
         .enable_a2l(true)
         .set_epk("EPK")

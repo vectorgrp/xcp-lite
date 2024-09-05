@@ -1,5 +1,3 @@
-use cc::Build;
-
 fn main() {
     build_info_build::build_script();
 
@@ -32,7 +30,7 @@ fn main() {
     bindings.write_to_file("src/xcplite.rs").expect("Couldn't write bindings!");
 
     // Build a XCP on ETH version of XCPlite as a library
-    Build::new()
+    cc::Build::new()
         .include("xcplib/src/")
         .include("xcplib/")
         .file("xcplib/xcpAppl.c")

@@ -61,7 +61,7 @@ fn main() {
 
     env_logger::Builder::new().filter_level(log::LevelFilter::Debug).init();
 
-    XcpBuilder::new("xcp_demo")
+    let xcp = XcpBuilder::new("xcp_demo")
         .set_log_level(XcpLogLevel::Debug)
         .enable_a2l(true)
         .set_epk("EPK_")

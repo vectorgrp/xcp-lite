@@ -215,7 +215,7 @@ fn main() {
         buf.clear();
         test_data.encode(&mut buf).unwrap();
         println!("Capacity: {}, Data: {:?}", buf.capacity(), buf);
-        event.trigger(buf.as_ptr(), 0);
+        event.trigger_ext(buf.as_ptr(), 0);
 
         thread::sleep(Duration::from_micros(1000000));
 

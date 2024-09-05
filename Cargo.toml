@@ -16,7 +16,8 @@ categories = ["MC"]
 
 [workspace]
 members = [    
-    "xcp_client",
+    "xcp_client",  
+      
     "examples/hello_xcp",
     "examples/single_thread_demo",
     "examples/multi_thread_demo",
@@ -25,8 +26,41 @@ members = [
     "examples/rayon_demo",
     "examples/tokio_demo",
     "examples/type_description_demo",
-    "examples/xcp_idl_generator_demo",       
+    "examples/xcp_idl_generator_demo",     
 ]
+
+
+[[example]]
+name = "hello_xcp"
+path = "examples/hello_xcp/src/main.rs"
+
+[[example]]
+name = "single_thread_demo"
+path = "examples/single_thread_demo/src/main.rs"
+
+[[example]]
+name = "multi_thread_demo"
+path = "examples/multi_thread_demo/src/main.rs"
+
+[[example]]
+name = "rayon_demo"
+path = "examples/rayon_demo/src/main.rs"
+
+[[example]]
+name = "tokio_demo"
+path = "examples/tokio_demo/src/main.rs"
+
+[[example]]
+name = "point_cloud_demo"
+path = "examples/point_cloud_demo/src/main.rs"
+
+[[example]]
+name = "scoped_threads"
+path = "examples/scoped_threads/src/main.rs"
+
+[[example]]
+name = "protobuf_demo"
+path = "examples/protobuf_demo/src/main.rs"
 
 
 [features]
@@ -87,8 +121,6 @@ xcp_idl_generator  = { path = "./xcp_idl_generator/"}
 xcp_idl_generator_derive  = { path = "./xcp_idl_generator/xcp_idl_generator_derive/"}
 
 
-
-
 [dev-dependencies]
 
 # used to implement the integration test XCP client and A2L parser
@@ -96,6 +128,15 @@ tokio = { version = "1.37.0", features = ["full"] }
 a2lfile = "1.5.0"
 bytes = "1.6.0"
 xcp_client = { path = "xcp_client" }
+
+# dependencies for rayon demo example
+rayon = "1.10.0"
+num = "0.4.3"
+image = "0.13.0"
+
+# dependencies for protobuf demo example
+prost = "0.13.1"
+prost-types = "0.13.1"
 
 [build-dependencies]
 cc = "1.0"

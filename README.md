@@ -213,6 +213,46 @@ XCP is a very common approach in the automotive industry and there are many tool
 XCP is a development tool, it is not integrated in production code or it is savely disabled.
 
 
+## Build
+
+### Features
+
+Features are:
+- auto_reg provides a proc-macro to automatically register fields of a calibration segment
+- json enables persistecy features of calibration segments
+
+### Build, Run, Test
+
+Build, Run, Test examples:
+
+```
+
+Build:
+  cargo build --release --features=json --features=auto_reg
+  cargo b  --examples
+
+Run the main example:
+
+  cargo run -- --bind 127.0.0.1 --log-level 4
+  cargo r -- --port 5555 --bind 172.19.11.24 --tcp --no-a2l --segment-size 7972 
+ 
+Run a specific example:
+
+  cargo r --example point_cloud_demo  
+
+```
+
+Tests may not run in parallel, as the XCP implementation is asingleton.
+Feature json and auto_reg must be enabled for testing.
+
+
+```
+
+  cargo test --features=json --features=auto_reg -- --test-threads=1 --nocapture -->
+
+```
+
+
 ## Notes
 
 All measurement and calibration code instrumentation is non blocking and the trigger event and sync methods is optimized for speed and minimal locking.  
@@ -265,3 +305,5 @@ Older versions were not tested.
 
 
 ![CANape](CANape.png)
+
+
