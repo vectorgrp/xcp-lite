@@ -22,7 +22,22 @@ extern "C" {
     pub fn ApplXcpSetA2lName(name: *const ::std::os::raw::c_char);
 }
 extern "C" {
+    pub fn XcpTlInit() -> u8;
+}
+extern "C" {
+    pub fn XcpTlCommand(msgLen: u16, msgBuf: *const u8) -> u8;
+}
+extern "C" {
+    pub fn XcpTlTransmitQueuePeek(msg_len: *mut u16) -> *const u8;
+}
+extern "C" {
+    pub fn XcpTlTransmitQueueNext();
+}
+extern "C" {
     pub fn XcpInit();
+}
+extern "C" {
+    pub fn XcpStart();
 }
 extern "C" {
     pub fn XcpEvent(event: u16);
@@ -40,11 +55,11 @@ extern "C" {
     pub fn ApplXcpGetAddr(p: *const u8) -> u32;
 }
 extern "C" {
-    pub fn XcpEthServerInit(addr: *const u8, port: u16, useTCP: ::std::os::raw::c_int, segmentSize: u16) -> ::std::os::raw::c_int;
+    pub fn XcpEthServerInit(addr: *const u8, port: u16, useTCP: u8) -> u8;
 }
 extern "C" {
-    pub fn XcpEthServerShutdown() -> ::std::os::raw::c_int;
+    pub fn XcpEthServerShutdown() -> u8;
 }
 extern "C" {
-    pub fn XcpEthServerStatus() -> ::std::os::raw::c_int;
+    pub fn XcpEthServerStatus() -> u8;
 }

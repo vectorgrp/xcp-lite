@@ -205,8 +205,8 @@ The wrapper type is Send, not Sync and implements the Deref trait for convinienc
 Code in unsafe blocks exists in the following places:
 
 - The implementation of Sync for CalSeg
-- All calls to the C FFI of the XCPlite server, which has 9 functions 
-- In particular the XCPlite bindings XcpEventExt, ApplXcpRead/WriteMemeory, which transfer a byte pointers to a calibration values. The provenance and length of these pointers are checked.
+- All calls to the C FFI of the XCPlite server (optional), transport layer and protocol layer
+- In particular the XCPlite bindings XcpEventExt and ApplXcpRead/WriteMemeory, which transfer a byte pointers to a calibration values. The provenance and length of these pointers are checked.
 
 A completely safe measurement and calibration concept is practically impossible to achieve, without massive consequences for the API, which would lead to much more additional boilerplate code to achive calibration. 
 XCP is a very common approach in the automotive industry and there are many tools, HIL systems and loggers supporting it.  
@@ -232,23 +232,21 @@ Build:
   cargo b  --examples
 
 Run the main example:
-
   cargo run -- --bind 127.0.0.1 --log-level 4
   cargo r -- --port 5555 --bind 172.19.11.24 --tcp --no-a2l --segment-size 7972 
  
 Run a specific example:
-
   cargo r --example point_cloud_demo  
 
 ```
 
-Tests may not run in parallel, as the XCP implementation is asingleton.
+Tests may not run in parallel, as the XCP implementation is a singleton.
 Feature json and auto_reg must be enabled for testing.
 
 
 ```
 
-  cargo test --features=json --features=auto_reg -- --test-threads=1 --nocapture -->
+  cargo test --features=json --features=auto_reg -- --test-threads=1 --nocapture
 
 ```
 
@@ -279,17 +277,23 @@ The EPK version string in the A2L file can be set by the applicaation. It reside
 
 ## Future improvements
 
-- The A2L file should not be loaded to memory when it is provided for upload
+- The A2L file should not be loaded to memory to provide it for upload
 - Support more types of calibration parameters, include types for curves and maps with axis
 - Improve the meta data annotations of the A2L serializer
-- Reduce number of heap allocations and strings in the proc-macros and in A2L generation, reduce the overall memory footprint
+- Reduce the number of heap allocations and strings in the proc-macros and in A2L generation, reduce the overall memory footprint
+- Option to run the XCP ethernet server thread as tokio tasks, create a zero lock MPSC event queue
+- Provide a no-std version and create a embassy example
 - Avoid the mutex lock in CalSeg::Sync when there is no pending parameter modification
 - Add support to decribe the application clock domain in rust
-- Reintegrate the XCPlite C-code changes
+- Reintegrate the XCPlite C-code changes in XCPlite V7.0.0
+- Add support for DLT and CMP
 
-Suggest changes to the XCP standard
+Suggested changes to the XCP standard
+- Add GET_ID type to upload (from ECU) binary schemas (.ZIP, .desc), referenced in A2L file
 - Support variable length DTOs for serialized data types
+- Support DTOs larger than segment size
 - Support 64 Bit addresses
+- Make GET_DAQ_CLOCK obsolete (when PTP TAI time is provided), by supporting 64 Bit DAQ timestamps
 
 
 

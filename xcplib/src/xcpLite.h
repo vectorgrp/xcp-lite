@@ -70,8 +70,8 @@ typedef struct {
 /****************************************************************************/
 
 /* Initialization for the XCP Protocol Layer */
-extern void XcpInit(void);
-extern void XcpStart(void);
+extern void XcpInit();
+extern void XcpStart();
 extern void XcpDisconnect();
 
 /* Trigger a XCP data acquisition or stimulation event */

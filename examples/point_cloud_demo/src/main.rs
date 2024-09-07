@@ -115,7 +115,7 @@ fn main() {
     let xcp = XcpBuilder::new("point_cloud")
         .set_log_level(XcpLogLevel::Debug)
         .enable_a2l(true)
-        .start_server(XcpTransportLayer::Udp, BIND_ADDR, 5555, 8000 - 20 - 8)
+        .start_server(XcpTransportLayer::Udp, BIND_ADDR, 5555)
         .unwrap();
 
     let params = xcp.create_calseg("Params", &PARAMS, true);

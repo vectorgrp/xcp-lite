@@ -174,7 +174,7 @@ impl XcpDaqDecoder for DaqDecoder {
 
 //-----------------------------------------------------------------------
 // Execute tests
-pub async fn test_executor(single_thread: bool, multi_thread: bool) {
+pub async fn test_executor(xcp: &Xcp, single_thread: bool, multi_thread: bool) {
     tokio::time::sleep(Duration::from_millis(500)).await;
     info!("Start test executor");
 
@@ -190,7 +190,11 @@ pub async fn test_executor(single_thread: bool, multi_thread: bool) {
     let daq_decoder = Arc::new(Mutex::new(DaqDecoder::new()));
     let serv_text_decoder = ServTextDecoder::new();
     xcp_client.connect(Arc::clone(&daq_decoder), serv_text_decoder).await.unwrap();
+
     tokio::time::sleep(Duration::from_micros(10000)).await;
+
+    info!("XCP session status: {:?}", xcp.get_session_status());
+    assert!(xcp.get_session_status().contains(xcp::XcpSessionStatus::SS_CONNECTED));
 
     //-------------------------------------------------------------------------------------------------------------------------------------
     // Check command timeout using a command CC_NOP (non standard) without response
@@ -201,10 +205,13 @@ pub async fn test_executor(single_thread: bool, multi_thread: bool) {
         Err(e) => {
             e.downcast_ref::<XcpError>()
                 .map(|e| {
-                    assert_eq!(e.get_error_code(), ERROR_CMD_TIMEOUT);
                     debug!("XCP error code ERROR_CMD_TIMEOUT as expected: {:?}", e);
+                    assert_eq!(e.get_error_code(), ERROR_CMD_TIMEOUT);
                 })
-                .or_else(|| panic!("CC_NOP should return XCP error code ERROR_CMD_TIMEOUT"));
+                .or_else(|| {
+                    info!("XCP session status: {:?}", xcp.get_session_status());
+                    panic!("CC_NOP should return XCP error code ERROR_CMD_TIMEOUT");
+                });
         }
     }
 
@@ -217,10 +224,14 @@ pub async fn test_executor(single_thread: bool, multi_thread: bool) {
         Err(e) => {
             e.downcast_ref::<XcpError>()
                 .map(|e| {
+                    info!("XCP session status: {:?}", xcp.get_session_status());
                     assert_eq!(e.get_error_code(), CRC_CMD_SYNCH);
                     debug!("XCP error code CRC_CMD_SYNCH from SYNC as expected: {:?}", e);
                 })
-                .or_else(|| panic!("Should return XCP error from SYNC command"));
+                .or_else(|| {
+                    info!("XCP session status: {:?}", xcp.get_session_status());
+                    panic!("Should return XCP error from SYNC command");
+                });
         }
     }
 
@@ -439,7 +450,7 @@ pub async fn test_executor(single_thread: bool, multi_thread: bool) {
 
             // Set task cycle time to TASK_SLEEP_TIME_US
             xcp_client.set_value_u64(cycle_time_us, TASK_SLEEP_TIME_US).await.unwrap();
-            Xcp::get().set_server_log_level(LOG_LEVEL);
+            Xcp::get().set_log_level(LOG_LEVEL);
 
             // Create calibration variable CalPage1.cal_test
             let res = a2l_reader::a2l_find_characteristic(xcp_client.get_a2l_file().unwrap(), "CalPage1.cal_test").unwrap();

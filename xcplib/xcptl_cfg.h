@@ -1,4 +1,5 @@
 #pragma once
+#define __XCPTL_CFG_H__
 
 /*----------------------------------------------------------------------------
 | File:
@@ -15,10 +16,8 @@
 #define XCP_TRANSPORT_LAYER_TYPE XCP_TRANSPORT_LAYER_ETH
 #define XCP_TRANSPORT_LAYER_VERSION 0x0104
 
-// TCP or/and UDP option enabled
-#define XCPTL_ENABLE_TCP
-#define XCPTL_ENABLE_UDP
 
+#if defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)
 
 // Multicast (GET_DAQ_CLOCK_MULTICAST)
 // Use multicast time synchronisation to improve synchronisation of multiple XCP slaves
@@ -33,6 +32,8 @@
 
 // Transmit mode
 #define XCPTL_QUEUED_CRM // Use transmit queue for command responces
+#define XCPTL_QUEUED_CRM_OPT // Send response immediately, if transmit queue is empty
+
 /*
 Benefits:
 - Unique transport layers message counters for CRM and DTO (CANape default transport layer option is "include command response")
@@ -43,6 +44,8 @@ Drawbacks:
 - Impact on DAQ performance because transport layer packet is flushed for command responses
 - DAQ queue overflow can happen on command responses, CANape aborts when response to GET_DAQ_CLOCK is missing
 */
+
+#endif
 
 // Transport layer header size
 // This is fixed, no other options supported

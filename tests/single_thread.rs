@@ -20,7 +20,6 @@ use tokio::time::Duration;
 const OPTION_SERVER_ADDR: [u8; 4] = [127, 0, 0, 1]; // Localhost
 const OPTION_SERVER_PORT: u16 = 5555;
 const OPTION_TRANSPORT_LAYER: XcpTransportLayer = XcpTransportLayer::Udp; // XcpTransportLayer::TcpIp or XcpTransportLayer::UdpIp
-const OPTION_SEGMENT_SIZE: u16 = 1500 - 28; // UDP MTU
 const OPTION_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Info;
 const OPTION_XCP_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Info;
 
@@ -169,12 +168,12 @@ async fn test_single_thread() {
     info!("The system bool has {} bytes", std::mem::size_of::<bool>());
 
     // Initialize XCP driver singleton, the transport layer server and enable the A2L writer
-    let xcp = match XcpBuilder::new("xcp_lite").set_log_level(OPTION_XCP_LOG_LEVEL).enable_a2l(true).set_epk("EPK_TEST").start_server(
-        OPTION_TRANSPORT_LAYER,
-        OPTION_SERVER_ADDR,
-        OPTION_SERVER_PORT,
-        OPTION_SEGMENT_SIZE,
-    ) {
+    let xcp = match XcpBuilder::new("xcp_lite")
+        .set_log_level(OPTION_XCP_LOG_LEVEL)
+        .enable_a2l(true)
+        .set_epk("EPK_TEST")
+        .start_server(OPTION_TRANSPORT_LAYER, OPTION_SERVER_ADDR, OPTION_SERVER_PORT)
+    {
         Err(res) => {
             error!("XCP initialization failed: {:?}", res);
             return;
@@ -190,7 +189,7 @@ async fn test_single_thread() {
         task(cal_seg);
     });
 
-    test_executor(true, false).await; // Start the test executor XCP client
+    test_executor(xcp, true, false).await; // Start the test executor XCP client
 
     t1.join().ok();
     xcp.stop_server();

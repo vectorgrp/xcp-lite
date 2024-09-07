@@ -60,7 +60,7 @@ fn main() {
         .set_log_level(XcpLogLevel::Info) // Set log level of the XCP server
         .enable_a2l(true) // Enabl A2L generation
         .set_epk("EPK_") // Set the EPK string for A2L version check, length must be %4
-        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1] /*[172, 19, 11, 24]*/, 5555, 1464)
+        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1] /*[172, 19, 11, 24]*/, 5555)
         .unwrap();
 
     // Create a calibration parameter set "calseg"

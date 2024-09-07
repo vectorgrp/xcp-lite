@@ -157,7 +157,7 @@ fn main() {
         .set_log_level(XcpLogLevel::Debug)
         .enable_a2l(true)
         .set_epk("EPK_")
-        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555, 1464)
+        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
         .unwrap();
 
     // Data struct to be measured

@@ -124,10 +124,6 @@ struct Args {
     /// Bind address
     #[arg(short, long, default_value = "0.0.0.0:0")]
     bind_addr: String,
-
-    /// Segment size (UDP MTU)
-    #[arg(short, long, default_value_t = 1472)]
-    segment_size: u16,
 }
 
 //------------------------------------------------------------------------

@@ -18,6 +18,10 @@
 #include "platform.h"
 #include "dbg_print.h"
 
+#ifndef __MAIN_CFG_H__
+#error "Include dependency error!"
+#endif
+
 #if defined(_WIN) // Windows // Windows needs to link with Ws2_32.lib
 
 #pragma comment(lib, "ws2_32.lib")
@@ -189,6 +193,7 @@ void mutexDestroy(MUTEX* m) {
 // Sockets
 /**************************************************************************/
 
+#if defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)
 
 #ifdef _LINUX
 
@@ -648,6 +653,7 @@ int16_t socketSend(SOCKET sock, const uint8_t* buffer, uint16_t size) {
     return (int16_t)send(sock, (const char *)buffer, size, 0);
 }
 
+#endif
 
 /**************************************************************************/
 // Clock

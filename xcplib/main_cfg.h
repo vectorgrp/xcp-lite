@@ -1,4 +1,5 @@
 #pragma once
+#define __MAIN_CFG_H__
 
 // main_cfg.h
 // XCPlite
@@ -37,5 +38,14 @@
 #define CLOCK_USE_APP_TIME_US
 //#define CLOCK_USE_UTC_TIME_NS
 
+
 // Ethernet Transport Layer
-#define OPTION_MTU                      8000            // Ethernet MTU
+#define OPTION_MTU 8000 // Ethernet MTU 
+
+// Ethernet Server
+// TCP or/and UDP server enabled
+#define XCPTL_ENABLE_TCP
+#define XCPTL_ENABLE_UDP
+
+// #define PLATFORM_ENABLE_GET_LOCAL_ADDR
+// #define PLATFORM_ENABLE_KEYBOARD

@@ -101,7 +101,7 @@ fn main() {
         .set_log_level(XcpLogLevel::Warn)
         .enable_a2l(true)
         .set_epk("EPK_12345678")
-        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555, 1464)
+        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
         .unwrap();
 
     // Create calibration parameter sets (CalSeg in rust, MEMORY_SEGMENT in A2L) from annotated structs

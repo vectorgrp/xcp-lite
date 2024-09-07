@@ -668,7 +668,7 @@ impl XcpClient {
         }
 
         let data = self.send_command(XcpCommandBuilder::new(CC_CONNECT).add_u8(0).build()).await?;
-
+        assert_eq!(data.len(), 8);
         let max_cto_size: u8 = data[3];
         let max_dto_size: u16 = data[4] as u16 | (data[5] as u16) << 8;
         info!("XCP client connected, max_cto_size = {}, max_dto_size = {}", max_cto_size, max_dto_size);
@@ -678,6 +678,8 @@ impl XcpClient {
         self.task_control.connected = true; // the task will end, when it gets connected = false over the XcpControl channel
         self.task_control.running = false;
         self.tx_task_control.as_ref().unwrap().send(self.task_control).await.unwrap();
+
+        assert!(self.is_connected());
 
         Ok(())
     }
@@ -691,6 +693,11 @@ impl XcpClient {
         self.tx_task_control.as_ref().unwrap().send(self.task_control).await.unwrap();
 
         Ok(())
+    }
+
+    //------------------------------------------------------------------------
+    pub fn is_connected(&mut self) -> bool {
+        self.task_control.connected
     }
 
     //------------------------------------------------------------------------

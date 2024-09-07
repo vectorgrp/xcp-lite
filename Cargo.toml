@@ -30,6 +30,11 @@ members = [
 ]
 
 
+
+[[example]]
+name = "xcp_client"
+path = "xcp_client/src/main.rs"
+
 [[example]]
 name = "hello_xcp"
 path = "examples/hello_xcp/src/main.rs"
@@ -119,6 +124,7 @@ xcp_type_description_derive = { path = "./xcp_type_description/xcp_type_descript
 # proc-macro IDL generator
 xcp_idl_generator  = { path = "./xcp_idl_generator/"}
 xcp_idl_generator_derive  = { path = "./xcp_idl_generator/xcp_idl_generator_derive/"}
+
 
 
 [dev-dependencies]

@@ -1,12 +1,13 @@
 // xcp-lite - tokio_demo
 // Visualizes in CANape how tokio starts tasks in its worker threaad pool
 
+mod xcp_server;
+
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
+use std::error::Error;
 use tokio::{join, time::sleep};
-
-use xcp::*;
 
 // Asynchronous task, measures index, sleeps 100ms, measures -index and ends
 // Demonstrates multi instance measurement
@@ -14,23 +15,28 @@ use xcp::*;
 #[allow(dead_code)]
 async fn task(task_index: u16) {
     let mut index: i16 = task_index as i16;
+
     trace!("task {} start", index);
-    let event = daq_create_event_instance!("task");
-    daq_register!(index, event, "Task index", "");
-    event.trigger();
+
+    //let event = daq_create_event_instance!("task");
+    //daq_register!(index, event, "Task index", "");
+    // event.trigger();
+
     sleep(tokio::time::Duration::from_millis(2)).await;
     index = -index;
-    event.trigger();
+
+    //event.trigger();
+
     trace!("task {} end", index);
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn Error>> {
     println!("xcp-lite tokio demo");
 
-    env_logger::Builder::new().filter_level(log::LevelFilter::Info).init();
+    env_logger::Builder::new().filter_level(log::LevelFilter::Trace).init();
 
-    XcpBuilder::new("tokio_demo").enable_a2l(true).start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555, 1464).unwrap();
+    let _xcp = xcp_server::start_server("127.0.0.1:5555".to_string()).await?;
 
     trace!("Start");
 

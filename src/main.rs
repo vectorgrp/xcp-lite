@@ -51,10 +51,6 @@ struct Args {
     #[arg(short, long, default_value_t = 5555)]
     port: u16,
 
-    /// XCP segment size (jumbo frames supported with MTU up to 8000 bytes -> segment_size <= (OPTION_MTU-20-8), OPTION_MTU defined in main_cfg.h )
-    #[arg(short, long, default_value_t = 8000-20-8)]
-    segment_size: u16,
-
     /// Don't create A2L file
     #[arg(short, long, default_value_t = false)]
     no_a2l: bool,
@@ -360,7 +356,7 @@ fn main() {
         // .set_epk(build_info::format!("{}", $.timestamp)); // Create new EPK from build info
         .set_epk("EPK_");
 
-    let xcp = match xcp_builder.start_server(if args.tcp { XcpTransportLayer::Tcp } else { XcpTransportLayer::Udp }, args.bind, args.port, args.segment_size) {
+    let xcp = match xcp_builder.start_server(if args.tcp { XcpTransportLayer::Tcp } else { XcpTransportLayer::Udp }, args.bind, args.port) {
         Err(res) => {
             error!("XCP server initialization failed: {:?}", res);
             return;

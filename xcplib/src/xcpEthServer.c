@@ -18,6 +18,11 @@
 #include "xcpLite.h"   
 #include "xcpEthServer.h"
 
+#ifndef __MAIN_CFG_H__
+#error "Include dependency error!"
+#endif
+
+#if defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)
 
 #if defined(_WIN) // Windows
 static DWORD WINAPI XcpServerReceiveThread(LPVOID lpParameter);
@@ -51,7 +56,7 @@ BOOL XcpEthServerStatus() {
 
 
 // XCP server init
-BOOL XcpEthServerInit(const uint8_t* addr, uint16_t port, BOOL useTCP, uint16_t segmentSize)
+BOOL XcpEthServerInit(const uint8_t* addr, uint16_t port, BOOL useTCP)
 {
     int r = 0;
 
@@ -68,7 +73,7 @@ BOOL XcpEthServerInit(const uint8_t* addr, uint16_t port, BOOL useTCP, uint16_t 
     XcpInit();
 
     // Initialize XCP transport layer
-    r = XcpEthTlInit(addr, port, useTCP, segmentSize, TRUE /*blocking rx*/);
+    r = XcpEthTlInit(addr, port, useTCP, TRUE /*blocking rx*/);
     if (!r) return 0;
 
     // Start XCP protocol layer
@@ -156,3 +161,5 @@ extern void* XcpServerTransmitThread(void* par)
     return 0;
 }
 
+
+#endif

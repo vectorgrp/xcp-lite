@@ -1,6 +1,7 @@
 //----------------------------------------------------------------------------------------------
 // Module xcp
 
+#[allow(unused_imports)]
 use std::{
     net::Ipv4Addr,
     sync::{
@@ -383,12 +384,15 @@ impl XcpBuilder {
         self
     }
 
-    // Start the XCP protocol layer (used for testing only)
+    /// Start the XCP protocol layer only
+    /// If external server is used
     pub fn start_protocol_layer(self) -> Result<&'static Xcp, &'static str> {
         let xcp = Xcp::get();
 
+        info!("Start XCP protocol layer and transport layer");
+
         // Server parameters from XcpBuilder
-        xcp.set_server_log_level(self.log_level);
+        xcp.set_log_level(self.log_level);
         xcp.set_epk(self.epk);
 
         // Registry parameters from XcpBuiler
@@ -398,12 +402,19 @@ impl XcpBuilder {
             r.set_epk(self.epk, Xcp::XCP_EPK_ADDR);
         }
 
+        unsafe {
+            if xcplib::XcpTlInit() == 0 {
+                panic!("Error: XcpTlInit() failed");
+            }
+            xcplib::XcpStart();
+        }
+
         Ok(xcp)
     }
 
-    /// Start the XCP on Ethernet Transport Layer
-    /// segment_size must fit the maximum UDP MTU supported by the system
-    pub fn start_server<A>(self, tl: XcpTransportLayer, addr: A, port: u16, segment_size: u16) -> Result<&'static Xcp, &'static str>
+    /// Start the XCP on Ethernet Server
+
+    pub fn start_server<A>(self, tl: XcpTransportLayer, addr: A, port: u16) -> Result<&'static Xcp, &'static str>
     where
         A: Into<Ipv4Addr>,
     {
@@ -411,7 +422,7 @@ impl XcpBuilder {
         let xcp = &XCP_SINGLETON;
 
         // Server parameters from XcpBuilder
-        xcp.set_server_log_level(self.log_level);
+        xcp.set_log_level(self.log_level);
         xcp.set_epk(self.epk);
 
         // Registry parameters from XcpBuiler
@@ -426,7 +437,7 @@ impl XcpBuilder {
         unsafe {
             // Initialize the XCP Server and ETH transport layer
             let a: [u8; 4] = ipv4_addr.octets();
-            if 0 == xcplib::XcpEthServerInit(&a as *const u8, port, if tl == XcpTransportLayer::Tcp { 1 } else { 0 }, segment_size) {
+            if 0 == xcplib::XcpEthServerInit(&a as *const u8, port, if tl == XcpTransportLayer::Tcp { 1 } else { 0 }) {
                 return Err("Error: XcpEthServerInit() failed");
             }
         }
@@ -513,9 +524,6 @@ impl Xcp {
         &XCP_SINGLETON
     }
 
-    //------------------------------------------------------------------------------------------
-    // Associated functions
-
     /// Get XCP session status flags
     pub fn get_session_status(&self) -> XcpSessionStatus {
         // @@@@ unsafe - C library call
@@ -524,12 +532,55 @@ impl Xcp {
     }
 
     /// Set the log level for XCP protocol layer
-    pub fn set_server_log_level(&self, level: XcpLogLevel) {
+    pub fn set_log_level(&self, level: XcpLogLevel) {
         // @@@@ unsafe - C library call
         unsafe {
             xcplib::ApplXcpSetLogLevel(level as u8);
         }
     }
+
+    /// Print a formated text message to the XCP client tool console
+    pub fn print(&self, msg: &str) {
+        let msg = std::ffi::CString::new(msg).unwrap();
+        // @@@@ unsafe - C library call
+        unsafe {
+            xcplib::XcpPrint(msg.as_ptr());
+        }
+    }
+
+    //------------------------------------------------------------------------------------------
+    // Transport layer mode
+
+    /// Execute a XCP command
+    /// In transport layer mode
+    pub fn tl_command(&self, buf: &[u8]) {
+        unsafe {
+            xcplib::XcpTlCommand(buf.len() as u16, &buf[0] as *const u8);
+        }
+    }
+
+    pub fn tl_transmit_queue_peek(&self) -> Option<&'static [u8]> {
+        unsafe {
+            let mut buf_len: u16 = 0;
+            let buf_ptr = xcplib::XcpTlTransmitQueuePeek(&mut buf_len as *mut u16);
+            if !buf_ptr.is_null() {
+                info!("tl_transmit_queue_peek: len={}", buf_len);
+                return Some(std::slice::from_raw_parts(buf_ptr, buf_len as usize));
+            }
+        }
+        None
+    }
+
+    pub fn tl_transmit_queue_next(&self) {
+        unsafe {
+            xcplib::XcpTlTransmitQueueNext();
+        }
+    }
+
+    pub fn tl_shutdown(&self) {}
+
+    //------------------------------------------------------------------------------------------
+    // Server mode
 
     /// Check if the XCP server is ok and running
     pub fn check_server(&self) -> bool {
@@ -545,15 +596,6 @@ impl Xcp {
         // @@@@ unsafe - C library call
         unsafe {
             xcplib::XcpEthServerShutdown();
-        }
-    }
-
-    /// Print a formated text message to the XCP client tool console
-    pub fn print(&self, msg: &str) {
-        let msg = std::ffi::CString::new(msg).unwrap();
-        // @@@@ unsafe - C library call
-        unsafe {
-            xcplib::XcpPrint(msg.as_ptr());
         }
     }
 
@@ -925,7 +967,7 @@ pub mod xcp_test {
     // Reinit XCP singleton before the next test
     pub fn test_reinit() -> &'static Xcp {
         let xcp = Xcp::get();
-        xcp.set_server_log_level(XcpLogLevel::Warn);
+        xcp.set_log_level(XcpLogLevel::Warn);
         {
             let mut l = xcp.event_list.lock().unwrap();
             l.clear();

@@ -4,9 +4,9 @@
 | Code released into public domain, no attribution required
 */
 
-
-// #define PLATFORM_ENABLE_GET_LOCAL_ADDR
-// #define PLATFORM_ENABLE_KEYBOARD
+#ifndef __MAIN_CFG_H__
+#error "Include dependency error!"
+#endif
 
 //-------------------------------------------------------------------------------
 // Keyboard
@@ -91,6 +91,8 @@ typedef pthread_t tXcpThread;
 //-------------------------------------------------------------------------------
 // Platform independant socket functions
 
+#if defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)
+
 #ifdef _LINUX // Linux sockets
 
 #define SOCKET int
@@ -151,6 +153,8 @@ extern BOOL socketShutdown(SOCKET sock);
 extern BOOL socketClose(SOCKET* sp);
 #ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
 extern BOOL socketGetLocalAddr(uint8_t* mac, uint8_t* addr);
+#endif
+
 #endif
 
 //-------------------------------------------------------------------------------
