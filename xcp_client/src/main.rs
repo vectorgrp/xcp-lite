@@ -222,22 +222,21 @@ async fn main() {
     let start_time = tokio::time::Instant::now();
     xcp_client.start_measurement().await.unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-    xcp_client.stop_measurement().await.unwrap();
+    xcp_client.stop_measurement().await.unwrap_or_else(|e| error!("Stop measurement failed: {}", e));
     let elapsed_time = start_time.elapsed().as_micros();
     let event_count = daq_decoder.lock().unwrap().event_count;
     info!("Measurement done, {} events, {:.0} event/s", event_count, event_count as f64 * 1_000_000.0 / elapsed_time as f64);
     assert_ne!(event_count, 0);
 
     // Stop demo task
-    // Create a calibration object for CalPage1.counter_max
-
-    if let Ok(run) = xcp_client.create_calibration_object("CalPage.run").await {
+    // Create a calibration object for CalPage.run
+    if let Ok(run) = xcp_client.create_calibration_object("calpage.run").await {
         let v = xcp_client.get_value_u64(run);
-        info!("CalPage.run = {}", v);
+        info!("calpage.run = {}", v);
         assert_eq!(v, 1);
         xcp_client.set_value_u64(run, 0).await.unwrap();
     } else {
-        warn!("CalPage.run not found");
+        warn!("calpage.run not found");
     }
 
     // Disconnect

@@ -371,6 +371,7 @@ fn main() {
 
     // Trying to call `.init()` again would panic, because the StaticCell is already initialized.
     // SOME_INT.init(42);
+
     // Create calibration parameter sets
     // Calibration segments have "static" lifetime, the Xcp singleton holds a smart pointer clone to each
     // When a calibration segment is dropped by the application and sync is no longer called, the XCP tool will get a timeout when attempting to access it
@@ -378,7 +379,7 @@ fn main() {
     // FLASH or RAM can be switched during runtime (XCP set_cal_page), saved to json (XCP freeze), reinitialized from default FLASH page (XCP copy_cal_page)
     // The initial RAM page can be loaded from a json file (load_json=true) or set to the default FLASH page (load_json=false)
 
-    // Create a alibration segment wrapper for CAL_PAGE, add fields manually to registry
+    // Create a calibration segment wrapper for CAL_PAGE, add fields manually to registry
     let calseg = xcp.add_calseg(
         "CalPage", // name of the calibration segment and the .json file
         &CAL_PAGE, // default calibration values with static lifetime, trait bound from CalPageTrait must be possible

@@ -172,8 +172,6 @@ void XcpTlSendCrm(const uint8_t* packet, uint16_t packet_size) {
     void* handle = NULL;
     uint8_t* p;
 
-    DBG_PRINTF3("XcpTlSendCrm(size=%u)\n", packet_size);
-
     // Queue the response packet
     if ((p = XcpTlGetTransmitBuffer(&handle, packet_size)) != NULL) {
         memcpy(p, packet, packet_size);
@@ -190,8 +188,6 @@ void XcpTlSendCrm(const uint8_t* packet, uint16_t packet_size) {
 // Execute XCP command
 // Returns XCP error code
 uint8_t XcpTlCommand( uint16_t msgLen, const uint8_t* msgBuf) {
-
-    printf("XcpTlCommand %04X\n", XcpGetSessionStatus() );
 
     BOOL connected = XcpIsConnected();
     tXcpCtoMessage* p = (tXcpCtoMessage*)msgBuf;
@@ -444,7 +440,7 @@ static int sendEthDatagram(const uint8_t *data, uint16_t size, const uint8_t* ad
             return -1; // Would block
         }
         else {
-            DBG_PRINTF_ERROR("ERROR: sento failed (result=%d, errno=%d)!\n", r, socketGetLastError());
+            DBG_PRINTF_ERROR("ERROR: sendEthDatagram: send failed (result=%d, errno=%d)!\n", r, socketGetLastError());
             gXcpTl.lastError = XCPTL_ERROR_SEND_FAILED;
             return 0; // Error
         }
@@ -523,6 +519,7 @@ void XcpTlSendCrm(const uint8_t* packet, uint16_t packet_size) {
     uint8_t* p;
     int r = 0;
 
+#ifdef XCPTL_QUEUED_CRM_OPT
     // If transmit queue is empty, save the space and transmit instantly
     mutexLock(&gXcpTl.Mutex_Queue);
     if (gXcpTl.queue_len <= 1 && (gXcpTl.msg_ptr == NULL || gXcpTl.msg_ptr->size == 0)) {
@@ -540,6 +537,7 @@ void XcpTlSendCrm(const uint8_t* packet, uint16_t packet_size) {
     }
     mutexUnlock(&gXcpTl.Mutex_Queue);
     if (r == 1) return; // ok
+#endif // XCPTL_QUEUED_CRM_OPT
 
     // Queue the response packet
     if ((p = XcpTlGetTransmitBuffer(&handle, packet_size)) != NULL) {

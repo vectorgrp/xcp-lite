@@ -875,7 +875,7 @@ impl XcpClient {
         info!("Upload A2L xcp_client.a2l");
         std::fs::remove_file("xcp_client.a2l").ok();
         {
-            let file = std::fs::File::create("xcp_client.a2l").unwrap();
+            let file = std::fs::File::create("xcp_client.a2l")?;
             let mut writer = std::io::BufWriter::new(file);
             let mut size = self.get_id(XCP_IDT_ASAM_UPLOAD).await?;
             while size > 0 {
@@ -883,7 +883,7 @@ impl XcpClient {
                 size -= n as u32;
                 let data = self.upload(n).await?;
                 trace!("xcp_client.upload: {} bytes = {:?}", data.len(), data);
-                writer.write_all(&data[1..]).unwrap();
+                writer.write_all(&data[1..])?;
             }
         }
 
@@ -1002,14 +1002,14 @@ impl XcpClient {
         // @@@@ Restriction: Maximal 256 DAQ lists
         assert!(event_count <= 256, "event_count > 256");
         let daq_count: u8 = event_count as u8;
-        self.free_daq().await.unwrap();
-        self.alloc_daq(daq_count as u16).await.unwrap();
+        self.free_daq().await?;
+        self.alloc_daq(daq_count as u16).await?;
         debug!("alloc_daq count={}", daq_count);
 
         // Alloc ODTs
         // @@@@ Restriction: Only one ODT per DAQ list supported
         for daq in 0..daq_count {
-            self.alloc_odt(daq as u16, 1).await.unwrap();
+            self.alloc_odt(daq as u16, 1).await?;
             debug!("Alloc daq={}, odt_count={}", daq, 1);
         }
 
@@ -1018,7 +1018,7 @@ impl XcpClient {
             let element = event_list.iter().nth(daq as usize).unwrap();
             let odt_entry_count = *element.1;
             assert!(odt_entry_count <= 0xFF);
-            self.alloc_odt_entries(daq as u16, 0, odt_entry_count as u8).await.unwrap();
+            self.alloc_odt_entries(daq as u16, 0, odt_entry_count as u8).await?;
             debug!("Alloc odt_entries: daq={}, odt={}, odt_entry_count={}", daq, 0, odt_entry_count);
         }
 
@@ -1033,7 +1033,7 @@ impl XcpClient {
             for i in 0..n {
                 let a2l_addr = self.measurement_objects[i].a2l_addr;
                 if a2l_addr.event == event {
-                    self.set_daq_ptr(daq as u16, odt, odt_entry).await.unwrap();
+                    self.set_daq_ptr(daq as u16, odt, odt_entry).await?;
                     let get_type = self.measurement_objects[i].get_type;
                     self.write_daq(a2l_addr.ext, a2l_addr.addr, get_type.size).await?;
 
@@ -1065,13 +1065,13 @@ impl XcpClient {
         for daq in 0..daq_count {
             let element = event_list.iter().nth(daq as usize).unwrap();
             let event = *element.0;
-            self.set_daq_list_mode(daq as u16, event).await.unwrap();
+            self.set_daq_list_mode(daq as u16, event).await?;
             debug!("Set event: daq={}, event={}", daq, event);
         }
 
         // Select all DAQ lists
         for daq in 0..daq_count {
-            self.start_stop_daq_list(XcpClient::XCP_SELECT, daq as u16).await.unwrap();
+            self.start_stop_daq_list(XcpClient::XCP_SELECT, daq as u16).await?;
         }
 
         // Send running=true throught the DAQ control channel to the receive task
@@ -1079,18 +1079,18 @@ impl XcpClient {
         self.tx_task_control.as_ref().unwrap().send(self.task_control).await.unwrap();
 
         // Start DAQ
-        self.start_stop_sync(XcpClient::XCP_START_SELECTED).await.unwrap();
+        self.start_stop_sync(XcpClient::XCP_START_SELECTED).await?;
 
         Ok(())
     }
 
     pub async fn stop_measurement(&mut self) -> Result<(), Box<dyn Error>> {
         // Stop DAQ
-        self.start_stop_sync(XcpClient::XCP_STOP_ALL).await.unwrap();
+        self.start_stop_sync(XcpClient::XCP_STOP_ALL).await?;
 
         // Send running=false throught the DAQ control channel to the receive task
         self.task_control.running = false;
-        self.tx_task_control.as_ref().unwrap().send(self.task_control).await.unwrap();
+        self.tx_task_control.as_ref().unwrap().send(self.task_control).await?;
 
         Ok(())
     }

@@ -32,7 +32,7 @@
 
 // Transmit mode
 #define XCPTL_QUEUED_CRM // Use transmit queue for command responces
-#define XCPTL_QUEUED_CRM_OPT // Send response immediately, if transmit queue is empty
+// #define XCPTL_QUEUED_CRM_OPT // Send response immediately, if transmit queue is empty
 
 /*
 Benefits:
@@ -44,6 +44,11 @@ Drawbacks:
 - Impact on DAQ performance because transport layer packet is flushed for command responses
 - DAQ queue overflow can happen on command responses, CANape aborts when response to GET_DAQ_CLOCK is missing
 */
+
+#else
+
+// Transmit mode 
+#define XCPTL_QUEUED_CRM // Use transmit queue for command responces
 
 #endif
 

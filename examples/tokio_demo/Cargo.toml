@@ -10,6 +10,9 @@ chrono = "0.4.38"
 lazy_static = "1.4.0"
 tokio = { version = "1.37.0", features = ["full"] }
 
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
 xcp = { path = "../../", features = ["auto_reg","json"] }
 xcp_type_description  = { path = "../../xcp_type_description/"}
 xcp_type_description_derive = { path = "../../xcp_type_description/xcp_type_description_derive/" }

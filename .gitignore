@@ -30,3 +30,4 @@ tmp.a2l
 .DS_Store
 /a2lfile.txt
 *.bin
+/tokio_demo.a2l
