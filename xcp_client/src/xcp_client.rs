@@ -26,7 +26,7 @@ use crate::a2l::a2l_reader::{a2l_find_characteristic, a2l_find_measurement, a2l_
 //--------------------------------------------------------------------------------------------------------------------------------------------------
 // XCP Parameters
 
-const CMD_TIMEOUT: Duration = Duration::from_secs(1);
+const CMD_TIMEOUT: Duration = Duration::from_secs(2);
 
 //--------------------------------------------------------------------------------------------------------------------------------------------------
 // XCP error type

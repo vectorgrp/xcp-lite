@@ -8,22 +8,28 @@ fn main() {
         .header("xcplib/wrapper.h")
         .clang_arg("-Ixcplib/src")
         .clang_arg("-Ixcplib")
-        // Tell cargo to invalidate the built crate whenever any of the included header files changed.
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         //
         .blocklist_type("T_CLOCK_INFO")
+        // Protocol layer
         .allowlist_function("XcpInit")
         .allowlist_function("XcpStart")
+        .allowlist_function("XcpDisconnect")
+        // Transport layer
         .allowlist_function("XcpTlInit")
+        .allowlist_function("XcpTlShutdown")
         .allowlist_function("XcpTlCommand")
         .allowlist_function("XcpTlTransmitQueuePeek")
         .allowlist_function("XcpTlTransmitQueueNext")
+        // ETH server
         .allowlist_function("XcpEthServerInit")
         .allowlist_function("XcpEthServerShutdown")
         .allowlist_function("XcpEthServerStatus")
         .allowlist_function("XcpGetSessionStatus")
+        // DAQ
         .allowlist_function("XcpEvent")
         .allowlist_function("XcpEventExt")
+        // Misc
         .allowlist_function("XcpPrint")
         .allowlist_function("ApplXcpSetLogLevel")
         .allowlist_function("ApplXcpSetA2lName")
@@ -46,6 +52,7 @@ fn main() {
         .flag("-O2")
         .compile("xcplib");
 
+    // Tell cargo to invalidate the built crate whenever any of these files changed.
     println!("cargo:rerun-if-changed=xcplib/wrapper.h");
     println!("cargo:rerun-if-changed=xcplib/main_cfg.h");
     println!("cargo:rerun-if-changed=xcplib/xcptl_cfg.h");

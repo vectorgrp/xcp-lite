@@ -1,80 +1,125 @@
-// #![warn(rust_2018_idioms)]
-
-use std::error::Error;
 use std::io;
-use std::net::SocketAddr;
+use std::net::Ipv4Addr;
+use std::time::Duration;
 
-use log::info;
+use log::{error, info, trace, warn};
 
-use once_cell::sync::OnceCell;
-
-//use tokio::join;
 use tokio::net::UdpSocket;
+use tokio::time::timeout;
 
 use xcp::*;
 
-#[derive(Debug)]
-struct Server {
-    socket: UdpSocket,
-}
+pub async fn xcp_task<A>(xcp: &'static Xcp, addr: A, port: u16) -> Result<(), io::Error>
+where
+    A: Into<Ipv4Addr>,
+{
+    info!("xcp_task: start");
 
-#[derive(Debug)]
-struct Client {
-    client: SocketAddr,
-}
+    // Bind to address
+    let addr = addr.into();
+    let socket = UdpSocket::bind((addr, port)).await?;
+    info!("xcp_task: bind to {}:{}", addr, port);
 
-static ASYNC_XCP_SERVER: OnceCell<Server> = OnceCell::new();
-static ASYNC_XCP_CLIENT: OnceCell<Client> = OnceCell::new();
-
-async fn rx_task() -> Result<(), io::Error> {
-    let server = ASYNC_XCP_SERVER.get().unwrap();
-    let xcp = Xcp::get();
+    let mut client_addr = None;
     let mut buf = vec![0u8; 1024];
+
     loop {
-        let res: (usize, SocketAddr) = server.socket.recv_from(&mut buf).await?;
-        info!("rx_task: recv {} bytes from {}, buf_len={}", res.0, res.1, buf.len());
+        let rx_future = socket.recv_from(&mut buf);
+        let res = timeout(Duration::from_millis(10), rx_future).await;
+        match res {
+            Err(_) => {
+                trace!("xcp_task: timeout");
+            }
 
-        if let Some(c) = ASYNC_XCP_CLIENT.get() {
-            assert_eq!(c.client, res.1);
-        } else {
-            ASYNC_XCP_CLIENT.set(Client { client: res.1 }).unwrap();
+            Ok(rx) => match rx {
+                Err(e) => {
+                    error!("xcp_task: xcp_task stop, recv error: {}", e);
+                    return Err(e);
+                }
+
+                Ok((size, addr)) => {
+                    if size == 0 {
+                        warn!("xcp_task: xcp_task stop, recv 0 bytes from {}, socket closed", addr);
+                        return Ok(());
+                    } else {
+                        info!("xcp_task: recv {} bytes from {}, buf_len={}", size, addr, buf.len());
+
+                        // Set client address, do not accept new clients while being connected
+                        if let Some(c) = client_addr {
+                            if c != addr && xcp.is_connected() {
+                                error!("xcp_task: client addr changed to {} while beeing connected to {}", addr, c);
+                                assert_eq!(c, addr);
+                            }
+                        } else {
+                            client_addr = Some(addr);
+                            info!("xcp_task: set client to {}", addr);
+                        }
+
+                        // Execute command
+                        xcp.tl_command(&buf);
+                    }
+                }
+            }, // match
+        } // match res
+
+        // Transmit
+        // Check if client address is valid
+        if let Some(addr) = client_addr {
+            trace!("xcp_task: read transmit queue ");
+
+            // Empty the transmit queue
+            while let Some(buf) = xcp.tl_transmit_queue_peek() {
+                socket.send_to(buf, addr).await?;
+                xcp.tl_transmit_queue_next();
+                info!("xcp_task: Sent {} bytes to {}", buf.len(), client_addr.unwrap());
+            }
         }
-
-        xcp.tl_command(&buf);
-    }
+    } // loop
 }
 
-async fn tx_task() -> Result<(), io::Error> {
-    let server = ASYNC_XCP_SERVER.get().unwrap();
+//-----------------------------------------------------------------------------
 
-    let xcp = Xcp::get();
-    loop {
-        while let Some(buf) = xcp.tl_transmit_queue_peek() {
-            let client = ASYNC_XCP_CLIENT.get().unwrap();
-            server.socket.send_to(buf, &client.client).await?;
-            xcp.tl_transmit_queue_next();
-            info!("Sent {} bytes to {}", buf.len(), client.client);
-        }
+// #[derive(Debug)]
+// pub struct XcpServer {
+//     addr: Ipv4Addr,
+//     port: u16,
+//     task: Option<tokio::task::JoinHandle<Result<(), io::Error>>>,
+// }
 
-        tokio::time::sleep(tokio::time::Duration::from_millis(2)).await;
-    }
-}
+// impl Drop for XcpServer {
+//     fn drop(&mut self) {
+//         // Cancel the task
+//         if let Some(task) = self.task.take() {
+//             task.abort();
+//         }
+//     }
+// }
 
-pub async fn start_async_xcp_server(addr: String) -> Result<(tokio::task::JoinHandle<Result<(), io::Error>>, tokio::task::JoinHandle<Result<(), io::Error>>), Box<dyn Error>> {
-    let socket = UdpSocket::bind(&addr).await?;
-    println!("Bind to {}", socket.local_addr()?);
+// impl XcpServer {
+//     pub fn new<A>(addr: A, port: u16) -> Self
+//     where
+//         A: Into<Ipv4Addr>,
+//     {
+//         Self { addr: addr.into(), port, task: None }
+//     }
 
-    // Initialize the XCP driver transport layer only, not the server
-    let _xcp = XcpBuilder::new("tokio_demo").set_log_level(XcpLogLevel::Debug).enable_a2l(true).start_protocol_layer().unwrap();
+//     pub async fn start_xcp(&mut self, xcp: &Xcp) -> Result<&Xcp, Box<dyn Error>> {
+//         // Start server
+//         let task = tokio::spawn(xcp_task(xcp, self.addr, self.port));
+//         self.task = Some(task);
 
-    // Start the tokio server
-    let server = Server { socket };
-    if ASYNC_XCP_SERVER.get().is_some() {
-        return Err("Server already started".into());
-    }
-    ASYNC_XCP_SERVER.set(server).unwrap();
-    let rx_task = tokio::spawn(rx_task());
-    let tx_task: tokio::task::JoinHandle<Result<(), io::Error>> = tokio::spawn(tx_task());
+//         Ok(xcp)
+//     }
 
-    Ok((rx_task, tx_task))
-}
+//     pub fn get_xcp(&self) -> &Xcp {
+//         Xcp::get()
+//     }
+
+//     pub async fn stop_xcp(&mut self) -> Result<(), Box<dyn Error>> {
+//         // Cancel the task
+//         if let Some(task) = self.task.take() {
+//             task.abort();
+//         }
+//         Ok(())
+//     }
+// }

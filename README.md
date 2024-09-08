@@ -68,8 +68,11 @@ Shows how to measure and calibrate in a task instanciated in multiple threads wi
 Use CANape to observe rayon workers calculating a mandelbrot set by lines   
 
 ### tokio_demo
-Observe tokio tasks  
-
+Demonstrates using the XCP server tokio task (xcp_server::xcp_task) with tokio::net::UdpSocket, no threads running in xcplib anymore
+TCP not implemented yet
+Demo the usual measurement and calibration operations
+Demo which visualizes multiples tokio tasks start and stop executing in the tokio worker thread pool (similar to rayon_demo)
+ 
 ### point_cloud_demo
 Measure a lidar point cloud and visualize it in CANapes 3D scene window  
 Use CDR serialization over XCP and the CDR/IDL schema generator proc-macro 

@@ -1917,11 +1917,12 @@ void XcpStart()
     #endif
     DBG_PRINTF3("  Version=%u.%u, MAXEV=%u, MAXCTO=%u, MAXDTO=%u, DAQMEM=%u, MAXDAQ=%u, MAXENTRY=%u, MAXENTRYSIZE=%u\n", XCP_PROTOCOL_LAYER_VERSION >> 8, XCP_PROTOCOL_LAYER_VERSION & 0xFF, XCP_MAX_EVENT, XCPTL_MAX_CTO_SIZE, XCPTL_MAX_DTO_SIZE, XCP_DAQ_MEM_SIZE, (1 << sizeof(uint16_t) * 8) - 1, (1 << sizeof(uint16_t) * 8) - 1, (1 << (sizeof(uint8_t) * 8)) - 1);
     DBG_PRINTF3("  %u KiB memory used\n", (unsigned int)sizeof(gXcp) / 1024);
+    DBG_PRINT3("  Note: These parameters in xcp_cfg.h need to be configured for optimal memory consumption and performance!\n");
     DBG_PRINT3("  Options=(");
 
     // Print activated XCP protocol options
   #ifdef XCP_ENABLE_DAQ_CLOCK_MULTICAST // Enable GET_DAQ_CLOCK_MULTICAST
-    DBG_PRINT3("DAQ_CLK_MULTICAST,");
+    DBG_PRINT3("DAQ_CLK_MULTICAST (not recomended),");
   #endif
   #ifdef XCP_DAQ_CLOCK_64BIT  // Use 64 Bit time stamps
     DBG_PRINT3("DAQ_CLK_64BIT,");

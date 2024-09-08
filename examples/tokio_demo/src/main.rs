@@ -1,5 +1,7 @@
 // xcp-lite - tokio_demo
-// Visualizes in CANape how tokio starts tasks in its worker threaad pool
+// Implement the XCP server as a tokio task (xcp_server::xcp_task), no threads running in xcplib anymore
+// Demo the usual measurement and calibration operations
+// Demo how to visualize tokio tasks start/stop in tokios worker thread pool
 
 mod xcp_server;
 
@@ -15,6 +17,7 @@ use xcp_type_description::prelude::*;
 
 //-----------------------------------------------------------------------------
 // Demo calibration parameters (static)
+// Does not create memory segments in A2L, manually added characterics in group "cal"
 
 struct CalPage {
     run: bool,
@@ -29,13 +32,14 @@ struct CalPage0 {
 }
 
 static CAL_PAGE0: once_cell::sync::OnceCell<CalPage0> = once_cell::sync::OnceCell::with_value(CalPage0 {
-    task1_cycle_time_us: 100000, // 100ms
-    task2_cycle_time_us: 1000,   // 1ms
+    task1_cycle_time_us: 10000, // 10ms
+    task2_cycle_time_us: 1000,  // 1ms
     task_count: 10,
 });
 
 //-----------------------------------------------------------------------------
-// Demo calibration parameters (dynamic)
+// Demo calibration parameters (dynamic, with auto A2L generation derive and attribute macros)
+// Creates a memory segment "CalPage1" with 2 pages, a default "FLASH" page and a mutable "RAM" page
 
 // Define a struct with calibration parameters
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
@@ -59,7 +63,7 @@ struct CalPage1 {
 }
 
 // Default calibration values
-// This will be the FLASH page in the calibration memory segment
+// This will be the read only default (FLASH) page in the calibration memory segment CalPage1
 const CAL_PAGE1: CalPage1 = CalPage1 {
     ampl: 100.0,
     period: 5.0,
@@ -67,38 +71,50 @@ const CAL_PAGE1: CalPage1 = CalPage1 {
 };
 
 //-----------------------------------------------------------------------------
-// Asynchronous task, measures index, sleeps 100ms, measures -index and ends
+// Experimental
+// Asynchronous task, trigger measurement of local variable index, sleep 200us, measure -index and stop
 // Demonstrates multi instance measurement
-// There will be an event and an instance of index for each worker thread tokio uses
+// There will be an event instance and an instance of variable index for each worker thread tokio uses
+// Note:
+// Once the A2L registry is created on XCP client connect, the event and variable instances are fixed and addional instances are not visible
+// Tokio occasionally creates new worker threads and destroys old ones very late, so the number of instances may change
+// Check what happens, when increasing/decreasing calpage0.task_count
 #[allow(dead_code)]
 async fn task(task_index: u16) {
     let mut index: i16 = task_index as i16;
 
     trace!("task {} start", index);
 
-    //let event = daq_create_event_instance!("task");
-    //daq_register!(index, event, "Task index", "");
-    // event.trigger();
+    let event = daq_create_event_instance!("task");
+    daq_register!(index, event, "Task index", "");
+    event.trigger();
 
-    tokio::time::sleep(tokio::time::Duration::from_millis(2)).await;
+    tokio::time::sleep(tokio::time::Duration::from_micros(200)).await;
     index = -index;
 
-    //event.trigger();
+    event.trigger();
 
     trace!("task {} end", index);
 }
 
 //-----------------------------------------------------------------------------
+// Main
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     println!("xcp-lite tokio demo");
 
     // Initialize logger
-    env_logger::Builder::new().filter_level(log::LevelFilter::Debug).init();
+    env_logger::Builder::new().filter_level(log::LevelFilter::Info).init();
 
     // Start tokio XCP server
-    let (rx_task, tx_task) = xcp_server::start_async_xcp_server("127.0.0.1:5555".to_string()).await?;
-    let xcp = Xcp::get();
+    // Initialize the xcplib transport and protocol layer only, not the server
+    let xcp: &'static Xcp = XcpBuilder::new("tokio_demo").set_log_level(XcpLogLevel::Debug).enable_a2l(true).tl_start().unwrap();
+
+    let xcp_task = tokio::spawn(xcp_server::xcp_task(xcp, [127, 0, 0, 1], 5555));
+
+    // let mut xcp_server = xcp_server::XcpServer::new([127, 0, 0, 1], 5555);
+    // let xcp = xcp_server.start_xcp(xcp).await?;
 
     // Create and register a static calibration parameter set
     let calpage = CAL_PAGE.get().unwrap();
@@ -140,13 +156,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     loop {
         // Stop
         if !calpage.run {
+            info!("mainloop stopped by calpage.run=false");
             break;
         }
 
         // Sleep for a calibratable amount of microseconds
         tokio::time::sleep(tokio::time::Duration::from_micros(calpage0.task1_cycle_time_us as u64)).await;
 
-        // Start a number of asynchronous tasks and wait for them to finish
+        // Start a number of short running asynchronous tasks and wait for them to finish
         let mut tasks = Vec::new();
         for i in 1..=calpage0.task_count {
             tasks.push(tokio::spawn(task(i)));
@@ -175,11 +192,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
         calseg.sync();
     }
 
-    info!("Stop");
+    info!("mainloop stopped");
 
-    let _ = tokio::join!(rx_task);
-    let _ = tokio::join!(tx_task);
+    xcp_task.abort();
+    xcp.tl_shutdown();
+    //xcp_task.await.unwrap()?;
 
-    xcp.stop_server();
     Ok(())
 }

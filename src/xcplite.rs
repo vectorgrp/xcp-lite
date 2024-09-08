@@ -25,6 +25,9 @@ extern "C" {
     pub fn XcpTlInit() -> u8;
 }
 extern "C" {
+    pub fn XcpTlShutdown();
+}
+extern "C" {
     pub fn XcpTlCommand(msgLen: u16, msgBuf: *const u8) -> u8;
 }
 extern "C" {
@@ -38,6 +41,9 @@ extern "C" {
 }
 extern "C" {
     pub fn XcpStart();
+}
+extern "C" {
+    pub fn XcpDisconnect();
 }
 extern "C" {
     pub fn XcpEvent(event: u16);

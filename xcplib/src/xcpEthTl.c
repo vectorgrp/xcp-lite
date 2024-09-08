@@ -140,14 +140,14 @@ BOOL XcpTlInit() {
     
     DBG_PRINT3("\nInit XCP transport layer\n");
     DBG_PRINTF3("  SEGMENT_SIZE=%u, MAX_CTO_SIZE=%u, QUEUE_SIZE=%u, ALIGNMENT=%u, %uKiB memory used\n", XCPTL_MAX_SEGMENT_SIZE, XCPTL_MAX_CTO_SIZE, XCPTL_QUEUE_SIZE, XCPTL_PACKET_ALIGNMENT, (unsigned int)sizeof(gXcpTl) / 1024);
-    DBG_PRINT3("  Options=("); // Print activated XCP transport layer options  
+    DBG_PRINT3("  Note: These parameters in xcptl_cfg.h need to be configured for optimal memory consumption and performance!\n");
 #ifdef XCPTL_ENABLE_MULTICAST
-    DBG_PRINT3("ENABLE_MULTICAST,");
+    DBG_PRINT3("        Option ENABLE_MULTICAST is not recommended\n");
 #endif
-#ifdef XCPTL_QUEUED_CRM
-    DBG_PRINT3("QUEUED_CRM,");
+#ifndef XCPTL_QUEUED_CRM
+    DBG_PRINT3("        Option QUEUED_CRM is disabled, enabled is recommended\n");
 #endif
-    DBG_PRINT3(")\n");
+   
     
     return TRUE;
 }

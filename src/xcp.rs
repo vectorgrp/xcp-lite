@@ -384,9 +384,10 @@ impl XcpBuilder {
         self
     }
 
-    /// Start the XCP protocol layer only
-    /// If external server is used
-    pub fn start_protocol_layer(self) -> Result<&'static Xcp, &'static str> {
+    /// Start the XCP transport and protocol layer in external server mode
+    /// The server must be started after this call
+    /// Server example in tokio_demo::xcp_server::xcp_task
+    pub fn tl_start(self) -> Result<&'static Xcp, &'static str> {
         let xcp = Xcp::get();
 
         info!("Start XCP protocol layer and transport layer");
@@ -413,7 +414,7 @@ impl XcpBuilder {
     }
 
     /// Start the XCP on Ethernet Server
-
+    /// Use the server rx and tx threads in xcplib
     pub fn start_server<A>(self, tl: XcpTransportLayer, addr: A, port: u16) -> Result<&'static Xcp, &'static str>
     where
         A: Into<Ipv4Addr>,
@@ -531,6 +532,16 @@ impl Xcp {
         XcpSessionStatus::from_bits(session_status).unwrap()
     }
 
+    /// Check if a client is connected
+    pub fn is_connected(&self) -> bool {
+        self.get_session_status().contains(XcpSessionStatus::SS_CONNECTED)
+    }
+
+    /// Check if measurement is started
+    pub fn is_daq_running(&self) -> bool {
+        self.get_session_status().contains(XcpSessionStatus::SS_DAQ)
+    }
+
     /// Set the log level for XCP protocol layer
     pub fn set_log_level(&self, level: XcpLogLevel) {
         // @@@@ unsafe - C library call
@@ -577,7 +588,12 @@ impl Xcp {
         }
     }
 
-    pub fn tl_shutdown(&self) {}
+    pub fn tl_shutdown(&self) {
+        // @@@@ unsafe - C library call
+        unsafe {
+            xcplib::XcpTlShutdown();
+        }
+    }
 
     //------------------------------------------------------------------------------------------
     // Server mode
@@ -595,6 +611,7 @@ impl Xcp {
     pub fn stop_server(&self) {
         // @@@@ unsafe - C library call
         unsafe {
+            xcplib::XcpDisconnect();
             xcplib::XcpEthServerShutdown();
         }
     }
