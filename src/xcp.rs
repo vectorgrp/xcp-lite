@@ -575,7 +575,7 @@ impl Xcp {
             let mut buf_len: u16 = 0;
             let buf_ptr = xcplib::XcpTlTransmitQueuePeek(&mut buf_len as *mut u16);
             if !buf_ptr.is_null() {
-                info!("tl_transmit_queue_peek: len={}", buf_len);
+                //trace!("tl_transmit_queue_peek: len={}", buf_len);
                 return Some(std::slice::from_raw_parts(buf_ptr, buf_len as usize));
             }
         }

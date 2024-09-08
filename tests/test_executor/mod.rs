@@ -341,7 +341,6 @@ pub async fn test_executor(xcp: &Xcp, single_thread: bool, multi_thread: bool) {
         // Check results
         {
             let d = daq_decoder.lock().unwrap();
-            assert_ne!(d.tot_events, 0);
             info!("DAQ test cycle time = {}us", TASK_SLEEP_TIME_US);
             if multi_thread {
                 info!("DAQ test thread count = {}", MULTI_THREAD_TASK_COUNT);
@@ -354,7 +353,7 @@ pub async fn test_executor(xcp: &Xcp, single_thread: bool, multi_thread: bool) {
             info!("  cycles = {}", d.daq_events[0]);
             info!("  events = {}", d.tot_events);
             info!("  bytes per cycle = {}", bytes);
-            assert!(d.tot_events > 0);
+            assert_ne!(d.tot_events, 0);
             assert!(d.daq_events[0] > 0);
             info!("  test duration = {:.3}ms", duration_ms);
             info!("  average datarate = {:.3} MByte/s", (bytes as f64 * d.tot_events as f64) / 1000.0 / duration_ms,);
@@ -470,13 +469,17 @@ pub async fn test_executor(xcp: &Xcp, single_thread: bool, multi_thread: bool) {
                     .unwrap();
             }
             let elapsed_time = start_time.elapsed().as_micros();
+            let download_time = elapsed_time as f64 / MAX_ITER as f64;
             info!(
                 "calibration test loop done, {} iterations, duration={}ms, {}us per download, {:.1} KBytes/s",
                 MAX_ITER,
                 elapsed_time / 1000,
-                elapsed_time as f64 / MAX_ITER as f64,
+                download_time,
                 MAX_ITER as f64 * 8000.0 / elapsed_time as f64
             );
+            if download_time > 100.0 {
+                warn!("Calibration download time ({}us) is too high!", download_time);
+            }
         }
     }
 

@@ -42,7 +42,7 @@ where
                         warn!("xcp_task: xcp_task stop, recv 0 bytes from {}, socket closed", addr);
                         return Ok(());
                     } else {
-                        info!("xcp_task: recv {} bytes from {}, buf_len={}", size, addr, buf.len());
+                        trace!("xcp_task: recv {} bytes from {}, buf_len={}", size, addr, buf.len());
 
                         // Set client address, do not accept new clients while being connected
                         if let Some(c) = client_addr {
@@ -71,7 +71,7 @@ where
             while let Some(buf) = xcp.tl_transmit_queue_peek() {
                 socket.send_to(buf, addr).await?;
                 xcp.tl_transmit_queue_next();
-                info!("xcp_task: Sent {} bytes to {}", buf.len(), client_addr.unwrap());
+                trace!("xcp_task: Sent {} bytes to {}", buf.len(), client_addr.unwrap());
             }
         }
     } // loop

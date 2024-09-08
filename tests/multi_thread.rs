@@ -11,18 +11,17 @@ use test_executor::MULTI_THREAD_TASK_COUNT;
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
+
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, thread};
 use tokio::time::Duration;
 
 //-----------------------------------------------------------------------------
-// XCP
+// Logging
 
-const OPTION_SERVER_ADDR: [u8; 4] = [127, 0, 0, 1]; // Localhost
-const OPTION_SERVER_PORT: u16 = 5555;
-const OPTION_TRANSPORT_LAYER: XcpTransportLayer = XcpTransportLayer::Udp; // XcpTransportLayer::TcpIp or XcpTransportLayer::UdpIp
 const OPTION_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Info;
 const OPTION_XCP_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Info;
+
 //-----------------------------------------------------------------------------
 // Calibration Segment
 
@@ -151,7 +150,7 @@ fn task(cal_seg: CalSeg<CalPage1>) {
 }
 
 //-----------------------------------------------------------------------------
-// Integration test single threads calibration
+// Integration test multi thread measurememt and calibration
 
 #[tokio::test]
 async fn test_multi_thread() {
@@ -162,7 +161,7 @@ async fn test_multi_thread() {
         .set_log_level(OPTION_XCP_LOG_LEVEL)
         .enable_a2l(true)
         .set_epk("EPK_TEST")
-        .start_server(OPTION_TRANSPORT_LAYER, OPTION_SERVER_ADDR, OPTION_SERVER_PORT)
+        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
     {
         Err(res) => {
             error!("XCP initialization failed: {:?}", res);
@@ -184,7 +183,7 @@ async fn test_multi_thread() {
         v.push(t);
     }
 
-    test_executor(&xcp, false, true).await; // Start the test executor XCP client
+    test_executor(xcp, false, true).await; // Start the test executor XCP client
 
     for t in v {
         t.join().ok();

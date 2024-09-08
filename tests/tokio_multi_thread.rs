@@ -1,34 +1,33 @@
-// single_thread
-// Integration test for XCP in a single thread application
+// multi_thread
+// Integration test for XCP in a multi threaded application
 // Uses the test XCP client in test_executor
 
 use xcp::*;
 use xcp_type_description::prelude::*;
 
+mod xcp_server;
+
 mod test_executor;
 use test_executor::test_executor;
+use test_executor::MULTI_THREAD_TASK_COUNT;
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
+
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, thread};
 use tokio::time::Duration;
 
 //-----------------------------------------------------------------------------
-// XCP
+// Logging
 
 const OPTION_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Info;
 const OPTION_XCP_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Info;
 
 //-----------------------------------------------------------------------------
-// static calibration parameters
-
-// const CONST_PAR: u8 = 0xAA;
-// static STATIC_PAR: u8 = 0xAA;
-// static mut STATIC_MUT_PAR: u8 = 0xAA;
-
-//-----------------------------------------------------------------------------
 // Calibration Segment
+
+use xcp_type_description_derive::XcpTypeDescription;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
 struct TestInts {
@@ -79,30 +78,32 @@ const CAL_PAR1: CalPage1 = CalPage1 {
 
 //-----------------------------------------------------------------------------
 
-// Test task will be instanciated only once
+// Test task will be instatiated multiple times
 fn task(cal_seg: CalSeg<CalPage1>) {
-    let mut loop_counter: u32 = 0;
-    let mut changes: u32 = 0;
-    let mut page_borrow = &cal_seg.page;
-
-    // Create a DAQ event and register local variables for measurment
-    let event = daq_create_event!("task");
-    let mut cal_test: u64 = 0;
-    let mut counter_max: u32 = cal_seg.counter_max;
     let mut counter: u32 = 0;
-    daq_register!(cal_test, event);
-    daq_register!(counter_max, event);
-    daq_register!(counter, event);
+    let mut loop_counter: u64 = 0;
+    let mut changes: u64 = 0;
+    let mut cal_test: u64 = 0;
+    let mut counter_max: u32 = 0;
+    let mut test1: u64 = 0;
+    let mut test2: u64 = 0;
+    let mut test3: u64 = 0;
+    let mut test4: u64 = 0;
+
+    let mut event = daq_create_event_instance!("task");
+    daq_register_instance!(changes, event);
+    daq_register_instance!(loop_counter, event);
+    //daq_register_instance!(cal_test, event); // Measured with capture, pattern checked in DaqDecoder
+    daq_register_instance!(counter_max, event);
+    daq_register_instance!(counter, event);
+    daq_register_instance!(test1, event);
+    daq_register_instance!(test2, event);
+    daq_register_instance!(test3, event);
+    daq_register_instance!(test4, event);
 
     loop {
-        // Sleep for a calibratable amount of microseconds
-        thread::sleep(Duration::from_micros(cal_seg.cycle_time_us as u64));
+        thread::sleep(Duration::from_micros(cal_seg.cycle_time_us as u64)); // Sleep for a calibratable amount of microseconds
         loop_counter += 1;
-
-        // Test XCP text messages if counter_max has changed
-        if counter_max != cal_seg.counter_max {
-            xcp_println!("Task: counter_max calibrated: counter_max={} !!!", cal_seg.counter_max);
-        }
 
         // Create a calibratable wrapping counter signal
         counter_max = cal_seg.counter_max;
@@ -118,29 +119,28 @@ fn task(cal_seg: CalSeg<CalPage1>) {
             assert_eq!((cal_test >> 32) ^ 0x55555555, cal_test & 0xFFFFFFFF);
         }
 
-        // Test calibration page changes
-        if *page_borrow != cal_seg.page {
-            page_borrow = &cal_seg.page;
-            info!("Task: Calibration page changed to {}", cal_seg.page);
-        }
-
-        // Trigger DAQ event
-        // daq_capture!(cal_test, event);
-        // daq_capture!(counter_max, event);
-        // daq_capture!(counter, event);
+        // DAQ
+        // daq_capture_instance!(changes, event);
+        // daq_capture_instance!(loop_counter, event);
+        daq_capture_instance!(cal_test, event);
+        // daq_capture_instance!(counter_max, event);
+        // daq_capture_instance!(counter, event);
         event.trigger();
 
         // Synchronize the calibration segment
         cal_seg.sync();
 
-        // Check for termination
-        if !cal_seg.run {
-            break;
-        }
+        if loop_counter % 256 == 0 {
+            test1 = loop_counter;
+            test2 = test1 + 1;
+            test3 = test2 + 2;
+            test4 = test3 + 3;
+            _ = test4;
 
-        // Check if the XCP server is still alive
-        if loop_counter % 256 == 0 && !Xcp::get().check_server() {
-            panic!("XCP server shutdown!");
+            // Check for termination
+            if !cal_seg.run {
+                break;
+            }
         }
     }
 
@@ -148,39 +148,40 @@ fn task(cal_seg: CalSeg<CalPage1>) {
 }
 
 //-----------------------------------------------------------------------------
-// Integration test single thread measurement and calibration
+// Integration test multi thread measurememt and calibration
 
 #[tokio::test]
-async fn test_single_thread() {
-    env_logger::Builder::new().filter_level(OPTION_LOG_LEVEL.to_log_level_filter()).try_init().ok();
+async fn test_tokio_multi_thread() {
+    env_logger::Builder::new().filter_level(OPTION_LOG_LEVEL.to_log_level_filter()).init();
 
-    info!("Running test_single_thread");
-
-    // Initialize XCP driver singleton, the transport layer server and enable the A2L writer
-    let xcp = match XcpBuilder::new("xcp_lite")
+    // Start tokio XCP server
+    // Initialize the xcplib transport and protocol layer only, not the server
+    let xcp: &'static Xcp = XcpBuilder::new("tokio_demo")
         .set_log_level(OPTION_XCP_LOG_LEVEL)
         .enable_a2l(true)
         .set_epk("EPK_TEST")
-        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
-    {
-        Err(res) => {
-            error!("XCP initialization failed: {:?}", res);
-            return;
-        }
-        Ok(xcp) => xcp,
-    };
+        .tl_start()
+        .unwrap();
+    let _xcp_task = tokio::spawn(xcp_server::xcp_task(xcp, [127, 0, 0, 1], 5555));
 
     // Create a calibration segment
-    let cal_seg = xcp.create_calseg("cal_seg", &CAL_PAR1, false);
+    let cal_seg = xcp.create_calseg("cal_seg", &CAL_PAR1, true);
 
-    // Create a test task
-    let t1 = thread::spawn(move || {
-        task(cal_seg);
-    });
+    // Create n test tasks
+    let mut v = Vec::new();
+    for _ in 0..MULTI_THREAD_TASK_COUNT {
+        let cal_seg = CalSeg::clone(&cal_seg);
+        let t = thread::spawn(move || {
+            task(cal_seg);
+        });
+        v.push(t);
+    }
 
-    test_executor(xcp, true, false).await; // Start the test executor XCP client
+    test_executor(xcp, false, true).await; // Start the test executor XCP client
 
-    t1.join().ok();
-    xcp.stop_server();
+    for t in v {
+        t.join().ok();
+    }
+
     std::fs::remove_file("xcp_client.a2l").ok();
 }

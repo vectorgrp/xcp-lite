@@ -494,7 +494,7 @@ impl XcpClient {
                 res = rx_daq_decoder.recv() => {
                     match res {
                         Some(c) => {
-                            info!("receive_task: task control status changed: connected={} running={}", c.connected, c.running);
+                            debug!("receive_task: task control status changed: connected={} running={}", c.connected, c.running);
                             if !c.connected { // Handle the data from rx_daq_decoder
                                 info!("receive_task: stop, disconnected");
                                 return Ok(());

@@ -250,7 +250,8 @@ Feature json and auto_reg must be enabled for testing.
 ```
 
   cargo test --features=json --features=auto_reg -- --test-threads=1 --nocapture
-
+  cargo test --features=json --features=auto_reg -- --test-threads=1 --nocapture  --test test_tokio_multi_thread
+ 
 ```
 
 

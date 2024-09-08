@@ -8,6 +8,8 @@ use xcp_type_description::prelude::*;
 mod test_executor;
 use test_executor::test_executor;
 
+mod xcp_server;
+
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use serde::{Deserialize, Serialize};
@@ -137,11 +139,6 @@ fn task(cal_seg: CalSeg<CalPage1>) {
         if !cal_seg.run {
             break;
         }
-
-        // Check if the XCP server is still alive
-        if loop_counter % 256 == 0 && !Xcp::get().check_server() {
-            panic!("XCP server shutdown!");
-        }
     }
 
     debug!("Task terminated, loop counter = {}, {} changes observed", loop_counter, changes);
@@ -151,24 +148,20 @@ fn task(cal_seg: CalSeg<CalPage1>) {
 // Integration test single thread measurement and calibration
 
 #[tokio::test]
-async fn test_single_thread() {
+async fn test_tokio_single_thread() {
     env_logger::Builder::new().filter_level(OPTION_LOG_LEVEL.to_log_level_filter()).try_init().ok();
 
-    info!("Running test_single_thread");
+    info!("Running test_tokio_single_thread");
 
-    // Initialize XCP driver singleton, the transport layer server and enable the A2L writer
-    let xcp = match XcpBuilder::new("xcp_lite")
+    // Start tokio XCP server
+    // Initialize the xcplib transport and protocol layer only, not the server
+    let xcp: &'static Xcp = XcpBuilder::new("tokio_demo")
         .set_log_level(OPTION_XCP_LOG_LEVEL)
         .enable_a2l(true)
         .set_epk("EPK_TEST")
-        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
-    {
-        Err(res) => {
-            error!("XCP initialization failed: {:?}", res);
-            return;
-        }
-        Ok(xcp) => xcp,
-    };
+        .tl_start()
+        .unwrap();
+    let _xcp_task = tokio::spawn(xcp_server::xcp_task(xcp, [127, 0, 0, 1], 5555));
 
     // Create a calibration segment
     let cal_seg = xcp.create_calseg("cal_seg", &CAL_PAR1, false);
@@ -181,6 +174,6 @@ async fn test_single_thread() {
     test_executor(xcp, true, false).await; // Start the test executor XCP client
 
     t1.join().ok();
-    xcp.stop_server();
+
     std::fs::remove_file("xcp_client.a2l").ok();
 }
