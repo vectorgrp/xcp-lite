@@ -72,15 +72,18 @@ typedef struct {
 /* Initialization for the XCP Protocol Layer */
 extern void XcpInit();
 extern void XcpStart();
+extern void XcpReset();
+
+/* XCP command processor */
+extern uint8_t XcpCommand( const uint32_t* pCommand, uint16_t len );
+
+/* Disconnect, stop DAQ, flush queue */
 extern void XcpDisconnect();
 
 /* Trigger a XCP data acquisition or stimulation event */
 extern void XcpEvent(uint16_t event);
 extern uint8_t XcpEventExt(uint16_t event, const uint8_t* base, uint32_t len);
 extern void XcpEventAt(uint16_t event, uint64_t clock);
-
-/* XCP command processor */
-extern uint8_t XcpCommand( const uint32_t* pCommand, uint16_t len );
 
 /* Send an XCP event message */
 extern void XcpSendEvent(uint8_t ev, uint8_t evc, const uint8_t* d, uint8_t l);
@@ -102,14 +105,12 @@ extern uint32_t XcpGetDaqOverflowCount();
 extern uint16_t XcpGetClusterId();
 #endif
 
-
-
 /* Time synchronisation */
 #ifdef XCP_ENABLE_DAQ_CLOCK_MULTICAST
 extern uint16_t XcpGetClusterId();
 #endif
 
-// Event list
+/* Event list */
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
 
 // Clear event list

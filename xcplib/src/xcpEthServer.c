@@ -41,9 +41,9 @@ static struct {
     BOOL isInit; 
 
     // Threads
-    tXcpThread DAQThreadHandle;
+    tXcpThread TransmitThreadHandle;
     volatile BOOL TransmitThreadRunning;
-    tXcpThread CMDThreadHandle;
+    tXcpThread ReceiveThreadHandle;
     volatile BOOL ReceiveThreadRunning;
 
 } gXcpServer;
@@ -66,8 +66,8 @@ BOOL XcpEthServerInit(const uint8_t* addr, uint16_t port, BOOL useTCP)
     // Init network sockets
     if (!socketStartup()) return FALSE;
     
-    gXcpServer.TransmitThreadRunning = 0;
-    gXcpServer.ReceiveThreadRunning = 0;
+    gXcpServer.TransmitThreadRunning = FALSE;
+    gXcpServer.ReceiveThreadRunning = FALSE;
 
     // Initialize XCP protocol layer if not already done
     XcpInit();
@@ -80,8 +80,8 @@ BOOL XcpEthServerInit(const uint8_t* addr, uint16_t port, BOOL useTCP)
     XcpStart();
 
     // Create threads
-    create_thread(&gXcpServer.DAQThreadHandle, XcpServerTransmitThread);
-    create_thread(&gXcpServer.CMDThreadHandle, XcpServerReceiveThread);
+    create_thread(&gXcpServer.TransmitThreadHandle, XcpServerTransmitThread);
+    create_thread(&gXcpServer.ReceiveThreadHandle, XcpServerReceiveThread);
 
     gXcpServer.isInit = TRUE;
     return TRUE;
@@ -89,16 +89,35 @@ BOOL XcpEthServerInit(const uint8_t* addr, uint16_t port, BOOL useTCP)
 
 BOOL XcpEthServerShutdown() {
 
+    // Forcefull termination
+    
+    if (gXcpServer.isInit) {
+        XcpDisconnect();
+        cancel_thread(gXcpServer.ReceiveThreadHandle);
+        cancel_thread(gXcpServer.TransmitThreadHandle);
+        gXcpServer.ReceiveThreadRunning = FALSE;
+        gXcpServer.TransmitThreadRunning = FALSE;   
+        XcpTlShutdown();
+        gXcpServer.isInit = FALSE;
+        socketCleanup();
+        XcpReset();
+    }
+    
+
+    // Gracefull termination
+    /*
     if (gXcpServer.isInit) {
         XcpDisconnect();
         gXcpServer.ReceiveThreadRunning = FALSE;
         gXcpServer.TransmitThreadRunning = FALSE;
         XcpEthTlShutdown();
-        join_thread(gXcpServer.CMDThreadHandle);
-        join_thread(gXcpServer.DAQThreadHandle);
+        join_thread(gXcpServer.ReceiveThreadHandle);
+        join_thread(gXcpServer.TransmitThreadHandle);
         gXcpServer.isInit = FALSE;
         socketCleanup();
+        XcpReset();
     }
+    */
     return TRUE;
 }
 

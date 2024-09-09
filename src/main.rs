@@ -369,9 +369,6 @@ fn main() {
     cal_register_static!(calpage00.task1_cycle_time_us, "task1 cycle time", "us");
     cal_register_static!(calpage00.task2_cycle_time_us, "task2 cycle time", "us");
 
-    // Trying to call `.init()` again would panic, because the StaticCell is already initialized.
-    // SOME_INT.init(42);
-
     // Create calibration parameter sets
     // Calibration segments have "static" lifetime, the Xcp singleton holds a smart pointer clone to each
     // When a calibration segment is dropped by the application and sync is no longer called, the XCP tool will get a timeout when attempting to access it

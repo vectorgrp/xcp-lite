@@ -24,12 +24,12 @@ pub const MULTI_THREAD_TASK_COUNT: usize = 10; // No of signals = MULTI_THREAD_T
 const DURATION_DAQ_TEST_MS: u64 = 2000; // ms
 const TASK_SLEEP_TIME_US: u64 = 250; // us
 
-// High performance test with 1600 MByte/s target data rate
-// Actual data rate will be lower because in high cpu load situation the task cycle time increases
-// These settings result in 1200 MByte/s data rate on Macbook Pro M3
+// High performance test
+// Actual data rate will be lower than calculated target data rate because in high cpu load situation the task cycle time increases
+// These settings result in up to 2 GByte/s data rate on Macbook Pro M3
 // pub const MULTI_THREAD_TASK_COUNT: usize = 50; // No of signals = MULTI_THREAD_TASK_COUNT*8
 // const DURATION_DAQ_TEST_MS: u64 = 2000; // ms
-// const TASK_SLEEP_TIME_US: u64 = 100; // us
+// const TASK_SLEEP_TIME_US: u64 = 50; // us
 
 //------------------------------------------------------------------------
 // Handle incomming SERV_TEXT data

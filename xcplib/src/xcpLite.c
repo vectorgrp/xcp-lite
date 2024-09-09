@@ -1878,6 +1878,7 @@ void XcpPrint( const char *str ) {
 | Initialization of the XCP Protocol Layer
 ******************************************************************************/
 
+// Init XCP protocol layer
 void XcpInit()
 {
   if (gXcp.SessionStatus == 0) {
@@ -1905,6 +1906,7 @@ void XcpInit()
   }
 }
 
+// Start XCP protocol layer
 void XcpStart()
 {
     if (!isInitialized()) return;
@@ -1997,6 +1999,12 @@ void XcpStart()
     DBG_PRINT3("Start XCP protocol layer\n");
 
     gXcp.SessionStatus |= SS_STARTED;
+}
+
+
+// Reset XCP protocol layer
+void XcpReset() {
+    memset(&gXcp, 0, sizeof(gXcp));
 }
 
 
