@@ -120,7 +120,7 @@ struct CalPage {
     run: bool,          // Stop all tasks
     run1: bool,         // Stop demo task1
     run2: bool,         // Stop demo task2
-    cycle_time_ms: u16, // Cycle time of main loop task in milliseconds
+    cycle_time_ms: u32, // Cycle time of main loop task in milliseconds
 }
 
 const CAL_PAGE: CalPage = CalPage {

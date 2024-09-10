@@ -489,7 +489,7 @@ uint32_t ApplXcpGetId(uint8_t id, uint8_t* buf, uint32_t bufLen) {
         if (gXcpA2lName==NULL) return 0; 
         len = (uint32_t)strlen(gXcpA2lName);
         if (buf) {
-            if (len >= bufLen) return 0; // Insufficient buffer space
+            if (len >= bufLen-1) return 0; // Insufficient buffer space
             strncpy((char*)buf, gXcpA2lName, len);
         }
         break;
@@ -498,7 +498,7 @@ uint32_t ApplXcpGetId(uint8_t id, uint8_t* buf, uint32_t bufLen) {
     if (gXcpA2lName==NULL) return 0; 
       len = (uint32_t)strlen(gXcpA2lName)+4;
       if (buf) {
-        if (len > bufLen) return 0; // Insufficient buffer space
+        if (len > bufLen-1) return 0; // Insufficient buffer space
         SNPRINTF((char*)buf, bufLen, "%s.a2l", gXcpA2lName);
       }
       break;
@@ -510,8 +510,8 @@ uint32_t ApplXcpGetId(uint8_t id, uint8_t* buf, uint32_t bufLen) {
 #ifdef XCP_ENABLE_IDT_A2L_UPLOAD
     case IDT_ASAM_UPLOAD:
         {
-            char filename[512];
-            SNPRINTF((char*)filename, 256, "%s.a2l", gXcpA2lName);
+            char filename[256];
+            SNPRINTF((char*)filename, 255, "%s.a2l", gXcpA2lName);
             if (NULL==(gXcpFile=loadFile(filename,&gXcpFileLength))) return 0;
             len = gXcpFileLength;
         }
@@ -524,7 +524,7 @@ uint32_t ApplXcpGetId(uint8_t id, uint8_t* buf, uint32_t bufLen) {
         if (buf) {
             uint8_t addr[4];
             if (socketGetLocalAddr(NULL, addr)) {
-                SNPRINTF((char*)buf, bufLen, "http://%u.%u.%u.%u:%u/file/%s.a2l", addr[0], addr[1], addr[2], addr[3], gOptionHTTPPort, gXcpA2lName);
+                SNPRINTF((char*)buf, bufLen-1, "http://%u.%u.%u.%u:%u/file/%s.a2l", addr[0], addr[1], addr[2], addr[3], gOptionHTTPPort, gXcpA2lName);
                 len = (uint32_t)strlen((char*)buf);
             }
         }
