@@ -94,12 +94,11 @@ fn main() {
     println!("XCPlite Multi Thread Demo");
 
     // Logging
-    env_logger::Builder::new().filter_level(log::LevelFilter::Warn).init();
+    env_logger::Builder::new().filter_level(log::LevelFilter::Info).init();
 
     // Initialize XCP driver singleton, the transport layer server and enable the registry
     let xcp = XcpBuilder::new("multi_thread_demo")
         .set_log_level(XcpLogLevel::Warn)
-        .enable_a2l(true)
         .set_epk("EPK_12345678")
         .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
         .unwrap();
@@ -125,8 +124,9 @@ fn main() {
         }));
     }
 
+    // Test
     thread::sleep(Duration::from_millis(1000));
-    Xcp::get().write_a2l();
+    xcp.write_a2l();
 
     t.into_iter().for_each(|t| t.join().unwrap());
 

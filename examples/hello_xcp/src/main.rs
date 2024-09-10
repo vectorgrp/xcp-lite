@@ -36,11 +36,10 @@ const CAL_PAGE: CalPage = CalPage { min: 5, max: 10, delay: 100000 };
 fn main() {
     println!("XCP Demo");
 
-    env_logger::Builder::new().filter_level(log::LevelFilter::Debug).init();
+    env_logger::Builder::new().filter_level(log::LevelFilter::Info).init();
 
     let xcp = XcpBuilder::new("xcp_demo")
         .set_log_level(XcpLogLevel::Debug)
-        .enable_a2l(true)
         .set_epk("EPK_")
         .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
         .unwrap();
@@ -64,6 +63,6 @@ fn main() {
 
         calseg.sync();
 
-        //Xcp::get().write_a2l();
+        xcp.write_a2l();
     }
 }

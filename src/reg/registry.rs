@@ -549,6 +549,7 @@ impl RegistryCharacteristicList {
 
 #[derive(Debug)]
 pub struct Registry {
+    freeze: bool,
     name: Option<&'static str>,
     tl_params: Option<RegistryXcpTransportLayer>,
     mod_par: RegistryEpk,
@@ -568,6 +569,7 @@ impl Registry {
     /// Create a measurement and calibration registry
     pub fn new() -> Registry {
         Registry {
+            freeze: false,
             name: None,
             tl_params: None,
             mod_par: RegistryEpk::new(),
@@ -580,7 +582,8 @@ impl Registry {
 
     /// Clear (for test only)
     pub fn clear(&mut self) {
-        debug!("Clear and close registry");
+        debug!("Registry clear()");
+        self.freeze = false;
         self.name = None;
         self.tl_params = None;
         self.mod_par = RegistryEpk::new();
@@ -590,15 +593,20 @@ impl Registry {
         self.measurement_list = RegistryMeasurementList::new();
     }
 
-    /// Close registry
-    pub fn close(&mut self) {
-        debug!("Close registry");
-        self.name = None;
+    /// Freeze registry
+    pub fn freeze(&mut self) {
+        debug!("Registry freeze()");
+        self.freeze = true;
+    }
+
+    /// Get freeze status   
+    pub fn is_frozen(&self) -> bool {
+        self.freeze
     }
 
     /// Set name
     pub fn set_name(&mut self, name: &'static str) {
-        debug!("set_name: {}", name);
+        debug!("Registry set_name({})", name);
         self.name = Some(name);
     }
 
@@ -609,9 +617,7 @@ impl Registry {
 
     // Set EPK
     pub fn set_epk(&mut self, epk: &'static str, epk_addr: u32) {
-        debug!("set_epk: {} 0x{:08X}", epk, epk_addr);
-        assert!(self.name.is_some(), "Registry is closed");
-
+        debug!("Registry set_epk: {} 0x{:08X}", epk, epk_addr);
         self.mod_par.epk = Some(epk);
         self.mod_par.epk_addr = epk_addr;
     }
@@ -623,24 +629,22 @@ impl Registry {
 
     // Set transport layer parameters
     pub fn set_tl_params(&mut self, protocol_name: &'static str, addr: Ipv4Addr, port: u16) {
-        debug!("set_tl_params: {} {} {}", protocol_name, addr, port);
-        assert!(self.name.is_some(), "Registry is closed");
-
+        debug!("Registry set_tl_params: {} {} {}", protocol_name, addr, port);
         self.tl_params = Some(RegistryXcpTransportLayer { protocol_name, addr, port });
     }
 
     // Add an event
     pub fn add_event(&mut self, event: XcpEvent) {
-        debug!("add_event: num={}, index={}", event.get_num(), event.get_index());
-        assert!(self.name.is_some(), "Registry is closed");
+        debug!("Registry add_event: num={}, index={}", event.get_num(), event.get_index());
+        assert!(!self.is_frozen(), "Registry is closed");
 
         self.event_list.push(event);
     }
 
     // Add a calibration segment
     pub fn add_cal_seg(&mut self, name: &'static str, addr: u32, addr_ext: u8, size: u32) {
-        debug!("add_cal_seg: {} {}:0x{:08X}-{} ", name, addr_ext, addr, size);
-        assert!(self.name.is_some(), "Registry is closed");
+        debug!("Registry add_cal_seg: {} {}:0x{:08X}-{} ", name, addr_ext, addr, size);
+        assert!(!self.is_frozen(), "Registry is closed");
 
         // Length of calseg should be %4 to avoid problems with CANape and checksum calculations
         // Address should also be %4
@@ -660,7 +664,7 @@ impl Registry {
     }
 
     pub fn get_measurement_list(&self) -> &Vec<RegistryMeasurement> {
-        println!("get_measurement_list, len = {}", self.measurement_list.0.len());
+        println!("Registry get_measurement_list, len = {}", self.measurement_list.0.len());
         &self.measurement_list.0
     }
 
@@ -671,7 +675,7 @@ impl Registry {
     ///   If the registry is closed
     pub fn add_measurement(&mut self, mut m: RegistryMeasurement) {
         debug!(
-            "add_measurement: {} type={:?}[{},{}] event={}+({})",
+            "Registry add_measurement: {} type={:?}[{},{}] event={}+({})",
             m.name,
             m.datatype,
             m.x_dim,
@@ -681,7 +685,7 @@ impl Registry {
         );
 
         // Panic if registry is closed
-        assert!(self.name.is_some(), "Registry is closed");
+        assert!(!self.is_frozen(), "Registry is closed");
 
         // Append event index to name in case of a multi instance event (index>0)
         if m.event.get_index() > 0 {
@@ -708,11 +712,10 @@ impl Registry {
     ///   If a measurement with the same name already exists
     ///   If the registry is closed
     pub fn add_characteristic(&mut self, c: RegistryCharacteristic) {
-        debug!("add_characteristic: {:?}.{} type={:?} offset={}", c.calseg_name, c.name, c.datatype, c.addr_offset);
-        debug!("add_characteristic: {:?}", c);
+        debug!("Registry add_characteristic: {:?}.{} type={:?} offset={}", c.calseg_name, c.name, c.datatype, c.addr_offset);
 
         // Panic if registry is closed
-        assert!(self.name.is_some(), "Registry is closed");
+        assert!(!self.is_frozen(), "Registry is closed");
 
         // Panic if duplicate
         for c1 in self.characteristic_list.iter() {
@@ -736,8 +739,8 @@ impl Registry {
     /// Returns true, if file is rewritten due to changes
     pub fn write(&mut self) -> Result<bool, &'static str> {
         // Error if registry is closed
-        if self.name.is_none() {
-            return Err("Registry is closed");
+        if self.is_frozen() {
+            return Err("Registry is frozen!");
         }
 
         // Sort measurement and calibration lists to get deterministic order

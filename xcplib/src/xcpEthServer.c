@@ -89,23 +89,20 @@ BOOL XcpEthServerInit(const uint8_t* addr, uint16_t port, BOOL useTCP)
 
 BOOL XcpEthServerShutdown() {
 
+#ifdef XCP_SERVER_FORCEFULL_TERMINATION
     // Forcefull termination
-    
     if (gXcpServer.isInit) {
+        DBG_PRINT3("Disconnect, cancel threads and shutdown XCP!\n");
         XcpDisconnect();
         cancel_thread(gXcpServer.ReceiveThreadHandle);
         cancel_thread(gXcpServer.TransmitThreadHandle);
-        gXcpServer.ReceiveThreadRunning = FALSE;
-        gXcpServer.TransmitThreadRunning = FALSE;   
-        XcpTlShutdown();
+        XcpEthTlShutdown();
         gXcpServer.isInit = FALSE;
         socketCleanup();
         XcpReset();
     }
-    
-
+#else
     // Gracefull termination
-    /*
     if (gXcpServer.isInit) {
         XcpDisconnect();
         gXcpServer.ReceiveThreadRunning = FALSE;
@@ -117,7 +114,7 @@ BOOL XcpEthServerShutdown() {
         socketCleanup();
         XcpReset();
     }
-    */
+#endif
     return TRUE;
 }
 

@@ -351,7 +351,6 @@ impl XcpTransportLayer {
 pub struct XcpBuilder {
     log_level: XcpLogLevel, // log level for the server
     name: &'static str,     // Registry name, file name for the registry A2L generator
-    a2l_enable: bool,       // Enable A2L file generation from registry
     epk: &'static str,      // EPK string for A2L version check
 }
 
@@ -361,7 +360,6 @@ impl XcpBuilder {
         XcpBuilder {
             log_level: XcpLogLevel::Info,
             name,
-            a2l_enable: true,
             epk: "EPK",
         }
     }
@@ -369,12 +367,6 @@ impl XcpBuilder {
     /// Set log level
     pub fn set_log_level(mut self, log_level: XcpLogLevel) -> Self {
         self.log_level = log_level;
-        self
-    }
-
-    /// Enable A2L file generation
-    pub fn enable_a2l(mut self, a2l_enable: bool) -> Self {
-        self.a2l_enable = a2l_enable;
         self
     }
 
@@ -430,6 +422,7 @@ impl XcpBuilder {
         {
             let mut r = xcp.registry.lock().unwrap();
             r.set_name(self.name);
+
             r.set_tl_params(tl.protocol_name(), ipv4_addr, port); // Transport layer parameters
             r.set_epk(self.epk, Xcp::XCP_EPK_ADDR); // EPK
         }
@@ -704,7 +697,7 @@ impl Xcp {
     /// This function force the A2L to be written immediately
     pub fn write_a2l(&self) {
         // Do nothing, if the registry is already written, or does not exist
-        if self.registry.lock().unwrap().get_name().is_none() {
+        if self.registry.lock().unwrap().is_frozen() {
             return;
         }
 
@@ -729,7 +722,7 @@ impl Xcp {
             // A2l is no longer needed yet, free memory
             // Another call to a2l_write will do nothing
             // All registrations from now on, will cause panic
-            r.close();
+            r.freeze();
         }
     }
 

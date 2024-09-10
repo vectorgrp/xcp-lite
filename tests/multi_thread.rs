@@ -159,7 +159,6 @@ async fn test_multi_thread() {
     // Initialize XCP driver singleton, the transport layer server and enable the A2L writer
     let xcp = match XcpBuilder::new("xcp_lite")
         .set_log_level(OPTION_XCP_LOG_LEVEL)
-        .enable_a2l(true)
         .set_epk("EPK_TEST")
         .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
     {
@@ -183,7 +182,7 @@ async fn test_multi_thread() {
         v.push(t);
     }
 
-    test_executor(xcp, false, true).await; // Start the test executor XCP client
+    test_executor(xcp, test_executor::TestMode::MultiThreadDAQ).await; // Start the test executor XCP client
 
     for t in v {
         t.join().ok();

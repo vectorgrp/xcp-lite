@@ -1,6 +1,8 @@
 // single_thread
 // Integration test for XCP in a single thread application
-// Uses the test XCP client in test_executor
+// Uses the test XCP client in module test_executor
+
+// cargo test --features=json --features=auto_reg -- --test-threads=1 --nocapture  --test test_single_thread
 
 use xcp::*;
 use xcp_type_description::prelude::*;
@@ -156,31 +158,66 @@ async fn test_single_thread() {
 
     info!("Running test_single_thread");
 
-    // Initialize XCP driver singleton, the transport layer server and enable the A2L writer
-    let xcp = match XcpBuilder::new("xcp_lite")
-        .set_log_level(OPTION_XCP_LOG_LEVEL)
-        .enable_a2l(true)
-        .set_epk("EPK_TEST")
-        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
-    {
-        Err(res) => {
-            error!("XCP initialization failed: {:?}", res);
-            return;
-        }
-        Ok(xcp) => xcp,
-    };
+    // Initialize the XCP driver singleton
+    let xcp = Xcp::get();
 
     // Create a calibration segment
     let cal_seg = xcp.create_calseg("cal_seg", &CAL_PAR1, false);
 
-    // Create a test task
-    let t1 = thread::spawn(move || {
-        task(cal_seg);
-    });
+    // Test calibration and measurement in a single thread
+    {
+        info!("");
+        info!("=================================================================");
+        info!("XCP server initialization, pass 1");
 
-    test_executor(xcp, true, false).await; // Start the test executor XCP client
+        // Initialize the XCPserver, transport layer and protocoll layer
+        let xcp = match XcpBuilder::new("xcp_lite")
+            .set_log_level(OPTION_XCP_LOG_LEVEL)
+            .set_epk("EPK_TEST")
+            .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
+        {
+            Err(res) => {
+                error!("XCP initialization failed: {:?}", res);
+                return;
+            }
+            Ok(xcp) => xcp,
+        };
 
-    t1.join().ok();
-    xcp.stop_server();
+        // Create a test task
+        let c = cal_seg.clone();
+        let t1 = thread::spawn(move || {
+            task(c);
+        });
+
+        test_executor(xcp, test_executor::TestMode::SingleThreadDAQ).await; // Start the test executor XCP client
+
+        t1.join().ok();
+        xcp.stop_server();
+    }
+
+    // Reinitialize the XCP server a second time, to check correct shutdown behaviour
+    {
+        info!("");
+        info!("=================================================================");
+        info!("XCP server initialization, pass 2");
+
+        // Initialize the XCPserver, transport layer and protocoll layer
+        let xcp = match XcpBuilder::new("xcp_lite")
+            .set_log_level(OPTION_XCP_LOG_LEVEL)
+            .set_epk("EPK_TEST")
+            .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
+        {
+            Err(res) => {
+                error!("XCP initialization failed: {:?}", res);
+                return;
+            }
+            Ok(xcp) => xcp,
+        };
+
+        test_executor(xcp, test_executor::TestMode::ConnectOnly).await; // Start the test executor XCP client
+
+        xcp.stop_server();
+    }
+
     std::fs::remove_file("xcp_client.a2l").ok();
 }

@@ -133,7 +133,7 @@ fn render(pixels: &mut [u8], row: usize, length: usize, upper_left: Complex<f64>
 fn main() {
     println!("xcp-lite rayon mandelbrot demo");
 
-    env_logger::Builder::new().filter_level(log::LevelFilter::Debug).init();
+    env_logger::Builder::new().filter_level(log::LevelFilter::Info).init();
 
     const BIND_ADDR: [u8; 4] = [192, 168, 0, 83];
     // const BIND_ADDR: [u8; 4] = [127, 0, 0, 1];
@@ -141,7 +141,6 @@ fn main() {
 
     let xcp = XcpBuilder::new("mandelbrot")
         .set_log_level(XcpLogLevel::Debug)
-        .enable_a2l(true)
         .set_epk("EPK")
         .start_server(XcpTransportLayer::Udp, BIND_ADDR, 5555)
         .unwrap();

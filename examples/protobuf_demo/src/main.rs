@@ -151,11 +151,10 @@ pub struct TestData {
 fn main() {
     println!("protobuf demo");
 
-    env_logger::Builder::new().filter_level(log::LevelFilter::Debug).init();
+    env_logger::Builder::new().filter_level(log::LevelFilter::Info).init();
 
     let xcp = XcpBuilder::new("xcp_demo")
         .set_log_level(XcpLogLevel::Debug)
-        .enable_a2l(true)
         .set_epk("EPK_")
         .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
         .unwrap();
@@ -219,6 +218,6 @@ fn main() {
 
         thread::sleep(Duration::from_micros(1000000));
 
-        Xcp::get().write_a2l(); // @@@@ test
+        xcp.write_a2l(); // @@@@ test
     }
 }

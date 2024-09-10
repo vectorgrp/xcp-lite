@@ -708,7 +708,7 @@ BOOL XcpEthTlHandleCommands(uint32_t timeout_ms) {
                     return handleXcpCommand(n, &msgBuf, NULL, 0);
                 }
                 else {
-                    socketShutdown(gXcpTl.Sock);
+                    socketShutdown(gXcpTl.Sock); // Let the receive thread terminate without error message
                     return FALSE;  // Should not happen
                 }
             }
@@ -717,7 +717,7 @@ BOOL XcpEthTlHandleCommands(uint32_t timeout_ms) {
             DBG_PRINT3("XCP Master closed TCP connection! XCP disconnected.\n");
             XcpDisconnect();
             sleepMs(100);
-            socketShutdown(gXcpTl.Sock);
+            socketShutdown(gXcpTl.Sock); // Let the receive thread terminate without error message
             socketClose(&gXcpTl.Sock);
             return TRUE; // Ok, TCP socket closed
         }

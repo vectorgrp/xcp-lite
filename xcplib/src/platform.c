@@ -242,7 +242,8 @@ BOOL socketBind(SOCKET sock, uint8_t* addr, uint16_t port) {
     return TRUE;
 }
 
-
+// Shutdown socket
+// Block rx and tx direction
 BOOL socketShutdown(SOCKET sock) {
     if (sock != INVALID_SOCKET) {
         shutdown(sock, SHUT_RDWR);
@@ -250,6 +251,8 @@ BOOL socketShutdown(SOCKET sock) {
     return TRUE;
 }
 
+// Close socket
+// Make addr reusable
 BOOL socketClose(SOCKET *sp) {
     if (*sp != INVALID_SOCKET) {
         close(*sp);
@@ -463,7 +466,8 @@ BOOL socketBind(SOCKET sock, uint8_t *addr, uint16_t port) {
     return TRUE;
 }
 
-
+// Shutdown socket
+// Block rx and tx direction
 BOOL socketShutdown(SOCKET sock) {
 
     if (sock != INVALID_SOCKET) {
@@ -472,6 +476,8 @@ BOOL socketShutdown(SOCKET sock) {
     return TRUE;
 }
 
+// Close socket
+// Make addr reusable
 BOOL socketClose(SOCKET* sockp) {
 
     if (*sockp != INVALID_SOCKET) {

@@ -50,10 +50,6 @@ struct Args {
     /// Port number
     #[arg(short, long, default_value_t = 5555)]
     port: u16,
-
-    /// Don't create A2L file
-    #[arg(short, long, default_value_t = false)]
-    no_a2l: bool,
 }
 
 //-----------------------------------------------------------------------------
@@ -124,14 +120,14 @@ struct CalPage {
     run: bool,          // Stop all tasks
     run1: bool,         // Stop demo task1
     run2: bool,         // Stop demo task2
-    cycle_time_us: u32, // Cycle time of main loop in microseconds
+    cycle_time_ms: u16, // Cycle time of main loop task in milliseconds
 }
 
 const CAL_PAGE: CalPage = CalPage {
     run: true,
     run1: true,
     run2: true,
-    cycle_time_us: 50000, // 50ms
+    cycle_time_ms: 100, // 100ms
 };
 
 //---------------------------------------------------
@@ -349,20 +345,16 @@ fn main() {
     env_logger::Builder::new().filter_level(log_level.to_log_level_filter()).init();
 
     // Initialize XCP driver singleton, the transport layer server and enable the A2L writer
-    let xcp_builder = XcpBuilder::new("xcp_lite")
+    let xcp = XcpBuilder::new("xcp_lite")
         .set_log_level(log_level)
-        .enable_a2l(!args.no_a2l)
         // .set_segment_size(1500-20-8) // no jumbo frames
         // .set_epk(build_info::format!("{}", $.timestamp)); // Create new EPK from build info
-        .set_epk("EPK_");
-
-    let xcp = match xcp_builder.start_server(if args.tcp { XcpTransportLayer::Tcp } else { XcpTransportLayer::Udp }, args.bind, args.port) {
-        Err(res) => {
-            error!("XCP server initialization failed: {:?}", res);
-            return;
-        }
-        Ok(xcp) => xcp,
-    };
+        .set_epk("EPK_")
+        .start_server(if args.tcp { XcpTransportLayer::Tcp } else { XcpTransportLayer::Udp }, args.bind, args.port)
+        .map_err(|e| {
+            panic!("XCP server initialization failed: {:?}", e);
+        })
+        .unwrap();
 
     // Register a static calibration page
     let calpage00 = CAL_PAGE0.get().unwrap();
@@ -385,7 +377,7 @@ fn main() {
         .add_field(calseg_field!(CAL_PAGE.run, 0, 1, "bool"))
         .add_field(calseg_field!(CAL_PAGE.run1, 0, 1, "bool"))
         .add_field(calseg_field!(CAL_PAGE.run2, 0, 1, "bool"))
-        .add_field(calseg_field!(CAL_PAGE.cycle_time_us, "us", "main task cycle time"));
+        .add_field(calseg_field!(CAL_PAGE.cycle_time_ms, "ms", "main task cycle time"));
 
     // Create calibration segments for CAL_PAGE1 and CAL_PAGE2, add fields with macro derive(XcpTypeDescription))
     let calseg1 = xcp.create_calseg("CalPage1", &CAL_PAGE1, true);
@@ -435,11 +427,13 @@ fn main() {
         if !calseg.run {
             break;
         }
-        thread::sleep(Duration::from_micros(calseg.cycle_time_us as u64));
+        thread::sleep(Duration::from_millis(calseg.cycle_time_ms as u64));
 
         // Variables on stack and heap
-        mainloop_counter1 += 1;
-        *mainloop_counter2 += 2;
+        if xcp.is_connected() {
+            mainloop_counter1 += 1;
+        }
+        *mainloop_counter2 += 1;
         mainloop_map[0][0] = mainloop_counter1 as u8;
 
         // Capture variable from heap
@@ -477,9 +471,7 @@ fn main() {
         // Finalize A2l after 2s delay
         // This is just for testing, to force immediate creation of A2L file
         // Without this, the A2L file will be automatically written on XCP connect, to be available for download by CANape
-        if !args.no_a2l && mainloop_counter1 == 1 {
-            thread::sleep(Duration::from_secs(2));
-
+        if !xcp.is_connected() && *mainloop_counter2 == (2000 / calseg.cycle_time_ms as u16) as u64 {
             // Test A2L write
             xcp.write_a2l();
 
@@ -488,9 +480,21 @@ fn main() {
 
             // Test freeze request
             // xcp.set_freeze_request();
+        }
 
-            // Test shutdown
-            // break;
+        // Terminate after more than 10s disconnected to test shutdown behaviour
+
+        // This is just for testing, to force immediate creation of A2L file
+        // Without this, the A2L file will be automatically written on XCP connect, to be available for download by CANape
+        if !xcp.is_connected() {
+            if *mainloop_counter2 % 200 == 0 {
+                println!(".");
+            }
+            if mainloop_counter1 == (10000 / calseg.cycle_time_ms as u16) as u64 {
+                // after 10s when disconnected
+                thread::sleep(Duration::from_secs(2));
+                break;
+            }
         }
     }
     info!("Main task finished");
@@ -502,5 +506,6 @@ fn main() {
     info!("All tasks finished");
 
     // Stop and shutdown the XCP server
+    info!("Stop XCP server");
     xcp.stop_server();
 }

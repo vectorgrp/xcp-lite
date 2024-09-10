@@ -156,12 +156,7 @@ async fn test_tokio_multi_thread() {
 
     // Start tokio XCP server
     // Initialize the xcplib transport and protocol layer only, not the server
-    let xcp: &'static Xcp = XcpBuilder::new("tokio_demo")
-        .set_log_level(OPTION_XCP_LOG_LEVEL)
-        .enable_a2l(true)
-        .set_epk("EPK_TEST")
-        .tl_start()
-        .unwrap();
+    let xcp: &'static Xcp = XcpBuilder::new("tokio_demo").set_log_level(OPTION_XCP_LOG_LEVEL).set_epk("EPK_TEST").tl_start().unwrap();
     let _xcp_task = tokio::spawn(xcp_server::xcp_task(xcp, [127, 0, 0, 1], 5555));
 
     // Create a calibration segment
@@ -177,7 +172,7 @@ async fn test_tokio_multi_thread() {
         v.push(t);
     }
 
-    test_executor(xcp, false, true).await; // Start the test executor XCP client
+    test_executor(xcp, test_executor::TestMode::MultiThreadDAQ).await; // Start the test executor XCP client
 
     for t in v {
         t.join().ok();

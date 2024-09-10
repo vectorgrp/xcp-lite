@@ -110,11 +110,10 @@ fn create_point_cloud() -> PointCloud {
 fn main() {
     println!("xcp-lite point cloud demo");
 
-    env_logger::Builder::new().filter_level(log::LevelFilter::Debug).init();
+    env_logger::Builder::new().filter_level(log::LevelFilter::Info).init();
 
     let xcp = XcpBuilder::new("point_cloud")
         .set_log_level(XcpLogLevel::Debug)
-        .enable_a2l(true)
         .start_server(XcpTransportLayer::Udp, BIND_ADDR, 5555)
         .unwrap();
 

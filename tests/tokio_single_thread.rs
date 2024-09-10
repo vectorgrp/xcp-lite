@@ -157,9 +157,9 @@ async fn test_tokio_single_thread() {
     // Initialize the xcplib transport and protocol layer only, not the server
     let xcp: &'static Xcp = XcpBuilder::new("tokio_demo")
         .set_log_level(OPTION_XCP_LOG_LEVEL)
-        .enable_a2l(true)
         .set_epk("EPK_TEST")
         .tl_start()
+        .map_err(|e| error!("{}", e))
         .unwrap();
     let _xcp_task = tokio::spawn(xcp_server::xcp_task(xcp, [127, 0, 0, 1], 5555));
 
@@ -171,7 +171,7 @@ async fn test_tokio_single_thread() {
         task(cal_seg);
     });
 
-    test_executor(xcp, true, false).await; // Start the test executor XCP client
+    test_executor(xcp, test_executor::TestMode::SingleThreadDAQ).await; // Start the test executor XCP client
 
     t1.join().ok();
 

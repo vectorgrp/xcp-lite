@@ -16,8 +16,8 @@
 #include "xcpLite.h"
 #include "xcpAppl.h"
 
-#if OPTION_ENABLE_DBG_PRINTS
-unsigned int gDebugLevel = OPTION_DEBUG_LEVEL;
+#ifdef XCP_ENABLE_DBG_PRINTS
+uint8_t gDebugLevel = XCP_DEFAULT_DEBUG_LEVEL;
 #endif
 
 #ifdef XCP_ENABLE_USER_COMMAND
@@ -31,7 +31,7 @@ static BOOL write_delay = FALSE;
 
 void ApplXcpSetLogLevel(uint8_t level) {
     gDebugLevel = level;
-    //DBG_PRINTF(level,"Set log level to %d\n", level);
+    if (level>2) DBG_PRINTF_WARNING("Set log level to %d\n", level);
 }
 
 /**************************************************************************/

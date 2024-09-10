@@ -44,13 +44,12 @@ fn task1(calseg: CalSeg<CalPage>) {
         if counter > calseg.max {
             counter = calseg.min;
         }
-        // info!("Counter: {}", counter);
+
         event.trigger();
 
         thread::sleep(Duration::from_micros(calseg.delay as u64));
 
         calseg.sync();
-        Xcp::get().write_a2l();
     }
 }
 
@@ -59,11 +58,10 @@ fn task1(calseg: CalSeg<CalPage>) {
 fn main() {
     println!("XCP Demo");
 
-    env_logger::Builder::new().filter_level(log::LevelFilter::Debug).init();
+    env_logger::Builder::new().filter_level(log::LevelFilter::Info).init();
 
     let xcp = XcpBuilder::new("xcp_demo")
-        .set_log_level(XcpLogLevel::Debug)
-        .enable_a2l(true)
+        .set_log_level(XcpLogLevel::Info)
         .set_epk("EPK_")
         .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
         .unwrap();

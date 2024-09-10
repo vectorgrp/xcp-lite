@@ -232,21 +232,25 @@ async fn main() {
         byte_count as f64 / elapsed_time as f64
     );
     info!("Expected {} events/s, {} byte/s", 1_000_000 / 50 * 10, 90 * 1_000_000 / 50 * 10);
-    assert_ne!(event_count, 0);
-
-    // Stop demo task
-    // Test shutdown
-    // Create a calibration object for CalPage.run
-    // if let Ok(run) = xcp_client.create_calibration_object("CalPage.run").await {
-    //     let v = xcp_client.get_value_u64(run);
-    //     info!("CalPage.run = {}", v);
-    //     assert_eq!(v, 1);
-    //     xcp_client.set_value_u64(run, 0).await.unwrap();
-    // } else {
-    //     warn!("CalPage.run not found");
-    // }
 
     // Disconnect
     info!("XCP Disconnect");
     xcp_client.disconnect().await.unwrap();
 }
+
+// Start/Stop demo task
+// Create a calibration object for CalPage.run
+// impl XcpClient {
+//     async fn set_run(&mut self, state: bool) -> Result<(), XcpError> {
+//         if let Ok(run) = self.create_calibration_object("CalPage.run").await {
+//             let v = self.get_value_u64(run);
+//             info!("CalPage.run = {}", v);
+//             assert_eq!(v, 1);
+//             self.set_value_u64(run, state as u64).await.unwrap();
+//         } else {
+//             warn!("CalPage.run not found");
+//         }
+
+//         Ok(())
+//     }
+// }
