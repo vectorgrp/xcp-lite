@@ -422,6 +422,8 @@ fn main() {
     daq_register_static!(static_vars.test_f64, static_event, "Test static f64");
 
     let mut current_session_status = xcp.get_session_status();
+
+    let mut idle_time = 0.0;
     while RUN.load(Ordering::Acquire) {
         // @@@@ Dev: Terminate mainloop for shutdown if calibration parameter run is false, for test automation
         if !calseg.run {
@@ -467,11 +469,17 @@ fn main() {
             current_session_status = session_status;
         }
 
+        // Log idle time
+        if !xcp.is_connected() {
+            idle_time += calseg.cycle_time_ms as f64 / 1000.0;
+        } else {
+            idle_time = 0.0;
+        }
         // @@@@ Dev:
         // Finalize A2l after 2s delay
-        // This is just for testing, to force immediate creation of A2L file
+        // This is just for testing, to force creation of A2L file for inspection
         // Without this, the A2L file will be automatically written on XCP connect, to be available for download by CANape
-        if !xcp.is_connected() && *mainloop_counter2 == (2000 / calseg.cycle_time_ms as u16) as u64 {
+        if idle_time >= 2.0 {
             // Test A2L write
             xcp.write_a2l();
 
@@ -483,20 +491,11 @@ fn main() {
         }
 
         // Terminate after more than 10s disconnected to test shutdown behaviour
-
-        // This is just for testing, to force immediate creation of A2L file
-        // Without this, the A2L file will be automatically written on XCP connect, to be available for download by CANape
-        if !xcp.is_connected() {
-            if *mainloop_counter2 % 200 == 0 {
-                println!(".");
-            }
-            if mainloop_counter1 == (10000 / calseg.cycle_time_ms as u16) as u64 {
-                // after 10s when disconnected
-                thread::sleep(Duration::from_secs(2));
-                break;
-            }
+        if idle_time >= 10.0 {
+            break;
         }
     }
+
     info!("Main task finished");
     RUN.store(false, Ordering::Relaxed);
 

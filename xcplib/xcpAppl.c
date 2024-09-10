@@ -97,6 +97,10 @@ BOOL ApplXcpConnect() {
     return TRUE;
 }
 
+void ApplXcpDisconnect() {
+    DBG_PRINT3("XCP disconnect\n");
+}
+
 #if XCP_PROTOCOL_LAYER_VERSION >= 0x0104
 BOOL ApplXcpPrepareDaq() { 
     DBG_PRINT3("XCP prepare DAQ\n");

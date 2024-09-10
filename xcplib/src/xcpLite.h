@@ -132,8 +132,9 @@ extern tXcpEvent* XcpGetEvent(uint16_t event);
 // All callback functions supplied by the application
 // Must be thread save
 
-/* Callbacks on connect, measurement prepare, start and stop */
+/* Callbacks on connect, disconnect, measurement prepare, start and stop */
 extern BOOL ApplXcpConnect();
+extern void ApplXcpDisconnect();
 #if XCP_PROTOCOL_LAYER_VERSION >= 0x0104
 extern BOOL ApplXcpPrepareDaq();
 #endif

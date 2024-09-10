@@ -234,7 +234,6 @@ async fn main() {
     info!("Expected {} events/s, {} byte/s", 1_000_000 / 50 * 10, 90 * 1_000_000 / 50 * 10);
 
     // Disconnect
-    info!("XCP Disconnect");
     xcp_client.disconnect().await.unwrap();
 }
 

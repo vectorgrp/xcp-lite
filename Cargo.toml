@@ -138,7 +138,7 @@ xcp_client = { path = "xcp_client" }
 # dependencies for rayon demo example
 rayon = "1.10.0"
 num = "0.4.3"
-image = "0.13.0"
+image = "0.25.2"
 
 # dependencies for protobuf demo example
 prost = "0.13.1"

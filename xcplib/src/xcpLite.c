@@ -978,13 +978,17 @@ void XcpDisconnect()
 {
   if (!isStarted()) return;
 
-  if (isDaqRunning()) {
-    ApplXcpStopDaq();
-    XcpStopAllDaq();
-    XcpTlWaitForTransmitQueueEmpty(); // Wait until transmit queue empty
-  }
+  if (isConnected()) {
 
-  gXcp.SessionStatus &= ~SS_CONNECTED;
+    if (isDaqRunning()) {
+      ApplXcpStopDaq();
+      XcpStopAllDaq();
+      XcpTlWaitForTransmitQueueEmpty(); // Wait until transmit queue empty
+    }
+    
+    gXcp.SessionStatus &= ~SS_CONNECTED;
+    ApplXcpDisconnect();
+  }
 }
 
 // Transmit command response
