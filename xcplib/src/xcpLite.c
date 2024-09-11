@@ -1869,8 +1869,8 @@ void XcpPrint( const char *str ) {
   uint8_t i;
   uint16_t l = strlen(str);
   for (i = 0; i < l && i < XCPTL_MAX_CTO_SIZE-4; i++) crm.b[i+2] = str[i];
-  crm.b[i+3] = '\n';
-  crm.b[i+4] = 0;
+  crm.b[i+2] = '\n';
+  crm.b[i+3] = 0;
   XcpTlSendCrm((const uint8_t*)&crm, l+4);
   //XcpTlFlushTransmitBuffer(); // Don't do this, as it will decrease performance of the transmit process
 }

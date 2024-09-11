@@ -123,9 +123,9 @@ impl XcpDaqDecoder for DaqDecoder {
             }
 
             // Check counter_max
-            assert!(counter_max <= 255);
-            assert!(counter <= 255);
-            assert!(counter <= counter_max);
+            assert!(counter_max <= 255, "counter_max={}", counter_max);
+            assert!(counter <= 255, "counter={}", counter);
+            assert!(counter <= counter_max, "counter={} counter_max={}", counter, counter_max);
             if counter_max >= self.max_counter[daq as usize] {
                 self.max_counter[daq as usize] = counter_max;
             }
