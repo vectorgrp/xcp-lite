@@ -35,17 +35,16 @@
 #define ON 1
 #define OFF 0
 
-// Debug prints
-#define XCP_ENABLE_DBG_PRINTS
-#define XCP_DEFAULT_DEBUG_LEVEL 2 /*1 - Error, 2 - Warn, 3 - Info, 4 - Trace, 5 - Debug */
 
 // Set clock resolution (for clock function in platform.c)
 #define CLOCK_USE_APP_TIME_US
 // #define CLOCK_USE_UTC_TIME_NS
 
+// #define PLATFORM_ENABLE_GET_LOCAL_ADDR
+// #define PLATFORM_ENABLE_KEYBOARD
 
-// Ethernet Transport Layer
-#define OPTION_MTU 8000 // Ethernet MTU 
+
+
 
 // Ethernet Server
 // TCP or/and UDP server enabled
@@ -53,6 +52,14 @@
 #define XCPTL_ENABLE_UDP
 #define XCP_SERVER_FORCEFULL_TERMINATION // Otherwise use gracefull server thread termination in xcplib
 
+// Ethernet Transport Layer
+#define OPTION_MTU 8000 // Ethernet MTU 
 
-// #define PLATFORM_ENABLE_GET_LOCAL_ADDR
-// #define PLATFORM_ENABLE_KEYBOARD
+// Debug prints
+#define OPTION_ENABLE_DBG_PRINTS ON
+#define OPTION_DEBUG_LEVEL 2 /*1 - Error, 2 - Warn, 3 - Info, 4 - Trace, 5 - Debug */
+#if OPTION_ENABLE_DBG_PRINTS
+  #define XCP_ENABLE_DBG_PRINTS
+  #define XCP_DEFAULT_DEBUG_LEVEL OPTION_DEBUG_LEVEL
+#endif
+

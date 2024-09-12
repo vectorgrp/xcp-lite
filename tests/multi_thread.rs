@@ -2,6 +2,8 @@
 // Integration test for XCP in a multi threaded application
 // Uses the test XCP client in test_executor
 
+// cargo test --features=json --features=auto_reg -- --test-threads=1 --nocapture  --test test_multi_thread
+
 use xcp::*;
 use xcp_type_description::prelude::*;
 

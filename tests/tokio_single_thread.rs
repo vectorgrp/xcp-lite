@@ -2,6 +2,8 @@
 // Integration test for XCP in a single thread application
 // Uses the test XCP client in test_executor
 
+// cargo test --features=json --features=auto_reg -- --test-threads=1 --nocapture  --test test_tokio_single_thread
+
 use xcp::*;
 use xcp_type_description::prelude::*;
 
@@ -147,7 +149,7 @@ fn task(cal_seg: CalSeg<CalPage1>) {
 //-----------------------------------------------------------------------------
 // Integration test single thread measurement and calibration
 
-#[ignore]
+//#[ignore]
 #[tokio::test]
 async fn test_tokio_single_thread() {
     env_logger::Builder::new().filter_level(OPTION_LOG_LEVEL.to_log_level_filter()).try_init().ok();
