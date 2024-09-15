@@ -635,7 +635,7 @@ impl Registry {
 
     // Add an event
     pub fn add_event(&mut self, event: XcpEvent) {
-        debug!("Registry add_event: num={}, index={}", event.get_num(), event.get_index());
+        debug!("Registry add_event: channel={}, index={}", event.get_channel(), event.get_index());
         assert!(!self.is_frozen(), "Registry is closed");
 
         self.event_list.push(event);
@@ -680,7 +680,7 @@ impl Registry {
             m.datatype,
             m.x_dim,
             m.y_dim,
-            m.event.get_num(),
+            m.event.get_channel(),
             m.addr_offset
         );
 
@@ -806,8 +806,5 @@ mod registry_tests {
         let res = r.write(); // Write again and it should not be written
         let updated = res.expect("A2L write write failed");
         assert!(!updated);
-
-        std::fs::remove_file("test.a2h").ok();
-        std::fs::remove_file("test.a2l").ok();
     }
 }

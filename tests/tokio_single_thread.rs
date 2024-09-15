@@ -9,6 +9,8 @@ use xcp_type_description::prelude::*;
 
 mod test_executor;
 use test_executor::test_executor;
+use test_executor::OPTION_LOG_LEVEL;
+use test_executor::OPTION_XCP_LOG_LEVEL;
 
 mod xcp_server;
 
@@ -21,8 +23,8 @@ use tokio::time::Duration;
 //-----------------------------------------------------------------------------
 // XCP
 
-const OPTION_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Info;
-const OPTION_XCP_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Info;
+// const OPTION_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Info;
+// const OPTION_XCP_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Info;
 
 //-----------------------------------------------------------------------------
 // static calibration parameters
@@ -158,7 +160,7 @@ async fn test_tokio_single_thread() {
 
     // Start tokio XCP server
     // Initialize the xcplib transport and protocol layer only, not the server
-    let xcp: &'static Xcp = XcpBuilder::new("tokio_demo")
+    let xcp: &'static Xcp = XcpBuilder::new("test_tokio_single_thread")
         .set_log_level(OPTION_XCP_LOG_LEVEL)
         .set_epk("EPK_TEST")
         .tl_start()
@@ -174,9 +176,7 @@ async fn test_tokio_single_thread() {
         task(cal_seg);
     });
 
-    test_executor(xcp, test_executor::TestMode::SingleThreadDAQ).await; // Start the test executor XCP client
+    test_executor(xcp, test_executor::TestMode::SingleThreadDAQ, "test_tokio_single_thread.a2l", false).await; // Start the test executor XCP client
 
     t1.join().ok();
-
-    std::fs::remove_file("xcp_client.a2l").ok();
 }

@@ -2,10 +2,6 @@
 /target
 cargo.lock
 
-*.json
-*.mf4
-*.tmp
-*.a2h
 
 /CANape/~CANape_INI.TMP
 /CANape/RecycleBin.ini
@@ -14,21 +10,18 @@ cargo.lock
 /CANape/CANapeTmpMea.ini
 /CANape/xcp_lite.HEX
 
-tmp.a2l
-/cal_seg.a2l
-/test_single_thread.a2l
-/test_upload.a2l
-/test_multi_thread.a2l.a2l
-/test_capture.a2l
 /xcp_client.a2l
+/test_single_thread.a2l
 /test_multi_thread.a2l
-/test.a2l
-/tests.a2l
-/a2lfile.a2l
+/test_tokio_single_thread.a2l
+/test_tokio_multi_thread.a2l
+/tokio_demo.a2l
+/point_cloud.a2l
 
 # misc
 .DS_Store
-/a2lfile.txt
+*.json
+*.mf4
+*.tmp
+*.a2h
 *.bin
-/tokio_demo.a2l
-/point_cloud.a2l

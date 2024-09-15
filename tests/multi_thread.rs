@@ -10,6 +10,8 @@ use xcp_type_description::prelude::*;
 mod test_executor;
 use test_executor::test_executor;
 use test_executor::MULTI_THREAD_TASK_COUNT;
+use test_executor::OPTION_LOG_LEVEL;
+use test_executor::OPTION_XCP_LOG_LEVEL;
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
@@ -17,12 +19,6 @@ use log::{debug, error, info, trace, warn};
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, thread};
 use tokio::time::Duration;
-
-//-----------------------------------------------------------------------------
-// Logging
-
-const OPTION_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Info;
-const OPTION_XCP_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Info;
 
 //-----------------------------------------------------------------------------
 // Calibration Segment
@@ -56,10 +52,10 @@ struct CalPage1 {
 
 // Default values for the calibration parameters
 const CAL_PAR1: CalPage1 = CalPage1 {
-    run: true,
+    run: true,             // Stop test task when false
+    cycle_time_us: 100000, // Default cycle time 100ms, will be set by test_executor
     counter_max: 0xFFFF,
     cal_test: 0x5555555500000000u64,
-    cycle_time_us: 1000,
     page: XcpCalPage::Flash as u8,
     test_ints: TestInts {
         test_bool: false,
@@ -78,8 +74,9 @@ const CAL_PAR1: CalPage1 = CalPage1 {
 
 //-----------------------------------------------------------------------------
 
-// Test task will be instatiated multiple times
-fn task(cal_seg: CalSeg<CalPage1>) {
+// Test task will be instantiated multiple times
+fn task(index: usize, cal_seg: CalSeg<CalPage1>) {
+    // Measurement variables
     let mut counter: u32 = 0;
     let mut loop_counter: u64 = 0;
     let mut changes: u64 = 0;
@@ -90,10 +87,20 @@ fn task(cal_seg: CalSeg<CalPage1>) {
     let mut test3: u64 = 0;
     let mut test4: u64 = 0;
 
-    let mut event = daq_create_event_instance!("task");
+    if index == 0 || index == MULTI_THREAD_TASK_COUNT - 1 {
+        info!("Task {} started, initial cycle time = {}us ", index, cal_seg.cycle_time_us);
+    } else if index == 1 {
+        info!("...");
+    }
+    let mut cycle_time = cal_seg.cycle_time_us as u64;
+
+    // Create a measurement event instance for this task instance
+    // Capture buffer is 16 bytes, to test both modes, direct and buffer measurement
+    let mut event = daq_create_event_instance!("task", 16);
+
+    // Measure some variables directly from stack, without using the event capture buffer
     daq_register_instance!(changes, event);
     daq_register_instance!(loop_counter, event);
-    //daq_register_instance!(cal_test, event); // Measured with capture, pattern checked in DaqDecoder
     daq_register_instance!(counter_max, event);
     daq_register_instance!(counter, event);
     daq_register_instance!(test1, event);
@@ -102,53 +109,73 @@ fn task(cal_seg: CalSeg<CalPage1>) {
     daq_register_instance!(test4, event);
 
     loop {
-        thread::sleep(Duration::from_micros(cal_seg.cycle_time_us as u64)); // Sleep for a calibratable amount of microseconds
-        loop_counter += 1;
+        // Sleep for a calibratable amount of time
+        let ct = cal_seg.cycle_time_us as u64;
+        thread::sleep(Duration::from_micros(ct));
+        if cycle_time != ct {
+            if index == 0 || index == MULTI_THREAD_TASK_COUNT - 1 {
+                info!("Task {} cycle time changed from {}us to {}us", index, cycle_time, ct);
+            } else if index == 1 {
+                info!("...");
+            }
+            cycle_time = ct;
+        }
 
-        // Create a calibratable wrapping counter signal
+        // Modify measurement variables on stack
+        loop_counter += 1;
+        test1 = loop_counter;
+        test2 = loop_counter;
+        test3 = loop_counter;
+        test4 = loop_counter;
+        _ = test1;
+        _ = test2;
+        _ = test3;
+        _ = test4;
+
+        // Calculate a counter wrapping at cal_seg.counter_max
         counter_max = cal_seg.counter_max;
         counter += 1;
         if counter > counter_max {
             counter = 0;
         }
 
-        // Test calibration data validity
+        // Test calibration - check cal_seg.cal_test is valid and report the number of changes
         if cal_test != cal_seg.cal_test {
             changes += 1;
             cal_test = cal_seg.cal_test;
             assert_eq!((cal_test >> 32) ^ 0x55555555, cal_test & 0xFFFFFFFF);
         }
 
-        // DAQ
-        // daq_capture_instance!(changes, event);
-        // daq_capture_instance!(loop_counter, event);
+        // Capture variable cal_test, to test capture buffer measurement mode
         daq_capture_instance!(cal_test, event);
-        // daq_capture_instance!(counter_max, event);
-        // daq_capture_instance!(counter, event);
+
+        // Trigger the measurement event for this task instance
         event.trigger();
 
         // Synchronize the calibration segment
         cal_seg.sync();
 
-        if loop_counter % 256 == 0 {
-            test1 = loop_counter;
-            test2 = test1 + 1;
-            test3 = test2 + 2;
-            test4 = test3 + 3;
-            _ = test4;
-
+        // Check for termination and check server is healthy
+        if loop_counter % 16 == 0 {
             // Check for termination
             if !cal_seg.run {
                 break;
             }
-
+            // Server ok ?
             if !Xcp::get().check_server() {
                 panic!("XCP server shutdown!");
             }
         }
     }
 
-    debug!("Task terminated, loop counter = {}, {} changes observed", loop_counter, changes);
+    if index == 0 || index == MULTI_THREAD_TASK_COUNT - 1 {
+        info!("Task {} terminated, loop counter = {}, {} calibration changes observed", index, loop_counter, changes);
+    } else if index == 1 {
+        info!("...");
+    }
+    if changes == 0 {
+        warn!("Task {} - No calibration changes observed !!!", index);
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -159,7 +186,7 @@ async fn test_multi_thread() {
     env_logger::Builder::new().filter_level(OPTION_LOG_LEVEL.to_log_level_filter()).init();
 
     // Initialize XCP driver singleton, the transport layer server and enable the A2L writer
-    let xcp = match XcpBuilder::new("xcp_lite")
+    let xcp = match XcpBuilder::new("test_multi_thread")
         .set_log_level(OPTION_XCP_LOG_LEVEL)
         .set_epk("EPK_TEST")
         .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
@@ -174,22 +201,24 @@ async fn test_multi_thread() {
     // Create a calibration segment
     let cal_seg = xcp.create_calseg("cal_seg", &CAL_PAR1, true);
 
-    // Create n test tasks
+    // Create MULTI_THREAD_TASK_COUNT test tasks
     let mut v = Vec::new();
-    for _ in 0..MULTI_THREAD_TASK_COUNT {
+    for i in 0..MULTI_THREAD_TASK_COUNT {
         let cal_seg = CalSeg::clone(&cal_seg);
         let t = thread::spawn(move || {
-            task(cal_seg);
+            task(i, cal_seg);
         });
         v.push(t);
     }
 
-    test_executor(xcp, test_executor::TestMode::MultiThreadDAQ).await; // Start the test executor XCP client
+    thread::sleep(Duration::from_millis(250)); // Wait to give all threads a chance to initialize and enter their loop
+    test_executor(xcp, test_executor::TestMode::MultiThreadDAQ, "test_multi_thread.a2l", false).await; // Start the test executor XCP client
 
+    info!("Test done. Waiting for tasks to terminate");
     for t in v {
         t.join().ok();
     }
 
+    info!("Stop XCP server");
     xcp.stop_server();
-    std::fs::remove_file("xcp_client.a2l").ok();
 }

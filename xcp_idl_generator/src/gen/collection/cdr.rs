@@ -86,10 +86,7 @@ impl Generator for CdrGenerator {
                         );
 
                         let tag = format!("module {VECTOR_NAMESPACE} {{");
-                        translation = translation.replace(
-                            &tag,
-                            &format!("module {VECTOR_NAMESPACE} {{\"\n{}", idl_str),
-                        );
+                        translation = translation.replace(&tag, &format!("module {VECTOR_NAMESPACE} {{\"\n{}", idl_str));
 
                         processed.push(&datatype);
                     }

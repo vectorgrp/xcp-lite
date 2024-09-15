@@ -1,9 +1,6 @@
 use syn::{Attribute, Lit, Meta, NestedMeta, Type, TypeArray, TypePath};
 
-pub fn parse_characteristic_attributes(
-    attributes: &Vec<Attribute>,
-    field_type: &Type,
-) -> (String, f64, f64, String) {
+pub fn parse_characteristic_attributes(attributes: &Vec<Attribute>, field_type: &Type) -> (String, f64, f64, String) {
     let mut comment = String::new();
     let mut min: f64 = 0.0;
     let mut max: f64 = 0.0;
@@ -21,29 +18,26 @@ pub fn parse_characteristic_attributes(
         }
 
         let meta_list = match attribute.parse_meta() {
-            Ok(Meta::List(list)) => list,                                          // #[type_description(key = "This is correct)"]
-            _ => panic!("Expected a list of attributes for type_description"),               // #[type_description = "This is incorrect"]
+            Ok(Meta::List(list)) => list,                                      // #[type_description(key = "This is correct)"]
+            _ => panic!("Expected a list of attributes for type_description"), // #[type_description = "This is incorrect"]
         };
 
         for nested in meta_list.nested {
             let name_value = match nested {
                 NestedMeta::Meta(Meta::NameValue(nv)) => nv,                  // #[type_description(comment = "This is correct")]
-                _ => panic!("Expected name-value pairs in type_description"),                // #[type_description(comment)] -> Incorrect
+                _ => panic!("Expected name-value pairs in type_description"), // #[type_description(comment)] -> Incorrect
             };
 
             let key = name_value
                 .path
-                .get_ident()                                                  // #[type_description(comment = "This is correct")]
+                .get_ident() // #[type_description(comment = "This is correct")]
                 .unwrap_or_else(|| panic!("Expected identifier in type_description")) // #[type_description("comment" = "This is incorrect")]
                 .to_string();
 
             //TODO: Figure out how to handle with Num after changing min,max,unit to range
             let value = match &name_value.lit {
                 Lit::Str(s) => s.value(),
-                _ => panic!(
-                    "Expected string literal for key: {} in type_description",
-                    key
-                ),
+                _ => panic!("Expected string literal for key: {} in type_description", key),
             };
 
             match key.as_str() {

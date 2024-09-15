@@ -26,7 +26,9 @@ use crate::a2l::a2l_reader::{a2l_find_characteristic, a2l_find_measurement, a2l_
 //--------------------------------------------------------------------------------------------------------------------------------------------------
 // XCP Parameters
 
-const CMD_TIMEOUT: Duration = Duration::from_secs(2);
+pub const CMD_TIMEOUT: Duration = Duration::from_secs(4);
+
+pub const XCPTL_MAX_SEGMENT_SIZE: usize = 2048 * 2;
 
 //--------------------------------------------------------------------------------------------------------------------------------------------------
 // XCP error type
@@ -172,7 +174,7 @@ impl std::fmt::Display for XcpError {
 
 impl std::fmt::Debug for XcpError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "XcpError 0x{:04X}", self.code)
+        write!(f, "XcpError 0x{:02X} - {}", self.code, self)
     }
 }
 
@@ -342,7 +344,7 @@ pub struct XcpMeasurementObject {
     name: String,
     pub a2l_addr: A2lAddr,
     pub get_type: A2lType,
-    pub daq: u8,
+    pub daq: u16,
     pub odt: u8,
     pub offset: u16,
 }
@@ -416,19 +418,34 @@ impl XcpDaqDecoder for DefaultDaqDecoder {
     // Handle incomming DAQ data from XCP server
     fn decode(&mut self, control: &XcpTaskControl, data: &[u8]) {
         if control.running && control.connected {
-            let mut daq = data[1];
-            if (daq & 0x80) != 0 {
+            let large_header = true;
+            let mut odt = data[0];
+            if (odt & 0x80) != 0 {
                 error!("DAQ queue overflow!");
-                daq &= 0x7F;
+                odt &= 0x7F;
             }
-            let odt = data[0];
-            if odt == 0 {
-                let timestamp = data[2] as u32 | (data[3] as u32) << 8 | (data[4] as u32) << 16 | (data[5] as u32) << 24;
 
-                println!("DAQ: daq = {}, odt = {} timestamp = {} data={:?})", daq, odt, timestamp, &data[6..]);
+            let (timestamp, daq) = if large_header {
+                (
+                    if odt == 0 {
+                        data[4] as u32 | (data[5] as u32) << 8 | (data[6] as u32) << 16 | (data[7] as u32) << 24
+                    } else {
+                        0
+                    },
+                    data[2] as u16 | (data[3] as u16) << 8,
+                )
             } else {
-                panic!("ODT != 0");
-            }
+                (
+                    if odt == 0 {
+                        data[2] as u32 | (data[3] as u32) << 8 | (data[4] as u32) << 16 | (data[5] as u32) << 24
+                    } else {
+                        0
+                    },
+                    data[1] as u16,
+                )
+            };
+
+            trace!("DAQ: daq = {}, odt = {} timestamp = {} data={:?})", daq, odt, timestamp, &data[6..]);
         }
     }
 }
@@ -457,15 +474,12 @@ pub struct XcpClient {
     bind_addr: SocketAddr,
     dest_addr: SocketAddr,
     socket: Option<Arc<UdpSocket>>,
-
     rx_cmd_resp: Option<mpsc::Receiver<Vec<u8>>>,
     tx_task_control: Option<mpsc::Sender<XcpTaskControl>>,
     task_control: XcpTaskControl,
-
     ctr: u16,
     max_cto_size: u8,
     max_dto_size: u16,
-
     a2l_file: Option<a2lfile::A2lFile>,
     calibration_objects: Vec<XcpCalibrationObject>,
     measurement_objects: Vec<XcpMeasurementObject>,
@@ -482,6 +496,8 @@ impl XcpClient {
         decode_serv_text: impl XcpTextDecoder,
         decode_daq: Arc<Mutex<impl XcpDaqDecoder>>,
     ) -> Result<(), Box<dyn Error>> {
+        let mut message_count: u64 = 0; // for statistics only
+        let mut byte_count: u64 = 0; // for statistics only
         let mut ctr_last: u16 = 0;
         let mut ctr_first: bool = true;
         let mut buf: [u8; 8000] = [0; 8000]; // @@@@ Impl:
@@ -495,10 +511,23 @@ impl XcpClient {
                     match res {
                         Some(c) => {
                             debug!("receive_task: task control status changed: connected={} running={}", c.connected, c.running);
+
+                            if !c.running { // Measurement status changed to stop, print statistics
+                                info!("receive_task: measurement stop");
+                                if byte_count > 1000 && message_count > 100 {
+                                    let queue_efficiency = if message_count > 0 { (byte_count * 100) / (message_count * XCPTL_MAX_SEGMENT_SIZE as u64) } else { 100 };
+                                    info!("messages = {}, bytes = {}, queue efficiency = {}%", message_count,  byte_count, queue_efficiency );
+                                    if queue_efficiency < 80 { warn!("queue efficiency = {}%",queue_efficiency);}
+                                    message_count=0;
+                                    byte_count=0;
+                                }
+                            }
+
                             if !c.connected { // Handle the data from rx_daq_decoder
-                                info!("receive_task: stop, disconnected");
+                                info!("receive_task: stop, disconnect");
                                 return Ok(());
                             }
+
                             task_control = Some(c);
                         }
                         None => { // The sender has been dropped
@@ -517,6 +546,8 @@ impl XcpClient {
                                 warn!("xcp_receive: socket closed");
                                 return Ok(());
                             }
+                            message_count += 1;
+                            byte_count += size as u64;
                             let mut i: usize = 0;
                             while i < size {
                                 // Decode the next transport layer message header in the packet
@@ -703,19 +734,34 @@ impl XcpClient {
     //------------------------------------------------------------------------
     // Get server identification
     // @@@@ Impl: other types, only  XCP_IDT_ASAM_UPLOAD supported
-    pub async fn get_id(&mut self, id_type: u8) -> Result<u32, Box<dyn Error>> {
+    pub async fn get_id(&mut self, id_type: u8) -> Result<(u32, Option<String>), Box<dyn Error>> {
         let data = self.send_command(XcpCommandBuilder::new(CC_GET_ID).add_u8(id_type).build()).await?;
 
         assert_eq!(data[0], 0xFF);
-        assert_eq!(id_type, XCP_IDT_ASAM_UPLOAD); // others not supported yet
+        assert!(id_type == XCP_IDT_ASAM_UPLOAD || id_type == XCP_IDT_ASAM_NAME); // others not supported yet
         let mode = data[1]; // 0 = data by upload, 1 = data in response
-        assert_eq!(mode, 0);
-        let mut size = 0u32;
-        for i in (4..8).rev() {
-            size = size << 8 | data[i] as u32;
+        if mode == 0 {
+            // Decode size
+            let mut size = 0u32;
+            for i in (4..8).rev() {
+                size = size << 8 | data[i] as u32;
+            }
+            info!("GET_ID mode={} -> size = {}", id_type, size);
+            Ok((size, None))
+        } else {
+            // Decode string
+            let name = String::from_utf8(data[8..].to_vec());
+            match name {
+                Ok(name) => {
+                    info!("GET_ID mode={} -> result = {}", id_type, name);
+                    Ok((0, Some(name)))
+                }
+                Err(_) => {
+                    error!("GET_ID mode={} -> invalid string {:?}", id_type, data);
+                    Err(Box::new(XcpError::new(CRC_CMD_SYNTAX)) as Box<dyn Error>)
+                }
+            }
         }
-        trace!("GET_ID mode={} -> size = {}", id_type, size);
-        Ok(size)
     }
 
     //------------------------------------------------------------------------
@@ -870,29 +916,38 @@ impl XcpClient {
     // A2L upload
 
     // Upload the A2L via XCP and load it
-    pub async fn upload_a2l(&mut self) -> Result<(), Box<dyn Error>> {
+    pub async fn load_a2l(&mut self, file_name: &str, upload: bool, print_info: bool) -> Result<(), Box<dyn Error>> {
         // Upload the A2L via XCP
-        info!("Upload A2L xcp_client.a2l");
-        std::fs::remove_file("xcp_client.a2l").ok();
-        {
-            let file = std::fs::File::create("xcp_client.a2l")?;
-            let mut writer = std::io::BufWriter::new(file);
-            let mut size = self.get_id(XCP_IDT_ASAM_UPLOAD).await?;
-            while size > 0 {
-                let n = if size > 200 { 200 } else { size as u8 };
-                size -= n as u32;
-                let data = self.upload(n).await?;
-                trace!("xcp_client.upload: {} bytes = {:?}", data.len(), data);
-                writer.write_all(&data[1..])?;
+        // Be aware the file name may be the original A2L file written by registry
+        if upload {
+            info!("Upload A2L to {}", file_name);
+            {
+                let file = std::fs::File::create("tmp.a2l")?;
+                let mut writer = std::io::BufWriter::new(file);
+                let (mut size, _) = self.get_id(XCP_IDT_ASAM_UPLOAD).await?;
+                assert!(size > 0);
+                while size > 0 {
+                    let n = if size > 200 { 200 } else { size as u8 };
+                    size -= n as u32;
+                    let data = self.upload(n).await?;
+                    trace!("xcp_client.upload: {} bytes = {:?}", data.len(), data);
+                    writer.write_all(&data[1..])?;
+                }
+                writer.flush()?;
             }
+            std::fs::remove_file(file_name)?;
+            std::fs::rename("tmp.a2l", file_name)?;
         }
 
         // Read the uploaded A2L file
-        info!("Read A2L xcp_client.a2l");
-        if let Ok(a2l_file) = a2l_load("xcp_client.a2l") {
-            //a2l_printf_info(&a2l_file);
+        info!("Read A2L {}", file_name);
+        if let Ok(a2l_file) = a2l_load(file_name) {
+            if print_info {
+                a2l_printf_info(&a2l_file);
+            }
             self.a2l_file = Some(a2l_file);
         } else {
+            error!("A2L file {} not found", file_name);
             return Err(Box::new(XcpError::new(ERROR_A2L)) as Box<dyn Error>);
         }
 
@@ -998,18 +1053,16 @@ impl XcpClient {
         debug!("event_count = {}", event_count);
 
         // Alloc DAQ lists
-        // @@@@ Restriction: Only one DAQ list per event supported
-        // @@@@ Restriction: Maximal 256 DAQ lists
-        assert!(event_count <= 256, "event_count > 256");
-        let daq_count: u8 = event_count as u8;
+        assert!(event_count <= 1024, "event_count > 1024");
+        let daq_count: u16 = event_count;
         self.free_daq().await?;
-        self.alloc_daq(daq_count as u16).await?;
+        self.alloc_daq(daq_count).await?;
         debug!("alloc_daq count={}", daq_count);
 
         // Alloc ODTs
-        // @@@@ Restriction: Only one ODT per DAQ list supported
+        // @@@@ Restriction: Only one ODT per DAQ list supported yet
         for daq in 0..daq_count {
-            self.alloc_odt(daq as u16, 1).await?;
+            self.alloc_odt(daq, 1).await?;
             debug!("Alloc daq={}, odt_count={}", daq, 1);
         }
 
@@ -1017,8 +1070,8 @@ impl XcpClient {
         for daq in 0..daq_count {
             let element = event_list.iter().nth(daq as usize).unwrap();
             let odt_entry_count = *element.1;
-            assert!(odt_entry_count <= 0xFF);
-            self.alloc_odt_entries(daq as u16, 0, odt_entry_count as u8).await?;
+            assert!(odt_entry_count < 0x7C, "odt_entry_count >= 0x7C");
+            self.alloc_odt_entries(daq, 0, odt_entry_count as u8).await?;
             debug!("Alloc odt_entries: daq={}, odt={}, odt_entry_count={}", daq, 0, odt_entry_count);
         }
 
@@ -1033,10 +1086,9 @@ impl XcpClient {
             for i in 0..n {
                 let a2l_addr = self.measurement_objects[i].a2l_addr;
                 if a2l_addr.event == event {
-                    self.set_daq_ptr(daq as u16, odt, odt_entry).await?;
+                    self.set_daq_ptr(daq, odt, odt_entry).await?;
                     let get_type = self.measurement_objects[i].get_type;
                     self.write_daq(a2l_addr.ext, a2l_addr.addr, get_type.size).await?;
-
                     self.measurement_objects[i].daq = daq;
                     self.measurement_objects[i].odt = odt;
                     self.measurement_objects[i].offset = odt_size + 6;
@@ -1086,13 +1138,13 @@ impl XcpClient {
 
     pub async fn stop_measurement(&mut self) -> Result<(), Box<dyn Error>> {
         // Stop DAQ
-        self.start_stop_sync(XcpClient::XCP_STOP_ALL).await?;
+        let res = self.start_stop_sync(XcpClient::XCP_STOP_ALL).await;
 
         // Send running=false throught the DAQ control channel to the receive task
         self.task_control.running = false;
         self.tx_task_control.as_ref().unwrap().send(self.task_control).await?;
 
-        Ok(())
+        res
     }
 
     //------------------------------------------------------------------------

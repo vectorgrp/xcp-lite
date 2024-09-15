@@ -18,9 +18,7 @@ impl GeneratorCollection {
 
     pub fn generate(idl_type: &IDL, input: &Struct) -> Option<String> {
         let instance = GeneratorCollection::instance();
-        let generator = instance
-            .get(idl_type)
-            .expect("Generator not found for IDL type");
+        let generator = instance.get(idl_type).expect("Generator not found for IDL type");
 
         Some(generator.generate(input))
     }

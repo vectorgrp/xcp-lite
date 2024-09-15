@@ -20,17 +20,13 @@ pub fn xcp_type_description_derive(input: TokenStream) -> TokenStream {
     gen.into()
 }
 
-fn generate_type_description_impl(
-    data_struct: syn::DataStruct,
-    data_type: &syn::Ident,
-) -> proc_macro2::TokenStream {
+fn generate_type_description_impl(data_struct: syn::DataStruct, data_type: &syn::Ident) -> proc_macro2::TokenStream {
     let field_handlers = data_struct.fields.iter().map(|field| {
         let field_name = &field.ident;
         let field_type = &field.ty;
         let field_attributes = &field.attrs;
         let (x_dim, y_dim) = dimensions(field_type);
-        let (comment, min, max, unit) = parse_characteristic_attributes(
-            field_attributes, field_type);
+        let (comment, min, max, unit) = parse_characteristic_attributes(field_attributes, field_type);
 
         quote! {
             // Offset is the address of the field relative to the address of the struct

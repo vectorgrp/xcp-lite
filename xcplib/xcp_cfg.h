@@ -76,27 +76,38 @@
 /*----------------------------------------------------------------------------*/
 /* DAQ features and parameters */
 
-// No event list
-// Rust xcp-lite has its own event handling
-// #define XCP_ENABLE_DAQ_EVENT_INFO // Enable XCP_GET_EVENT_INFO, if this is enabled, A2L file event information will be ignored
+// No event list - Rust xcp-lite has its own event handling
 // #define XCP_ENABLE_DAQ_EVENT_LIST // Enable event list
-// #define XCP_MAX_EVENT 16 // Maximum number of events, size of event table
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
+
+  // #define XCP_ENABLE_DAQ_EVENT_INFO // Enable XCP_GET_EVENT_INFO, if this is enabled, A2L file event information will be ignored
+
   // #define XCP_ENABLE_MULTITHREAD_DAQ_EVENTS // Make XcpEventExt thread safe for same DAQ event coming from different threads
   // This should be very unusual, XcpEvent performance will be decreased
   // Requires event list, mutex is located in XcpEvent
+
+  // #define XCP_MAX_EVENT_COUNT 256 // 0-255, 0xFFFF is reserved for undefined event
+  // #define XCP_MAX_EVENT_NAME 16
+
 #endif 
 
 // Make XcpEvent thread safe for same CAL event coming from different threads
 // Needed for xcp-lite, because CalSeg cal sync events may come from different threads
 #define XCP_ENABLE_MULTITHREAD_CAL_EVENTS 
 
-// Enable packed mode 
+// DAQ header type
+#define XCP_DAQ_HEADER_TYPE DAQ_HDR_ODT_DAQB   // DAQ_HDR_ODT_DAQB - Relative ODT number (BYTE), absolute DAQ list number (BYTE) / DAQ_HDR_ODT_FIL_DAQW -  Relative ODT number (BYTE), fill byte, absolute DAQ list number (WORD, aligned)
+
+// Enable packed mode - not supported by xcp-lite
 // #define XCP_ENABLE_PACKED_MODE 
 
 // Memory available for DAQ
 // Create static memory for DAQ tables
-#define XCP_DAQ_MEM_SIZE (4096*2) // Amount of memory for DAQ tables, each ODT entry (e.g. measurement variable) needs 5 bytes
+#define XCP_DAQ_MEM_SIZE (1024*32*5) // Amount of memory for DAQ tables, each ODT entry (e.g. measurement variable) needs 5 bytes
+
+// Maximum number of DAQ lists
+#define XCP_MAX_DAQ_COUNT 1024
+
 
 // Clock resolution
 #define XCP_DAQ_CLOCK_32BIT  // Use 32 Bit time stamps
@@ -114,8 +125,8 @@
 
 #endif
 
-// Enable GET_DAQ_CLOCK_MULTICAST
-//#define XCP_ENABLE_DAQ_CLOCK_MULTICAST 
+// Enable GET_DAQ_CLOCK_MULTICAST - not supported by xcp-lite
+// #define XCP_ENABLE_DAQ_CLOCK_MULTICAST 
 #ifdef XCP_ENABLE_DAQ_CLOCK_MULTICAST
   // XCP default cluster id (multicast addr 239,255,0,1, group 127,0,1 (mac 01-00-5E-7F-00-01)
   #define XCP_MULTICAST_CLUSTER_ID 1

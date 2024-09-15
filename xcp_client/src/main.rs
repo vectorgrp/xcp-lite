@@ -159,8 +159,8 @@ async fn main() {
     }
 
     // Upload A2L file
-    info!("XCP Upload A2L");
-    xcp_client.upload_a2l().await.unwrap();
+    info!("Load A2L file to file xcp_lite.a2l");
+    xcp_client.load_a2l("xcp_lite.a2l", true, true).await.unwrap();
 
     // Calibration
     info!("XCP calibration");

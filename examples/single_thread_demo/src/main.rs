@@ -58,7 +58,6 @@ fn main() {
     // The A2L file will be finalized on XCP connection and can be uploaded by CANape
     let xcp = XcpBuilder::new("single_thread_demo")
         .set_log_level(XcpLogLevel::Info) // Set log level of the XCP server
-         // Enabl A2L generation
         .set_epk("EPK_") // Set the EPK string for A2L version check, length must be %4
         .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1] /*[172, 19, 11, 24]*/, 5555)
         .unwrap();

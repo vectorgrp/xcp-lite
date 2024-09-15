@@ -425,18 +425,18 @@ macro_rules! daq_register_array {
 macro_rules! daq_create_event_instance {
     ( $name:expr, $capacity: literal ) => {{
         thread_local! {
-            static XCP_EVENT__: std::cell::Cell<XcpEvent> = const { std::cell::Cell::new(XcpEvent::UNDEFINED) }
+            static XCP_EVENT__: std::cell::Cell<XcpEvent> = const { std::cell::Cell::new(XcpEvent::XCP_UNDEFINED_EVENT) }
         }
-        if XCP_EVENT__.get() == XcpEvent::UNDEFINED {
+        if XCP_EVENT__.get() == XcpEvent::XCP_UNDEFINED_EVENT {
             XCP_EVENT__.set(Xcp::get().create_event_ext($name, true));
         }
         DaqEvent::<$capacity>::new_from(&XCP_EVENT__.get())
     }};
     ( $name:expr ) => {{
         thread_local! {
-            static XCP_EVENT__: std::cell::Cell<XcpEvent> = const { std::cell::Cell::new(XcpEvent::UNDEFINED) }
+            static XCP_EVENT__: std::cell::Cell<XcpEvent> = const { std::cell::Cell::new(XcpEvent::XCP_UNDEFINED_EVENT) }
         }
-        if XCP_EVENT__.get() == XcpEvent::UNDEFINED {
+        if XCP_EVENT__.get() == XcpEvent::XCP_UNDEFINED_EVENT {
             XCP_EVENT__.set(Xcp::get().create_event_ext($name, true));
         }
         DaqEvent::<256>::new_from(&XCP_EVENT__.get())
@@ -630,8 +630,6 @@ mod daq_tests {
             }
         }
         xcp.write_a2l();
-        std::fs::remove_file("xcp_lite.a2h").ok();
-        std::fs::remove_file("xcp_lite.a2l").ok();
     }
 
     //-----------------------------------------------------------------------------
@@ -656,7 +654,5 @@ mod daq_tests {
         daq_capture_instance!(channel4, event3, "comment", "unit");
         daq_capture_instance!(channel5, event2, "comment", "unit", 2.0, 5.0);
         xcp.write_a2l();
-        std::fs::remove_file("xcp_lite.a2h").ok();
-        std::fs::remove_file("xcp_lite.a2l").ok();
     }
 }

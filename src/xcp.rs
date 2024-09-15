@@ -92,21 +92,26 @@ static XCP_EVENT_MAP: OnceCell<[u16; XcpEvent::XCP_MAX_EVENTS]> = OnceCell::new(
 /// May have an index > 0 to identify multiple events with the same name in instanciated in different threads
 #[derive(Debug, Clone, Copy)]
 pub struct XcpEvent {
-    num: u16,   // Number used in A2L and XCP protocol
-    index: u16, // Instance index, 0 if single instance
+    channel: u16, // Number used in A2L and XCP protocol
+    index: u16,   // Instance index, 0 if single instance
 }
 
 impl XcpEvent {
     /// Maximum number of events
-    pub const XCP_MAX_EVENTS: usize = 256;
+    pub const XCP_MAX_EVENTS: usize = 1024;
+    // Undefined event channel number
+    pub const XCP_UNDEFINED_EVENT_CHANNEL: u16 = 0xFFFF;
 
     // Uninitialized event
-    pub const UNDEFINED: XcpEvent = XcpEvent { num: 0xFFFF, index: 0 };
+    pub const XCP_UNDEFINED_EVENT: XcpEvent = XcpEvent {
+        channel: XcpEvent::XCP_UNDEFINED_EVENT_CHANNEL,
+        index: 0,
+    };
 
     /// Create a new XCP event
-    pub fn new(num: u16, index: u16) -> XcpEvent {
-        assert!((num as usize) < XcpEvent::XCP_MAX_EVENTS, "Maximum number of events exceeded");
-        XcpEvent { num, index }
+    pub fn new(channel: u16, index: u16) -> XcpEvent {
+        assert!((channel as usize) < XcpEvent::XCP_MAX_EVENTS, "Maximum number of events exceeded");
+        XcpEvent { channel, index }
     }
 
     /// Get the event name
@@ -116,11 +121,11 @@ impl XcpEvent {
 
     /// Get the event number as u16
     /// Event number is a unique number for each event
-    pub fn get_num(self) -> u16 {
+    pub fn get_channel(self) -> u16 {
         if let Some(event_map) = XCP_EVENT_MAP.get() {
-            event_map[self.num as usize]
+            event_map[self.channel as usize]
         } else {
-            self.num
+            self.channel
         }
     }
 
@@ -135,7 +140,7 @@ impl XcpEvent {
     /// Used by A2L writer
     pub fn get_dyn_ext_addr(self, offset: i16) -> (u8, u32) {
         let a2l_ext = Xcp::XCP_ADDR_EXT_DYN;
-        let a2l_addr: u32 = (self.get_num() as u32) << 16 | (offset as u16 as u32);
+        let a2l_addr: u32 = (self.get_channel() as u32) << 16 | (offset as u16 as u32);
         (a2l_ext, a2l_addr)
     }
 
@@ -149,9 +154,9 @@ impl XcpEvent {
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn trigger_ext(self, base: *const u8, len: u32) -> u8 {
         // trace!(
-        //     "Trigger event {} num={}, index={}, base=0x{:X}, len={}",
+        //     "Trigger event {} channel={}, index={}, base=0x{:X}, len={}",
         //     self.get_name(),
-        //     self.get_num(),
+        //     self.get_channel(),
         //     self.get_index(),
         //     base as u64,
         //     len
@@ -160,7 +165,7 @@ impl XcpEvent {
         // @@@@ unsafe - Transfering a pointer and its valid memory range to XCPlite FFI
         unsafe {
             // Trigger event
-            xcplib::XcpEventExt(self.get_num(), base, len)
+            xcplib::XcpEventExt(self.get_channel(), base, len)
         }
     }
 
@@ -173,16 +178,16 @@ impl XcpEvent {
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn trigger(self) {
         // trace!(
-        //     "Trigger event {} num={}, index={}",
+        //     "Trigger event {} channel={}, index={}",
         //     self.get_name(),
-        //     self.get_num(),
+        //     self.get_channel(),
         //     self.get_index(),
         // );
         // @@@@ unsafe - C library call
         // @@@@ unsafe - Transfering a pointer and its valid memory range to XCPlite FFI
         unsafe {
             // Trigger event
-            xcplib::XcpEvent(self.get_num());
+            xcplib::XcpEvent(self.get_channel());
         }
     }
 
@@ -195,23 +200,23 @@ impl XcpEvent {
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn trigger_abs(self) {
         // trace!(
-        //     "Trigger event {} num={}, index={}, len={}",
+        //     "Trigger event {} channel={}, index={}, len={}",
         //     self.get_name(),
-        //     self.get_num(),
+        //     self.get_channel(),
         //     self.get_index(),
         //     len
         // );
         // @@@@ unsafe - C library call
         unsafe {
             // Trigger event
-            xcplib::XcpEvent(self.get_num());
+            xcplib::XcpEvent(self.get_channel());
         }
     }
 }
 
 impl PartialEq for XcpEvent {
     fn eq(&self, other: &Self) -> bool {
-        self.num == other.num
+        self.channel == other.channel
     }
 }
 
@@ -251,7 +256,7 @@ impl EventList {
         // Check event list is in untransformed order, may happen during testing
         // @@@@ Remove this
         for (i, e) in self.0.iter_mut().enumerate() {
-            if e.event.num != i as u16 || e.event.get_num() != i as u16 {
+            if e.event.channel != i as u16 || e.event.get_channel() != i as u16 {
                 warn!("Event list is not in untransformed order");
                 break;
             }
@@ -265,7 +270,7 @@ impl EventList {
         // This is not a problem for the XCP client, but the A2L file might change unnessesarily on every start of the application
         let mut event_map: [u16; XcpEvent::XCP_MAX_EVENTS] = [0; XcpEvent::XCP_MAX_EVENTS];
         for (i, e) in self.0.iter().enumerate() {
-            event_map[e.event.num as usize] = i as u16;
+            event_map[e.event.channel as usize] = i as u16;
         }
         XCP_EVENT_MAP.set(event_map).ok();
         trace!("Event map: {:?}", XCP_EVENT_MAP.get().unwrap());
@@ -276,8 +281,8 @@ impl EventList {
     }
 
     fn create_event_ext(&mut self, name: &'static str, indexed: bool) -> XcpEvent {
-        // Allocate a new, sequential event number
-        let num = self.0.len();
+        // Allocate a new, sequential event channel number
+        let channel = self.0.len();
 
         // In instance mode (daq_create_event_instance), check for other events in instance mode with duplicate name and create new instance index
         let index = if indexed {
@@ -287,9 +292,9 @@ impl EventList {
         };
 
         // Create XcpEvent
-        let event = XcpEvent::new(num as u16, index as u16);
+        let event = XcpEvent::new(channel as u16, index as u16);
 
-        info!("Create event {} num={}, index={}", name, event.get_num(), event.get_index());
+        debug!("Create event {} channel={}, index={}", name, event.get_channel(), event.get_index());
 
         // Add XcpEventInfo to event list
         self.0.push(XcpEventInfo { name, event });

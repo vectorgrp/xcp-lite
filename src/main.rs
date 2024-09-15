@@ -22,6 +22,13 @@ use std::{
 };
 
 //-----------------------------------------------------------------------------
+
+const TASK1_CYCLE_TIME: u32 = 10000; // 10ms
+const TASK2_CYCLE_TIME: u32 = 10000; // 10ms
+const TASK2_INSTANCE_COUNT: usize = 10;
+const MAINLOOP_CYCLE_TIME: u32 = 100; // 100ms
+
+//-----------------------------------------------------------------------------
 // Logging
 
 #[allow(unused_imports)]
@@ -96,8 +103,8 @@ struct CalPage00 {
 }
 
 static CAL_PAGE0: once_cell::sync::OnceCell<CalPage00> = once_cell::sync::OnceCell::with_value(CalPage00 {
-    task1_cycle_time_us: 1000, // 1ms
-    task2_cycle_time_us: 1000, // 1ms
+    task1_cycle_time_us: TASK1_CYCLE_TIME,
+    task2_cycle_time_us: TASK2_CYCLE_TIME,
 });
 
 //-----------------------------------------------------------------------------
@@ -127,7 +134,7 @@ const CAL_PAGE: CalPage = CalPage {
     run: true,
     run1: true,
     run2: true,
-    cycle_time_ms: 100, // 100ms
+    cycle_time_ms: MAINLOOP_CYCLE_TIME,
 };
 
 //---------------------------------------------------
@@ -385,9 +392,8 @@ fn main() {
 
     // Task2 - 9 instances
     // To demonstrate the difference between single instance and multi instance events and measurement values
-    const INSTANCE_COUNT: usize = 9;
-    let mut t = Vec::with_capacity(INSTANCE_COUNT);
-    for i in 0..INSTANCE_COUNT {
+    let mut t = Vec::with_capacity(TASK2_INSTANCE_COUNT);
+    for i in 0..TASK2_INSTANCE_COUNT {
         let c1 = CalSeg::clone(&calseg);
         let c2 = CalSeg::clone(&calseg2);
         t.push(thread::spawn(move || {
@@ -491,9 +497,9 @@ fn main() {
         }
 
         // Terminate after more than 10s disconnected to test shutdown behaviour
-        if idle_time >= 10.0 {
-            break;
-        }
+        // if idle_time >= 10.0 {
+        //     break;
+        // }
     }
 
     info!("Main task finished");

@@ -37,17 +37,17 @@ impl GenerateA2l for XcpEvent {
     fn to_a2l_string(&self) -> String {
         let name = self.get_name();
         let index = self.get_index();
-        let num = self.get_num();
+        let channel = self.get_channel();
 
-        trace!("Write event {} index={}  num={}", name, index, num);
+        trace!("Write event {} index={}  channel={}", name, index, channel);
 
         // @@@@ ToDo: CANape does not accept CONSISTENCY EVENT for serialized data types
         // long name 100+1 characters
         // short name 8+1 characters
         if index > 0 {
-            format!(r#"/begin EVENT "{:.98}_{}" "{:.6}_{}" {} DAQ 0xFF 0 0 0 CONSISTENCY DAQ /end EVENT"#, name, index, name, index, num)
+            format!(r#"/begin EVENT "{:.98}_{}" "{:.6}_{}" {} DAQ 0xFF 0 0 0 CONSISTENCY DAQ /end EVENT"#, name, index, name, index, channel)
         } else {
-            format!(r#"/begin EVENT "{:.100}" "{:.8}" {} DAQ 0xFF 0 0 0 CONSISTENCY DAQ /end EVENT"#, name, name, num)
+            format!(r#"/begin EVENT "{:.100}" "{:.8}" {} DAQ 0xFF 0 0 0 CONSISTENCY DAQ /end EVENT"#, name, name, channel)
         }
     }
 }
@@ -122,7 +122,7 @@ impl GenerateA2l for RegistryMeasurement {
             self.datatype.get_type_str(),
             ext,
             addr,
-            self.event.get_num(),
+            self.event.get_channel(),
             self.addr_offset,
             self.addr
         );
@@ -137,7 +137,7 @@ impl GenerateA2l for RegistryMeasurement {
         let x_dim = self.x_dim;
         let y_dim = self.y_dim;
         let min = self.datatype.get_min();
-        let event = self.event.get_num();
+        let event = self.event.get_channel();
 
         // Dynamic object as CHARACTERISTIC ASCII string with IDL annotation
         if self.datatype == RegistryDataType::Blob {
@@ -241,7 +241,7 @@ impl GenerateA2l for RegistryCharacteristic {
         }
 
         if let Some(event) = self.event {
-            result += &format!(" /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT {} /end DAQ_EVENT /end IF_DATA", event.get_num());
+            result += &format!(" /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT {} /end DAQ_EVENT /end IF_DATA", event.get_channel());
         }
 
         result += " /end CHARACTERISTIC";

@@ -426,7 +426,7 @@ static uint8_t* loadFile(const char* filename, uint32_t* length) {
   uint8_t* fileBuf = NULL; // file content
   uint32_t fileLen = 0; // file length
 
-  DBG_PRINTF3("Load %s\n", filename);
+  DBG_PRINTF3("Load A2L file %s to memory buffer\n", filename);
 
 #if defined(_LINUX) // Linux
 
@@ -471,6 +471,7 @@ static uint8_t* loadFile(const char* filename, uint32_t* length) {
 #endif
 
   DBG_PRINTF3("  file %s ready for upload, size=%u\n\n", filename, fileLen);
+  assert(fileLen > 0);
 
   *length = fileLen;
   return fileBuf;

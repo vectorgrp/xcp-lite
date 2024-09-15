@@ -37,14 +37,18 @@
 
 
 /****************************************************************************/
-/* DAQ event information                                                    */
+/* DAQ event channel information                                            */
 /****************************************************************************/
 
-#define XCP_UNDEFINED_EVENT 0xFFFF
+#define XCP_UNDEFINED_EVENT_CHANNEL 0xFFFF
 
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
-
+#ifndef XCP_MAX_EVENT_COUNT
+#define XCP_MAX_EVENT_COUNT 256 // 0-255, 0xFFFF is reserved for undefined event
+#endif
+#ifndef XCP_MAX_EVENT_NAME
 #define XCP_MAX_EVENT_NAME 8
+#endif
 
 typedef struct {
     char shortName[XCP_MAX_EVENT_NAME+1]; // A2L XCP IF_DATA short event name, long name not supported

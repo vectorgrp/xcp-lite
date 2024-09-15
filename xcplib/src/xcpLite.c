@@ -34,7 +34,6 @@
 |     - ODT optimization not supported
 |     - Seed & key is not supported
 |     - Flash programming is not supported
-
 |
 |  More features, more transport layer (CAN, FlexRay) and platform support, misra compliance
 |  by the free XCP basic version available from Vector Informatik GmbH at www.vector.com
@@ -91,6 +90,7 @@
 #endif
 
 /* Max. size of an object referenced by an ODT entry XCP_MAX_ODT_ENTRY_SIZE may be limited  */
+/* Default 248 */
 #if defined ( XCP_MAX_ODT_ENTRY_SIZE )
 #if ( XCP_MAX_DTO_ENTRY_SIZE > 255 )
 #error "XCP_MAX_ODT_ENTRY_SIZE too large"
@@ -106,6 +106,16 @@
 #endif
 #else
 #error "Please define XCP_DAQ_MEM_SIZE"
+#endif
+
+/* Check XCP_MAX_DAQ_COUNT */
+/* Default 256 - 2 Byte ODT header */
+#if defined ( XCP_MAX_DAQ_COUNT )
+#if ( XCP_MAX_DAQ_COUNT > 0xFFFF )
+#error "XCP_MAX_DAQ_COUNT must be <= 0xFFFF"
+#endif
+#else
+#define XCP_MAX_DAQ_COUNT 256
 #endif
 
 // Dynamic addressing (ext = XCP_ADDR_EXT_DYN, addr=(event<<16)|offset requires transport layer mode XCPTL_QUEUED_CRM
@@ -247,7 +257,7 @@ typedef struct {
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
 
     uint16_t EventCount;
-    tXcpEvent EventList[XCP_MAX_EVENT];
+    tXcpEvent EventList[XCP_MAX_EVENT_COUNT];
 
 #endif
 
@@ -420,7 +430,6 @@ static uint8_t XcpWriteMta( uint8_t size, const uint8_t* data )
 // Copying of size bytes from data to gXcp.MtaPtr or gXcp.MtaAddr, depending on the addressing mode
 static uint8_t XcpReadMta( uint8_t size, uint8_t* data )
 {
-
   // EXT == XCP_ADDR_EXT_APP Application specific memory access
 #ifdef XCP_ENABLE_APP_ADDRESSING
   if (gXcp.MtaExt == XCP_ADDR_EXT_APP) {
@@ -532,15 +541,15 @@ static uint8_t XcpAllocDaq( uint16_t daqCount ) {
   uint8_t r;
 
   if ( gXcp.Daq.OdtCount!=0 || gXcp.Daq.OdtEntryCount!=0 ) return CRC_SEQUENCE;
-  if ( daqCount == 0 || daqCount>255) return CRC_OUT_OF_RANGE;
+  if ( daqCount==0 || daqCount>XCP_MAX_DAQ_COUNT) return CRC_OUT_OF_RANGE;
 
   // Initialize 
   if (0!=(r = XcpAllocMemory())) return r;
   for (daq=0;daq<daqCount;daq++)  {
-    DaqListEventChannel(daq) = XCP_UNDEFINED_EVENT;
+    DaqListEventChannel(daq) = XCP_UNDEFINED_EVENT_CHANNEL;
     DaqListAddrExt(daq) = XCP_ADDR_EXT_UNDEFINED;
   }
-  gXcp.Daq.DaqCount = (uint8_t)daqCount;
+  gXcp.Daq.DaqCount = daqCount;
   return 0;
 }
 
@@ -550,11 +559,9 @@ static uint8_t XcpAllocOdt( uint16_t daq, uint8_t odtCount ) {
   uint32_t n;
 
   if ( gXcp.Daq.DaqCount==0 || gXcp.Daq.OdtEntryCount!=0 ) return CRC_SEQUENCE;
-  if ( odtCount == 0 ) return CRC_OUT_OF_RANGE;
-
+  if ( odtCount == 0 || odtCount>=0x7C) return CRC_OUT_OF_RANGE; // MSB of ODT number is reserved for overflow indication, 0xFC-0xFF for response, error, event and service
   n = (uint32_t)gXcp.Daq.OdtCount + (uint32_t)odtCount;
   if (n > 0xFFFF) return CRC_OUT_OF_RANGE; // Overall number of ODTs limited to 64K
-
   gXcp.Daq.u.DaqList[daq].firstOdt = gXcp.Daq.OdtCount;
   gXcp.Daq.OdtCount = (uint16_t)n;
   gXcp.Daq.u.DaqList[daq].lastOdt = (uint16_t)(gXcp.Daq.OdtCount-1);
@@ -637,7 +644,7 @@ static uint8_t XcpAddOdtEntry(uint32_t addr, uint8_t ext, uint8_t size) {
         int16_t offset = (int16_t)(addr & 0xFFFF); // address offset
         base_offset = (int32_t)offset; // sign extend to 32 bit, the relative address may be negative
         uint16_t e0 = DaqListEventChannel(gXcp.WriteDaqDaq);
-        if (e0 != XCP_UNDEFINED_EVENT && e0 != event) return CRC_OUT_OF_RANGE; // Error event channel redefinition
+        if (e0 != XCP_UNDEFINED_EVENT_CHANNEL && e0 != event) return CRC_OUT_OF_RANGE; // Error event channel redefinition
         DaqListEventChannel(gXcp.WriteDaqDaq) = event;
      } else
 #endif
@@ -675,7 +682,7 @@ static uint8_t XcpSetDaqListMode(uint16_t daq, uint16_t event, uint8_t mode, uin
 
     // Check if the DAQ list requires a specific event and it matches
     uint16_t event0 = DaqListEventChannel(daq);
-    if (event0 != XCP_UNDEFINED_EVENT && event != event0) return CRC_DAQ_CONFIG; // Error event not unique
+    if (event0 != XCP_UNDEFINED_EVENT_CHANNEL && event != event0) return CRC_DAQ_CONFIG; // Error event not unique
 
     // Check all DAQ lists with same event have the same address extension
     uint8_t ext = DaqListAddrExt(daq);
@@ -775,7 +782,7 @@ static void XcpStopAllSelectedDaq() {
 // Stop all DAQs
 static void XcpStopAllDaq() {
 
-  for (uint8_t daq=0; daq<gXcp.Daq.DaqCount; daq++) {
+  for (uint16_t daq=0; daq<gXcp.Daq.DaqCount; daq++) {
     DaqListState(daq) = DAQ_STATE_STOPPED_UNSELECTED;
   }
   gXcp.SessionStatus &= ~SS_DAQ; // Stop processing DAQ events
@@ -789,22 +796,15 @@ static void XcpStopAllDaq() {
 // Measurement data acquisition, sample and transmit measurement date associated to event
 
 // Event
-static void XcpEvent_(uint16_t event, const uint8_t* base, uint64_t clock)
-{
-  uint8_t* d;
-  uint8_t* d0;
-  uint32_t e, el, odt, hs, n;
+static void XcpEvent_(uint16_t event, const uint8_t* base, uint64_t clock) {
+
   uint16_t daq;
-#ifdef XCP_ENABLE_PACKED_MODE
-  uint32_t sc;
-#endif
-  void* handle = NULL;
 
   if (!isDaqRunning()) return; // DAQ not running
 
+#ifdef XCP_ENABLE_DAQ_EVENT_LIST
   // Event checks
   // Disable for max measurement performance
-#ifdef XCP_ENABLE_DAQ_EVENT_LIST
   #if defined(XCP_ENABLE_SELF_TEST) || defined(XCP_ENABLE_MULTITHREAD_DAQ_EVENTS)
   tXcpEvent* ev = XcpGetEvent(event);
   if (ev == NULL) {
@@ -815,15 +815,32 @@ static void XcpEvent_(uint16_t event, const uint8_t* base, uint64_t clock)
 #endif
 
   // Loop over all active DAQ lists associated to the current event
+  // @@@@ Optimize this loop
   for (daq=0; daq<gXcp.Daq.DaqCount; daq++) {
+
+      uint8_t *d0;
+      uint32_t e, el, odt, hs, n;
+      void* handle = NULL;
+#ifdef XCP_ENABLE_PACKED_MODE
+      uint32_t sc;
+#endif
+
       if ((DaqListState(daq) & DAQ_STATE_RUNNING) == 0) continue; // DAQ list not active
       if (DaqListEventChannel(daq) != event) continue; // DAQ list not associated with this event
+
 #ifdef XCP_ENABLE_PACKED_MODE
       sc = DaqListSampleCount(daq); // Packed mode sample count, 0 if not packed
 #endif
 
+#define ODT_TIMESTAMP_SIZE 4
+#if XCP_MAX_DAQ_COUNT>256
+  #define ODT_HEADER_SIZE 4 // ODT,align,DAQ_WORD header 
+#else
+  #define ODT_HEADER_SIZE 2 // ODT,DAQ header
+#endif
+
       // Loop over all ODTs of the current DAQ list
-      for (hs=2+4,odt=DaqListFirstOdt(daq);odt<=DaqListLastOdt(daq);hs=2,odt++)  {
+      for (hs=ODT_HEADER_SIZE+ODT_TIMESTAMP_SIZE,odt=DaqListFirstOdt(daq);odt<=DaqListLastOdt(daq);hs=ODT_HEADER_SIZE,odt++)  {
 
           // Mutex to ensure transmit buffers with time stamp in ascending order
 #if defined(XCP_ENABLE_MULTITHREAD_DAQ_EVENTS) && defined(XCP_ENABLE_DAQ_EVENT_LIST)
@@ -859,27 +876,37 @@ static void XcpEvent_(uint16_t event, const uint8_t* base, uint64_t clock)
             return; // Skip rest of this event on queue overrun
         }
 
-        // ODT,DAQ header
-        d0[0] = (uint8_t)(odt-DaqListFirstOdt(daq)); /* Relative odt number */
+        // ODT header (ODT8,FIL8,DAQ16 or ODT8,DAQ8)
+        d0[0] = (uint8_t)(odt-DaqListFirstOdt(daq)); /* Relative odt number as byte*/
+#if ODT_HEADER_SIZE==4
+        d0[1] = 0xAA; // Align byte
+        *((uint16_t*)&d0[2]) = daq;
+#else
         d0[1] = (uint8_t)daq;
-
-        // Use BIT7 of PID or ODT to indicate overruns
+#endif
+       
+        // Use MSB of ODT to indicate overruns
         if ( (DaqListState(daq) & DAQ_STATE_OVERRUN) != 0 ) {
-          d0[0] |= 0x80;
+          d0[0] |= 0x80; // Set MSB of ODT number
           DaqListState(daq) &= (uint8_t)(~DAQ_STATE_OVERRUN);
         }
 
-        // Timestamp
-        if (hs == 2+4) { // First ODT (data starts at offset 6) always has a 32 bit timestamp
-            *((uint32_t*)&d0[2]) = (uint32_t)clock;
+        // Timestamp 32 or 64 bit
+        if (hs == ODT_HEADER_SIZE+ODT_TIMESTAMP_SIZE) { // First ODT always has a 32 bit timestamp
+#if ODT_TIMESTAMP_SIZE==8     
+            *((uint64_t*)&d0[ODT_HEADER_SIZE]) = clock;
+#else
+            *((uint32_t*)&d0[ODT_HEADER_SIZE]) = (uint32_t)clock;
+#endif
         }
 
         // Copy data 
         /* This is the inner loop, optimize here */
         e = DaqListOdtFirstEntry(odt);
+        // Static length
         if (OdtEntrySize(e) != 0) {
+            uint8_t *d = &d0[hs];
             el = DaqListOdtLastEntry(odt);
-            d = &d0[hs];
             while (e <= el) { // inner DAQ loop
                 n = OdtEntrySize(e);
                 if (n == 0) break;
@@ -890,6 +917,10 @@ static void XcpEvent_(uint16_t event, const uint8_t* base, uint64_t clock)
                 d += n;
                 e++;
             } // ODT entry
+        }
+        // Dynamic length
+        else {
+            assert(FALSE);
         }
 
         XcpTlCommitTransmitBuffer(handle, DaqListPriority(daq)!=0 && odt==DaqListLastOdt(daq));
@@ -1093,9 +1124,6 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint16_t cmd
       CRM_CONNECT_MAX_DTO_SIZE = XCPTL_MAX_DTO_SIZE;
       CRM_CONNECT_RESOURCE = RM_DAQ;       /* Data Acquisition supported */
       CRM_CONNECT_COMM_BASIC = CMB_OPTIONAL;
-#if defined ( XCP_CPUTYPE_BIGENDIAN )
-      CRM_CONNECT_COMM_BASIC |= (uint8_t)PI_MOTOROLA;
-#endif
   }
 
   // Handle other all other commands
@@ -1406,14 +1434,26 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint16_t cmd
         case CC_GET_DAQ_PROCESSOR_INFO:
           {
             CRM_LEN = CRM_GET_DAQ_PROCESSOR_INFO_LEN;
-            CRM_GET_DAQ_PROCESSOR_INFO_MIN_DAQ = 0;
-            CRM_GET_DAQ_PROCESSOR_INFO_MAX_DAQ = (gXcp.Daq.DaqCount); /* dynamic */
+            CRM_GET_DAQ_PROCESSOR_INFO_MIN_DAQ = 0; // Total number of predefined DAQ lists
+            CRM_GET_DAQ_PROCESSOR_INFO_MAX_DAQ = (gXcp.Daq.DaqCount); // Number of currently dynamically allocated DAQ lists
 #if defined ( XCP_ENABLE_DAQ_EVENT_INFO )
-            CRM_GET_DAQ_PROCESSOR_INFO_MAX_EVENT = gXcp.EventCount;
+            CRM_GET_DAQ_PROCESSOR_INFO_MAX_EVENT = gXcp.EventCount; // Number of currently available event channels
 #else
-            CRM_GET_DAQ_PROCESSOR_INFO_MAX_EVENT = 0; /* Unknown */
+            CRM_GET_DAQ_PROCESSOR_INFO_MAX_EVENT = 0;  // 0 - unknown
 #endif
-            CRM_GET_DAQ_PROCESSOR_INFO_DAQ_KEY_BYTE = (uint8_t)DAQ_HDR_ODT_DAQB; /* DTO identification field type: Relative ODT number, absolute list number (BYTE) */
+            // Optimization type: default
+            // Address extension type: 
+            //   Address extension to be the same for all entries within one DAQ
+            // DTO identification field type: 
+            //   DAQ_HDR_ODT_DAQB: Relative ODT number (BYTE), absolute DAQ list number (BYTE)
+            //   DAQ_HDR_ODT_FIL_DAQW: Relative ODT number (BYTE), fill byte, absolute DAQ list number (WORD, aligned)
+#if XCP_MAX_DAQ_COUNT>256
+            CRM_GET_DAQ_PROCESSOR_INFO_DAQ_KEY_BYTE = (uint8_t)(DAQ_HDR_ODT_FIL_DAQW | DAQ_EXT_DAQ); 
+#else
+            CRM_GET_DAQ_PROCESSOR_INFO_DAQ_KEY_BYTE = (uint8_t)(DAQ_HDR_ODT_DAQB | DAQ_EXT_DAQ); 
+#endif
+            // Dynamic DAQ list configuration, Time-stamped mode supported, Overload indication is MSB of PID
+            // Identification field can not be switched off, bitwise data stimulation not supported, DAQ lists can not be set to RESUME mode, Prescaler not supported
             CRM_GET_DAQ_PROCESSOR_INFO_PROPERTIES = (uint8_t)( DAQ_PROPERTY_CONFIG_TYPE | DAQ_PROPERTY_TIMESTAMP | DAQ_OVERLOAD_INDICATION_PID );
           }
           break;
@@ -1915,13 +1955,9 @@ void XcpStart()
 {
     if (!isInitialized()) return;
 
-
 #ifdef DBG_LEVEL
     DBG_PRINT3("\nInit XCP protocol layer\n");
-    #ifndef XCP_MAX_EVENT
-      #define XCP_MAX_EVENT 0
-    #endif
-    DBG_PRINTF3("  Version=%u.%u, MAXEV=%u, MAXCTO=%u, MAXDTO=%u, DAQMEM=%u, MAXDAQ=%u, MAXENTRY=%u, MAXENTRYSIZE=%u\n", XCP_PROTOCOL_LAYER_VERSION >> 8, XCP_PROTOCOL_LAYER_VERSION & 0xFF, XCP_MAX_EVENT, XCPTL_MAX_CTO_SIZE, XCPTL_MAX_DTO_SIZE, XCP_DAQ_MEM_SIZE, (1 << sizeof(uint16_t) * 8) - 1, (1 << sizeof(uint16_t) * 8) - 1, (1 << (sizeof(uint8_t) * 8)) - 1);
+    DBG_PRINTF3("  Version=%u.%u, MAX_CTO=%u, MAX_DTO=%u, DAQ_MEM=%u, MAX_DAQ=%u, MAX_ODT_ENTRY=%u, MAX_ODT_ENTRYSIZE=%u\n", XCP_PROTOCOL_LAYER_VERSION >> 8, XCP_PROTOCOL_LAYER_VERSION & 0xFF, XCPTL_MAX_CTO_SIZE, XCPTL_MAX_DTO_SIZE, XCP_DAQ_MEM_SIZE, (1 << sizeof(uint16_t) * 8) - 1, (1 << sizeof(uint16_t) * 8) - 1, (1 << (sizeof(uint8_t) * 8)) - 1);
     DBG_PRINTF3("  %u KiB memory used\n", (unsigned int)sizeof(gXcp) / 1024);
     DBG_PRINT3("  Note: These parameters in xcp_cfg.h need to be configured for optimal memory consumption and performance!\n");
     DBG_PRINT3("  Options=(");
@@ -1942,7 +1978,7 @@ void XcpStart()
   #ifdef XCP_ENABLE_IDT_A2L_UPLOAD // Enable A2L upload to host
     DBG_PRINT3("A2L_UPLOAD,");
   #endif
-  #ifdef XCP_ENABLE_IDT_A2L_HTTP_GET // Enable A2L upload to host
+  #ifdef XCP_ENABLE_IDT_A2L_HTTP_GET // Enable A2L upload to hostRust
     DBG_PRINT3("A2L_URL,");
   #endif
   #ifdef XCP_ENABLE_DAQ_EVENT_LIST // Enable XCP event info by protocol or by A2L
@@ -2036,7 +2072,7 @@ tXcpEvent* XcpGetEvent(uint16_t event) {
 
 
 // Create an XCP event, <rate> in us, 0 = sporadic, <priority> 0-normal, >=1 realtime, <sampleCount> only for packed mode events only, <size> only for extended events
-// Returns the XCP event number for XcpEventXxx() or XCP_UNDEFINED_EVENT when out of memory
+// Returns the XCP event number for XcpEventXxx() or XCP_UNDEFINED_EVENT_CHANNEL when out of memory
 uint16_t XcpCreateEvent(const char* name, uint32_t cycleTimeNs, uint8_t priority, uint16_t sampleCount, uint32_t size) {
 
     uint16_t e;
@@ -2044,11 +2080,11 @@ uint16_t XcpCreateEvent(const char* name, uint32_t cycleTimeNs, uint8_t priority
 
     if (!isInitialized()) {
       DBG_PRINT_ERROR("ERROR: XCP driver not initialized\n");
-      return XCP_UNDEFINED_EVENT; // Uninitialized or out of memory
+      return XCP_UNDEFINED_EVENT_CHANNEL; // Uninitialized or out of memory
     }
-    if (gXcp.EventCount >= XCP_MAX_EVENT) {
+    if (gXcp.EventCount >= XCP_MAX_EVENT_COUNT) {
       DBG_PRINT_ERROR("ERROR: XCP too many events\n");
-      return XCP_UNDEFINED_EVENT; // timeUninitialized or out of memory
+      return XCP_UNDEFINED_EVENT_CHANNEL; // timeUninitialized or out of memory
     }
 
     // Convert cycle time to ASAM coding time cycle and time unit

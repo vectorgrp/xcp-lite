@@ -11,8 +11,7 @@ pub fn idl_generator_derive(input: TokenStream) -> TokenStream {
 
     let gen = match input.data {
         Data::Struct(data_struct) => {
-            let register_function_name =
-                Ident::new(&format!("register_{}", data_type), Span::call_site().into());
+            let register_function_name = Ident::new(&format!("register_{}", data_type), Span::call_site().into());
 
             let field_handlers: Vec<_> = data_struct
                 .fields

@@ -9,25 +9,14 @@ use xcp_type_description::prelude::*;
 
 mod test_executor;
 use test_executor::test_executor;
+use test_executor::OPTION_LOG_LEVEL;
+use test_executor::OPTION_XCP_LOG_LEVEL;
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, thread};
 use tokio::time::Duration;
-
-//-----------------------------------------------------------------------------
-// XCP
-
-const OPTION_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Info;
-const OPTION_XCP_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Info;
-
-//-----------------------------------------------------------------------------
-// static calibration parameters
-
-// const CONST_PAR: u8 = 0xAA;
-// static STATIC_PAR: u8 = 0xAA;
-// static mut STATIC_MUT_PAR: u8 = 0xAA;
 
 //-----------------------------------------------------------------------------
 // Calibration Segment
@@ -166,12 +155,11 @@ async fn test_single_thread() {
 
     // Test calibration and measurement in a single thread
     {
-        info!("");
-        info!("=================================================================");
-        info!("XCP server initialization, pass 1");
+        info!("XCP server initialization 1");
+        std::fs::remove_file("test_single_thread.a2h").ok();
 
         // Initialize the XCPserver, transport layer and protocoll layer
-        let xcp = match XcpBuilder::new("xcp_lite")
+        let xcp = match XcpBuilder::new("test_single_thread")
             .set_log_level(OPTION_XCP_LOG_LEVEL)
             .set_epk("EPK_TEST")
             .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
@@ -189,7 +177,7 @@ async fn test_single_thread() {
             task(c);
         });
 
-        test_executor(xcp, test_executor::TestMode::SingleThreadDAQ).await; // Start the test executor XCP client
+        test_executor(xcp, test_executor::TestMode::SingleThreadDAQ, "test_single_thread.a2l", true).await; // Start the test executor XCP client
 
         t1.join().ok();
         xcp.stop_server();
@@ -197,12 +185,11 @@ async fn test_single_thread() {
 
     // Reinitialize the XCP server a second time, to check correct shutdown behaviour
     {
-        info!("");
-        info!("=================================================================");
-        info!("XCP server initialization, pass 2");
+        info!("XCP server initialization 2");
+        std::fs::remove_file("test_single_thread.a2h").ok();
 
-        // Initialize the XCPserver, transport layer and protocoll layer
-        let xcp = match XcpBuilder::new("xcp_lite")
+        // Initialize the XCPserver, transport layer and protocoll layer a second time
+        let xcp = match XcpBuilder::new("test_single_thread")
             .set_log_level(OPTION_XCP_LOG_LEVEL)
             .set_epk("EPK_TEST")
             .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
@@ -214,10 +201,8 @@ async fn test_single_thread() {
             Ok(xcp) => xcp,
         };
 
-        test_executor(xcp, test_executor::TestMode::ConnectOnly).await; // Start the test executor XCP client
+        test_executor(xcp, test_executor::TestMode::ConnectOnly, "test_single_thread.a2l", false).await; // Start the test executor XCP client
 
         xcp.stop_server();
     }
-
-    std::fs::remove_file("xcp_client.a2l").ok();
 }
