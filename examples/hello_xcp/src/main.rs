@@ -1,4 +1,4 @@
-// xcp_demo
+// hello_xcp
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
@@ -9,6 +9,7 @@ use xcp::*;
 use xcp_type_description::prelude::*;
 
 //-----------------------------------------------------------------------------
+// Calibration parameters
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
 struct CalPage {
@@ -38,16 +39,18 @@ fn main() {
 
     env_logger::Builder::new().filter_level(log::LevelFilter::Info).init();
 
-    let xcp = XcpBuilder::new("xcp_demo")
-        .set_log_level(XcpLogLevel::Debug)
+    let xcp = XcpBuilder::new("hello_xcp")
+        .set_log_level(XcpLogLevel::Info)
         .set_epk("EPK_")
         .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
         .unwrap();
 
     let calseg = xcp.create_calseg("calseg", &CAL_PAGE, true);
 
+    // Measurement signal
     let mut counter: u16 = calseg.min;
 
+    // Register a measurement event and bind it to the counter signal
     let event = daq_create_event!("mainloop");
     daq_register!(counter, event);
 
@@ -57,12 +60,14 @@ fn main() {
             counter = calseg.min;
         }
 
+        // Trigger timestamped measurement data acquisition
         event.trigger();
+
+        // Synchronize calibration parameters
+        calseg.sync();
 
         thread::sleep(Duration::from_micros(calseg.delay as u64));
 
-        calseg.sync();
-
-        xcp.write_a2l();
+        //xcp.write_a2l();
     }
 }

@@ -1,6 +1,4 @@
 /Cargo.lock
 /target/
 
-/xcp_lite.a2h
-/xcp_lite.a2l
-/multi_thread_demo.a2h
+*.a2h

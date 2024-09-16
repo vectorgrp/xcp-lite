@@ -53,45 +53,46 @@ There is an integration test, where the crate a2lfile is used to verify the gene
 
 ## Examples
 ### hello_xcp
-A very basic example
-Measure local variables and calibrate parameters of basic types
+A very basic example  
+Measure local variables and calibrate parameters of basic types  
 
 ### single_thread_demo
-Shows how to measure and calibrate in a single instance task thread
-Shows how to clone a calibration parameter set, move it to a thread and sync its calibration changes 
+Shows how to measure and calibrate in a single instance task thread  
+Shows how to clone a calibration parameter set, move it to a thread and sync its calibration changes  
 Shows how to define and calibrate 2D curves and 3D maps  
 
 ### multi_thread_demo
-Shows how to measure and calibrate in a task instanciated in multiple threads with multiple instances of measurement events and local variables
+Shows how to measure and calibrate in a task instanciated in multiple threads with multiple instances of measurement events and local variables  
 
 ### rayon_demo
 Use CANape to observe rayon workers calculating a mandelbrot set by lines   
 
 ### tokio_demo
-Demonstrates using the XCP server tokio task (xcp_server::xcp_task) with tokio::net::UdpSocket, no threads running in xcplib anymore
-TCP not implemented yet
-Demo the usual measurement and calibration operations
-Demo which visualizes multiples tokio tasks start and stop executing in the tokio worker thread pool (similar to rayon_demo)
+Demonstrates using the XCP server tokio task (xcp_server::xcp_task) with tokio::net::UdpSocket, no threads running in xcplib anymore  
+TCP not implemented yet  
+Demo the usual measurement and calibration operations  
+Demo which visualizes multiples tokio tasks start and stop executing in the tokio worker thread pool (similar to rayon_demo)  
  
 ### point_cloud_demo
 Measure a lidar point cloud and visualize it in CANapes 3D scene window  
 Use CDR serialization over XCP and the CDR/IDL schema generator proc-macro 
 
 ### protobuf_demo
-Measure a struct annotated with the prost message derive macro and protobuf tags
-Use ProtoBuf serialization over XCP and the proto schema generator proc-macro 
+Measure a struct annotated with the prost message derive macro and protobuf tags  
+Use ProtoBuf serialization over XCP and the proto schema generator proc-macro  
 
 ### type_description_demo, xcp_idl_generator_demo
 Demonstrate A2L or CDR/IDL shema generation for structs by using the xcp-lite proc-macros  
 
 ### xcp-lite (xcp-lite/src/main.rs)
-Main application
+Main application  
 Manually check various features with the CANape project xcp-lite/CANape  
 
 ## Code instrumentation for measurement and calibration:
   
 There are 3 important types: Xcp, XcpEvent and CalSeg.  
-Xcp is a wrapper for XCPlite. It is a singleton. There is a builder pattern to initialize the XCP server.   
+Xcp is a wrapper for XCPlite. It is a singleton. There is a builder to initialize the XCP server or ethernet transport layer.
+The server is optional. See example tokio_demo how to run the XCP server in an async task.   
   
 CalSeg is a generic type used to encapsulate structs containing calibration parameters. This is called a calibration segment and the parameter struct wrapped is a calibration page. A calibration page must be Copy and may contain nested structs of basic types.  
   
@@ -99,7 +100,7 @@ A CalSeg has interiour mutability. Parameter mutation happens only in the CalSeg
   
 A CalSeg may be shared among multiple threads. It it cloned like an Arc, implements the Deref trait for convinience and does not do any locks to deref to the inner calibration parameter page struct. A sync method must be called on each clone, to make new calibration changes visible in each thread. The sync method shares a mutex with all clones. Each clone holds a shadow copy of the calibration values on heap.
       
-Measurement code instrumentation provides event definition, registration or capture of measurement objects. Measurement objects can be captured (copied to a buffer inside the event) or accessed directly on stack memory after being registered. Capture works for variables on heap or stack. Measurement variables can be registered as single instance or multi instance, which creates one variable instance for each thread instance. Variable names and event names are automaticaally extended with an index in this case.
+Measurement code instrumentation provides event definition, registration or capture of measurement objects. Measurement objects can be captured (copied to a buffer inside the event) or accessed directly on stack memory after being registered. Capture works for variables on heap or stack. Measurement variables can be registered as single instance or multi instance, which creates one variable instance for each thread instance. Variable names and event names are automatically extended with an index in this case.
 
 The registration of objects has to be completed, before the A2L file is generated. The A2l is created at latest on connect of the XCP client tool. Objects created later, will not be visible to CANape.  
   
@@ -239,12 +240,13 @@ Run the main example:
   cargo r -- --port 5555 --bind 172.19.11.24 --tcp --no-a2l --segment-size 7972 
  
 Run a specific example:
-  cargo r --example point_cloud_demo  
+  cargo run --example point_cloud_demo
+  cargo r --example xcp_client  
 
 ```
 
 Tests may not run in parallel, as the XCP implementation is a singleton.
-Feature json and auto_reg must be enabled for testing.
+Feature json and auto_reg must be enabled for testing. (Currently default)
 
 
 ```
@@ -254,6 +256,7 @@ Feature json and auto_reg must be enabled for testing.
  
 ```
 
+Use --nocapture because the debug output from the XCPlite C library is via normal printf
 
 ## Notes
 
@@ -261,10 +264,9 @@ All measurement and calibration code instrumentation is non blocking and the tri
 There are no heap allocation during runtime, except for the lazy registrations of and for A2L generation.
   
 build.rs automatically builds a minimum static C library from individially preconfigured core XCPlite sources.   
-On C level, there are the usual fast synchronisation mutexes for the mpsc transmit queue.  
-The C code starts 2 threads for rx and tx socket handling.
+On C level, there is a synchronisation mutex for the mpsc transmit queue.  
+The C code has the option to start the server with 2 normal threads for rx and tx socket handling.
 
-  
 The generated A2L file is finalized on XCP connect and provided for upload via XCP.  
 This is achieved with a simple A2L writer which uses a template for the A2L.  
 
@@ -277,7 +279,7 @@ The low word of a calibration parameter (CHARACTERISTIC) memory address in the A
 The memory addresses of local variables are relative addresses in their event capture buffer or to the stack location of the variable holding the event. 
 This concept is currently not supported by the A2L update tools, though A2L generation at runtime is the only option.
 
-The EPK version string in the A2L file can be set by the applicaation. It resides a seperate const memory segment.
+The EPK version string in the A2L file can be set by the application. It resides a seperate const memory segment.
 
 ## Future improvements
 
@@ -285,18 +287,19 @@ The EPK version string in the A2L file can be set by the applicaation. It reside
 - Support more types of calibration parameters, include types for curves and maps with axis
 - Improve the meta data annotations of the A2L serializer
 - Reduce the number of heap allocations and strings in the proc-macros and in A2L generation, reduce the overall memory footprint
-- Option to run the XCP ethernet server thread as tokio tasks, create a zero lock MPSC event queue
+- Create a zero lock MPSC event queue, increase queue efficiency
 - Provide a no-std version and create a embassy example
 - Avoid the mutex lock in CalSeg::Sync when there is no pending parameter modification
 - Add support to decribe the application clock domain in rust
-- Reintegrate the XCPlite C-code changes in XCPlite V7.0.0
 - Add support for DLT and CMP
 
 Suggested changes to the XCP standard
 - Add GET_ID type to upload (from ECU) binary schemas (.ZIP, .desc), referenced in A2L file
-- Support variable length DTOs for serialized data types
-- Support DTOs larger than segment size
+- Support variable length ODT entries for serialized data types
+- Support segmented DTOs larger than segment size
 - Support 64 Bit addresses
+- Support more than (256-4)/(128-4) ODTs to avoid event based queue overload indication
+- Add the option to require a 1:1 association from event to daq list to simplify data structures and reduce event runtime
 - Make GET_DAQ_CLOCK obsolete (when PTP TAI time is provided), by supporting 64 Bit DAQ timestamps
 
 

@@ -1,6 +1,7 @@
 //-----------------------------------------------------------------------------
 // xcp_client is a binary crate that uses the xcp_client library crate
 
+use std::error::Error;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
@@ -124,7 +125,7 @@ struct Args {
 
 //------------------------------------------------------------------------
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
     let log_level = args.log_level.to_log_level_filter();
     env_logger::Builder::new().filter_level(log_level).init();
@@ -144,23 +145,11 @@ async fn main() {
     // Connect to the XCP server
     info!("XCP Connect");
     let daq_decoder = Arc::new(Mutex::new(DaqDecoder::new()));
-    let res = xcp_client.connect(Arc::clone(&daq_decoder), ServTextDecoder::new()).await;
-    match res {
-        Ok(_) => info!("Connected!"),
-        Err(e) => {
-            e.downcast_ref::<XcpError>()
-                .map(|e| {
-                    error!("XCP error: {}", e);
-                })
-                .or_else(|| panic!("connect failed!"));
-
-            return;
-        }
-    }
+    xcp_client.connect(Arc::clone(&daq_decoder), ServTextDecoder::new()).await?;
 
     // Upload A2L file
     info!("Load A2L file to file xcp_lite.a2l");
-    xcp_client.load_a2l("xcp_lite.a2l", true, true).await.unwrap();
+    xcp_client.load_a2l("xcp_lite.a2l", true, true).await?;
 
     // Calibration
     info!("XCP calibration");
@@ -181,10 +170,10 @@ async fn main() {
 
     // Speed up cycle time of demo tasks to 50us
     if let Ok(cycle_time) = xcp_client.create_calibration_object("calpage00.task1_cycle_time_us").await {
-        xcp_client.set_value_u64(cycle_time, 50).await.unwrap();
+        xcp_client.set_value_u64(cycle_time, 50).await?;
     }
     if let Ok(cycle_time) = xcp_client.create_calibration_object("calpage00.task2_cycle_time_us").await {
-        xcp_client.set_value_u64(cycle_time, 50).await.unwrap();
+        xcp_client.set_value_u64(cycle_time, 50).await?;
     }
 
     // Measurement of counter:u32
@@ -217,9 +206,9 @@ async fn main() {
 
     // Measure for 2 seconds
     let start_time = tokio::time::Instant::now();
-    xcp_client.start_measurement().await.unwrap();
+    xcp_client.start_measurement().await?;
     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-    xcp_client.stop_measurement().await.unwrap_or_else(|e| error!("Stop measurement failed: {}", e));
+    xcp_client.stop_measurement().await?;
     let elapsed_time = start_time.elapsed().as_micros();
 
     // Print statistics
@@ -234,22 +223,9 @@ async fn main() {
     info!("Expected {} events/s, {} byte/s", 1_000_000 / 50 * 10, 90 * 1_000_000 / 50 * 10);
 
     // Disconnect
-    xcp_client.disconnect().await.unwrap();
+    xcp_client.disconnect().await?;
+
+    // Done
+    info!("Done");
+    Ok(())
 }
-
-// Start/Stop demo task
-// Create a calibration object for CalPage.run
-// impl XcpClient {
-//     async fn set_run(&mut self, state: bool) -> Result<(), XcpError> {
-//         if let Ok(run) = self.create_calibration_object("CalPage.run").await {
-//             let v = self.get_value_u64(run);
-//             info!("CalPage.run = {}", v);
-//             assert_eq!(v, 1);
-//             self.set_value_u64(run, state as u64).await.unwrap();
-//         } else {
-//             warn!("CalPage.run not found");
-//         }
-
-//         Ok(())
-//     }
-// }

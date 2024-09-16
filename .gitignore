@@ -25,3 +25,4 @@ cargo.lock
 *.tmp
 *.a2h
 *.bin
+/tmp.a2l
