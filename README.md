@@ -15,7 +15,7 @@ Main purpose was to experiment with Rust and to demonstrate some more advanced f
 - Support Google protobuf or OMG DDS/CDR serialized data objects with XCP and CANape
 
 Requires CANape 22 SP2.  
-The point cloud demo variable is not functional yet.  
+  
 
 ## Introduction
 
@@ -48,10 +48,11 @@ Currently xcp-lite for Rust uses a C library build from XCPlite sources, which c
 The code should work on Linux, Windows and Mac, Intel and ARM.  
   
 The project creates a library crate xcp and a main application to showcase usage. There are more basic examples in the examples folder.  
-There is an integration test, where the crate a2lfile is used to verify the generated A2L file and a quick and dirty, tokio based XCP client with hardcoded DAQ decoding for blackbox testing. This includes performance testing which reaches up to 2GByte/s on Linux or MacOS.
+There is an integration test, where the crate a2lfile is used to verify the generated A2L file and a quick and dirty, tokio based XCP client with hardcoded DAQ decoding for blackbox testing.
 
 
-## Examples
+## Examples  
+
 ### hello_xcp
 A very basic example  
 Measure local variables and calibrate parameters of basic types  
@@ -80,6 +81,7 @@ Use CDR serialization over XCP and the CDR/IDL schema generator proc-macro
 ### protobuf_demo
 Measure a struct annotated with the prost message derive macro and protobuf tags  
 Use ProtoBuf serialization over XCP and the proto schema generator proc-macro  
+This is in experimental state  
 
 ### type_description_demo, xcp_idl_generator_demo
 Demonstrate A2L or CDR/IDL shema generation for structs by using the xcp-lite proc-macros  

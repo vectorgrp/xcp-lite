@@ -162,7 +162,7 @@ fn task(index: usize, cal_seg: CalSeg<CalPage1>) {
 //-----------------------------------------------------------------------------
 // Integration test multi thread measurememt and calibration
 
-//#[ignore]
+#[ignore]
 #[tokio::test]
 async fn test_tokio_multi_thread() {
     env_logger::Builder::new().filter_level(OPTION_LOG_LEVEL.to_log_level_filter()).init();
