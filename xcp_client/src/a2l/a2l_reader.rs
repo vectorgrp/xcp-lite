@@ -127,8 +127,9 @@ pub fn a2l_find_characteristic(a2l_file: &A2lFile, name: &str) -> Option<(A2lAdd
 
 pub fn a2l_find_measurement(a2l_file: &A2lFile, name: &str) -> Option<(A2lAddr, A2lType)> {
     let m = a2l_file.project.module[0].measurement.iter().find(|m| m.name == name)?;
-    let a2l_addr: u32 = m.ecu_address.clone().expect("measurement ecu_address not defined!").address;
-    let a2l_ext: i16 = m.ecu_address_extension.clone().expect("ecu_address_extension not defined!").extension;
+    let a2l_addr: u32 = m.ecu_address.clone().expect("Measurement ecu_address not found!").address;
+    let a2l_ext = if let Some(e) = m.ecu_address_extension.clone() { e.extension } else { 0 } as u8;
+
     let get_type = m.datatype;
     let a2l_size: u8 = match get_type {
         DataType::Sbyte => 1,
@@ -157,7 +158,7 @@ pub fn a2l_find_measurement(a2l_file: &A2lFile, name: &str) -> Option<(A2lAddr, 
         DataType::Float16Ieee => A2lTypeEncoding::Float,
     };
     assert!(a2l_size > 0, "a2l_size is zero");
-    assert!(a2l_ext <= 0xFF);
+
     let mut a2l_event: u16 = 0xFFFF;
     let ifdata_vec = m.if_data.clone();
 
@@ -208,8 +209,8 @@ pub fn a2l_printf_info(a2l_file: &A2lFile) {
     // MEASUREMENT
     info!("MEASUREMENT:");
     for measurement in &a2l_file.project.module[0].measurement {
-        let addr = measurement.ecu_address.clone().expect("ecu_address not defined!").address;
-        let ext = measurement.ecu_address_extension.clone().expect("ecu_address_extentsion not defined!").extension;
+        let addr = measurement.ecu_address.clone().expect("ecu_address not found!").address;
+        let ext = if let Some(e) = measurement.ecu_address_extension.clone() { e.extension } else { 0 } as u8;
         info!(" {} {} {}:0x{:X}", measurement.name, measurement.datatype, ext, addr);
     }
 

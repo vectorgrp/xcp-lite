@@ -3,7 +3,7 @@ XCP for Rust - based on XCPlite
   
 Disclaimer:  
 This code is in experimental state. There is no release yet.  
-This is no implementation of XCP in Rust, it is an experimental API for measurement and calibration, which uses the ASAM XCP protocol for communication with a measurement and calibration tool like CANape and ASAM A2L for data description. It might support other protocols and data descriptions in the future. 
+This is no implementation of XCP in Rust, it is an experimental API for measurement and calibration, which uses the ASAM XCP protocol for communication with a measurement and calibration tool like CANape and ASAM A2L for data description. 
 
 Main purpose was to experiment with Rust and to demonstrate some more advanced features of measurement and calibration with CANape:
 - Automatic A2L and IDL generation with proc-macros
@@ -66,7 +66,7 @@ Shows how to define and calibrate 2D curves and 3D maps
 Shows how to measure and calibrate in a task instanciated in multiple threads with multiple instances of measurement events and local variables  
 
 ### rayon_demo
-Use CANape to observe rayon workers calculating a mandelbrot set by lines   
+Use CANape to observe rayon workers calculating a mandelbrot set line by line   
 
 ### tokio_demo
 Demonstrates using the XCP server tokio task (xcp_server::xcp_task) with tokio::net::UdpSocket, no threads running in xcplib anymore  
@@ -84,11 +84,12 @@ Use ProtoBuf serialization over XCP and the proto schema generator proc-macro
 This is in experimental state  
 
 ### type_description_demo, xcp_idl_generator_demo
-Demonstrate A2L or CDR/IDL shema generation for structs by using the xcp-lite proc-macros  
+Demonstrate A2L or CDR/IDL schema generation for structs by using the xcp-lite proc-macros  
 
 ### xcp-lite (xcp-lite/src/main.rs)
 Main application  
 Manually check various features with the CANape project xcp-lite/CANape  
+
 
 ## Code instrumentation for measurement and calibration:
   
@@ -285,15 +286,15 @@ The EPK version string in the A2L file can be set by the application. It resides
 
 ## Future improvements
 
+- Create a zero lock MPSC event queue, increase queue efficiency (optimize mutex contention) for many daq lists and events
 - The A2L file should not be loaded to memory to provide it for upload
-- Support more types of calibration parameters, include types for curves and maps with axis
+- Support more types of calibration parameters, including types for curves and maps with axis
+- Avoid the mutex lock in CalSeg::Sync when there is no pending parameter modification
 - Improve the meta data annotations of the A2L serializer
 - Reduce the number of heap allocations and strings in the proc-macros and in A2L generation, reduce the overall memory footprint
-- Create a zero lock MPSC event queue, increase queue efficiency
-- Provide a no-std version and create a embassy example
-- Avoid the mutex lock in CalSeg::Sync when there is no pending parameter modification
 - Add support to decribe the application clock domain in rust
-- Add support for DLT and CMP
+- Provide a no-std version and create a embassy example
+
 
 Suggested changes to the XCP standard
 - Add GET_ID type to upload (from ECU) binary schemas (.ZIP, .desc), referenced in A2L file

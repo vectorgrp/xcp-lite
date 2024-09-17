@@ -1,19 +1,19 @@
 // multi_thread
 // Integration test for XCP in a multi threaded application
-// Uses the test XCP client in test_executor
+// Uses the test XCP client in xcp_client
 
 // cargo test --features=json --features=auto_reg -- --test-threads=1 --nocapture  --test test_tokio_multi_thread
 
 use xcp::*;
 use xcp_type_description::prelude::*;
 
-mod xcp_server;
+mod xcp_test_executor;
+use xcp_test_executor::xcp_test_executor;
+use xcp_test_executor::MULTI_THREAD_TASK_COUNT;
+use xcp_test_executor::OPTION_LOG_LEVEL;
+use xcp_test_executor::OPTION_XCP_LOG_LEVEL;
 
-mod test_executor;
-use test_executor::test_executor;
-use test_executor::MULTI_THREAD_TASK_COUNT;
-use test_executor::OPTION_LOG_LEVEL;
-use test_executor::OPTION_XCP_LOG_LEVEL;
+mod xcp_server_task;
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
@@ -170,7 +170,7 @@ async fn test_tokio_multi_thread() {
     // Start tokio XCP server
     // Initialize the xcplib transport and protocol layer only, not the server
     let xcp: &'static Xcp = XcpBuilder::new("test_tokio_multi_thread").set_log_level(OPTION_XCP_LOG_LEVEL).set_epk("EPK_TEST").tl_start().unwrap();
-    let _xcp_task = tokio::spawn(xcp_server::xcp_task(xcp, [127, 0, 0, 1], 5555));
+    let _xcp_task = tokio::spawn(xcp_server_task::xcp_task(xcp, [127, 0, 0, 1], 5555));
 
     // Create a calibration segment
     let cal_seg = xcp.create_calseg("cal_seg", &CAL_PAR1, true);
@@ -185,7 +185,7 @@ async fn test_tokio_multi_thread() {
         v.push(t);
     }
 
-    test_executor(xcp, test_executor::TestMode::MultiThreadDAQ, "test_tokio_multi_thread.a2l", false).await; // Start the test executor XCP client
+    xcp_test_executor(xcp, xcp_test_executor::TestMode::MultiThreadDAQ, "test_tokio_multi_thread.a2l", false).await; // Start the test executor XCP client
 
     for t in v {
         t.join().ok();

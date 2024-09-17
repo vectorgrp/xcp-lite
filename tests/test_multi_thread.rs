@@ -1,17 +1,19 @@
 // multi_thread
 // Integration test for XCP in a multi threaded application
-// Uses the test XCP client in test_executor
+// Uses the test XCP client in xcp_client
 
 // cargo test --features=json --features=auto_reg -- --test-threads=1 --nocapture  --test test_multi_thread
+
+#![allow(unused_assignments)]
 
 use xcp::*;
 use xcp_type_description::prelude::*;
 
-mod test_executor;
-use test_executor::test_executor;
-use test_executor::MULTI_THREAD_TASK_COUNT;
-use test_executor::OPTION_LOG_LEVEL;
-use test_executor::OPTION_XCP_LOG_LEVEL;
+mod xcp_test_executor;
+use xcp_test_executor::xcp_test_executor;
+use xcp_test_executor::MULTI_THREAD_TASK_COUNT;
+use xcp_test_executor::OPTION_LOG_LEVEL;
+use xcp_test_executor::OPTION_XCP_LOG_LEVEL;
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
@@ -53,7 +55,7 @@ struct CalPage1 {
 // Default values for the calibration parameters
 const CAL_PAR1: CalPage1 = CalPage1 {
     run: true,             // Stop test task when false
-    cycle_time_us: 100000, // Default cycle time 100ms, will be set by test_executor
+    cycle_time_us: 100000, // Default cycle time 100ms, will be set by xcp_test_executor
     counter_max: 0xFFFF,
     cal_test: 0x5555555500000000u64,
     page: XcpCalPage::Flash as u8,
@@ -76,16 +78,52 @@ const CAL_PAR1: CalPage1 = CalPage1 {
 
 // Test task will be instantiated multiple times
 fn task(index: usize, cal_seg: CalSeg<CalPage1>) {
-    // Measurement variables
+    // Measurement variables 112 bytes
     let mut counter: u32 = 0;
     let mut loop_counter: u64 = 0;
     let mut changes: u64 = 0;
     let mut cal_test: u64 = 0;
     let mut counter_max: u32 = 0;
-    let mut test1: u64 = 0;
-    let mut test2: u64 = 0;
-    let mut test3: u64 = 0;
-    let mut test4: u64 = 0;
+    let mut test0: u64 = 0;
+    let test1: u64 = 0;
+    let test2: u64 = 0;
+    let test3: u64 = 0;
+    let test4: u64 = 0;
+    let test5: u64 = 0;
+    let test6: u64 = 0;
+    let test7: u64 = 0;
+    let test8: u64 = 0;
+    let test9: u64 = 0;
+    let test10: u64 = 0;
+    let test11: u64 = 0;
+    let test12: u64 = 0;
+    let test13: u64 = 0;
+    let test14: u64 = 0;
+    let test15: u64 = 0;
+    let test16: u64 = 0;
+    let test17: u64 = 0;
+    let test18: u64 = 0;
+    let test19: u64 = 0;
+    let test20: u64 = 0;
+    let test21: u64 = 0;
+    let test22: u64 = 0;
+    let test23: u64 = 0;
+    let test24: u64 = 0;
+    let test25: u64 = 0;
+    let test26: u64 = 0;
+    let test27: u64 = 0;
+    let test28: u64 = 0;
+    let test29: u64 = 0;
+    let test30: u64 = 0;
+    let test31: u64 = 0;
+    let test32: u64 = 0;
+    let test33: u64 = 0;
+    let test34: u64 = 0;
+    let test35: u64 = 0;
+    let test36: u64 = 0;
+    let test37: u64 = 0;
+    let test38: u64 = 0;
+    let test39: u64 = 0;
 
     if index == 0 || index == MULTI_THREAD_TASK_COUNT - 1 {
         info!("Task {} started, initial cycle time = {}us ", index, cal_seg.cycle_time_us);
@@ -103,10 +141,46 @@ fn task(index: usize, cal_seg: CalSeg<CalPage1>) {
     daq_register_instance!(loop_counter, event);
     daq_register_instance!(counter_max, event);
     daq_register_instance!(counter, event);
+    daq_register_instance!(test0, event);
     daq_register_instance!(test1, event);
     daq_register_instance!(test2, event);
     daq_register_instance!(test3, event);
     daq_register_instance!(test4, event);
+    daq_register_instance!(test5, event);
+    daq_register_instance!(test6, event);
+    daq_register_instance!(test7, event);
+    daq_register_instance!(test8, event);
+    daq_register_instance!(test9, event);
+    daq_register_instance!(test10, event);
+    daq_register_instance!(test11, event);
+    daq_register_instance!(test12, event);
+    daq_register_instance!(test13, event);
+    daq_register_instance!(test14, event);
+    daq_register_instance!(test15, event);
+    daq_register_instance!(test16, event);
+    daq_register_instance!(test17, event);
+    daq_register_instance!(test18, event);
+    daq_register_instance!(test19, event);
+    daq_register_instance!(test20, event);
+    daq_register_instance!(test21, event);
+    daq_register_instance!(test22, event);
+    daq_register_instance!(test23, event);
+    daq_register_instance!(test24, event);
+    daq_register_instance!(test25, event);
+    daq_register_instance!(test26, event);
+    daq_register_instance!(test27, event);
+    daq_register_instance!(test28, event);
+    daq_register_instance!(test29, event);
+    daq_register_instance!(test30, event);
+    daq_register_instance!(test31, event);
+    daq_register_instance!(test32, event);
+    daq_register_instance!(test33, event);
+    daq_register_instance!(test34, event);
+    daq_register_instance!(test35, event);
+    daq_register_instance!(test36, event);
+    daq_register_instance!(test37, event);
+    daq_register_instance!(test38, event);
+    daq_register_instance!(test39, event);
 
     loop {
         // Sleep for a calibratable amount of time
@@ -123,14 +197,7 @@ fn task(index: usize, cal_seg: CalSeg<CalPage1>) {
 
         // Modify measurement variables on stack
         loop_counter += 1;
-        test1 = loop_counter;
-        test2 = loop_counter;
-        test3 = loop_counter;
-        test4 = loop_counter;
-        _ = test1;
-        _ = test2;
-        _ = test3;
-        _ = test4;
+        test0 = loop_counter;
 
         // Calculate a counter wrapping at cal_seg.counter_max
         counter_max = cal_seg.counter_max;
@@ -212,7 +279,7 @@ async fn test_multi_thread() {
     }
 
     thread::sleep(Duration::from_millis(250)); // Wait to give all threads a chance to initialize and enter their loop
-    test_executor(xcp, test_executor::TestMode::MultiThreadDAQ, "test_multi_thread.a2l", false).await; // Start the test executor XCP client
+    xcp_test_executor(xcp, xcp_test_executor::TestMode::MultiThreadDAQ, "test_multi_thread.a2l", false).await; // Start the test executor XCP client
 
     info!("Test done. Waiting for tasks to terminate");
     for t in v {

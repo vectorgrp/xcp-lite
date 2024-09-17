@@ -255,10 +255,8 @@ typedef struct {
 
     /* Optional event list */
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
-
     uint16_t EventCount;
     tXcpEvent EventList[XCP_MAX_EVENT_COUNT];
-
 #endif
 
 
@@ -610,7 +608,7 @@ static uint8_t XcpAllocOdtEntry( uint16_t daq, uint8_t odt, uint8_t odtEntryCoun
 }
 
 // Set ODT entry pointer
-static uint8_t  XcpSetDaqPtr(uint16_t daq, uint8_t odt, uint8_t idx) {
+static uint8_t XcpSetDaqPtr(uint16_t daq, uint8_t odt, uint8_t idx) {
 
     uint16_t odt0 = (uint16_t)(DaqListFirstOdt(daq) + odt); // Absolute odt index
     if ((daq >= gXcp.Daq.DaqCount) || (odt >= DaqListOdtCount(daq)) || (idx >= DaqListOdtEntryCount(odt0))) return CRC_OUT_OF_RANGE;
@@ -720,7 +718,7 @@ static void XcpStartAllSelectedDaq() {
 
   // Reset event time stamps
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
-  #ifdef XCP_ENABLE_SELF_TEST
+  #ifdef XCP_ENABLE_TIMESTAMP_CHECK
   for (uint16_t e = 0; e < gXcp.EventCount; e++) {
       gXcp.EventList[e].time = 0;
   }
@@ -795,28 +793,8 @@ static void XcpStopAllDaq() {
 
 // Measurement data acquisition, sample and transmit measurement date associated to event
 
-// Event
-static void XcpEvent_(uint16_t event, const uint8_t* base, uint64_t clock) {
-
-  uint16_t daq;
-
-  if (!isDaqRunning()) return; // DAQ not running
-
-#ifdef XCP_ENABLE_DAQ_EVENT_LIST
-  // Event checks
-  // Disable for max measurement performance
-  #if defined(XCP_ENABLE_SELF_TEST) || defined(XCP_ENABLE_MULTITHREAD_DAQ_EVENTS)
-  tXcpEvent* ev = XcpGetEvent(event);
-  if (ev == NULL) {
-      DBG_PRINTF_ERROR("ERROR: Unknown event %u!\n", event);
-      return; // Unknown event
-  }
-  #endif
-#endif
-
-  // Loop over all active DAQ lists associated to the current event
-  // @@@@ Optimize this loop
-  for (daq=0; daq<gXcp.Daq.DaqCount; daq++) {
+// Trigger daq list
+static void XcpTriggerDaq(uint16_t daq, const uint8_t* base, uint64_t clock) {
 
       uint8_t *d0;
       uint32_t e, el, odt, hs, n;
@@ -824,9 +802,6 @@ static void XcpEvent_(uint16_t event, const uint8_t* base, uint64_t clock) {
 #ifdef XCP_ENABLE_PACKED_MODE
       uint32_t sc;
 #endif
-
-      if ((DaqListState(daq) & DAQ_STATE_RUNNING) == 0) continue; // DAQ list not active
-      if (DaqListEventChannel(daq) != event) continue; // DAQ list not associated with this event
 
 #ifdef XCP_ENABLE_PACKED_MODE
       sc = DaqListSampleCount(daq); // Packed mode sample count, 0 if not packed
@@ -859,7 +834,7 @@ static void XcpEvent_(uint16_t event, const uint8_t* base, uint64_t clock) {
           // Check declining time stamps
           // Disable for maximal measurement performance
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
-  #if defined(XCP_ENABLE_SELF_TEST)
+  #if defined(XCP_ENABLE_TIMESTAMP_CHECK)
           if (ev->time > clock) { // declining time stamps
               DBG_PRINTF_ERROR("ERROR: Declining timestamp! event=%u, diff=%" PRIu64 "\n", event, ev->time-clock);
           }
@@ -924,16 +899,39 @@ static void XcpEvent_(uint16_t event, const uint8_t* base, uint64_t clock) {
         }
 
         XcpTlCommitTransmitBuffer(handle, DaqListPriority(daq)!=0 && odt==DaqListLastOdt(daq));
-
       } /* odt */
+
+}
+
+// Trigger event
+static void XcpTriggerEvent(uint16_t event, const uint8_t* base, uint64_t clock) {
+
+  if (!isDaqRunning()) return; // DAQ not running
+
+  // Experimental
+  // Optimize for large daq list count, when there is a 1:1 relation between DAQ lists and events
+  // Not much benefit - optimize the contemption of the transmit queue mutex first
+  // assert(DaqListEventChannel(event) == event);
+  // assert(event<gXcp.Daq.DaqCount);
+  // if ((DaqListState(event) & DAQ_STATE_RUNNING) == 0) return; // DAQ list not active
+  // XcpTriggerDaq(event,base,clock);
+
+  uint16_t daq;
+
+  // Loop over all active DAQ lists associated to the current event
+  for (daq=0; daq<gXcp.Daq.DaqCount; daq++) {
+
+      if ((DaqListState(daq) & DAQ_STATE_RUNNING) == 0) continue; // DAQ list not active
+      if (DaqListEventChannel(daq) != event) continue; // DAQ list not associated with this event
+
+      XcpTriggerDaq(daq,base,clock); // Trigger DAQ list
 
   } /* daq */
 
-#ifdef XCP_ENABLE_DAQ_EVENT_LIST
-  #if defined(XCP_ENABLE_SELF_TEST)
+  #if defined(XCP_ENABLE_TIMESTAMP_CHECK)
   ev->time = clock;
   #endif
-#endif
+
 }
 
 // ABS adressing mode event with clock
@@ -941,7 +939,7 @@ static void XcpEvent_(uint16_t event, const uint8_t* base, uint64_t clock) {
 #ifdef XCP_ENABLE_ABS_ADDRESSING
 void XcpEventAt(uint16_t event, uint64_t clock) {
     if (!isDaqRunning()) return; // DAQ not running
-    XcpEvent_(event, ApplXcpGetBaseAddr(), clock);
+    XcpTriggerEvent(event, ApplXcpGetBaseAddr(), clock);
 }
 #endif
 
@@ -950,7 +948,7 @@ void XcpEventAt(uint16_t event, uint64_t clock) {
 #ifdef XCP_ENABLE_ABS_ADDRESSING
 void XcpEvent(uint16_t event) {
     if (!isDaqRunning()) return; // DAQ not running
-    XcpEvent_(event, ApplXcpGetBaseAddr(), 0);
+    XcpTriggerEvent(event, ApplXcpGetBaseAddr(), 0);
 }
 #endif
 
@@ -994,7 +992,7 @@ uint8_t XcpEventExt(uint16_t event, const uint8_t* base, uint32_t len) {
 
     // Daq
     if (!isDaqRunning()) return CRC_CMD_OK; // DAQ not running
-    XcpEvent_(event, base, 0);
+    XcpTriggerEvent(event, base, 0);
     return CRC_CMD_OK; 
 }
 
@@ -2103,7 +2101,7 @@ uint16_t XcpCreateEvent(const char* name, uint32_t cycleTimeNs, uint8_t priority
     gXcp.EventList[e].priority = priority;
     gXcp.EventList[e].sampleCount = sampleCount;
     gXcp.EventList[e].size = size;
-#ifdef XCP_ENABLE_SELF_TEST
+#ifdef XCP_ENABLE_TIMESTAMP_CHECK
     gXcp.EventList[e].time = 0;
 #endif
 #ifdef XCP_ENABLE_MULTITHREAD_DAQ_EVENTS

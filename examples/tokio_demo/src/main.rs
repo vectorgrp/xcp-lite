@@ -3,8 +3,6 @@
 // Demo the usual measurement and calibration operations
 // Demo how to visualize tokio tasks start/stop in tokios worker thread pool
 
-mod xcp_server;
-
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
@@ -14,6 +12,8 @@ use std::error::Error;
 
 use xcp::*;
 use xcp_type_description::prelude::*;
+
+include!("../../../tests/xcp_server_task.rs");
 
 //-----------------------------------------------------------------------------
 // Demo calibration parameters (static)
@@ -110,7 +110,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Start tokio XCP server
     // Initialize the xcplib transport and protocol layer only, not the server
     let xcp: &'static Xcp = XcpBuilder::new("tokio_demo").set_log_level(XcpLogLevel::Debug).tl_start().unwrap();
-    let xcp_task = tokio::spawn(xcp_server::xcp_task(xcp, [127, 0, 0, 1], 5555));
+    let xcp_task = tokio::spawn(xcp_task(xcp, [127, 0, 0, 1], 5555));
 
     // let mut xcp_server = xcp_server::XcpServer::new([127, 0, 0, 1], 5555);
     // let xcp = xcp_server.start_xcp(xcp).await?;

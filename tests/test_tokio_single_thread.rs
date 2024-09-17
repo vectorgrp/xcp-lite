@@ -1,18 +1,18 @@
 // single_thread
 // Integration test for XCP in a single thread application
-// Uses the test XCP client in test_executor
+// Uses the test XCP client in xcp_client
 
 // cargo test --features=json --features=auto_reg -- --test-threads=1 --nocapture  --test test_tokio_single_thread
 
 use xcp::*;
 use xcp_type_description::prelude::*;
 
-mod test_executor;
-use test_executor::test_executor;
-use test_executor::OPTION_LOG_LEVEL;
-use test_executor::OPTION_XCP_LOG_LEVEL;
+mod xcp_test_executor;
+use xcp_test_executor::xcp_test_executor;
+use xcp_test_executor::OPTION_LOG_LEVEL;
+use xcp_test_executor::OPTION_XCP_LOG_LEVEL;
 
-mod xcp_server;
+mod xcp_server_task;
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
@@ -166,7 +166,7 @@ async fn test_tokio_single_thread() {
         .tl_start()
         .map_err(|e| error!("{}", e))
         .unwrap();
-    let _xcp_task = tokio::spawn(xcp_server::xcp_task(xcp, [127, 0, 0, 1], 5555));
+    let _xcp_task = tokio::spawn(xcp_server_task::xcp_task(xcp, [127, 0, 0, 1], 5555));
 
     // Create a calibration segment
     let cal_seg = xcp.create_calseg("cal_seg", &CAL_PAR1, false);
@@ -176,7 +176,7 @@ async fn test_tokio_single_thread() {
         task(cal_seg);
     });
 
-    test_executor(xcp, test_executor::TestMode::SingleThreadDAQ, "test_tokio_single_thread.a2l", false).await; // Start the test executor XCP client
+    xcp_test_executor(xcp, xcp_test_executor::TestMode::SingleThreadDAQ, "test_tokio_single_thread.a2l", false).await; // Start the test executor XCP client
 
     t1.join().ok();
 }

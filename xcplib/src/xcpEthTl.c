@@ -297,7 +297,7 @@ uint8_t *XcpTlGetTransmitBuffer(void **handlep, uint16_t packet_size) {
         return NULL; // Overflow, should never happen in correct DAQ setups
     }
 
-    mutexLock(&gXcpTl.Mutex_Queue);
+    mutexLock(&gXcpTl.Mutex_Queue); // @@@@ Performance critical mutex, optimize
 
     // Get another message buffer from queue, when active buffer ist full
     if (gXcpTl.msg_ptr==NULL || (uint16_t)(gXcpTl.msg_ptr->size + msg_size) > XCPTL_MAX_SEGMENT_SIZE) {
@@ -329,7 +329,7 @@ void XcpTlCommitTransmitBuffer(void *handle, BOOL flush) {
 
     tXcpMessageBuffer* p = (tXcpMessageBuffer*)handle;
     if (handle != NULL) {
-        mutexLock(&gXcpTl.Mutex_Queue);
+        mutexLock(&gXcpTl.Mutex_Queue); // @@@@ Performance critical mutex, optimize
         p->uncommited--;
 
         // Flush (high priority data commited)
@@ -463,7 +463,7 @@ int32_t XcpTlHandleTransmitQueue() {
       for (uint32_t i = 0; i < max_loops; i++) {
 
         // Check
-        mutexLock(&gXcpTl.Mutex_Queue);
+        mutexLock(&gXcpTl.Mutex_Queue); // @@@@ Performance critical mutex, optimize
         if (gXcpTl.queue_len > 1) {
           b = &gXcpTl.queue[gXcpTl.queue_rp];
           if (b->uncommited > 0) b = NULL; // return when reaching a not fully commited segment buffer 
@@ -488,7 +488,7 @@ int32_t XcpTlHandleTransmitQueue() {
         n += b->size;
 
         // Free this buffer when succesfully sent
-        mutexLock(&gXcpTl.Mutex_Queue);
+        mutexLock(&gXcpTl.Mutex_Queue); // @@@@ Performance critical mutex, optimize
         if (++gXcpTl.queue_rp >= XCPTL_QUEUE_SIZE) gXcpTl.queue_rp = 0;
         gXcpTl.queue_len--;
         mutexUnlock(&gXcpTl.Mutex_Queue);

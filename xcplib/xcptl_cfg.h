@@ -60,7 +60,7 @@ Drawbacks:
 // Segment size is the maximum data buffer size given to send/sendTo, for UDP it is the UDP MTU
 // Jumbo frames are supported, but it might be more efficient to use a smaller segment size
 // #define XCPTL_MAX_SEGMENT_SIZE (OPTION_MTU-20-8) // UDP MTU (MTU - IP-header - UDP-header)
-#define XCPTL_MAX_SEGMENT_SIZE 2048 
+#define XCPTL_MAX_SEGMENT_SIZE (2048*2) 
 #define XCPTL_MAX_DTO_SIZE (XCPTL_MAX_SEGMENT_SIZE-8) // Segment size - XCP transport layer header size, size must be mod 8 
 
 #define XCPTL_PACKET_ALIGNMENT 1 // Packet alignment for multiple XCP transport layer packets in a XCP transport layer message
@@ -71,7 +71,7 @@ Drawbacks:
 // Maximum queue trigger event rate
 #define XCPTL_QUEUE_TRANSMIT_CYCLE_TIME (1*CLOCK_TICKS_PER_MS)
 // Flush cycle
-#define XCPTL_QUEUE_FLUSH_CYCLE_MS 50 // Send a DTO packet at least every x ms, XCPTL_TIMEOUT_INFINITE to turn off
+#define XCPTL_QUEUE_FLUSH_CYCLE_MS 100 // Send a DTO packet at least every x ms, XCPTL_TIMEOUT_INFINITE to turn off
 
 // CTO size
 // Maximum size of a XCP command

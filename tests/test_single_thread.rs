@@ -1,16 +1,16 @@
 // single_thread
 // Integration test for XCP in a single thread application
-// Uses the test XCP client in module test_executor
+// Uses the test XCP client in module xcp_client
 
 // cargo test --features=json --features=auto_reg -- --test-threads=1 --nocapture  --test test_single_thread
 
 use xcp::*;
 use xcp_type_description::prelude::*;
 
-mod test_executor;
-use test_executor::test_executor;
-use test_executor::OPTION_LOG_LEVEL;
-use test_executor::OPTION_XCP_LOG_LEVEL;
+mod xcp_test_executor;
+use xcp_test_executor::xcp_test_executor;
+use xcp_test_executor::OPTION_LOG_LEVEL;
+use xcp_test_executor::OPTION_XCP_LOG_LEVEL;
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
@@ -177,7 +177,7 @@ async fn test_single_thread() {
             task(c);
         });
 
-        test_executor(xcp, test_executor::TestMode::SingleThreadDAQ, "test_single_thread.a2l", true).await; // Start the test executor XCP client
+        xcp_test_executor(xcp, xcp_test_executor::TestMode::SingleThreadDAQ, "test_single_thread.a2l", true).await; // Start the test executor XCP client
 
         t1.join().ok();
         xcp.stop_server();
@@ -201,7 +201,7 @@ async fn test_single_thread() {
             Ok(xcp) => xcp,
         };
 
-        test_executor(xcp, test_executor::TestMode::ConnectOnly, "test_single_thread.a2l", false).await; // Start the test executor XCP client
+        xcp_test_executor(xcp, xcp_test_executor::TestMode::ConnectOnly, "test_single_thread.a2l", false).await; // Start the test executor XCP client
 
         xcp.stop_server();
     }

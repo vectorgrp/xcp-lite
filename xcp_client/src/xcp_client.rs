@@ -500,7 +500,7 @@ impl XcpClient {
         let mut byte_count: u64 = 0; // for statistics only
         let mut ctr_last: u16 = 0;
         let mut ctr_first: bool = true;
-        let mut buf: [u8; 8000] = [0; 8000]; // @@@@ Impl:
+        let mut buf: [u8; 8000] = [0; 8000];
         let mut task_control: Option<XcpTaskControl> = None;
 
         loop {
@@ -516,7 +516,7 @@ impl XcpClient {
                                 info!("receive_task: measurement stop");
                                 if byte_count > 1000 && message_count > 100 {
                                     let queue_efficiency = if message_count > 0 { (byte_count * 100) / (message_count * XCPTL_MAX_SEGMENT_SIZE as u64) } else { 100 };
-                                    info!("messages = {}, bytes = {}, queue efficiency = {}%", message_count,  byte_count, queue_efficiency );
+                                    info!("messages = {}, bytes = {}, bytes/msg={}, queue efficiency = {}%", message_count,  byte_count, byte_count/message_count, queue_efficiency );
                                     if queue_efficiency < 80 { warn!("queue efficiency = {}%",queue_efficiency);}
                                     message_count=0;
                                     byte_count=0;
@@ -879,7 +879,7 @@ impl XcpClient {
     async fn set_daq_list_mode(&mut self, daq: u16, eventchannel: u16) -> Result<(), Box<dyn Error>> {
         const XCP_DAQ_MODE_TIMESTAMP: u8 = 0x10; // Timestamp always on, no other mode supported by XCPlite
         let mode: u8 = XCP_DAQ_MODE_TIMESTAMP;
-        let priority = 0x00; // Always use priority 0, not DAQ list flushing for specific events, priorization supported by XCPlite
+        let priority = 0x00; // Always use priority 0, no DAQ list flush for specific events, priorization supported by XCPlite
         self.send_command(
             XcpCommandBuilder::new(CC_SET_DAQ_LIST_MODE)
                 .add_u8(mode)
@@ -1041,16 +1041,30 @@ impl XcpClient {
     pub async fn start_measurement(&mut self) -> Result<(), Box<dyn Error>> {
         let n = self.measurement_objects.len();
 
-        // Find all  events
-        let mut event_list: HashMap<u16, u16> = HashMap::new();
+        // Find all events and their number of signals
+        let mut event_map: HashMap<u16, u16> = HashMap::new();
+        let mut min_event: u16 = 0xFFFF;
+        let mut max_event: u16 = 0;
         for i in 0..n {
             let event = self.measurement_objects[i].get_addr().event;
-            let count = event_list.entry(event).or_insert(0);
+            if event < min_event {
+                min_event = event;
+            }
+            if event > max_event {
+                max_event = event;
+            }
+            let count = event_map.entry(event).or_insert(0);
             *count += 1;
         }
-        debug!("event_list = {:?}", event_list);
-        let event_count: u16 = event_list.len() as u16;
-        debug!("event_count = {}", event_count);
+        let event_count: u16 = event_map.len() as u16;
+        info!("event_count = {}", event_count);
+
+        // Transform to a sorted array
+        let mut event_list: Vec<(u16, u16)> = Vec::new();
+        for (event, count) in event_map.into_iter() {
+            event_list.push((event, count));
+        }
+        event_list.sort_by(|a, b| a.0.cmp(&b.0));
 
         // Alloc DAQ lists
         assert!(event_count <= 1024, "event_count > 1024");
@@ -1068,8 +1082,7 @@ impl XcpClient {
 
         // Alloc ODT entries
         for daq in 0..daq_count {
-            let element = event_list.iter().nth(daq as usize).unwrap();
-            let odt_entry_count = *element.1;
+            let odt_entry_count = event_list[daq as usize].1;
             assert!(odt_entry_count < 0x7C, "odt_entry_count >= 0x7C");
             self.alloc_odt_entries(daq, 0, odt_entry_count as u8).await?;
             debug!("Alloc odt_entries: daq={}, odt={}, odt_entry_count={}", daq, 0, odt_entry_count);
@@ -1078,8 +1091,7 @@ impl XcpClient {
         // Write ODT entries
         for daq in 0..daq_count {
             let odt = 0;
-            let element = event_list.iter().nth(daq as usize).unwrap();
-            let event = *element.0;
+            let event = event_list[daq as usize].0;
             let mut odt_entry: u8 = 0;
             let n = self.measurement_objects.len();
             let mut odt_size: u16 = 0;
@@ -1115,8 +1127,7 @@ impl XcpClient {
 
         // Set DAQ list events
         for daq in 0..daq_count {
-            let element = event_list.iter().nth(daq as usize).unwrap();
-            let event = *element.0;
+            let event = event_list[daq as usize].0;
             self.set_daq_list_mode(daq as u16, event).await?;
             debug!("Set event: daq={}, event={}", daq, event);
         }

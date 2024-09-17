@@ -1,12 +1,13 @@
 //-----------------------------------------------------------------------------
-// Module test_executor
+// Module xcp_test_executor
 // Runs various tests agains a XCP server on local host UDP port 5555
+
+#![allow(unused_imports)]
 
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-#[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
 use tokio::time::{Duration, Instant};
@@ -15,6 +16,8 @@ use xcp::Xcp;
 use xcp_client::a2l::*;
 use xcp_client::xcp_client::*;
 
+pub use xcp_client::xcp_client::XCPTL_MAX_SEGMENT_SIZE;
+
 //-----------------------------------------------------------------------------
 
 // Logging
@@ -22,7 +25,7 @@ pub const OPTION_LOG_LEVEL: xcp::XcpLogLevel = xcp::XcpLogLevel::Info;
 pub const OPTION_XCP_LOG_LEVEL: xcp::XcpLogLevel = xcp::XcpLogLevel::Warn;
 
 // Test parameters
-pub const MULTI_THREAD_TASK_COUNT: usize = 10; // Number of threads
+pub const MULTI_THREAD_TASK_COUNT: usize = 32; // Number of threads
 const DAQ_TEST_DURATION_MS: u64 = 4000; // ms
 const DAQ_TEST_TASK_SLEEP_TIME_US: u64 = 250; // us
 const CAL_TEST_MAX_ITER: u32 = 4000; // Number of calibrations
@@ -202,7 +205,7 @@ pub enum TestMode {
     MultiThreadDAQ,
 }
 
-pub async fn test_executor(xcp: &Xcp, test_mode: TestMode, a2l_file: &str, a2l_upload: bool) {
+pub async fn xcp_test_executor(xcp: &Xcp, test_mode: TestMode, a2l_file: &str, a2l_upload: bool) {
     let mut error_state = false;
 
     tokio::time::sleep(Duration::from_millis(500)).await;
@@ -340,34 +343,30 @@ pub async fn test_executor(xcp: &Xcp, test_mode: TestMode, a2l_file: &str, a2l_u
             // Measurement test loop
             // Create a measurement DAQ list with all instances MULTI_THREAD_TASK_COUNT of measurement counter and counter_max
             // Hard coded order and size in DaqDecoder (counter_max, counter, cal_test, ...)
-            let bytes_per_event: u32 =
-            // for multi_thread
-            if test_mode == TestMode::MultiThreadDAQ {
+            let bytes_per_event: u32 = if test_mode == TestMode::MultiThreadDAQ {
+                let mut n = 0;
                 for i in 1..=MULTI_THREAD_TASK_COUNT {
                     let counter = "counter_".to_string() + &i.to_string();
                     let counter_max = "counter_max_".to_string() + &i.to_string();
                     let cal_test = "cal_test_".to_string() + &i.to_string();
                     let loop_counter = "loop_counter_".to_string() + &i.to_string();
                     let changes = "changes_".to_string() + &i.to_string();
-                    let test1 = "test1_".to_string() + &i.to_string();
-                    let test2 = "test2_".to_string() + &i.to_string();
-                    let test3 = "test3_".to_string() + &i.to_string();
-                    let test4 = "test4_".to_string() + &i.to_string();
-
                     xcp_client.create_measurement_object(counter_max.as_str()).unwrap();
                     xcp_client.create_measurement_object(counter.as_str()).unwrap();
                     xcp_client.create_measurement_object(cal_test.as_str()).unwrap();
                     xcp_client.create_measurement_object(loop_counter.as_str()).unwrap();
                     xcp_client.create_measurement_object(changes.as_str()).unwrap();
-                    xcp_client.create_measurement_object(test1.as_str()).unwrap();
-                    xcp_client.create_measurement_object(test2.as_str()).unwrap();
-                    xcp_client.create_measurement_object(test3.as_str()).unwrap();
-                    xcp_client.create_measurement_object(test4.as_str()).unwrap();
+                    for j in 0.. {
+                        let name = format!("test{}_{}", j, i);
+                        let res = xcp_client.create_measurement_object(name.as_str());
+                        if res.is_none() {
+                            n = j;
+                            break;
+                        }
+                    }
                 }
-                32 + 32 // counter 4 + counter_max 4 + cal_test 8 + loop_counter 8 + changes 8 + test1-4 32
-            }
-            // for single_thread
-            else {
+                32 + n * 8
+            } else {
                 xcp_client.create_measurement_object("counter_max").unwrap();
                 xcp_client.create_measurement_object("counter").unwrap();
                 8

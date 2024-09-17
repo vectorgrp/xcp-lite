@@ -77,17 +77,23 @@
 /* DAQ features and parameters */
 
 // No event list - Rust xcp-lite has its own event handling
+
 // #define XCP_ENABLE_DAQ_EVENT_LIST // Enable event list
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
 
   // #define XCP_ENABLE_DAQ_EVENT_INFO // Enable XCP_GET_EVENT_INFO, if this is enabled, A2L file event information will be ignored
 
-  // #define XCP_ENABLE_MULTITHREAD_DAQ_EVENTS // Make XcpEventExt thread safe for same DAQ event coming from different threads
+  // Make XcpEventExt thread safe for same DAQ event coming from different threads
+  // #define XCP_ENABLE_MULTITHREAD_DAQ_EVENTS 
   // This should be very unusual, XcpEvent performance will be decreased
-  // Requires event list, mutex is located in XcpEvent
+  // Requires event list, additional mutex is located in XcpEvent
 
-  // #define XCP_MAX_EVENT_COUNT 256 // 0-255, 0xFFFF is reserved for undefined event
+  // #define XCP_MAX_EVENT_COUNT 32 // 0-31, 0xFFFF is reserved for undefined event
   // #define XCP_MAX_EVENT_NAME 16
+
+  // Enable checking for clock monotony (no decreasing timestamp), use for debugging only, performance and memory impact
+  // #define XCP_ENABLE_TIMESTAMP_CHECK
+
 
 #endif 
 
@@ -103,7 +109,7 @@
 
 // Memory available for DAQ
 // Create static memory for DAQ tables
-#define XCP_DAQ_MEM_SIZE (1024*32*5) // Amount of memory for DAQ tables, each ODT entry (e.g. measurement variable) needs 5 bytes
+#define XCP_DAQ_MEM_SIZE (256*256*5) // Amount of memory for DAQ tables, each ODT entry (e.g. measurement variable) needs 5 bytes
 
 // Maximum number of DAQ lists
 #define XCP_MAX_DAQ_COUNT 1024
