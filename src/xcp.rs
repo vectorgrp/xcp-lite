@@ -412,6 +412,7 @@ impl XcpBuilder {
 
     /// Start the XCP on Ethernet Server
     /// Use the server rx and tx threads in xcplib
+    #[cfg(feature = "xcp_server")]
     pub fn start_server<A>(self, tl: XcpTransportLayer, addr: A, port: u16) -> Result<&'static Xcp, &'static str>
     where
         A: Into<Ipv4Addr>,
@@ -597,6 +598,7 @@ impl Xcp {
     // Server mode
 
     /// Check if the XCP server is ok and running
+    #[cfg(feature = "xcp_server")]
     pub fn check_server(&self) -> bool {
         // @@@@ unsafe - C library call
         unsafe {
@@ -606,6 +608,7 @@ impl Xcp {
     }
 
     /// Stop the XCP server
+    #[cfg(feature = "xcp_server")]
     pub fn stop_server(&self) {
         // @@@@ unsafe - C library call
         unsafe {

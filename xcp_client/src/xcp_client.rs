@@ -393,6 +393,9 @@ impl XcpTextDecoder for DefaultTextDecoder {
         print!("SERV_TEXT: ");
         let mut j = 0;
         while j < data.len() {
+            if data[j] == 0 {
+                break;
+            }
             print!("{}", data[j] as char);
             j += 1;
         }
@@ -496,8 +499,6 @@ impl XcpClient {
         decode_serv_text: impl XcpTextDecoder,
         decode_daq: Arc<Mutex<impl XcpDaqDecoder>>,
     ) -> Result<(), Box<dyn Error>> {
-        let mut message_count: u64 = 0; // for statistics only
-        let mut byte_count: u64 = 0; // for statistics only
         let mut ctr_last: u16 = 0;
         let mut ctr_first: bool = true;
         let mut buf: [u8; 8000] = [0; 8000];
@@ -511,17 +512,6 @@ impl XcpClient {
                     match res {
                         Some(c) => {
                             debug!("receive_task: task control status changed: connected={} running={}", c.connected, c.running);
-
-                            if !c.running { // Measurement status changed to stop, print statistics
-                                info!("receive_task: measurement stop");
-                                if byte_count > 1000 && message_count > 100 {
-                                    let queue_efficiency = if message_count > 0 { (byte_count * 100) / (message_count * XCPTL_MAX_SEGMENT_SIZE as u64) } else { 100 };
-                                    info!("messages = {}, bytes = {}, bytes/msg={}, queue efficiency = {}%", message_count,  byte_count, byte_count/message_count, queue_efficiency );
-                                    if queue_efficiency < 80 { warn!("queue efficiency = {}%",queue_efficiency);}
-                                    message_count=0;
-                                    byte_count=0;
-                                }
-                            }
 
                             if !c.connected { // Handle the data from rx_daq_decoder
                                 info!("receive_task: stop, disconnect");
@@ -546,8 +536,7 @@ impl XcpClient {
                                 warn!("xcp_receive: socket closed");
                                 return Ok(());
                             }
-                            message_count += 1;
-                            byte_count += size as u64;
+
                             let mut i: usize = 0;
                             while i < size {
                                 // Decode the next transport layer message header in the packet
@@ -696,10 +685,11 @@ impl XcpClient {
             tokio::spawn(async move {
                 let _res = XcpClient::receive_task(socket, tx_resp, rx_daq, text_decoder, daq_decoder).await;
             });
+            tokio::time::sleep(Duration::from_millis(100)).await; // wait for the receive task to start
         }
 
         let data = self.send_command(XcpCommandBuilder::new(CC_CONNECT).add_u8(0).build()).await?;
-        assert_eq!(data.len(), 8);
+        assert!(data.len() >= 8);
         let max_cto_size: u8 = data[3];
         let max_dto_size: u16 = data[4] as u16 | (data[5] as u16) << 8;
         info!("XCP client connected, max_cto_size = {}, max_dto_size = {}", max_cto_size, max_dto_size);
@@ -740,20 +730,25 @@ impl XcpClient {
         assert_eq!(data[0], 0xFF);
         assert!(id_type == XCP_IDT_ASAM_UPLOAD || id_type == XCP_IDT_ASAM_NAME); // others not supported yet
         let mode = data[1]; // 0 = data by upload, 1 = data in response
+
+        // Decode size
+        let mut size = 0u32;
+        for i in (4..8).rev() {
+            size = size << 8 | data[i] as u32;
+        }
+        info!("GET_ID mode={} -> size = {}", id_type, size);
+
+        // Data ready for upload
         if mode == 0 {
-            // Decode size
-            let mut size = 0u32;
-            for i in (4..8).rev() {
-                size = size << 8 | data[i] as u32;
-            }
-            info!("GET_ID mode={} -> size = {}", id_type, size);
             Ok((size, None))
-        } else {
+        }
+        // Data in response
+        else {
             // Decode string
-            let name = String::from_utf8(data[8..].to_vec());
+            let name = String::from_utf8(data[8..(size as usize + 8)].to_vec());
             match name {
                 Ok(name) => {
-                    info!("GET_ID mode={} -> result = {}", id_type, name);
+                    info!("  -> text = {}", name);
                     Ok((0, Some(name)))
                 }
                 Err(_) => {
@@ -931,7 +926,7 @@ impl XcpClient {
                     size -= n as u32;
                     let data = self.upload(n).await?;
                     trace!("xcp_client.upload: {} bytes = {:?}", data.len(), data);
-                    writer.write_all(&data[1..])?;
+                    writer.write_all(&data[1..=n as usize])?;
                 }
                 writer.flush()?;
             }

@@ -29,6 +29,9 @@ extern void XcpEthTlSendMulticastCrm(const uint8_t* data, uint16_t n, const uint
 extern void XcpEthTlSetClusterId(uint16_t clusterId); // Set cluster id for GET_DAQ_CLOCK_MULTICAST reception
 #endif
 
+extern BOOL notifyTransmitQueueHandler();
+
+
 // Get last error code
 #define XCPTL_OK                   0
 #define XCPTL_ERROR_WOULD_BLOCK    1

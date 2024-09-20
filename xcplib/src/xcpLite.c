@@ -1030,7 +1030,6 @@ static void XcpSendResponse(const tXcpCto* crm, uint8_t crmLen) {
 }
 
 // Transmit multicast command response
-#if XCP_TRANSPORT_LAYER_TYPE==XCP_TRANSPORT_LAYER_ETH
 #ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
 static void XcpSendMulticastResponse( const tXcpCto* crm, uint8_t crmLen, uint8_t *addr, uint16_t port) {
 
@@ -1039,7 +1038,6 @@ static void XcpSendMulticastResponse( const tXcpCto* crm, uint8_t crmLen, uint8_
   if (DBG_LEVEL >= 4) XcpPrintRes(crm);
 #endif
 }
-#endif
 #endif
 
 //  Push XCP command which can not be executes in this context for later async execution
@@ -1686,7 +1684,7 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint16_t cmd
           break;
 #endif // >= 0x0103
 
-#if XCP_PROTOCOL_LAYER_VERSION >= 0x0103 && XCP_TRANSPORT_LAYER_TYPE==XCP_TRANSPORT_LAYER_ETH
+#if XCP_PROTOCOL_LAYER_VERSION >= 0x0103 
 
         case CC_TRANSPORT_LAYER_CMD:
           switch (CRO_TL_SUBCOMMAND) {
@@ -1910,7 +1908,6 @@ void XcpPrint( const char *str ) {
   crm.b[i+2] = '\n';
   crm.b[i+3] = 0;
   XcpTlSendCrm((const uint8_t*)&crm, l+4);
-  //XcpTlFlushTransmitBuffer(); // Don't do this, as it will decrease performance of the transmit process
 }
                            
 #endif // XCP_ENABLE_SERV_TEXT

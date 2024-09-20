@@ -17,6 +17,7 @@ extern void XcpTlWaitForTransmitQueueEmpty(); // Wait (sleep) until transmit que
 extern BOOL XcpTlInit(); // Start generic transport layer
 extern void XcpTlShutdown(); // Stop generic transport layer
 extern uint8_t XcpTlCommand(uint16_t msgLen, const uint8_t* msgBuf); // Handle XCP message
+
 extern const uint8_t * XcpTlTransmitQueuePeek( uint16_t* msg_len);  // Check if there is a fully commited message segment buffer in the transmit queue
 extern void XcpTlTransmitQueueNext(); // Remove the next transmit queue entry
 

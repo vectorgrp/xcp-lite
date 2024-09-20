@@ -47,7 +47,7 @@
 // TCP or/and UDP server enabled
 #define XCPTL_ENABLE_TCP
 #define XCPTL_ENABLE_UDP
-#define XCP_SERVER_FORCEFULL_TERMINATION // Otherwise use gracefull server thread termination in xcplib
+//#define XCP_SERVER_FORCEFULL_TERMINATION // Otherwise use gracefull server thread termination in xcplib
 
 // Ethernet Transport Layer
 #define OPTION_MTU 8000 // Ethernet MTU 

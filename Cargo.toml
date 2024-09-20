@@ -70,13 +70,16 @@ path = "examples/protobuf_demo/src/main.rs"
 
 [features]
 
+# Feature xcp_server enables the build in XCP server 
+xcp_server = []
+
 # Feature json enables dependency to serde and serde_json
 json = ["dep:serde","dep:serde_json"]
 
 # Feature a2l_gen to enable automatic registry entries for calibration page structs
 auto_reg = ["dep:xcp_type_description_derive","dep:xcp_type_description"]
 
-default = ["json","auto_reg"]
+default = ["json","auto_reg","xcp_server"]
 #default = ["json"]
 
 [dependencies]

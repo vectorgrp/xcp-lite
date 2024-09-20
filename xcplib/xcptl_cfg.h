@@ -13,9 +13,11 @@
  ----------------------------------------------------------------------------*/
 
 // Transport layer
-#define XCP_TRANSPORT_LAYER_TYPE XCP_TRANSPORT_LAYER_ETH
 #define XCP_TRANSPORT_LAYER_VERSION 0x0104
 
+
+// Queue type
+#define XCPTL_ENABLE_MPSC_QUEUE // Multi producer single consumer queue (supported on 64 bit systems with atomic 64 bit operations)
 
 #if defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)
 
@@ -58,18 +60,20 @@ Drawbacks:
 
 // TL segment size and DTO size
 // Segment size is the maximum data buffer size given to send/sendTo, for UDP it is the UDP MTU
-// Jumbo frames are supported, but it might be more efficient to use a smaller segment size
+// Jumbo frames are supported, but it might be more efficient to use a smaller segment sizes
 // #define XCPTL_MAX_SEGMENT_SIZE (OPTION_MTU-20-8) // UDP MTU (MTU - IP-header - UDP-header)
-#define XCPTL_MAX_SEGMENT_SIZE (2048*2) 
+#define XCPTL_MAX_SEGMENT_SIZE (1024*2) 
 #define XCPTL_MAX_DTO_SIZE (XCPTL_MAX_SEGMENT_SIZE-8) // Segment size - XCP transport layer header size, size must be mod 8 
 
-#define XCPTL_PACKET_ALIGNMENT 1 // Packet alignment for multiple XCP transport layer packets in a XCP transport layer message
+#define XCPTL_PACKET_ALIGNMENT 8 // Packet alignment for multiple XCP transport layer packets in a XCP transport layer message
 
 // DAQ transmit queue 
 // Transmit queue size in segments, should at least be able to hold all data produced until the next call to HandleTransmitQueue
-#define XCPTL_QUEUE_SIZE 1024  // array[XCPTL_QUEUE_SIZE] of tXcpMessageBuffer (XCPTL_MAX_SEGMENT_SIZE+4) 
+#define XCPTL_QUEUE_SIZE 1024  // Size of the mpsc queue in XCP DTO/CRM packets (not messages as in V1.x)
+
 // Maximum queue trigger event rate
 #define XCPTL_QUEUE_TRANSMIT_CYCLE_TIME (1*CLOCK_TICKS_PER_MS)
+
 // Flush cycle
 #define XCPTL_QUEUE_FLUSH_CYCLE_MS 100 // Send a DTO packet at least every x ms, XCPTL_TIMEOUT_INFINITE to turn off
 

@@ -11,24 +11,11 @@
 #error "Include dependency error!"
 #endif
 
-   
-// Transport layer type
-// The protocol layer implementation has some dependencies on the transport layer type
-// Some XCP commands are only supported on Ethernet and can not be compiled with MAX_CTO == 8 
-#define XCP_TRANSPORT_LAYER_ETH 1
-#define XCP_TRANSPORT_LAYER_CAN 0
-
 #include "xcptl_cfg.h"  // Transport layer configuration
 
 // Transport layer definitions and configuration
 #include "xcpTl.h" 
-#if XCP_TRANSPORT_LAYER_TYPE==XCP_TRANSPORT_LAYER_ETH
 #include "xcpEthTl.h"  // Ethernet transport layer specific functions
-#elif XCP_TRANSPORT_LAYER_TYPE==XCP_TRANSPORT_LAYER_CAN
-#include "xcpcantl.h"  
-#else
-#error "Define XCP_TRANSPORT_LAYER_ETH or _CAN"
-#endif
 
 // Protocol layer definitions and configuration
 #include "xcp_cfg.h"    // Protocol layer configuration
