@@ -33,10 +33,10 @@ extern BOOL notifyTransmitQueueHandler();
 
 
 // Get last error code
-#define XCPTL_OK                   0
-#define XCPTL_ERROR_WOULD_BLOCK    1
-#define XCPTL_ERROR_SEND_FAILED    2
-#define XCPTL_ERROR_INVALID_MASTER 3
-extern int32_t XcpTlGetLastError();
+// #define XCPTL_OK                   0
+// #define XCPTL_ERROR_WOULD_BLOCK    1
+// #define XCPTL_ERROR_SEND_FAILED    2
+// #define XCPTL_ERROR_INVALID_MASTER 3
+// extern int32_t XcpTlGetLastError();
 
 #endif

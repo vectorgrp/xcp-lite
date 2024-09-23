@@ -13,13 +13,10 @@ extern void XcpTlCommitTransmitBuffer(void* handle, BOOL flush); // Commit a buf
 extern void XcpTlFlushTransmitBuffer(); // Finalize the current transmit packet (ETH only)
 extern void XcpTlWaitForTransmitQueueEmpty(); // Wait (sleep) until transmit queue is empty 
 
-// Generic transport layer functions for XCP server
+// Transport layer functions called by XCP server
 extern BOOL XcpTlInit(); // Start generic transport layer
 extern void XcpTlShutdown(); // Stop generic transport layer
 extern uint8_t XcpTlCommand(uint16_t msgLen, const uint8_t* msgBuf); // Handle XCP message
-
-extern const uint8_t * XcpTlTransmitQueuePeek( uint16_t* msg_len);  // Check if there is a fully commited message segment buffer in the transmit queue
-extern void XcpTlTransmitQueueNext(); // Remove the next transmit queue entry
-
-// Get transmit queue level
-extern int32_t XcpTlGetTransmitQueueLevel(); 
+extern const uint8_t * XcpTlTransmitQueuePeekMsg( uint16_t* msg_len );  // Check if there is a fully commited message segment buffer in the transmit queue
+extern void XcpTlTransmitQueueNextMsg(uint16_t msg_len); // Remove the next transmit queue entry
+extern BOOL XcpTlTransmitQueueHasMsg(); // Check if there is enough data in the transmit queue for a transport layer message

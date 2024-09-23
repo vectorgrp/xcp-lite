@@ -151,7 +151,7 @@ fn task(cal_seg: CalSeg<CalPage1>) {
 //-----------------------------------------------------------------------------
 // Integration test single thread measurement and calibration
 
-#[ignore]
+//#[ignore]
 #[tokio::test]
 async fn test_tokio_single_thread() {
     env_logger::Builder::new().filter_level(OPTION_LOG_LEVEL.to_log_level_filter()).try_init().ok();
@@ -176,7 +176,14 @@ async fn test_tokio_single_thread() {
         task(cal_seg);
     });
 
-    xcp_test_executor(xcp, xcp_test_executor::TestMode::SingleThreadDAQ, "test_tokio_single_thread.a2l", false).await; // Start the test executor XCP client
+    xcp_test_executor(
+        xcp,
+        xcp_test_executor::TestModeCal::Cal,
+        xcp_test_executor::TestModeDaq::SingleThreadDAQ,
+        "test_tokio_single_thread.a2l",
+        false,
+    )
+    .await; // Start the test executor XCP client
 
     t1.join().ok();
 }

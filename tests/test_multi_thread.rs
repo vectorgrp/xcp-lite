@@ -124,6 +124,30 @@ fn task(index: usize, cal_seg: CalSeg<CalPage1>) {
     let test37: u64 = 0;
     let test38: u64 = 0;
     let test39: u64 = 0;
+    let test40: u64 = 0;
+    let test41: u64 = 0;
+    let test42: u64 = 0;
+    let test43: u64 = 0;
+    let test44: u64 = 0;
+    let test45: u64 = 0;
+    let test46: u64 = 0;
+    let test47: u64 = 0;
+    let test48: u64 = 0;
+    let test49: u64 = 0;
+    let test50: u64 = 0;
+    let test51: u64 = 0;
+    let test52: u64 = 0;
+    let test53: u64 = 0;
+    let test54: u64 = 0;
+    let test55: u64 = 0;
+    let test56: u64 = 0;
+    let test57: u64 = 0;
+    let test58: u64 = 0;
+    let test59: u64 = 0;
+    let test60: u64 = 0;
+    let test61: u64 = 0;
+    let test62: u64 = 0;
+    let test63: u64 = 0;
 
     if index == 0 || index == MULTI_THREAD_TASK_COUNT - 1 {
         info!("Task {} started, initial cycle time = {}us ", index, cal_seg.cycle_time_us);
@@ -181,6 +205,30 @@ fn task(index: usize, cal_seg: CalSeg<CalPage1>) {
     daq_register_instance!(test37, event);
     daq_register_instance!(test38, event);
     daq_register_instance!(test39, event);
+    daq_register_instance!(test40, event);
+    daq_register_instance!(test41, event);
+    daq_register_instance!(test42, event);
+    daq_register_instance!(test43, event);
+    daq_register_instance!(test44, event);
+    daq_register_instance!(test45, event);
+    daq_register_instance!(test46, event);
+    daq_register_instance!(test47, event);
+    daq_register_instance!(test48, event);
+    daq_register_instance!(test49, event);
+    daq_register_instance!(test50, event);
+    daq_register_instance!(test51, event);
+    daq_register_instance!(test52, event);
+    daq_register_instance!(test53, event);
+    daq_register_instance!(test54, event);
+    daq_register_instance!(test55, event);
+    daq_register_instance!(test56, event);
+    daq_register_instance!(test57, event);
+    daq_register_instance!(test58, event);
+    daq_register_instance!(test59, event);
+    daq_register_instance!(test60, event);
+    daq_register_instance!(test61, event);
+    daq_register_instance!(test62, event);
+    daq_register_instance!(test63, event);
 
     loop {
         // Sleep for a calibratable amount of time
@@ -279,7 +327,7 @@ async fn test_multi_thread() {
     }
 
     thread::sleep(Duration::from_millis(250)); // Wait to give all threads a chance to initialize and enter their loop
-    xcp_test_executor(xcp, xcp_test_executor::TestMode::MultiThreadDAQ, "test_multi_thread.a2l", false).await; // Start the test executor XCP client
+    xcp_test_executor(xcp, xcp_test_executor::TestModeCal::Cal, xcp_test_executor::TestModeDaq::MultiThreadDAQ, "test_multi_thread.a2l", false).await; // Start the test executor XCP client
 
     info!("Test done. Waiting for tasks to terminate");
     for t in v {

@@ -572,7 +572,7 @@ impl Xcp {
     pub fn tl_transmit_queue_peek(&self) -> Option<&'static [u8]> {
         unsafe {
             let mut buf_len: u16 = 0;
-            let buf_ptr = xcplib::XcpTlTransmitQueuePeek(&mut buf_len as *mut u16);
+            let buf_ptr = xcplib::XcpTlTransmitQueuePeekMsg(&mut buf_len as *mut u16);
             if !buf_ptr.is_null() {
                 //trace!("tl_transmit_queue_peek: len={}", buf_len);
                 return Some(std::slice::from_raw_parts(buf_ptr, buf_len as usize));
@@ -581,9 +581,9 @@ impl Xcp {
         None
     }
 
-    pub fn tl_transmit_queue_next(&self) {
+    pub fn tl_transmit_queue_next(&self, len: u16) {
         unsafe {
-            xcplib::XcpTlTransmitQueueNext();
+            xcplib::XcpTlTransmitQueueNextMsg(len);
         }
     }
 

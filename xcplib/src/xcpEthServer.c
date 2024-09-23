@@ -46,6 +46,8 @@ static struct {
     tXcpThread ReceiveThreadHandle;
     volatile BOOL ReceiveThreadRunning;
 
+    MUTEX TransmitQueueMutex; 
+
 } gXcpServer;
 
 
@@ -80,6 +82,7 @@ BOOL XcpEthServerInit(const uint8_t* addr, uint16_t port, BOOL useTCP)
     XcpStart();
 
     // Create threads
+    mutexInit(&gXcpServer.TransmitQueueMutex, FALSE, 0);
     create_thread(&gXcpServer.TransmitThreadHandle, XcpServerTransmitThread);
     create_thread(&gXcpServer.ReceiveThreadHandle, XcpServerReceiveThread);
 
@@ -97,6 +100,7 @@ BOOL XcpEthServerShutdown() {
         cancel_thread(gXcpServer.ReceiveThreadHandle);
         cancel_thread(gXcpServer.TransmitThreadHandle);
         XcpEthTlShutdown();
+        mutexDestroy(&gXcpServer.TransmitQueueMutex);
         gXcpServer.isInit = FALSE;
         socketCleanup();
         XcpReset();
@@ -110,6 +114,7 @@ BOOL XcpEthServerShutdown() {
         XcpEthTlShutdown();
         join_thread(gXcpServer.ReceiveThreadHandle);
         join_thread(gXcpServer.TransmitThreadHandle);
+        mutexDestroy(&gXcpServer.TransmitQueueMutex);
         gXcpServer.isInit = FALSE;
         socketCleanup();
         XcpReset();
@@ -136,6 +141,16 @@ extern void* XcpServerReceiveThread(void* par)
         DBG_PRINT_ERROR("ERROR: XcpTlHandleCommands failed!\n");
         break; // error -> terminate thread
       }
+      else {
+        // Handle transmit queue after each command, to keep the command latency short
+        mutexLock(&gXcpServer.TransmitQueueMutex);
+        int32_t n = XcpTlHandleTransmitQueue();
+        mutexUnlock(&gXcpServer.TransmitQueueMutex);
+        if (n<0) {
+          DBG_PRINT_ERROR("ERROR: XcpTlHandleTransmitQueue failed!\n");
+          break; // error - terminate thread
+        }
+      }
     }
     gXcpServer.ReceiveThreadRunning = FALSE;
 
@@ -161,10 +176,12 @@ extern void* XcpServerTransmitThread(void* par)
     while (gXcpServer.TransmitThreadRunning) {
 
         // Wait for transmit data available, time out at least for required flush cycle
-      if (!XcpTlWaitForTransmitData(XCPTL_QUEUE_FLUSH_CYCLE_MS)) XcpTlFlushTransmitBuffer(); // Flush after timerout to keep data visualization going
+        if (!XcpTlWaitForTransmitData(XCPTL_QUEUE_FLUSH_CYCLE_MS)) XcpTlFlushTransmitBuffer(); // Flush after timeout to keep data visualization going
 
-        // Transmit all completed UDP packets from the transmit queue
+        // Transmit all completed messages from the transmit queue
+        mutexLock(&gXcpServer.TransmitQueueMutex);
         n = XcpTlHandleTransmitQueue();
+        mutexUnlock(&gXcpServer.TransmitQueueMutex);
         if (n<0) {
           DBG_PRINT_ERROR("ERROR: XcpTlHandleTransmitQueue failed!\n");
           break; // error - terminate thread

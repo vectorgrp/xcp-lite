@@ -177,7 +177,14 @@ async fn test_single_thread() {
             task(c);
         });
 
-        xcp_test_executor(xcp, xcp_test_executor::TestMode::SingleThreadDAQ, "test_single_thread.a2l", true).await; // Start the test executor XCP client
+        xcp_test_executor(
+            xcp,
+            xcp_test_executor::TestModeCal::Cal,
+            xcp_test_executor::TestModeDaq::SingleThreadDAQ,
+            "test_single_thread.a2l",
+            true,
+        )
+        .await; // Start the test executor XCP client
 
         t1.join().ok();
         xcp.stop_server();
@@ -201,7 +208,7 @@ async fn test_single_thread() {
             Ok(xcp) => xcp,
         };
 
-        xcp_test_executor(xcp, xcp_test_executor::TestMode::ConnectOnly, "test_single_thread.a2l", false).await; // Start the test executor XCP client
+        xcp_test_executor(xcp, xcp_test_executor::TestModeCal::None, xcp_test_executor::TestModeDaq::None, "test_single_thread.a2l", false).await; // Start the test executor XCP client
 
         xcp.stop_server();
     }

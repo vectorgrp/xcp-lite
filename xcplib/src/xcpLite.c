@@ -557,7 +557,11 @@ static uint8_t XcpAllocOdt( uint16_t daq, uint8_t odtCount ) {
   uint32_t n;
 
   if ( gXcp.Daq.DaqCount==0 || gXcp.Daq.OdtEntryCount!=0 ) return CRC_SEQUENCE;
+#ifdef XCP_ENABLE_OVERRUN_INDICATION_PID
   if ( odtCount == 0 || odtCount>=0x7C) return CRC_OUT_OF_RANGE; // MSB of ODT number is reserved for overflow indication, 0xFC-0xFF for response, error, event and service
+#else
+  if ( odtCount == 0 || odtCount>=0xFC) return CRC_OUT_OF_RANGE; // 0xFC-0xFF for response, error, event and service
+#endif
   n = (uint32_t)gXcp.Daq.OdtCount + (uint32_t)odtCount;
   if (n > 0xFFFF) return CRC_OUT_OF_RANGE; // Overall number of ODTs limited to 64K
   gXcp.Daq.u.DaqList[daq].firstOdt = gXcp.Daq.OdtCount;
@@ -861,10 +865,12 @@ static void XcpTriggerDaq(uint16_t daq, const uint8_t* base, uint64_t clock) {
 #endif
        
         // Use MSB of ODT to indicate overruns
+#ifdef XCP_ENABLE_OVERRUN_INDICATION_PID
         if ( (DaqListState(daq) & DAQ_STATE_OVERRUN) != 0 ) {
           d0[0] |= 0x80; // Set MSB of ODT number
           DaqListState(daq) &= (uint8_t)(~DAQ_STATE_OVERRUN);
         }
+#endif
 
         // Timestamp 32 or 64 bit
         if (hs == ODT_HEADER_SIZE+ODT_TIMESTAMP_SIZE) { // First ODT always has a 32 bit timestamp

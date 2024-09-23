@@ -162,7 +162,7 @@ fn task(index: usize, cal_seg: CalSeg<CalPage1>) {
 //-----------------------------------------------------------------------------
 // Integration test multi thread measurememt and calibration
 
-#[ignore]
+//#[ignore]
 #[tokio::test]
 async fn test_tokio_multi_thread() {
     env_logger::Builder::new().filter_level(OPTION_LOG_LEVEL.to_log_level_filter()).init();
@@ -185,7 +185,14 @@ async fn test_tokio_multi_thread() {
         v.push(t);
     }
 
-    xcp_test_executor(xcp, xcp_test_executor::TestMode::MultiThreadDAQ, "test_tokio_multi_thread.a2l", false).await; // Start the test executor XCP client
+    xcp_test_executor(
+        xcp,
+        xcp_test_executor::TestModeCal::Cal,
+        xcp_test_executor::TestModeDaq::MultiThreadDAQ,
+        "test_tokio_multi_thread.a2l",
+        false,
+    )
+    .await; // Start the test executor XCP client
 
     for t in v {
         t.join().ok();

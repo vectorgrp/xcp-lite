@@ -31,10 +31,10 @@ extern "C" {
     pub fn XcpTlCommand(msgLen: u16, msgBuf: *const u8) -> u8;
 }
 extern "C" {
-    pub fn XcpTlTransmitQueuePeek(msg_len: *mut u16) -> *const u8;
+    pub fn XcpTlTransmitQueuePeekMsg(msg_len: *mut u16) -> *const u8;
 }
 extern "C" {
-    pub fn XcpTlTransmitQueueNext();
+    pub fn XcpTlTransmitQueueNextMsg(msg_len: u16);
 }
 extern "C" {
     pub fn XcpInit();

@@ -101,17 +101,18 @@
 // Needed for xcp-lite, because CalSeg cal sync events may come from different threads
 #define XCP_ENABLE_MULTITHREAD_CAL_EVENTS 
 
-// DAQ header type
-#define XCP_DAQ_HEADER_TYPE DAQ_HDR_ODT_DAQB   // DAQ_HDR_ODT_DAQB - Relative ODT number (BYTE), absolute DAQ list number (BYTE) / DAQ_HDR_ODT_FIL_DAQW -  Relative ODT number (BYTE), fill byte, absolute DAQ list number (WORD, aligned)
+// Overrun indication via PID
+// Not needed for Ethernet, client detects data loss via transport layer counters
+//#define XCP_ENABLE_OVERRUN_INDICATION_PID
 
 // Enable packed mode - not supported by xcp-lite
 // #define XCP_ENABLE_PACKED_MODE 
 
-// Memory available for DAQ
-// Create static memory for DAQ tables
+// Static allocated memory for DAQ tables
 #define XCP_DAQ_MEM_SIZE (256*256*5) // Amount of memory for DAQ tables, each ODT entry (e.g. measurement variable) needs 5 bytes
 
 // Maximum number of DAQ lists
+// Numbers smaller than 256 will switch to 2 byte transport layer header DAQ_HDR_ODT_DAQB
 #define XCP_MAX_DAQ_COUNT 1024
 
 

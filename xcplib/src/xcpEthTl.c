@@ -16,10 +16,7 @@
 #include "platform.h"
 #include "dbg_print.h"
 #include "xcpLite.h"   
-
-#ifdef XCPTL_ENABLE_MPSC_QUEUE
 #include "xcpTlQueue.h"   
-#endif
 
 // Parameter checks
 #if XCPTL_TRANSPORT_LAYER_HEADER_SIZE != 4
@@ -39,51 +36,13 @@ typedef struct {
     uint8_t packet[XCPTL_MAX_CTO_SIZE];
 } tXcpCtoMessage;
 
-#ifndef XCPTL_ENABLE_MPSC_QUEUE
 
-// Message types
-
-typedef struct {
-    uint16_t dlc;    // lenght
-    uint16_t ctr;    // message counter
-    uint8_t packet[1];  // message data
-} tXcpMessage;
-
-
-/* Transport Layer:
-segment = message 1 + message 2 ... + message n
-message = len + ctr + (protocol layer packet) + fill
-*/
-typedef struct {
-    uint16_t uncommited;        // Number of uncommited messages in this segment
-    uint16_t size;              // Number of overall bytes in this segment
-    uint8_t msg[XCPTL_MAX_SEGMENT_SIZE];  // Segment (UDP MTU) - concatenated transport layer messages
-} tXcpMessageBuffer;
-#endif
 
 
 static struct {
 
     // Generic transport layer 
-    int32_t lastError;
-
-
-#ifndef XCPTL_ENABLE_MPSC_QUEUE
-    #ifdef XCPTL_QUEUED_CRM
-    uint16_t lastCroCtr; // Last CRO command receive object message message counter received
-    #endif
-    uint16_t ctr; // next DAQ DTO data transmit message packet counter
-    // Transmit segment queue
-    tXcpMessageBuffer queue[XCPTL_QUEUE_SIZE];
-    uint32_t queue_rp; // rp = read index
-    uint32_t queue_len; // rp+len = write index (the next free entry), len=0 ist empty, len=XCPTL_QUEUE_SIZE is full
-#if defined(_WIN) // Windows
-    HANDLE queue_event;
-    uint64_t queue_event_time;
-#endif
-    tXcpMessageBuffer* msg_ptr; // current incomplete or not fully commited segment
-    MUTEX Mutex_Queue;    
-#endif
+    //int32_t lastError;
 
 #if defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)
 
@@ -135,12 +94,6 @@ static int handleXcpMulticastCommand(int n, tXcpCtoMessage* p, uint8_t* dstAddr,
 // Generic transport layer functions
 
 BOOL XcpTlInit() {
-
-#ifndef XCPTL_ENABLE_MPSC_QUEUE
-    #ifdef XCPTL_QUEUED_CRM
-    gXcpTl.lastCroCtr = 0;
-    #endif
-#endif
 
     XcpTlInitTransmitQueue();
     
@@ -240,256 +193,6 @@ BOOL notifyTransmitQueueHandler() {
 
 
 
-//-------------------------------------------------------------------------------------------------------
-
-#ifndef XCPTL_ENABLE_MPSC_QUEUE
-
-// Allocate a new transmit buffer (transmit queue entry)
-// Not thread save!
-static void getSegmentBuffer() {
-
-    tXcpMessageBuffer* b;
-
-    /* Check if there is space in the queue */
-    if (gXcpTl.queue_len >= XCPTL_QUEUE_SIZE) {
-        /* Queue overflow */
-        gXcpTl.msg_ptr = NULL;
-    }
-    else {
-        unsigned int i = gXcpTl.queue_rp + gXcpTl.queue_len;
-        if (i >= XCPTL_QUEUE_SIZE) i -= XCPTL_QUEUE_SIZE;
-        b = &gXcpTl.queue[i];
-        b->size = 0;
-        b->uncommited = 0;
-        gXcpTl.msg_ptr = b;
-        gXcpTl.queue_len++;
-    }
-
-    notifyTransmitQueueHandler();
-}
-
-
-// Init transmit queue
-void XcpTlInitTransmitQueue() {
-    gXcpTl.ctr = 0;
-    mutexInit(&gXcpTl.Mutex_Queue, FALSE, 1000);
-
-#if defined(_WIN) // Windows
-    gXcpTl.queue_event = CreateEvent(NULL, TRUE, FALSE, NULL);
-    assert(gXcpTl.queue_event!=NULL); 
-    gXcpTl.queue_event_time = 0;
-#endif
-    
-    XcpTlResetTransmitQueue(); 
-}
-
-// Free all resources used by the transmit quwuw
-void XcpTlFreeTransmitQueue() {
-    mutexDestroy(&gXcpTl.Mutex_Queue);
-#if defined(_WIN) // Windows
-    CloseHandle(gXcpTl.queue_event);
-#endif
-}
-
-// Clear and init transmit queue
-void XcpTlResetTransmitQueue() {
-
-    mutexLock(&gXcpTl.Mutex_Queue);
-    gXcpTl.queue_rp = 0;
-    gXcpTl.queue_len = 0;
-    gXcpTl.msg_ptr = NULL;
-    getSegmentBuffer();
-    mutexUnlock(&gXcpTl.Mutex_Queue);
-    assert(gXcpTl.msg_ptr);
-}
-
-// Get transmit queue level
-int32_t XcpTlGetTransmitQueueLevel() {
-  return gXcpTl.queue_len; 
-}
-
-
-
-// Reserve space for a XCP packet in a transmit segment buffer and return a pointer to packet data and a handle for the segment buffer for commit reference
-// Flush the transmit segment buffer, if no space left
-uint8_t *XcpTlGetTransmitBuffer(void **handlep, uint16_t packet_size) {
-
-    tXcpMessage* p;
-    uint16_t msg_size;
-
- #if XCPTL_PACKET_ALIGNMENT==2
-    packet_size = (uint16_t)((packet_size + 1) & 0xFFFE); // Add fill %2
-#endif
-#if XCPTL_PACKET_ALIGNMENT==4
-    packet_size = (uint16_t)((packet_size + 3) & 0xFFFC); // Add fill %4
-#endif
-#if XCPTL_PACKET_ALIGNMENT==8
-    packet_size = (uint16_t)((packet_size + 7) & 0xFFF8); // Add fill %8
-#endif
-
-    msg_size = (uint16_t)(packet_size + XCPTL_TRANSPORT_LAYER_HEADER_SIZE);
-    if (msg_size > XCPTL_MAX_SEGMENT_SIZE) {
-        return NULL; // Overflow, should never happen in correct DAQ setups
-    }
-
-    mutexLock(&gXcpTl.Mutex_Queue); // @@@@ Performance critical mutex, optimize
-
-    // Get another message buffer from queue, when active buffer ist full
-    if (gXcpTl.msg_ptr==NULL || (uint16_t)(gXcpTl.msg_ptr->size + msg_size) > XCPTL_MAX_SEGMENT_SIZE) {
-        getSegmentBuffer();
-    }
-
-    if (gXcpTl.msg_ptr != NULL) {
-
-        // Build XCP message header (ctr+dlc) and store in DTO buffer
-        p = (tXcpMessage*)&gXcpTl.msg_ptr->msg[gXcpTl.msg_ptr->size];
-        p->ctr = gXcpTl.ctr++;
-        p->dlc = (uint16_t)packet_size;
-        gXcpTl.msg_ptr->size = (uint16_t)(gXcpTl.msg_ptr->size + msg_size);
-        *((tXcpMessageBuffer**)handlep) = gXcpTl.msg_ptr;
-        gXcpTl.msg_ptr->uncommited++;
-
-    }
-    else {
-        p = NULL; // Overflow
-    }
-
-    mutexUnlock(&gXcpTl.Mutex_Queue);
-
-    if (p == NULL) return NULL; // Overflow
-    return &p->packet[0]; // return pointer to XCP message DTO data
-}
-
-void XcpTlCommitTransmitBuffer(void *handle, BOOL flush) {
-
-    tXcpMessageBuffer* p = (tXcpMessageBuffer*)handle;
-    if (handle != NULL) {
-        mutexLock(&gXcpTl.Mutex_Queue); // @@@@ Performance critical mutex, optimize
-        p->uncommited--;
-
-        // Flush (high priority data commited)
-        if (flush && gXcpTl.msg_ptr != NULL && gXcpTl.msg_ptr->size > 0) {
-#if defined(_WIN) // Windows
-            gXcpTl.queue_event_time = 0;
-#endif
-            getSegmentBuffer();
-        }
-        
-        mutexUnlock(&gXcpTl.Mutex_Queue);
-    }
-}
-
-// Flush the current transmit segment buffer, used on high prio event data
-void XcpTlFlushTransmitBuffer() {
-
-    // Complete the current buffer if non empty
-    mutexLock(&gXcpTl.Mutex_Queue);
-    if (gXcpTl.msg_ptr != NULL && gXcpTl.msg_ptr->size > 0) getSegmentBuffer();
-    mutexUnlock(&gXcpTl.Mutex_Queue);
-}
-
-// Wait until transmit segment queue is empty, used when measurement is stopped  
-void XcpTlWaitForTransmitQueueEmpty() {
-
-    uint16_t timeout = 0;
-    XcpTlFlushTransmitBuffer(); // Flush the current segment buffer
-    do {
-        sleepMs(20);
-        timeout++;
-    } while (gXcpTl.queue_len > 1 && timeout<=50); // Wait max 1s until the transmit queue is empty
-}
-
-
-// Check if there is a fully commited segment buffer in the transmit queue
-const uint8_t * XcpTlTransmitQueuePeek( uint16_t* msg_len) {
-
-    tXcpMessageBuffer* b = NULL;
-    
-    // Check there is a commited entry
-    mutexLock(&gXcpTl.Mutex_Queue);
-    if (gXcpTl.queue_len > 1) {
-        b = &gXcpTl.queue[gXcpTl.queue_rp];
-        if (b->uncommited > 0) b = NULL; // return when reaching a not fully commited segment buffer 
-    }
-    else {
-        b = NULL;
-    }
-    mutexUnlock(&gXcpTl.Mutex_Queue);
-    if (b == NULL) return NULL; // Qqueue is empty or not fully commited
-    assert(b->size!=0); 
-    *msg_len = b->size;
-    return &b->msg[0]; 
-}
-
-// Remove the next transmit queue entry
-void XcpTlTransmitQueueNext() {
-  
-    mutexLock(&gXcpTl.Mutex_Queue);
-    if (gXcpTl.queue_len > 1 && gXcpTl.queue[gXcpTl.queue_rp].uncommited == 0) {
-        if (++gXcpTl.queue_rp >= XCPTL_QUEUE_SIZE) gXcpTl.queue_rp = 0;
-        gXcpTl.queue_len--;
-    }
-    mutexUnlock(&gXcpTl.Mutex_Queue);
-}
-
-
-// Transmit all completed and fully commited UDP frames
-// Returns number of bytes sent or -1 on error
-int32_t XcpTlHandleTransmitQueue() {
-
-    const uint32_t max_loops = 20; // maximum number of packets to send without sleep(0) 
-
-    tXcpMessageBuffer* b = NULL;
-    int32_t n = 0;
-
-    for (;;) {
-      for (uint32_t i = 0; i < max_loops; i++) {
-
-        // Check
-        mutexLock(&gXcpTl.Mutex_Queue); // @@@@ Performance critical mutex, optimize
-        if (gXcpTl.queue_len > 1) {
-          b = &gXcpTl.queue[gXcpTl.queue_rp];
-          if (b->uncommited > 0) b = NULL; // return when reaching a not fully commited segment buffer 
-        }
-        else {
-          b = NULL;
-        }
-        mutexUnlock(&gXcpTl.Mutex_Queue);
-        if (b == NULL) break; // Ok, queue is empty or not fully commited
-        assert(b->size!=0); 
-
-        // Send this frame
-        int r = sendEthDatagram(&b->msg[0], b->size, NULL, 0);
-        
-        if (r == (-1)) { // would block
-          b = NULL;
-          break; 
-        }
-        if (r == 0) { // error
-          return -1; 
-        }
-        n += b->size;
-
-        // Free this buffer when succesfully sent
-        mutexLock(&gXcpTl.Mutex_Queue); // @@@@ Performance critical mutex, optimize
-        if (++gXcpTl.queue_rp >= XCPTL_QUEUE_SIZE) gXcpTl.queue_rp = 0;
-        gXcpTl.queue_len--;
-        mutexUnlock(&gXcpTl.Mutex_Queue);
-
-      } // for (max_loops)
-
-      if (b == NULL) break; // queue is empty
-      sleepMs(0);
-
-    } // for (ever)
-
-    return n; // Ok, queue empty now
-}
-
-#endif // !XCPTL_ENABLE_MPSC_QUEUE
-
-
-
 //------------------------------------------------------------------------------
 // Ethernet transport layer socket functions
 
@@ -519,7 +222,7 @@ static int sendEthDatagram(const uint8_t *data, uint16_t size, const uint8_t* ad
       else { // Respond to active master
         if (!gXcpTl.MasterAddrValid) {
           DBG_PRINT_ERROR("ERROR: invalid master address!\n");
-          gXcpTl.lastError = XCPTL_ERROR_INVALID_MASTER;
+          //gXcpTl.lastError = XCPTL_ERROR_INVALID_MASTER;
           return 0;
         }
         r = socketSendTo(gXcpTl.Sock, data, size, gXcpTl.MasterAddr, gXcpTl.MasterPort, NULL);
@@ -529,12 +232,12 @@ static int sendEthDatagram(const uint8_t *data, uint16_t size, const uint8_t* ad
 
     if (r != size) {
         if (socketGetLastError()==SOCKET_ERROR_WBLOCK) {
-            gXcpTl.lastError = XCPTL_ERROR_WOULD_BLOCK;
+            //gXcpTl.lastError = XCPTL_ERROR_WOULD_BLOCK;
             return -1; // Would block
         }
         else {
             DBG_PRINTF_ERROR("ERROR: sendEthDatagram: send failed (result=%d, errno=%d)!\n", r, socketGetLastError());
-            gXcpTl.lastError = XCPTL_ERROR_SEND_FAILED;
+            //gXcpTl.lastError = XCPTL_ERROR_SEND_FAILED;
             return 0; // Error
         }
     }
@@ -542,7 +245,6 @@ static int sendEthDatagram(const uint8_t *data, uint16_t size, const uint8_t* ad
     return 1; // Ok
 }
 
-#ifdef XCPTL_ENABLE_MPSC_QUEUE
 
 // Transmit all completed and fully commited UDP frames
 // Returns number of bytes sent or -1 on error
@@ -558,7 +260,7 @@ int32_t XcpTlHandleTransmitQueue() {
       for (uint32_t i = 0; i < max_loops; i++) {
 
         // Check
-        b = XcpTlTransmitQueuePeek(&l);
+        b = XcpTlTransmitQueuePeekMsg(&l);
         if (b == NULL) break; // Ok, queue is empty or not fully commited
         
         // Send this frame
@@ -573,7 +275,7 @@ int32_t XcpTlHandleTransmitQueue() {
         n += l;
 
         // Free this buffer when succesfully sent
-        XcpTlTransmitQueueNext();
+        XcpTlTransmitQueueNextMsg(l);
         
 
       } // for (max_loops)
@@ -586,7 +288,6 @@ int32_t XcpTlHandleTransmitQueue() {
     return n; // Ok, queue empty now
 }
 
-#endif // XCPTL_ENABLE_MPSC_QUEUE
 
 #if !defined(XCPTL_QUEUED_CRM) || defined(XCPTL_QUEUED_CRM_OPT)
 
@@ -1004,7 +705,7 @@ BOOL XcpTlWaitForTransmitData(uint32_t timeout_ms) {
     // Use polling for Linux
     #define XCPTL_QUEUE_TRANSMIT_POLLING_TIME_MS 1
     uint32_t t = 0;
-    while (XcpTlGetTransmitQueueLevel()==0) {
+    while (!XcpTlTransmitQueueHasMsg()) {
         sleepMs(XCPTL_QUEUE_TRANSMIT_POLLING_TIME_MS); 
         t = t + XCPTL_QUEUE_TRANSMIT_POLLING_TIME_MS;
         if (t >= timeout_ms) return FALSE;
@@ -1016,9 +717,9 @@ BOOL XcpTlWaitForTransmitData(uint32_t timeout_ms) {
 
 //-------------------------------------------------------------------------------------------------------
 
-int32_t XcpTlGetLastError() {
-    return gXcpTl.lastError;
-}
+// int32_t XcpTlGetLastError() {
+//     return gXcpTl.lastError;
+// }
 
 
 //-------------------------------------------------------------------------------------------------------
