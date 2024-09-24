@@ -25,9 +25,9 @@ pub const OPTION_LOG_LEVEL: xcp::XcpLogLevel = xcp::XcpLogLevel::Info;
 pub const OPTION_XCP_LOG_LEVEL: xcp::XcpLogLevel = xcp::XcpLogLevel::Info;
 
 // Test parameters
-pub const MULTI_THREAD_TASK_COUNT: usize = 10; // Number of threads
+pub const MULTI_THREAD_TASK_COUNT: usize = 32; // Number of threads
+pub const DAQ_TEST_TASK_SLEEP_TIME_US: u64 = 100; // us
 const DAQ_TEST_DURATION_MS: u64 = 4000; // ms
-const DAQ_TEST_TASK_SLEEP_TIME_US: u64 = 500; // us
 const CAL_TEST_MAX_ITER: u32 = 4000; // Number of calibrations
 const CAL_TEST_TASK_SLEEP_TIME_US: u64 = 50; // Checking task cycle time in us
 

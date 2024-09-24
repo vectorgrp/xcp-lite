@@ -109,7 +109,7 @@
 // #define XCP_ENABLE_PACKED_MODE 
 
 // Static allocated memory for DAQ tables
-#define XCP_DAQ_MEM_SIZE (256*256*5) // Amount of memory for DAQ tables, each ODT entry (e.g. measurement variable) needs 5 bytes
+#define XCP_DAQ_MEM_SIZE (10000*5) // Amount of memory for DAQ tables, each ODT entry (e.g. measurement variable) needs 5 bytes
 
 // Maximum number of DAQ lists
 // Numbers smaller than 256 will switch to 2 byte transport layer header DAQ_HDR_ODT_DAQB

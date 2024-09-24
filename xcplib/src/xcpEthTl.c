@@ -18,42 +18,17 @@
 #include "xcpLite.h"   
 #include "xcpTlQueue.h"   
 
-// Parameter checks
-#if XCPTL_TRANSPORT_LAYER_HEADER_SIZE != 4
-#error "Transportlayer supports only 4 byte headers!"
-#endif
-#if ((XCPTL_MAX_CTO_SIZE&0x07) != 0)
-#error "XCPTL_MAX_CTO_SIZE should be aligned to 8!"
-#endif
-#if ((XCPTL_MAX_DTO_SIZE&0x03) != 0)
-#error "XCPTL_MAX_DTO_SIZE should be aligned to 4!"
-#endif
-
-
-typedef struct {
-    uint16_t dlc;
-    uint16_t ctr;
-    uint8_t packet[XCPTL_MAX_CTO_SIZE];
-} tXcpCtoMessage;
-
-
-
-
-static struct {
-
-    // Generic transport layer 
-    //int32_t lastError;
 
 #if defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)
+static struct {
 
-    // Ethernet
     SOCKET Sock;
-    #ifdef XCPTL_ENABLE_TCP
-        SOCKET ListenSock;
-    #endif
-    #ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
-        uint8_t ServerMac[6];
-    #endif
+#ifdef XCPTL_ENABLE_TCP
+    SOCKET ListenSock;
+#endif
+#ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
+    uint8_t ServerMac[6];
+#endif
     uint8_t ServerAddr[4];
     uint16_t ServerPort;
     BOOL ServerUseTCP;
@@ -63,14 +38,18 @@ static struct {
     BOOL MasterAddrValid;
 
     // Multicast
-    #ifdef XCPTL_ENABLE_MULTICAST
-        tXcpThread MulticastThreadHandle;
-        SOCKET MulticastSock;
-    #endif
+#ifdef XCPTL_ENABLE_MULTICAST
+    tXcpThread MulticastThreadHandle;
+    SOCKET MulticastSock;
+#endif
 
+#if defined(_WIN) // Windows
+    HANDLE queue_event;
+    uint64_t queue_event_time;
 #endif
 
 } gXcpTl;
+#endif
 
 
 #if defined(XCPTL_ENABLE_TCP) && defined(XCPTL_ENABLE_UDP)
@@ -88,108 +67,10 @@ static struct {
 static int handleXcpMulticastCommand(int n, tXcpCtoMessage* p, uint8_t* dstAddr, uint16_t dstPort);
 #endif
 
-
-
-//-------------------------------------------------------------------------------------------------------
-// Generic transport layer functions
-
-BOOL XcpTlInit() {
-
-    XcpTlInitTransmitQueue();
-    
-    DBG_PRINT3("\nInit XCP transport layer\n");
-    DBG_PRINTF3("  SEGMENT_SIZE=%u, MAX_CTO_SIZE=%u, QUEUE_SIZE=%u, ALIGNMENT=%u, %uKiB memory used\n", XCPTL_MAX_SEGMENT_SIZE, XCPTL_MAX_CTO_SIZE, XCPTL_QUEUE_SIZE, XCPTL_PACKET_ALIGNMENT, (unsigned int)sizeof(gXcpTl) / 1024);
-    DBG_PRINT3("  Note: These parameters in xcptl_cfg.h need to be configured for optimal memory consumption and performance!\n");
-#ifdef XCPTL_ENABLE_MULTICAST
-    DBG_PRINT3("        Option ENABLE_MULTICAST is not recommended\n");
-#endif
-#ifndef XCPTL_QUEUED_CRM
-    DBG_PRINT3("        Option QUEUED_CRM is disabled, enabled is recommended\n");
-#endif
-   
-    return TRUE;
-}
-
-void XcpTlShutdown() {
-
-    XcpTlFreeTransmitQueue();
-}
-
-
-#if defined(XCPTL_QUEUED_CRM) && !defined(XCPTL_QUEUED_CRM_OPT)
-
-// Queue a response or event packet
-// Must be thread save, if XcpPrint used, XcpCommand is never called from multiple threads
-// If transmission fails, when queue is full, tool times out, retries or take appropriate action
-// Note: CANape cancels measurement, when answer to GET_DAQ_CLOCK times out
-void XcpTlSendCrm(const uint8_t* packet, uint16_t packet_size) {
-
-    void* handle = NULL;
-    uint8_t* p;
-
-    // Queue the response packet
-    if ((p = XcpTlGetTransmitBuffer(&handle, packet_size)) != NULL) {
-        memcpy(p, packet, packet_size);
-        XcpTlCommitTransmitBuffer(handle, TRUE /* flush */);
-    }
-    else { // Buffer overflow
-        DBG_PRINT_WARNING("WARNING: queue overflow\n");
-        // Ignore, handled by tool
-    }
-}
-
-#endif
-
-// Execute XCP command
-// Returns XCP error code
-uint8_t XcpTlCommand( uint16_t msgLen, const uint8_t* msgBuf) {
-
-    BOOL connected = XcpIsConnected();
-    tXcpCtoMessage* p = (tXcpCtoMessage*)msgBuf;
-    assert(msgLen>=p->dlc+XCPTL_TRANSPORT_LAYER_HEADER_SIZE);
-
-    /* Connected */
-    if (connected) {
-        return XcpCommand((const uint32_t*)&p->packet[0], p->dlc); // Handle command
-    }
-
-    /* Not connected yet */
-    else {
-        /* Check for CONNECT command ? */
-        if (p->dlc == 2 && p->packet[0] == CC_CONNECT) {
-            XcpTlResetTransmitQueue();
-            return XcpCommand((const uint32_t*)&p->packet[0],p->dlc); // Handle CONNECT command
-        }
-        else {
-            DBG_PRINTF_WARNING("WARNING: XcpTlCommand: no valid CONNECT command, dlc=%u, data=%02X\n", p->dlc, p->packet[0]);
-            return CRC_CMD_SYNTAX;
-        }
-
-    }
-}
-
-
-//-------------------------------------------------------------------------------------------------------
-// XCP (UDP or TCP) transport layer segment/message/packet queue (DTO buffers)
-
-// Notify transmit queue handler thread
-// Not thread save!
-BOOL notifyTransmitQueueHandler() {
-
-    // Windows only, Linux version uses polling
-#if defined(_WIN) // Windows
-    // Notify when there is finalized buffer in the queue
-    // Notify at most every XCPTL_QUEUE_TRANSMIT_CYCLE_TIME to save CPU load
-    uint64_t clock = clockGetLast();
-    if (clock== gXcpTl.queue_event_time) clock = clockGet();
-    if (gXcpTl.queue_len == 2 || (gXcpTl.queue_len > 2 && clock >= gXcpTl.queue_event_time + XCPTL_QUEUE_TRANSMIT_CYCLE_TIME)) {
-      gXcpTl.queue_event_time = clock;
-      SetEvent(gXcpTl.queue_event);
-      return TRUE;
-    }
-#endif
-    return FALSE;
-}
+// #define XCPTL_OK                   0
+// #define XCPTL_ERROR_WOULD_BLOCK    1
+// #define XCPTL_ERROR_SEND_FAILED    2
+// #define XCPTL_ERROR_INVALID_MASTER 3
 
 
 
@@ -201,11 +82,13 @@ BOOL notifyTransmitQueueHandler() {
 // Transmit a UDP datagramm or TCP segment (contains multiple XCP DTO messages or a single CRM message (len+ctr+packet+fill))
 // Must be thread safe, because it is called from CMD and from DAQ thread
 // Returns -1 on would block, 1 if ok, 0 on error
-static int sendEthDatagram(const uint8_t *data, uint16_t size, const uint8_t* addr, uint16_t port) {
+int XcpEthTlSend(const uint8_t *data, uint16_t size, const uint8_t* addr, uint16_t port) {
 
     int r;
 
     assert(size<=XCPTL_MAX_SEGMENT_SIZE); // Check for buffer overflow
+    
+    DBG_PRINTF5("XcpEthTlSend: msg_len = %u\n", size );
 
 #ifdef XCPTL_ENABLE_TCP
     if (isTCP()) {
@@ -236,7 +119,7 @@ static int sendEthDatagram(const uint8_t *data, uint16_t size, const uint8_t* ad
             return -1; // Would block
         }
         else {
-            DBG_PRINTF_ERROR("ERROR: sendEthDatagram: send failed (result=%d, errno=%d)!\n", r, socketGetLastError());
+            DBG_PRINTF_ERROR("ERROR: XcpEthTlSend: send failed (result=%d, errno=%d)!\n", r, socketGetLastError());
             //gXcpTl.lastError = XCPTL_ERROR_SEND_FAILED;
             return 0; // Error
         }
@@ -245,112 +128,6 @@ static int sendEthDatagram(const uint8_t *data, uint16_t size, const uint8_t* ad
     return 1; // Ok
 }
 
-
-// Transmit all completed and fully commited UDP frames
-// Returns number of bytes sent or -1 on error
-int32_t XcpTlHandleTransmitQueue() {
-
-    const uint32_t max_loops = 20; // maximum number of packets to send without sleep(0) 
-
-    int32_t n = 0;
-    uint16_t l = 0;
-    const uint8_t *b = NULL;
-
-    for (;;) {
-      for (uint32_t i = 0; i < max_loops; i++) {
-
-        // Check
-        b = XcpTlTransmitQueuePeekMsg(&l);
-        if (b == NULL) break; // Ok, queue is empty or not fully commited
-        
-        // Send this frame
-        int r = sendEthDatagram(b, l, NULL, 0);
-        if (r == (-1)) { // would block
-          b = NULL;
-          break; 
-        }
-        if (r == 0) { // error
-          return -1; 
-        }
-        n += l;
-
-        // Free this buffer when succesfully sent
-        XcpTlTransmitQueueNextMsg(l);
-        
-
-      } // for (max_loops)
-
-      if (b == NULL) break; // queue is empty
-      sleepMs(0);
-
-    } // for (ever)
-
-    return n; // Ok, queue empty now
-}
-
-
-#if !defined(XCPTL_QUEUED_CRM) || defined(XCPTL_QUEUED_CRM_OPT)
-
-// Transmit XCP response or event packet
-// No error handling in protocol layer
-// Must be thread save, if XcpPrint used, XcpCommand is never called from multiple threads
-// If transmission fails, tool times out, retries or take appropriate action
-// Note: CANape cancels measurement, when answer to GET_DAQ_CLOCK times out
-void XcpTlSendCrm(const uint8_t* packet, uint16_t packet_size) {
-
-#ifdef XCPTL_QUEUED_CRM
-
-    void* handle = NULL;
-    uint8_t* p;
-    int r = 0;
-
-#ifdef XCPTL_QUEUED_CRM_OPT
-    // If transmit queue is empty, save the space and transmit instantly
-    mutexLock(&gXcpTl.Mutex_Queue);
-    if (gXcpTl.queue_len <= 1 && (gXcpTl.msg_ptr == NULL || gXcpTl.msg_ptr->size == 0)) {
-
-        // Send the response
-        // Build XCP CTO message (ctr+dlc+packet)
-        tXcpCtoMessage msg;
-        uint16_t msg_size;
-        msg.ctr = gXcpTl.ctr++;
-        memcpy(msg.packet, packet, packet_size);
-        msg_size = packet_size;
-        msg.dlc = (uint16_t)msg_size;
-        msg_size = (uint16_t)(msg_size + XCPTL_TRANSPORT_LAYER_HEADER_SIZE);
-        r = sendEthDatagram((uint8_t*)&msg.dlc, msg_size, NULL, 0);
-    }
-    mutexUnlock(&gXcpTl.Mutex_Queue);
-    if (r == 1) return; // ok
-#endif // XCPTL_QUEUED_CRM_OPT
-
-    // Queue the response packet
-    if ((p = XcpTlGetTransmitBuffer(&handle, packet_size)) != NULL) {
-        memcpy(p, packet, packet_size);
-        XcpTlCommitTransmitBuffer(handle, TRUE /* flush */);
-    }
-    else { // Buffer overflow
-        // Ignore, handled by tool
-    }
-
-#else
-
-    int r;
-
-    // Build XCP CTO message (ctr+dlc+packet)
-    tXcpCtoMessage p;
-    p.dlc = (uint16_t)packet_size;
-    p.ctr = gXcpTl.lastCroCtr++;
-    memcpy(p.packet, packet, packet_size);
-    r = sendDatagram((uint8_t*)&p, (uint16_t)(packet_size + XCPTL_TRANSPORT_LAYER_HEADER_SIZE), NULL, 0);
-    if (r==(-1)) { // Would block
-        // @@@@ ToDo: Handle this case
-    }
-
-#endif
-}
-
-#endif // !defined(XCPTL_QUEUED_CRM) || defined(XCPTL_QUEUED_CRM_OPT)
 
 
 //------------------------------------------------------------------------------
@@ -367,7 +144,7 @@ void XcpEthTlSendMulticastCrm(const uint8_t* packet, uint16_t packet_size, const
   p.dlc = (uint16_t)packet_size;
   p.ctr = 0;
   memcpy(p.packet, packet, packet_size);
-  r = sendEthDatagram((uint8_t*)&p, (uint16_t)(packet_size + XCPTL_TRANSPORT_LAYER_HEADER_SIZE),addr,port);
+  r = XcpEthTlSend((uint8_t*)&p, (uint16_t)(packet_size + XCPTL_TRANSPORT_LAYER_HEADER_SIZE),addr,port);
   if (r == (-1)) { // Would block
       // @@@@ ToDo: Handle this case
   }
@@ -473,7 +250,7 @@ BOOL XcpEthTlHandleCommands(uint32_t timeout_ms) {
 
         // Listen to incoming TCP connection if not connected
         if (gXcpTl.Sock == INVALID_SOCKET) {
-            DBG_PRINT5("CDM thread waiting for TCP connection ...\n");
+            DBG_PRINT5("Waiting for TCP connection ...\n");
             gXcpTl.Sock = socketAccept(gXcpTl.ListenSock, gXcpTl.MasterAddr); // Wait here for incoming connection
             if (gXcpTl.Sock == INVALID_SOCKET) {
                 DBG_PRINT_ERROR("ERROR: accept failed!\n");
@@ -685,41 +462,6 @@ void XcpEthTlShutdown() {
     XcpTlShutdown();
 }
 
-
-//-------------------------------------------------------------------------------------------------------
-
-// Wait for outgoing data or timeout after timeout_us
-// Return FALSE in case of timeout
-BOOL XcpTlWaitForTransmitData(uint32_t timeout_ms) {
-
-  assert(timeout_ms >= 1);
-
-#if defined(_WIN) // Windows 
-    // Use event triggered for Windows
-    if (WAIT_OBJECT_0 == WaitForSingleObject(gXcpTl.queue_event, timeout_ms)) {
-      ResetEvent(gXcpTl.queue_event);
-      return TRUE;
-    }
-    return FALSE;
-#elif defined(_LINUX) // Linux
-    // Use polling for Linux
-    #define XCPTL_QUEUE_TRANSMIT_POLLING_TIME_MS 1
-    uint32_t t = 0;
-    while (!XcpTlTransmitQueueHasMsg()) {
-        sleepMs(XCPTL_QUEUE_TRANSMIT_POLLING_TIME_MS); 
-        t = t + XCPTL_QUEUE_TRANSMIT_POLLING_TIME_MS;
-        if (t >= timeout_ms) return FALSE;
-      }
-      return TRUE;
-#endif
-}
-
-
-//-------------------------------------------------------------------------------------------------------
-
-// int32_t XcpTlGetLastError() {
-//     return gXcpTl.lastError;
-// }
 
 
 //-------------------------------------------------------------------------------------------------------

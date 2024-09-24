@@ -34,7 +34,7 @@ extern "C" {
     pub fn XcpTlTransmitQueuePeekMsg(msg_len: *mut u16) -> *const u8;
 }
 extern "C" {
-    pub fn XcpTlTransmitQueueNextMsg(msg_len: u16);
+    pub fn XcpTlTransmitQueueNextMsg();
 }
 extern "C" {
     pub fn XcpInit();

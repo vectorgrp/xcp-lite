@@ -18,57 +18,67 @@
 
 #include <stdatomic.h>
 
-
-// #define USE_SPINLOCK
+// Use spinlock instead of mutex for producer lock
+//#define USE_SPINLOCK
 
 // Queue entry states
-#define RESERVED  0 // Reserved for producer
+#define RESERVED  0 // Reserved by producer
 #define COMMITTED 1 // Committed by producer
 
 
-// Buffer size is one entry larger than the queue size, message data is never wraped around
+// Buffer size is one entry larger than the queue size, message data is never wraped around for zero copy
 #define MPSC_BUFFER_SIZE ((XCPTL_QUEUE_SIZE+1)*(XCPTL_MAX_DTO_SIZE+XCPTL_TRANSPORT_LAYER_HEADER_SIZE))  
 #define MPSC_QUEUE_SIZE ((XCPTL_QUEUE_SIZE)*(XCPTL_MAX_DTO_SIZE+XCPTL_TRANSPORT_LAYER_HEADER_SIZE))  
-
-#pragma pack(push, 1)
-typedef struct {
-    uint16_t dlc;    // XCP TL header lenght
-    uint16_t ctr;    // XCP TL Header message counter
-    uint8_t data[];                 
-} tXcpCtoMessage;
-#pragma pack(pop)
 
 
 static struct {
     char buffer[MPSC_BUFFER_SIZE];   // Preallocated buffer
     atomic_uint_fast64_t head;  // Consumer reads from head
     atomic_uint_fast64_t tail;  // Producers write to tail
-    uint16_t ctr;   // next DTO data transmit message packet counter
+    uint16_t tail_len;  // Length of the next message in the queue (determined by peek)
+    uint16_t ctr;   // Next DTO data transmit message packet counter
+    uint16_t overruns; // Overrun counter
     BOOL flush;     // There is a packet in the queue which has priority
 #ifndef USE_SPINLOCK
     MUTEX mutex;    // Mutex for queue producers
 #endif
 } gXcpTlQueue;
 
-atomic_flag lock = ATOMIC_FLAG_INIT;
-
+#ifdef USE_SPINLOCK
+static atomic_flag lock = ATOMIC_FLAG_INIT;
+#endif
 
 void XcpTlInitTransmitQueue() {
+
+    DBG_PRINT3("\nInit XCP transport layer queue\n");
+    DBG_PRINTF3("  SEGMENT_SIZE=%u, QUEUE_SIZE=%u, ALIGNMENT=%u, %uKiB queue memory used\n", XCPTL_MAX_SEGMENT_SIZE, XCPTL_QUEUE_SIZE, XCPTL_PACKET_ALIGNMENT, (unsigned int)sizeof(gXcpTlQueue) / 1024);
+    gXcpTlQueue.overruns = 0;
     gXcpTlQueue.ctr = 0;
     gXcpTlQueue.flush = FALSE;
+#ifndef USE_SPINLOCK
     mutexInit(&gXcpTlQueue.mutex, FALSE, 1000);
+#endif
     atomic_store(&gXcpTlQueue.head, 0);
     atomic_store(&gXcpTlQueue.tail, 0);
+    gXcpTlQueue.tail_len = 0;
+#ifdef USE_SPINLOCK
+    assert(atomic_is_lock_free(&lock)!=0);
+#endif
+    assert(atomic_is_lock_free(&gXcpTlQueue.head)!=0);
 }
 
 void XcpTlResetTransmitQueue() {
+    gXcpTlQueue.tail_len = 0;
+    gXcpTlQueue.overruns = 0;
     atomic_store(&gXcpTlQueue.head, 0);
     atomic_store(&gXcpTlQueue.tail, 0);
 }
 
 void XcpTlFreeTransmitQueue() {
     XcpTlResetTransmitQueue();
+#ifndef USE_SPINLOCK
     mutexDestroy(&gXcpTlQueue.mutex);
+#endif
 }
 
 
@@ -77,9 +87,9 @@ void XcpTlFreeTransmitQueue() {
 // For multiple producers !!
 
 // Get a buffer for a message with size
-extern uint8_t* XcpTlGetTransmitBuffer(void** handle, uint16_t packet_len) {
+uint8_t* XcpTlGetTransmitBuffer(void** handle, uint16_t packet_len) {
 
-    tXcpCtoMessage *entry = NULL;
+    tXcpDtoMessage *entry = NULL;
 
     // Align the message length
     uint16_t msg_len = packet_len + XCPTL_TRANSPORT_LAYER_HEADER_SIZE;
@@ -97,32 +107,33 @@ extern uint8_t* XcpTlGetTransmitBuffer(void** handle, uint16_t packet_len) {
 
     // Producer lock
 #ifdef USE_SPINLOCK
-    // while (!atomic_compare_exchange_weak(&gXcpTlQueue.lock, FALSE, TRUE));
     while (atomic_flag_test_and_set(&lock));
 #else
     mutexLock(&gXcpTlQueue.mutex);
 #endif
 
     uint64_t head = atomic_load(&gXcpTlQueue.head);
-    uint64_t tail = atomic_load(&gXcpTlQueue.tail);
-    if (MPSC_QUEUE_SIZE - (head-tail) >= msg_len) {
-
-        atomic_store(&gXcpTlQueue.head, head+msg_len);
+    uint64_t tail = atomic_load_explicit(&gXcpTlQueue.tail,memory_order_relaxed);
+    if (MPSC_QUEUE_SIZE - (uint32_t)(head-tail) >= msg_len) {
 
         // Prepare a new entry
         // Use the ctr as commmit state
         uint32_t offset = head % MPSC_QUEUE_SIZE;
-        entry = (tXcpCtoMessage *)(gXcpTlQueue.buffer + offset);
+        entry = (tXcpDtoMessage *)(gXcpTlQueue.buffer + offset);
         entry->ctr = RESERVED;
+
+        atomic_store(&gXcpTlQueue.head, head+msg_len);
     }
 
 #ifdef USE_SPINLOCK
-    //atomic_store(&gXcpTlQueue.lock, FALSE);
     atomic_flag_clear(&lock);
 #else
     mutexUnlock(&gXcpTlQueue.mutex);
 #endif
-    if (entry==NULL) return NULL;
+    if (entry==NULL) {
+        gXcpTlQueue.overruns++;
+        return NULL;
+    }
 
     entry->dlc = msg_len-XCPTL_TRANSPORT_LAYER_HEADER_SIZE;
     *handle = entry;
@@ -132,12 +143,15 @@ extern uint8_t* XcpTlGetTransmitBuffer(void** handle, uint16_t packet_len) {
 // Commit a buffer (by handle returned from XcpTlGetTransmitBuffer)
 void XcpTlCommitTransmitBuffer(void* handle, BOOL flush) {
 
-    tXcpCtoMessage *entry = (tXcpCtoMessage *)handle;
+    tXcpDtoMessage *entry = (tXcpDtoMessage *)handle;
     if (flush) gXcpTlQueue.flush = TRUE;
     entry->ctr = COMMITTED;
-    notifyTransmitQueueHandler();
+
+#if defined(_WIN) // Windows has event driven transmit queue handler, Linux uses transmit queue polling 
+    XcpTlNotifyTransmitQueueHandler(); 
+#endif
     
-    DBG_PRINTF5("XcpTlCommitTransmitBuffer: dlc=%d, pid=%u, flush=%u\n", entry->dlc,entry->data[0], flush);
+    DBG_PRINTF5("XcpTlCommitTransmitBuffer: dlc=%d, pid=%u, flush=%u, overruns=%u\n", entry->dlc,entry->data[0], flush, gXcpTlQueue.overruns);
 }
 
 // Empy the queue, even if a message is not completely used
@@ -175,7 +189,7 @@ BOOL XcpTlTransmitQueueHasMsg() {
     uint32_t n = XcpTlGetTransmitQueueLevel();
     if (n==0) return FALSE;
 
-    DBG_PRINTF5("XcpTlTransmitHasMsg: n=%u, flush=%u\n", n, gXcpTlQueue.flush);
+    DBG_PRINTF5("XcpTlTransmitHasMsg: level=%u, flush=%u\n", n, gXcpTlQueue.flush);
 
     if (gXcpTlQueue.flush) {
         return TRUE; // High priority data in the queue
@@ -186,66 +200,76 @@ BOOL XcpTlTransmitQueueHasMsg() {
 
 // Check if there is a fully commited message segment in the transmit queue
 // Return the message length and a pointer to the message
-const uint8_t * XcpTlTransmitQueuePeekMsg( uint16_t* msg_len) {
+const uint8_t * XcpTlTransmitQueuePeekMsg( uint16_t* msg_len ) {
 
     uint64_t head = atomic_load(&gXcpTlQueue.head);
     uint64_t tail = atomic_load(&gXcpTlQueue.tail);
 
     if (head == tail) return NULL;  // Queue is empty
 
-    // The producers can not check for overflow, because of the individual atomic operations for head and tail
-    // In case of overflow (tail-head is too large) all queue data except the uncommited messages will be deleted, because the tail has been overwritten
-    // It is assumed, that the overwritten part of tail can never reached the uncommited part of the queue
-    uint32_t size = head-tail;
-    assert(size <= MPSC_QUEUE_SIZE); // Overrun not handled yet
-    DBG_PRINTF5("XcpTlTransmitQueuePeekMsg: queue size = %u\n", size );
+    uint32_t level = head-tail;
+    assert(level <= MPSC_QUEUE_SIZE); // Overrun not handled
+    DBG_PRINTF5("XcpTlTransmitQueuePeekMsg: level = %u, ctr=%u\n", level, gXcpTlQueue.ctr );
 
     uint32_t tail_offset = tail % MPSC_QUEUE_SIZE;  
-    tXcpCtoMessage *entry0 = (tXcpCtoMessage *)(gXcpTlQueue.buffer + tail_offset);
-    uint16_t ctr = entry0->ctr; // entry ctr may be concurrently changed by producer, when committed
-    if (ctr==RESERVED) {
-        DBG_PRINT5("XcpTlTransmitQueuePeekMsg: RESERVED\n");
-        return NULL;  // Not commited yet
-    }
-    assert(ctr==COMMITTED); 
-    entry0->ctr = gXcpTlQueue.ctr++; // Set the transport layer packet count counter 
-    uint16_t len0 = entry0->dlc + XCPTL_TRANSPORT_LAYER_HEADER_SIZE;
+    tXcpDtoMessage *entry = (tXcpDtoMessage *)(gXcpTlQueue.buffer + tail_offset);
 
-    // Check for more packets to concatenate
-    uint16_t len = len0;
-    for (;;) {
-        if (len0==size) break; // Queue is empty
-        assert(len0<size);
-        tail_offset += len;
-        if (tail_offset>=MPSC_QUEUE_SIZE) break; // Can not wrap around
+    if (gXcpTlQueue.tail_len==0) {
 
-        tXcpCtoMessage *entry = (tXcpCtoMessage *)(gXcpTlQueue.buffer + tail_offset); 
-        uint16_t ctr = entry->ctr;
-        if (ctr!=COMMITTED) {
-            assert(ctr==RESERVED);
-            break; // Not commited yet
-        }
+        uint16_t ctr = entry->ctr; // entry ctr may be concurrently changed by producer, when committed
+        if (ctr==RESERVED) return NULL;  // Not commited yet
+        assert(ctr==COMMITTED); 
         assert(entry->dlc<=XCPTL_MAX_DTO_SIZE); // Max DTO size
-        len = entry->dlc + XCPTL_TRANSPORT_LAYER_HEADER_SIZE; 
-        if (len0+len > XCPTL_MAX_SEGMENT_SIZE ) break; // Max segment size reached
-        len0 += len;
         
-        entry->ctr = gXcpTlQueue.ctr++;
+        if (gXcpTlQueue.overruns) { // Add the number of overruns
+            DBG_PRINTF3("XcpTlTransmitQueuePeekMsg: overruns=%u\n", gXcpTlQueue.overruns);
+            gXcpTlQueue.ctr += gXcpTlQueue.overruns;
+            gXcpTlQueue.overruns = 0;
+        } 
+
+        entry->ctr = gXcpTlQueue.ctr++; // Set the transport layer packet counter 
+        uint16_t len = entry->dlc + XCPTL_TRANSPORT_LAYER_HEADER_SIZE;
+
+        // Check for more packets to concatenate in a meassage segment
+        uint16_t len1 = len;
+        for (;;) {
+            if (len==level) break; // Nothing more in queue
+            assert(len<level);
+            tail_offset += len1;
+            if (tail_offset>=MPSC_QUEUE_SIZE) break; // Stop, can not wrap around without copying data
+
+            tXcpDtoMessage *entry = (tXcpDtoMessage *)(gXcpTlQueue.buffer + tail_offset); 
+            uint16_t ctr = entry->ctr;
+            if (ctr==RESERVED) break;
+            assert(ctr==COMMITTED);
+
+            // Add this entry
+            assert(entry->dlc<=XCPTL_MAX_DTO_SIZE); // Max DTO size
+            len1 = entry->dlc + XCPTL_TRANSPORT_LAYER_HEADER_SIZE; 
+            if (len+len1 > XCPTL_MAX_SEGMENT_SIZE ) break; // Max segment size reached
+            len += len1;
+            entry->ctr = gXcpTlQueue.ctr++;
+        }
+
+        gXcpTlQueue.tail_len = len;
     }
-    
-    DBG_PRINTF5("XcpTlTransmitQueuePeekMsg: len = %u\n", len0 );
-    *msg_len = len0;
-    return (uint8_t*)entry0;
+    else {
+        assert(0);  // @@@@@@@ This may happen, but not observed ever
+    }
+
+    //DBG_PRINTF5("XcpTlTransmitQueuePeekMsg: msg_len = %u\n", gXcpTlQueue.tail_len );
+    *msg_len = gXcpTlQueue.tail_len;
+    return (uint8_t*)entry;
 }
 
 
-// Advance the transmit queue tail
-void XcpTlTransmitQueueNextMsg( uint16_t msg_len ) {
+// Advance the transmit queue tail by the message lentgh obtained from the last peek
+void XcpTlTransmitQueueNextMsg() {
     
-    uint64_t tail = atomic_load(&gXcpTlQueue.tail);
-    tail += msg_len;
-    atomic_store(&gXcpTlQueue.tail, tail );
-    DBG_PRINTF5("XcpTlTransmitQueueNext: new tail offset=%u\n", (uint32_t)(tail % MPSC_QUEUE_SIZE));
+    DBG_PRINTF5("XcpTlTransmitQueueNext: msg_len = %u\n", gXcpTlQueue.tail_len );
+    if (gXcpTlQueue.tail_len==0) return;
+    atomic_fetch_add(&gXcpTlQueue.tail,gXcpTlQueue.tail_len);
+    gXcpTlQueue.tail_len = 0;
     gXcpTlQueue.flush = FALSE;
 }
 

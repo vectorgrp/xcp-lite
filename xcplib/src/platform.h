@@ -144,7 +144,7 @@ extern BOOL socketOpen(SOCKET* sp, BOOL useTCP, BOOL nonBlocking, BOOL reuseaddr
 extern BOOL socketBind(SOCKET sock, uint8_t* addr, uint16_t port);
 extern BOOL socketJoin(SOCKET sock, uint8_t* maddr);
 extern BOOL socketListen(SOCKET sock);
-extern SOCKET socketAccept(SOCKET sock, uint8_t addr[]);
+extern SOCKET socketAccept(SOCKET sock, uint8_t* addr);
 extern int16_t socketRecv(SOCKET sock, uint8_t* buffer, uint16_t bufferSize, BOOL waitAll);
 extern int16_t socketRecvFrom(SOCKET sock, uint8_t* buffer, uint16_t bufferSize, uint8_t* srcAddr, uint16_t* srcPort, uint64_t *time);
 extern int16_t socketSend(SOCKET sock, const uint8_t* buffer, uint16_t bufferSize);

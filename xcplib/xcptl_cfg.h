@@ -29,26 +29,6 @@
     #define XCPTL_MULTICAST_PORT 5557
 #endif
 
-// Transmit mode
-#define XCPTL_QUEUED_CRM // Use transmit queue for command responces
-// #define XCPTL_QUEUED_CRM_OPT // Send response immediately, if transmit queue is empty
-
-/*
-Benefits:
-- Unique transport layers message counters for CRM and DTO (CANape default transport layer option is "include command response")
-- Transmit queue empty before DAQ is stopped (end of measurement consistent for all event channels)
-- socketSendTo needs not to be thread safe for a socket
-Drawbacks:
-- Increased latency for GET_DAQ_CLOCK response during DAQ running, which impacts time sync quality if XCP 1.3 trigger initiator "sampled on reception" is not supported
-- Impact on DAQ performance because transport layer packet is flushed for command responses
-- DAQ queue overflow can happen on command responses, CANape aborts when response to GET_DAQ_CLOCK is missing
-*/
-
-#else
-
-// Transmit mode 
-#define XCPTL_QUEUED_CRM // Use transmit queue for command responces
-
 #endif
 
 // Transport layer header size
@@ -59,14 +39,14 @@ Drawbacks:
 // Segment size is the maximum data buffer size given to send/sendTo, for UDP it is the UDP MTU
 // Jumbo frames are supported, but it might be more efficient to use a smaller segment sizes
 // #define XCPTL_MAX_SEGMENT_SIZE (OPTION_MTU-20-8) // UDP MTU (MTU - IP-header - UDP-header)
-#define XCPTL_MAX_SEGMENT_SIZE (8*900) 
+#define XCPTL_MAX_SEGMENT_SIZE (7000) 
 #define XCPTL_MAX_DTO_SIZE (XCPTL_MAX_SEGMENT_SIZE-8) // Segment size - XCP transport layer header size, size must be mod 8 
 
 #define XCPTL_PACKET_ALIGNMENT 4 // Packet alignment for multiple XCP transport layer packets in a XCP transport layer message
 
 // DAQ transmit queue 
 // Transmit queue size in segments, should at least be able to hold all data produced until the next call to HandleTransmitQueue
-#define XCPTL_QUEUE_SIZE (1024*8)  // Size of the mpsc queue in XCP DTO/CRM packets (not messages as in V1.x)
+#define XCPTL_QUEUE_SIZE (256)  // Size of the mpsc queue in XCP DTO/CRM packets (not messages as in V1.x)
 
 // Maximum queue trigger event rate
 #define XCPTL_QUEUE_TRANSMIT_CYCLE_TIME (1*CLOCK_TICKS_PER_MS)

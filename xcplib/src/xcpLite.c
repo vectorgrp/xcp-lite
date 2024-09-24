@@ -118,12 +118,9 @@
 #define XCP_MAX_DAQ_COUNT 256
 #endif
 
-// Dynamic addressing (ext = XCP_ADDR_EXT_DYN, addr=(event<<16)|offset requires transport layer mode XCPTL_QUEUED_CRM
+// Dynamic addressing (ext = XCP_ADDR_EXT_DYN, addr=(event<<16)|offset
 #if defined(XCP_ENABLE_DYN_ADDRESSING) && !defined(XCP_ADDR_EXT_DYN)
 #error "Please define XCP_ADDR_EXT_DYN"
-#endif
-#if defined(XCP_ENABLE_DYN_ADDRESSING) && !defined(XCPTL_QUEUED_CRM)
-#error "Dynamic address format (ext = XCP_ADDR_EXT_DYN) requires XCPTL_QUEUED_CRM"
 #endif
 
 
@@ -852,6 +849,7 @@ static void XcpTriggerDaq(uint16_t daq, const uint8_t* base, uint64_t clock) {
          if (d0 == NULL) {
             gXcp.DaqOverflowCount++;
             DaqListState(daq) |= DAQ_STATE_OVERRUN;
+            DBG_PRINTF4("DAQ queue overrun, daq=%u, odt=%u, overruns=%u\n", daq, odt, gXcp.DaqOverflowCount);
             return; // Skip rest of this event on queue overrun
         }
 
@@ -1897,10 +1895,6 @@ void XcpSendEvent(uint8_t ev, uint8_t evc, const uint8_t* d, uint8_t l)
 
 #if defined ( XCP_ENABLE_SERV_TEXT )
 
-#ifndef XCPTL_QUEUED_CRM
-#error "XcpPrint is not thread safe, when used without XCPTL_QUEUED_CRM"
-#endif
-
 void XcpPrint( const char *str ) {
   
   if (!isConnected()) return;
@@ -1960,7 +1954,6 @@ void XcpStart()
     DBG_PRINT3("\nInit XCP protocol layer\n");
     DBG_PRINTF3("  Version=%u.%u, MAX_CTO=%u, MAX_DTO=%u, DAQ_MEM=%u, MAX_DAQ=%u, MAX_ODT_ENTRY=%u, MAX_ODT_ENTRYSIZE=%u\n", XCP_PROTOCOL_LAYER_VERSION >> 8, XCP_PROTOCOL_LAYER_VERSION & 0xFF, XCPTL_MAX_CTO_SIZE, XCPTL_MAX_DTO_SIZE, XCP_DAQ_MEM_SIZE, (1 << sizeof(uint16_t) * 8) - 1, (1 << sizeof(uint16_t) * 8) - 1, (1 << (sizeof(uint8_t) * 8)) - 1);
     DBG_PRINTF3("  %u KiB memory used\n", (unsigned int)sizeof(gXcp) / 1024);
-    DBG_PRINT3("  Note: These parameters in xcp_cfg.h need to be configured for optimal memory consumption and performance!\n");
     DBG_PRINT3("  Options=(");
 
     // Print activated XCP protocol options

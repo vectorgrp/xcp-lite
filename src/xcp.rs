@@ -581,9 +581,9 @@ impl Xcp {
         None
     }
 
-    pub fn tl_transmit_queue_next(&self, len: u16) {
+    pub fn tl_transmit_queue_next(&self) {
         unsafe {
-            xcplib::XcpTlTransmitQueueNextMsg(len);
+            xcplib::XcpTlTransmitQueueNextMsg();
         }
     }
 

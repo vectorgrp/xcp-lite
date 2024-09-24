@@ -565,7 +565,7 @@ BOOL socketListen(SOCKET sock) {
     return 1;
 }
 
-SOCKET socketAccept(SOCKET sock, uint8_t addr[]) {
+SOCKET socketAccept(SOCKET sock, uint8_t* addr) {
 
     struct sockaddr_in sa;
     socklen_t sa_size = sizeof(sa);
