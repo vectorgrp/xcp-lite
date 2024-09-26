@@ -284,10 +284,12 @@ impl EventList {
         // Allocate a new, sequential event channel number
         let channel = self.0.len();
 
-        // In instance mode (daq_create_event_instance), check for other events in instance mode with duplicate name and create new instance index
+        // In instance mode, check for other events in instance mode with duplicate name and create new instance index
+        // otherwise check for unique event name
         let index = if indexed {
             self.0.iter().filter(|e| e.name == name && e.event.get_index() > 0).count() + 1
         } else {
+            assert!(self.0.iter().filter(|e| e.name == name).count() == 0, "Event name already exists");
             0
         };
 
@@ -581,6 +583,10 @@ impl Xcp {
         None
     }
 
+    pub fn tl_transmit_queue_has_msg(&self) -> bool {
+        unsafe { xcplib::XcpTlTransmitQueueHasMsg() != 0 }
+    }
+
     pub fn tl_transmit_queue_next(&self) {
         unsafe {
             xcplib::XcpTlTransmitQueueNextMsg();
@@ -686,7 +692,7 @@ impl Xcp {
 
     // Create daq event
     // index==0 event is owned by a static in a function  (macro daq_create_event)
-    // index>0 event is hold in thread local memory, index is the thread instance count (macro daq_create_event_instance)
+    // index>0 event is hold in thread local memory, index is the thread instance count (macro daq_create_event_tli)
     pub fn create_event_ext(&self, name: &'static str, indexed: bool) -> XcpEvent {
         self.event_list.lock().unwrap().create_event_ext(name, indexed)
     }

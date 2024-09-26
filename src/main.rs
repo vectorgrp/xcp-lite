@@ -245,7 +245,7 @@ fn task2(task_id: usize, calseg: CalSeg<CalPage>, calseg2: CalSeg<CalPage2>) {
     let calpage0 = CAL_PAGE0.get().unwrap();
 
     // Create an event instance for each thread, with 8 byte capture buffer
-    let mut instance_event = daq_create_event_instance!("task2_inst", 8);
+    let mut instance_event = daq_create_event_tli!("task2_inst", 8);
 
     // Create one static event for all instances of this thread, with 8 byte capture buffer
     let mut event = daq_create_event!("task2_static", 8);
@@ -266,8 +266,8 @@ fn task2(task_id: usize, calseg: CalSeg<CalPage>, calseg2: CalSeg<CalPage2>) {
 
         // Measurement of local variables by capturing their value and association to the given XCP event
 
-        // daq_capture_instance adds the event id to the signal name to make the instances of <channel> in different threads unique
-        daq_capture_instance!(channel, instance_event, "sine: f64", "Volt");
+        // daq_capture_tli adds the event id to the signal name to make the instances of <channel> in different threads unique
+        daq_capture_tli!(channel, instance_event, "sine: f64", "Volt");
         instance_event.trigger(); // Take a timestamp and trigger a multi instance data acquisition event
 
         // daq_capture creates a static signal for all instances of this thread

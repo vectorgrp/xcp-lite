@@ -6,7 +6,7 @@ use log::{debug, error, info, trace, warn};
 
 use crate::{reg::RegistryMeasurement, xcp::*, RegistryDataType};
 
-//----------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // XcpEvent
 
 impl Xcp {
@@ -50,7 +50,7 @@ macro_rules! daq_event_ref {
     }};
 }
 
-//----------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // DaqEvent
 
 /// DaqEvent is a wrapper for XcpEvent which adds on optional capture buffer (N may be 0)
@@ -59,6 +59,12 @@ pub struct DaqEvent<const N: usize> {
     event: XcpEvent,
     buffer_len: usize,
     pub buffer: [u8; N],
+}
+
+impl PartialEq for DaqEvent<0> {
+    fn eq(&self, other: &Self) -> bool {
+        self.event == other.event
+    }
 }
 
 impl<const N: usize> DaqEvent<N> {
@@ -189,15 +195,17 @@ impl<const N: usize> DaqEvent<N> {
     }
 }
 
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// Macros to create and register DAQ events and variables
+
 //-----------------------------------------------------------------------------
-// single instance (static) event
+// Single global instances
 //-----------------------------------------------------------------------------
 
-/// Create a static DAQ event or return the DAQ event if it already exists
-/// This is a single static instance of a DAQ event
-/// Even if the function is called multiple times, the DAQ event is created only once
-/// This is thread safe
-/// Multiple concurrently runing instances of a task use the same DAQ event
+/// Create a DAQ event with unique name and global scope and lifetime
+/// This creates a single instance of this DAQ event once or returns the DAQ event if it already exists by using a lazy static
+/// The DAQ event may have an optional capture buffer with the given capacity
+/// Multiple concurrently runing instances of a task or thread may savely trigger this DAQ event
 #[allow(unused_macros)]
 #[macro_export]
 macro_rules! daq_create_event {
@@ -219,8 +227,8 @@ macro_rules! daq_create_event {
     }};
 }
 
-/// Capture the value of a variable with basic type for the given daq event
-/// Register the given meta data once
+/// Capture the value of a variable with basic type into the the capture buffer of the given daq event
+/// Register the given variable metadata once
 #[allow(unused_macros)]
 #[macro_export]
 macro_rules! daq_capture {
@@ -301,43 +309,8 @@ macro_rules! daq_capture {
     }};
 }
 
-// @@@@ Experimental for point_cloud demo
-// Capture the serialized value of an instance for the given daq event
-// Register the given meta data and the serialization schema once
-#[allow(unused_macros)]
-#[macro_export]
-macro_rules! daq_serialize {
-    // name, event, comment
-    ( $id:ident, $daq_event:expr, $comment:expr) => {{
-        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 = std::sync::atomic::AtomicI16::new(-32768);
-        let byte_offset;
-        match DAQ_OFFSET__.compare_exchange(-32768, 0, std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed) {
-            Ok(_) => {
-                // @@@@ Experimental: Hard coded type here for point_cloud demo
-                let annotation = GeneratorCollection::generate(&IDL::CDR, &$id.description()).unwrap();
-                byte_offset = $daq_event.add_capture(
-                    stringify!($id),
-                    std::mem::size_of_val(&$id),
-                    RegistryDataType::Blob,
-                    $daq_event.buffer.len() as u16, // x_dim is buffer size in bytes
-                    1,                              // y_dim
-                    1.0,
-                    0.0,
-                    "",
-                    $comment,
-                    Some(annotation),
-                );
-                DAQ_OFFSET__.store(byte_offset, std::sync::atomic::Ordering::Relaxed);
-            }
-            Err(offset) => byte_offset = offset,
-        };
-        let v = cdr::serialize::<_, _, cdr::CdrBe>(&$id, cdr::Infinite).unwrap();
-        $daq_event.capture(&v, byte_offset);
-    }};
-}
-
 /// Register a local variable with basic type for the given daq event
-/// Address will be relative to the stack frame position of event
+/// Address format and addressing mode will be relative to the stack frame position of the variable holding the event
 /// No capture buffer required
 #[allow(unused_macros)]
 #[macro_export]
@@ -374,26 +347,8 @@ macro_rules! daq_register {
     }};
 }
 
-/// Register a local variable which is a reference to heap with basic type for the given daq event
-/// Address will be absolute addressing mode
-/// No capture buffer required
-#[allow(unused_macros)]
-#[macro_export]
-macro_rules! daq_register_ref {
-    // name, event
-    ( $id:ident, $daq_event:expr ) => {{
-        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 = std::sync::atomic::AtomicI16::new(-32768);
-        if DAQ_OFFSET__
-            .compare_exchange(-32768, 0, std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed)
-            .is_ok()
-        {
-            $daq_event.add_heap(stringify!($id), &(*$id) as *const _ as *const u8, (*$id).get_type(), 1, 1, 1.0, 0.0, "", "", None);
-        };
-    }};
-}
-
-/// Register a local variable with basic array type for the given daq event
-/// Address will be relative to the stack frame position of event
+/// Register a local variable with type array of basic type for the given daq event
+/// Address format and addressing mode will be relative to the stack frame position of the variable holding the event
 /// No capture buffer required
 #[allow(unused_macros)]
 #[macro_export]
@@ -411,18 +366,74 @@ macro_rules! daq_register_array {
     }};
 }
 
+/// Register a local variable which is a reference to heap with basic type for the given daq event
+/// Address format and addressing mode will be absolute addressing mode
+/// Assuming that the memory location is reachable in absolute addressing mode, otherwise panic
+/// No capture buffer required
+#[allow(unused_macros)]
+#[macro_export]
+macro_rules! daq_register_ref {
+    // name, event
+    ( $id:ident, $daq_event:expr ) => {{
+        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 = std::sync::atomic::AtomicI16::new(-32768);
+        if DAQ_OFFSET__
+            .compare_exchange(-32768, 0, std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed)
+            .is_ok()
+        {
+            $daq_event.add_heap(stringify!($id), &(*$id) as *const _ as *const u8, (*$id).get_type(), 1, 1, 1.0, 0.0, "", "", None);
+        };
+    }};
+}
+
+/// Capture the CDR serialized value of a variable into the capture buffer of the given daq event
+/// Register the given metadata once
+/// This includes the serialization schema as annotation text of the variable (Vector VLSD, variable length signal description)
+#[allow(unused_macros)]
+#[macro_export]
+macro_rules! daq_serialize {
+    // name, event, comment
+    ( $id:ident, $daq_event:expr, $comment:expr) => {{
+        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 = std::sync::atomic::AtomicI16::new(-32768);
+        let byte_offset;
+        match DAQ_OFFSET__.compare_exchange(-32768, 0, std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed) {
+            Ok(_) => {
+                // @@@@ Experimental: Hard coded type here for point_cloud demo
+                let annotation = GeneratorCollection::generate(&IDL::CDR, &$id.description()).unwrap();
+                byte_offset = $daq_event.add_capture(
+                    stringify!($id),
+                    std::mem::size_of_val(&$id),
+                    RegistryDataType::Blob,
+                    $daq_event.buffer.len() as u16, // x_dim is buffer size in bytes
+                    1,                              // y_dim
+                    1.0,
+                    0.0,
+                    "",
+                    $comment,
+                    Some(annotation),
+                );
+                DAQ_OFFSET__.store(byte_offset, std::sync::atomic::Ordering::Relaxed);
+            }
+            Err(offset) => byte_offset = offset,
+        };
+        let v = cdr::serialize::<_, _, cdr::CdrBe>(&$id, cdr::Infinite).unwrap();
+        $daq_event.capture(&v, byte_offset);
+    }};
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 //-----------------------------------------------------------------------------
-// multi instance (TLS) event
+// Thread local instances (tli)
 //-----------------------------------------------------------------------------
 
-/// Create a multi instance task DAQ event or return the DAQ event if it already exists
-/// The DAQ event lives in thread local storage (TLS)
+/// Create a multi instance task DAQ event or return the DAQ event if it already exists in this thread
+/// The DAQ event instance lives in thread local storage (TLS)
 /// When the macro is called multiple times, the DAQ event is created once for each thread
 /// This is thread safe, there is no potential race with other threads
 /// Multiple concurrently runing instances of a task use the DAQ event assiated to their thread
 #[allow(unused_macros)]
 #[macro_export]
-macro_rules! daq_create_event_instance {
+macro_rules! daq_create_event_tli {
     ( $name:expr, $capacity: literal ) => {{
         thread_local! {
             static XCP_EVENT__: std::cell::Cell<XcpEvent> = const { std::cell::Cell::new(XcpEvent::XCP_UNDEFINED_EVENT) }
@@ -439,16 +450,18 @@ macro_rules! daq_create_event_instance {
         if XCP_EVENT__.get() == XcpEvent::XCP_UNDEFINED_EVENT {
             XCP_EVENT__.set(Xcp::get().create_event_ext($name, true));
         }
-        DaqEvent::<256>::new_from(&XCP_EVENT__.get())
+        DaqEvent::<0>::new_from(&XCP_EVENT__.get())
     }};
 }
 
 /// Capture the value of a variable with basic type for the given multi instance daq event
-/// Register the given meta data once for each thread
+/// Register the given meta data once for each event instance
+/// The events index number will be appended to the variable name
 /// Append an index to the variable name to distinguish between different threads
+// @@@@ The offset does not need to be stores in thread local storage, sttaic would be sufficient, as it is the same for all instances of a task
 #[allow(unused_macros)]
 #[macro_export]
-macro_rules! daq_capture_instance {
+macro_rules! daq_capture_tli {
     // name, event, comment, unit, factor, offset
     ( $id:ident, $daq_event:expr, $comment:expr, $unit:expr, $factor:expr, $offset:expr ) => {{
         thread_local! {
@@ -522,7 +535,43 @@ macro_rules! daq_capture_instance {
     }};
 }
 
-/// Register a local variable with basic type for the given daq event once for each thread
+/// Register a local variable with basic type once for the given multi instance daq event
+/// Address will be relative to the stack frame position of event
+/// No capture buffer required
+#[allow(unused_macros)]
+#[macro_export]
+macro_rules! daq_register_tli {
+    // name, event
+    ( $id:ident, $daq_event:expr ) => {{
+        thread_local! {
+            static DAQ_REGISTERED__: std::cell::Cell<i16> = const { std::cell::Cell::new(0) }
+        }
+        if DAQ_REGISTERED__.get() == 0 {
+            DAQ_REGISTERED__.set(1);
+            $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, $id.get_type(), 1, 1, 1.0, 0.0, "", "");
+        };
+    }};
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+// multi instance, user defined instances
+//-----------------------------------------------------------------------------
+
+/// Create a multi instance task DAQ event
+/// Each call will create a new instance of an event named "<name>_<instance_index>""
+#[allow(unused_macros)]
+#[macro_export]
+macro_rules! daq_create_event_instance {
+    ( $name:expr ) => {{
+        DaqEvent::<0>::new_from(&Xcp::get().create_event_ext($name, true))
+    }};
+}
+
+/// Register a local variable with basic type for the given daq event once for each event instance
+/// The events index number will be appended to the variable name
+/// May be executed only once, there is no check the instance already exists
 /// Address will be relative to the stack frame position of event
 /// No capture buffer required
 #[allow(unused_macros)]
@@ -530,13 +579,7 @@ macro_rules! daq_capture_instance {
 macro_rules! daq_register_instance {
     // name, event
     ( $id:ident, $daq_event:expr ) => {{
-        thread_local! {
-            static DAQ_OFFSET__: std::cell::Cell<i16> = const { std::cell::Cell::new(-32768) }
-        }
-        if DAQ_OFFSET__.get() == -32768 {
-            DAQ_OFFSET__.set(0);
-            $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, $id.get_type(), 1, 1, 1.0, 0.0, "", "");
-        };
+        $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, $id.get_type(), 1, 1, 1.0, 0.0, "", "");
     }};
 }
 
@@ -639,20 +682,55 @@ mod daq_tests {
         xcp_test::test_setup(log::LevelFilter::Info);
         let xcp = Xcp::get();
 
-        let mut event1 = daq_create_event!("task1", 256);
-        let mut event2 = daq_create_event_instance!("task2", 256);
-        let mut event3 = daq_create_event_instance!("task3", 256);
-        let mut event4 = daq_create_event_instance!("task4", 256);
+        let mut event1: DaqEvent<0> = DaqEvent::new_from(&XcpEvent::XCP_UNDEFINED_EVENT);
+        let mut event1_2: DaqEvent<0> = DaqEvent::new_from(&XcpEvent::XCP_UNDEFINED_EVENT);
+        for i in 0..2 {
+            let event = daq_create_event!("event");
+            if i == 0 {
+                event1 = event;
+            } else {
+                event1_2 = event;
+            }
+        }
+        assert!(event1.get_xcp_event().get_channel() == event1_2.get_xcp_event().get_channel());
+
+        // let event1 = daq_create_event!("event"); // panic: duplicate event
+
+        let mut event2_1 = daq_create_event_tli!("ev_tli", 256); // -> event name: ev_tli_1
+        let mut event2_2 = daq_create_event_tli!("ev_tli", 256); // -> event name: ev_tli_2
+        let mut event2_3 = daq_create_event_tli!("ev_tli", 256); // -> event name: ev_tli_3
+        let event3_1 = daq_create_event_instance!("ev_instance"); // -> event name: ev_instance_1
+        let event3_2 = daq_create_event_instance!("ev_instance"); // -> event name: ev_instance_2
+        let event3_3 = daq_create_event_instance!("ev_instance"); // -> event name: ev_instance_3
         let channel1: f64 = 1.0;
         let channel2: f64 = 2.0;
         let channel3: f64 = 3.0;
-        let channel4: f64 = 3.0;
-        let channel5: f64 = 3.0;
-        daq_capture!(channel1, event1, "comment", "unit", 2.0, 5.0);
-        daq_capture!(channel2, event1, "comment", "unit", 2.0, 5.0);
-        daq_capture_instance!(channel3, event4, "", "Volt");
-        daq_capture_instance!(channel4, event3, "comment", "unit");
-        daq_capture_instance!(channel5, event2, "comment", "unit", 2.0, 5.0);
+        let channel4: f64 = 4.0;
+        let channel5: f64 = 5.0;
+        let channel6: f64 = 6.0;
+        let channel7: f64 = 7.0;
+        let channel8: f64 = 8.0;
+        let channel9: f64 = 9.0;
+
+        daq_register!(channel1, event1, "comment", "unit", 2.0, 5.0); // -> variable channel1
+        daq_register!(channel2, event1, "comment", "unit", 2.0, 5.0); // -> variable channel2
+
+        daq_capture_tli!(channel3, event2_1, "", "Volt"); // -> variable channel3_1
+        daq_capture_tli!(channel3, event2_2, "", "Volt"); // -> variable channel3_2
+        daq_capture_tli!(channel3, event2_3, "", "Volt"); // -> variable channel3_3
+
+        daq_capture_tli!(channel4, event2_2, "comment", "unit"); // -> variable channel4_2
+        daq_capture_tli!(channel5, event2_3, "comment", "unit", 2.0, 5.0); // -> variable channel5_3
+
+        daq_register_instance!(channel6, event3_1); // -> variable channel6_1
+        daq_register_instance!(channel6, event3_2); // -> variable channel6_2
+        daq_register_instance!(channel6, event3_3); // -> variable channel6_3
+        daq_register_instance!(channel7, event3_1); // -> variable channel7_1
+        daq_register_instance!(channel8, event3_1); // -> variable channel8_1
+        daq_register_instance!(channel9, event3_1); // -> variable channel9_1
+
+        // daq_register_instance!(channel6, event5); // panic: duplicate measurement
+
         xcp.write_a2l();
     }
 }

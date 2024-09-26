@@ -19,8 +19,7 @@ mod xcp_server_task;
 use log::{debug, error, info, trace, warn};
 
 use serde::{Deserialize, Serialize};
-use std::{fmt::Debug, thread};
-use tokio::time::Duration;
+use std::fmt::Debug;
 
 //-----------------------------------------------------------------------------
 // Logging
@@ -83,32 +82,162 @@ const CAL_PAR1: CalPage1 = CalPage1 {
 //-----------------------------------------------------------------------------
 
 // Test task will be instatiated multiple times
-fn task(index: usize, cal_seg: CalSeg<CalPage1>) {
+async fn task(index: usize, cal_seg: CalSeg<CalPage1>) {
+    if index == 0 || index == MULTI_THREAD_TASK_COUNT - 1 {
+        info!("Task {} started, initial cycle time = {}us ", index, cal_seg.cycle_time_us);
+    } else if index == 1 {
+        info!("...");
+    }
+
     let mut counter: u32 = 0;
     let mut loop_counter: u64 = 0;
     let mut changes: u64 = 0;
     let mut cal_test: u64 = 0;
     let mut counter_max: u32 = 0;
-    let mut test1: u64 = 0;
-    let mut test2: u64 = 0;
-    let mut test3: u64 = 0;
-    let mut test4: u64 = 0;
+    let mut test0: u64 = 0;
+    let test1: u64 = 0;
+    let test2: u64 = 0;
+    let test3: u64 = 0;
+    let test4: u64 = 0;
+    let test5: u64 = 0;
+    let test6: u64 = 0;
+    let test7: u64 = 0;
+    let test8: u64 = 0;
+    let test9: u64 = 0;
+    let test10: u64 = 0;
+    let test11: u64 = 0;
+    let test12: u64 = 0;
+    let test13: u64 = 0;
+    let test14: u64 = 0;
+    let test15: u64 = 0;
+    let test16: u64 = 0;
+    let test17: u64 = 0;
+    let test18: u64 = 0;
+    let test19: u64 = 0;
+    let test20: u64 = 0;
+    let test21: u64 = 0;
+    let test22: u64 = 0;
+    let test23: u64 = 0;
+    let test24: u64 = 0;
+    let test25: u64 = 0;
+    let test26: u64 = 0;
+    let test27: u64 = 0;
+    let test28: u64 = 0;
+    let test29: u64 = 0;
+    let test30: u64 = 0;
+    let test31: u64 = 0;
+    let test32: u64 = 0;
+    let test33: u64 = 0;
+    let test34: u64 = 0;
+    let test35: u64 = 0;
+    let test36: u64 = 0;
+    let test37: u64 = 0;
+    let test38: u64 = 0;
+    let test39: u64 = 0;
+    let test40: u64 = 0;
+    let test41: u64 = 0;
+    let test42: u64 = 0;
+    let test43: u64 = 0;
+    let test44: u64 = 0;
+    let test45: u64 = 0;
+    let test46: u64 = 0;
+    let test47: u64 = 0;
+    let test48: u64 = 0;
+    let test49: u64 = 0;
+    let test50: u64 = 0;
+    let test51: u64 = 0;
+    let test52: u64 = 0;
+    let test53: u64 = 0;
+    let test54: u64 = 0;
+    let test55: u64 = 0;
+    let test56: u64 = 0;
+    let test57: u64 = 0;
+    let test58: u64 = 0;
+    let test59: u64 = 0;
+    let test60: u64 = 0;
+    let test61: u64 = 0;
+    let test62: u64 = 0;
+    let test63: u64 = 0;
 
-    let mut event = daq_create_event_instance!("task");
+    let event = daq_create_event_instance!("task");
     daq_register_instance!(changes, event);
     daq_register_instance!(loop_counter, event);
-    //daq_register_instance!(cal_test, event); // Measured with capture, pattern checked in DaqDecoder
+    daq_register_instance!(cal_test, event); // pattern checked in DaqDecoder
     daq_register_instance!(counter_max, event);
     daq_register_instance!(counter, event);
+    daq_register_instance!(test0, event);
     daq_register_instance!(test1, event);
     daq_register_instance!(test2, event);
     daq_register_instance!(test3, event);
     daq_register_instance!(test4, event);
+    daq_register_instance!(test5, event);
+    daq_register_instance!(test6, event);
+    daq_register_instance!(test7, event);
+    daq_register_instance!(test8, event);
+    daq_register_instance!(test9, event);
+    daq_register_instance!(test10, event);
+    daq_register_instance!(test11, event);
+    daq_register_instance!(test12, event);
+    daq_register_instance!(test13, event);
+    daq_register_instance!(test14, event);
+    daq_register_instance!(test15, event);
+    daq_register_instance!(test16, event);
+    daq_register_instance!(test17, event);
+    daq_register_instance!(test18, event);
+    daq_register_instance!(test19, event);
+    daq_register_instance!(test20, event);
+    daq_register_instance!(test21, event);
+    daq_register_instance!(test22, event);
+    daq_register_instance!(test23, event);
+    daq_register_instance!(test24, event);
+    daq_register_instance!(test25, event);
+    daq_register_instance!(test26, event);
+    daq_register_instance!(test27, event);
+    daq_register_instance!(test28, event);
+    daq_register_instance!(test29, event);
+    daq_register_instance!(test30, event);
+    daq_register_instance!(test31, event);
+    daq_register_instance!(test32, event);
+    daq_register_instance!(test33, event);
+    daq_register_instance!(test34, event);
+    daq_register_instance!(test35, event);
+    daq_register_instance!(test36, event);
+    daq_register_instance!(test37, event);
+    daq_register_instance!(test38, event);
+    daq_register_instance!(test39, event);
+    daq_register_instance!(test40, event);
+    daq_register_instance!(test41, event);
+    daq_register_instance!(test42, event);
+    daq_register_instance!(test43, event);
+    daq_register_instance!(test44, event);
+    daq_register_instance!(test45, event);
+    daq_register_instance!(test46, event);
+    daq_register_instance!(test47, event);
+    daq_register_instance!(test48, event);
+    daq_register_instance!(test49, event);
+    daq_register_instance!(test50, event);
+    daq_register_instance!(test51, event);
+    daq_register_instance!(test52, event);
+    daq_register_instance!(test53, event);
+    daq_register_instance!(test54, event);
+    daq_register_instance!(test55, event);
+    daq_register_instance!(test56, event);
+    daq_register_instance!(test57, event);
+    daq_register_instance!(test58, event);
+    daq_register_instance!(test59, event);
+    daq_register_instance!(test60, event);
+    daq_register_instance!(test61, event);
+    daq_register_instance!(test62, event);
+    daq_register_instance!(test63, event);
 
-    let mut event_time: u64 = 0;
     loop {
-        thread::sleep(Duration::from_micros(cal_seg.cycle_time_us as u64)); // Sleep for a calibratable amount of microseconds
+        // Sleep for a calibratable amount of time
+        tokio::time::sleep(tokio::time::Duration::from_micros(cal_seg.cycle_time_us as u64)).await;
+
+        // Modify measurement variables on stack
         loop_counter += 1;
+        test0 = loop_counter;
+        _ = test0;
 
         // Create a calibratable wrapping counter signal
         counter_max = cal_seg.counter_max;
@@ -124,38 +253,25 @@ fn task(index: usize, cal_seg: CalSeg<CalPage1>) {
             assert_eq!((cal_test >> 32) ^ 0x55555555, cal_test & 0xFFFFFFFF);
         }
 
-        daq_capture_instance!(cal_test, event);
-
-        let start_time = std::time::Instant::now();
+        // Trigger the measurement event for this task instance
         event.trigger();
-        let elapsed = start_time.elapsed();
-        event_time += elapsed.as_nanos() as u64;
 
         // Synchronize the calibration segment
         cal_seg.sync();
 
-        if loop_counter % 256 == 0 {
-            test1 = loop_counter;
-            test2 = test1 + 1;
-            test3 = test2 + 2;
-            test4 = test3 + 3;
-            _ = test4;
-
-            // Check for termination
-            if !cal_seg.run {
-                break;
-            }
+        // Check for termination
+        if !cal_seg.run {
+            break;
         }
     }
 
-    if index == 0 {
-        info!(
-            "Task {} loop counter = {}, {} changes observed, {}ns per event",
-            index,
-            loop_counter,
-            changes,
-            event_time / loop_counter
-        );
+    if index == 0 || index == MULTI_THREAD_TASK_COUNT - 1 {
+        info!("Task {} terminated, loop counter = {}, {} calibration changes observed", index, loop_counter, changes);
+    } else if index == 1 {
+        info!("...");
+    }
+    if changes == 0 {
+        warn!("Task {} - No calibration changes observed !!!", index);
     }
 }
 
@@ -179,12 +295,14 @@ async fn test_tokio_multi_thread() {
     let mut v = Vec::new();
     for index in 0..MULTI_THREAD_TASK_COUNT {
         let cal_seg = CalSeg::clone(&cal_seg);
-        let t = thread::spawn(move || {
-            task(index, cal_seg);
-        });
+        let t = tokio::spawn(task(index, cal_seg));
         v.push(t);
     }
 
+    // Wait for the test tasks to start up
+    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+
+    // Start the test executor XCP client
     xcp_test_executor(
         xcp,
         xcp_test_executor::TestModeCal::Cal,
@@ -192,9 +310,9 @@ async fn test_tokio_multi_thread() {
         "test_tokio_multi_thread.a2l",
         false,
     )
-    .await; // Start the test executor XCP client
+    .await;
 
     for t in v {
-        t.join().ok();
+        let _ = tokio::join!(t);
     }
 }

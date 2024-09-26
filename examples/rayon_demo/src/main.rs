@@ -108,10 +108,10 @@ fn pixel_to_point(pixel: (usize, usize), upper_left: Complex<f64>, lower_right: 
 /// Render a line of the Mandelbrot set into a buffer of pixels.
 fn render(pixels: &mut [u8], row: usize, length: usize, upper_left: Complex<f64>, lower_right: Complex<f64>) {
     // Create event for this worker thread and register variable index, which is the upper left corner of the rectangle
-    let event = daq_create_event_instance!("task");
+    let event = daq_create_event_tli!("task");
 
     let mut line: u16 = row as u16; // temporary variable to measure the line number as u16
-    daq_register_instance!(line, event);
+    daq_register_tli!(line, event);
     event.trigger(); // measure line and timestamp of calculation start
 
     // Render line

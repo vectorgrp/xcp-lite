@@ -56,11 +56,13 @@ where
         if let Some(addr) = client_addr {
             log::trace!("xcp_task: read transmit queue ");
 
-            // Empty the transmit queue
-            while let Some(buf) = xcp.tl_transmit_queue_peek() {
-                socket.send_to(buf, addr).await?;
-                xcp.tl_transmit_queue_next();
-                log::trace!("xcp_task: Sent {} bytes to {}", buf.len(), client_addr.unwrap());
+            if xcp.tl_transmit_queue_has_msg() {
+                // Empty the transmit queue
+                while let Some(buf) = xcp.tl_transmit_queue_peek() {
+                    socket.send_to(buf, addr).await?;
+                    xcp.tl_transmit_queue_next();
+                    log::trace!("xcp_task: Sent {} bytes to {}", buf.len(), client_addr.unwrap());
+                }
             }
         }
     } // loop

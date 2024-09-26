@@ -154,98 +154,89 @@ fn task(index: usize, cal_seg: CalSeg<CalPage1>) {
     } else if index == 1 {
         info!("...");
     }
-    let mut cycle_time = cal_seg.cycle_time_us as u64;
 
     // Create a measurement event instance for this task instance
     // Capture buffer is 16 bytes, to test both modes, direct and buffer measurement
-    let mut event = daq_create_event_instance!("task", 16);
+    let mut event = daq_create_event_tli!("task", 16);
 
     // Measure some variables directly from stack, without using the event capture buffer
-    daq_register_instance!(changes, event);
-    daq_register_instance!(loop_counter, event);
-    daq_register_instance!(counter_max, event);
-    daq_register_instance!(counter, event);
-    daq_register_instance!(test0, event);
-    daq_register_instance!(test1, event);
-    daq_register_instance!(test2, event);
-    daq_register_instance!(test3, event);
-    daq_register_instance!(test4, event);
-    daq_register_instance!(test5, event);
-    daq_register_instance!(test6, event);
-    daq_register_instance!(test7, event);
-    daq_register_instance!(test8, event);
-    daq_register_instance!(test9, event);
-    daq_register_instance!(test10, event);
-    daq_register_instance!(test11, event);
-    daq_register_instance!(test12, event);
-    daq_register_instance!(test13, event);
-    daq_register_instance!(test14, event);
-    daq_register_instance!(test15, event);
-    daq_register_instance!(test16, event);
-    daq_register_instance!(test17, event);
-    daq_register_instance!(test18, event);
-    daq_register_instance!(test19, event);
-    daq_register_instance!(test20, event);
-    daq_register_instance!(test21, event);
-    daq_register_instance!(test22, event);
-    daq_register_instance!(test23, event);
-    daq_register_instance!(test24, event);
-    daq_register_instance!(test25, event);
-    daq_register_instance!(test26, event);
-    daq_register_instance!(test27, event);
-    daq_register_instance!(test28, event);
-    daq_register_instance!(test29, event);
-    daq_register_instance!(test30, event);
-    daq_register_instance!(test31, event);
-    daq_register_instance!(test32, event);
-    daq_register_instance!(test33, event);
-    daq_register_instance!(test34, event);
-    daq_register_instance!(test35, event);
-    daq_register_instance!(test36, event);
-    daq_register_instance!(test37, event);
-    daq_register_instance!(test38, event);
-    daq_register_instance!(test39, event);
-    daq_register_instance!(test40, event);
-    daq_register_instance!(test41, event);
-    daq_register_instance!(test42, event);
-    daq_register_instance!(test43, event);
-    daq_register_instance!(test44, event);
-    daq_register_instance!(test45, event);
-    daq_register_instance!(test46, event);
-    daq_register_instance!(test47, event);
-    daq_register_instance!(test48, event);
-    daq_register_instance!(test49, event);
-    daq_register_instance!(test50, event);
-    daq_register_instance!(test51, event);
-    daq_register_instance!(test52, event);
-    daq_register_instance!(test53, event);
-    daq_register_instance!(test54, event);
-    daq_register_instance!(test55, event);
-    daq_register_instance!(test56, event);
-    daq_register_instance!(test57, event);
-    daq_register_instance!(test58, event);
-    daq_register_instance!(test59, event);
-    daq_register_instance!(test60, event);
-    daq_register_instance!(test61, event);
-    daq_register_instance!(test62, event);
-    daq_register_instance!(test63, event);
+    daq_register_tli!(changes, event);
+    daq_register_tli!(loop_counter, event);
+    daq_register_tli!(counter_max, event);
+    daq_register_tli!(counter, event);
+    daq_register_tli!(test0, event);
+    daq_register_tli!(test1, event);
+    daq_register_tli!(test2, event);
+    daq_register_tli!(test3, event);
+    daq_register_tli!(test4, event);
+    daq_register_tli!(test5, event);
+    daq_register_tli!(test6, event);
+    daq_register_tli!(test7, event);
+    daq_register_tli!(test8, event);
+    daq_register_tli!(test9, event);
+    daq_register_tli!(test10, event);
+    daq_register_tli!(test11, event);
+    daq_register_tli!(test12, event);
+    daq_register_tli!(test13, event);
+    daq_register_tli!(test14, event);
+    daq_register_tli!(test15, event);
+    daq_register_tli!(test16, event);
+    daq_register_tli!(test17, event);
+    daq_register_tli!(test18, event);
+    daq_register_tli!(test19, event);
+    daq_register_tli!(test20, event);
+    daq_register_tli!(test21, event);
+    daq_register_tli!(test22, event);
+    daq_register_tli!(test23, event);
+    daq_register_tli!(test24, event);
+    daq_register_tli!(test25, event);
+    daq_register_tli!(test26, event);
+    daq_register_tli!(test27, event);
+    daq_register_tli!(test28, event);
+    daq_register_tli!(test29, event);
+    daq_register_tli!(test30, event);
+    daq_register_tli!(test31, event);
+    daq_register_tli!(test32, event);
+    daq_register_tli!(test33, event);
+    daq_register_tli!(test34, event);
+    daq_register_tli!(test35, event);
+    daq_register_tli!(test36, event);
+    daq_register_tli!(test37, event);
+    daq_register_tli!(test38, event);
+    daq_register_tli!(test39, event);
+    daq_register_tli!(test40, event);
+    daq_register_tli!(test41, event);
+    daq_register_tli!(test42, event);
+    daq_register_tli!(test43, event);
+    daq_register_tli!(test44, event);
+    daq_register_tli!(test45, event);
+    daq_register_tli!(test46, event);
+    daq_register_tli!(test47, event);
+    daq_register_tli!(test48, event);
+    daq_register_tli!(test49, event);
+    daq_register_tli!(test50, event);
+    daq_register_tli!(test51, event);
+    daq_register_tli!(test52, event);
+    daq_register_tli!(test53, event);
+    daq_register_tli!(test54, event);
+    daq_register_tli!(test55, event);
+    daq_register_tli!(test56, event);
+    daq_register_tli!(test57, event);
+    daq_register_tli!(test58, event);
+    daq_register_tli!(test59, event);
+    daq_register_tli!(test60, event);
+    daq_register_tli!(test61, event);
+    daq_register_tli!(test62, event);
+    daq_register_tli!(test63, event);
 
     loop {
         // Sleep for a calibratable amount of time
-        let ct = cal_seg.cycle_time_us as u64;
-        thread::sleep(Duration::from_micros(ct));
-        if cycle_time != ct {
-            if index == 0 || index == MULTI_THREAD_TASK_COUNT - 1 {
-                info!("Task {} cycle time changed from {}us to {}us", index, cycle_time, ct);
-            } else if index == 1 {
-                info!("...");
-            }
-            cycle_time = ct;
-        }
+        thread::sleep(Duration::from_micros(cal_seg.cycle_time_us as u64));
 
         // Modify measurement variables on stack
         loop_counter += 1;
         test0 = loop_counter;
+        _ = test0;
 
         // Calculate a counter wrapping at cal_seg.counter_max
         counter_max = cal_seg.counter_max;
@@ -262,7 +253,7 @@ fn task(index: usize, cal_seg: CalSeg<CalPage1>) {
         }
 
         // Capture variable cal_test, to test capture buffer measurement mode
-        daq_capture_instance!(cal_test, event);
+        daq_capture_tli!(cal_test, event);
 
         // Trigger the measurement event for this task instance
         event.trigger();
@@ -271,7 +262,7 @@ fn task(index: usize, cal_seg: CalSeg<CalPage1>) {
         cal_seg.sync();
 
         // Check for termination and check server is healthy
-        if loop_counter % 16 == 0 {
+        if loop_counter % 256 == 0 {
             // Check for termination
             if !cal_seg.run {
                 break;

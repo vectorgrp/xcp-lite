@@ -55,7 +55,7 @@ fn task(id: u32, cal_seg: CalSeg<CalPage1>) {
     // Create an event instance
     // The event instance is used to trigger the measurement event and capture data
     // The capacity in bytes of the capture buffer may be explictly specified (default would be 256)
-    let mut event = daq_create_event_instance!("task1", 16);
+    let mut event = daq_create_event_tli!("task1", 16);
     println!("Task started, id = {}", id);
 
     let mut counter: u32 = 0;
@@ -74,8 +74,8 @@ fn task(id: u32, cal_seg: CalSeg<CalPage1>) {
         sine = (id as f64) * 10.0 + cal_seg.ampl * ((PI * time / 10.0) / cal_seg.period).sin();
 
         // Capture local variables and associate to event
-        daq_capture_instance!(counter, event);
-        daq_capture_instance!(sine, event, "sine: f64", "Volt", 1.0, 0.0);
+        daq_capture_tli!(counter, event);
+        daq_capture_tli!(sine, event, "sine: f64", "Volt", 1.0, 0.0);
 
         // Triger the measurement event
         // Measurement event timestamp is taken here and captured data is sent

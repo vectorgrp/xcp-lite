@@ -21,7 +21,7 @@ fn main() {
         .allowlist_function("XcpTlCommand")
         .allowlist_function("XcpTlTransmitQueuePeekMsg")
         .allowlist_function("XcpTlTransmitQueueNextMsg")
-        //.allowlist_function("XcpTlTransmitQueueHasMsg")
+        .allowlist_function("XcpTlTransmitQueueHasMsg")
         // ETH server
         .allowlist_function("XcpEthServerInit")
         .allowlist_function("XcpEthServerShutdown")

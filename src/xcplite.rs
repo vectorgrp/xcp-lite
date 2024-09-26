@@ -37,6 +37,9 @@ extern "C" {
     pub fn XcpTlTransmitQueueNextMsg();
 }
 extern "C" {
+    pub fn XcpTlTransmitQueueHasMsg() -> u8;
+}
+extern "C" {
     pub fn XcpInit();
 }
 extern "C" {

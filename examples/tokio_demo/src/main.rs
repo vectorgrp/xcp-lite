@@ -85,7 +85,7 @@ async fn task(task_index: u16) {
 
     trace!("task {} start", index);
 
-    let event = daq_create_event_instance!("task");
+    let event = daq_create_event_tli!("task");
     daq_register!(index, event, "Task index", "");
     event.trigger();
 
