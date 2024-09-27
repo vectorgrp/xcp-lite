@@ -185,7 +185,7 @@ async fn test_tokio_multi_thread() {
         v.push(t);
     }
 
-    test_executor(xcp, test_executor::TestMode::MultiThreadDAQ, "test_tokio_multi_thread.a2l", false).await; // Start the test executor XCP client
+    test_executor(xcp, test_executor::TestMode::MultiThreadDAQ, "test_tokio_multi_thread.a2l", true).await; // Start the test executor XCP client
 
     for t in v {
         t.join().ok();
