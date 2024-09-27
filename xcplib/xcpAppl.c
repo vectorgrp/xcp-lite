@@ -29,9 +29,10 @@ static BOOL write_delay = FALSE;
 // Log level
 /**************************************************************************/
 
+// This is used by the Rust ffi to set the log level
 void ApplXcpSetLogLevel(uint8_t level) {
     gDebugLevel = level;
-    if (level>2) DBG_PRINTF_WARNING("Set log level to %d\n", level);
+    if (level>3) DBG_PRINTF_WARNING("Set log level to %d\n", level);
 }
 
 /**************************************************************************/
@@ -460,30 +461,21 @@ uint32_t ApplXcpGetId(uint8_t id, uint8_t* buf, uint32_t bufLen) {
         break;
 
     case IDT_ASAM_PATH:
-    if (gXcpA2lName==NULL) return 0; 
-      len = (uint32_t)strlen(gXcpA2lName)+4;
-      if (buf) {
-        if (len > bufLen-1) return 0; // Insufficient buffer space
-        SNPRINTF((char*)buf, bufLen, "%s.a2l", gXcpA2lName);
-      }
-      break;
+        if (gXcpA2lName==NULL) return 0; 
+        len = (uint32_t)strlen(gXcpA2lName)+4;
+        if (buf) {
+            if (len > bufLen-1) return 0; // Insufficient buffer space
+            SNPRINTF((char*)buf, bufLen, "%s.a2l", gXcpA2lName);
+        }
+        break;
 
     case IDT_ASAM_EPK:
-      // Not implemented
-      break;
+        // Not implemented
+        break;
 
 #ifdef XCP_ENABLE_IDT_A2L_UPLOAD
     case IDT_ASAM_UPLOAD:
-        {
-    #ifdef XCP_LOAD_A2L_FILE
-            char filename[256];
-            SNPRINTF((char*)filename, 255, "%s.a2l", gXcpA2lName);
-            if (NULL==(gXcpFile=loadFile(filename,&gXcpFileLength))) return 0;
-            len = gXcpFileLength;
-    #else
-            len = openA2lFile();
-    #endif
-        }
+        len = openA2lFile();
         break;
 #endif
 
