@@ -26,7 +26,7 @@ cargo.lock
 *.a2h
 *.bin
 /tmp.a2l
-/test.a2l
-/xcp_lite.a2l
 /a2lfile.a2l
 /a2lfile.txt
+/test.a2l
+/xcp_lite.a2l
