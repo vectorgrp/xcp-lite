@@ -415,15 +415,18 @@ uint32_t openA2lFile() {
     char filename[256];
     SNPRINTF((char*)filename, 255, "%s.a2l", gXcpA2lName);
     assert(gXcpFile == NULL);
-    gXcpFile = fopen(filename, "r");
+
+    gXcpFile = fopen(filename, "rb");
     if (gXcpFile == NULL) {
         DBG_PRINTF_ERROR("ERROR: file %s not found!\n", filename);
         return 0;
     }
-    struct stat fdstat;
-    stat(filename, &fdstat);
-    gXcpFileLength = (uint32_t)fdstat.st_size;
+
+    fseek(gXcpFile,0,SEEK_END) ; 
+    gXcpFileLength = (uint32_t) ftell(gXcpFile); 
+    rewind(gXcpFile); 
     assert(gXcpFileLength > 0);
+
     DBG_PRINTF3("A2L file %s ready for upload, size=%u\n\n", filename, gXcpFileLength);
     return gXcpFileLength;
 }
