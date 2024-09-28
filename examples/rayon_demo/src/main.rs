@@ -39,7 +39,7 @@ const MANDELBROT: Mandelbrot = Mandelbrot { x: -1.4, y: 0.0, width: 0.015 };
 // Image rendering
 
 // Write the buffer `pixels` to the file named `filename`.
-fn write_image(filename: &str, pixels: &[u8]) -> Result<(), std::io::Error> {
+fn write_image(filename: &str, pixels: &[u8]) {
     // Rainbox color map (credits to CoPilot)
     let mut color_map = Vec::with_capacity(256);
     for i in 0..256 {
@@ -63,8 +63,6 @@ fn write_image(filename: &str, pixels: &[u8]) -> Result<(), std::io::Error> {
         *rgb_pixel = color_map[pixels[y as usize * X_RES as usize + x as usize] as usize];
     }
     imgbuf.save(filename).unwrap();
-
-    Ok(())
 }
 
 //---------------------------------------------------------------------------------------
@@ -201,7 +199,7 @@ fn main() {
             }
 
             // Write image to file
-            write_image("mandelbrot.png", &pixels).expect("error writing PNG file");
+            write_image("mandelbrot.png", &pixels);
             println!("Image written to mandelbrot.png, frame {} {:.4}s", mainloop_counter, elapsed_time);
             update_counter += 1;
             event_update.trigger();

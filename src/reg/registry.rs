@@ -735,22 +735,62 @@ impl Registry {
         self.characteristic_list.iter().find(|c| c.name == name)
     }
 
+    #[cfg(feature = "a2l_reader")]
+    pub fn a2l_load(&mut self, filename: &str) -> Result<a2lfile::A2lFile, String> {
+        trace!("Load A2L file {}", filename);
+        let input_filename = &std::ffi::OsString::from(filename);
+        let mut logmsgs = Vec::<a2lfile::A2lError>::new();
+        let res = a2lfile::load(input_filename, None, &mut logmsgs, true);
+        for log_msg in logmsgs {
+            warn!("A2l Loader: {}", log_msg);
+        }
+        match res {
+            Ok(a2l_file) => {
+                // Perform a consistency check
+                let mut logmsgs = Vec::<String>::new();
+                a2l_file.check(&mut logmsgs);
+                for log_msg in logmsgs {
+                    warn!("A2l Checker: {}", log_msg);
+                }
+                Ok(a2l_file)
+            }
+
+            Err(e) => Err(format!("a2lfile::load failed: {:?}", e)),
+        }
+    }
+
     /// Generate A2L file from registry
-    /// Returns true, if file is rewritten due to changes
-    pub fn write(&mut self) -> Result<bool, &'static str> {
+    pub fn write_a2l(&mut self) -> Result<(), std::io::Error> {
         // Error if registry is closed
         if self.is_frozen() {
-            return Err("Registry is frozen!");
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, "Registry is closed"));
         }
 
         // Sort measurement and calibration lists to get deterministic order
-        // Event and CalSeg lists stay in the order they were added
+        // Event and CalSeg lists stay in the order the were added
         self.measurement_list.sort();
         self.characteristic_list.sort();
 
         // Write to A2L file
-        let writer = A2lWriter::new();
-        writer.write_a2l(self)
+        let a2l_name = self.name.unwrap();
+        let a2l_path = format!("{}.a2l", a2l_name);
+        let a2l_file = std::fs::File::create(&a2l_path)?;
+        let a2l_file_writer: &mut dyn std::io::Write = &mut std::io::LineWriter::new(a2l_file);
+        let mut writer = A2lWriter::new(a2l_file_writer);
+        writer.write_a2l(a2l_name, a2l_name, self)?;
+
+        // @@@@ Dev
+        // Check A2L file
+        #[cfg(feature = "a2l_reader")]
+        {
+            if let Err(e) = self.a2l_load(&a2l_path) {
+                error!("A2l file check error: {}", e);
+            } else {
+                info!("A2L file check ok");
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -799,12 +839,15 @@ mod registry_tests {
             Some("annotation".to_string()),
         ));
 
-        std::fs::remove_file("test.a2h").ok();
-        let res = r.write();
-        let updated = res.expect("A2L write write failed");
-        assert!(updated);
-        let res = r.write(); // Write again and it should not be written
-        let updated = res.expect("A2L write write failed");
-        assert!(!updated);
+        r.write_a2l().unwrap();
+
+        // Check update optimization
+        //std::fs::remove_file("test.a2h").ok();
+        // let res = r.write();
+        // let updated = res.expect("A2L write write failed");
+        // assert!(updated);
+        // let res = r.write(); // Write again and it should not be written
+        // let updated = res.expect("A2L write write failed");
+        // assert!(!updated);
     }
 }

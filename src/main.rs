@@ -354,7 +354,6 @@ fn main() {
     // Initialize XCP driver singleton, the transport layer server and enable the A2L writer
     let xcp = XcpBuilder::new("xcp_lite")
         .set_log_level(log_level)
-        // .set_segment_size(1500-20-8) // no jumbo frames
         // .set_epk(build_info::format!("{}", $.timestamp)); // Create new EPK from build info
         .set_epk("EPK_")
         .start_server(if args.tcp { XcpTransportLayer::Tcp } else { XcpTransportLayer::Udp }, args.bind, args.port)
@@ -487,7 +486,7 @@ fn main() {
         // Without this, the A2L file will be automatically written on XCP connect, to be available for download by CANape
         if idle_time >= 2.0 {
             // Test A2L write
-            xcp.write_a2l();
+            xcp.write_a2l().unwrap();
 
             // Test init request
             // xcp.set_init_request();

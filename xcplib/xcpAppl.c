@@ -413,9 +413,10 @@ void closeA2lFile() {
 
 uint32_t openA2lFile() {
     char filename[256];
+    if (gXcpA2lName==NULL) return 0; // A2L file is not available
     SNPRINTF((char*)filename, 255, "%s.a2l", gXcpA2lName);
+    
     assert(gXcpFile == NULL);
-
     gXcpFile = fopen(filename, "rb");
     if (gXcpFile == NULL) {
         DBG_PRINTF_ERROR("ERROR: file %s not found!\n", filename);

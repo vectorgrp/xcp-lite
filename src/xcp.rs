@@ -708,11 +708,11 @@ impl Xcp {
 
     /// Write A2L
     /// A2l is normally automatically written on connect of the XCP client tool
-    /// This function force the A2L to be written immediately
-    pub fn write_a2l(&self) {
+    /// This function is used to force the A2L to be written immediately
+    pub fn write_a2l(&self) -> Result<bool, std::io::Error> {
         // Do nothing, if the registry is already written, or does not exist
         if self.registry.lock().unwrap().is_frozen() {
-            return;
+            return Ok(false);
         }
 
         // Register all calibration segments
@@ -721,9 +721,11 @@ impl Xcp {
         // Register all events
         self.event_list.lock().unwrap().register();
 
-        // Write A2L file from registry
-        let mut r = self.registry.lock().unwrap();
-        if let Ok(_res) = r.write() {
+        {
+            // Write A2L file from registry
+            let mut r = self.registry.lock().unwrap();
+            r.write_a2l()?;
+
             // A2L exists and is up to date on disk
             // Set the name of the A2L file in the XCPlite server to enable upload via XCP
             let name = std::ffi::CString::new(r.get_name().unwrap()).unwrap();
@@ -738,6 +740,8 @@ impl Xcp {
             // All registrations from now on, will cause panic
             r.freeze();
         }
+
+        Ok(true)
     }
 
     /// Get a clone of the registry
@@ -802,6 +806,7 @@ impl Xcp {
 // on connect, page switch handling, init and freeze calibration segment, read and write memory
 
 // XCP error codes for callbacks from XCPlite
+const FALSE: u8 = 0;
 const TRUE: u8 = 1;
 const CRC_CMD_OK: u8 = 0;
 const CRC_PAGE_MODE_NOT_VALID: u8 = 0x27;
@@ -818,7 +823,10 @@ const CAL_PAGE_MODE_ALL: u8 = 0x80; // switch all segments simultaneously
 extern "C" fn cb_connect() -> u8 {
     trace!("cb_connect: generate and write Al2 file");
     let xcp = Xcp::get();
-    xcp.write_a2l();
+    if let Err(e) = xcp.write_a2l() {
+        error!("connect refused, A2L file write failed, {}", e);
+        return FALSE;
+    }
     TRUE
 }
 

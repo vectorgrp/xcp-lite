@@ -912,6 +912,7 @@ impl XcpClient {
 
     // Upload the A2L via XCP and load it
     pub async fn load_a2l(&mut self, file_name: &str, upload: bool, print_info: bool) -> Result<(), Box<dyn Error>> {
+        let mut file_name: &str = file_name;
         // Upload the A2L via XCP
         // Be aware the file name may be the original A2L file written by registry
         if upload {
@@ -919,8 +920,9 @@ impl XcpClient {
             {
                 let file = std::fs::File::create("tmp.a2l")?;
                 let mut writer = std::io::BufWriter::new(file);
-                let (mut size, _) = self.get_id(XCP_IDT_ASAM_UPLOAD).await?;
-                assert!(size > 0);
+                let (file_size, _) = self.get_id(XCP_IDT_ASAM_UPLOAD).await?;
+                assert!(file_size > 0);
+                let mut size = file_size;
                 while size > 0 {
                     let n = if size > 200 { 200 } else { size as u8 };
                     size -= n as u32;
@@ -929,20 +931,23 @@ impl XcpClient {
                     writer.write_all(&data[1..=n as usize])?;
                 }
                 writer.flush()?;
+                info!("  Upload complete, {} bytes loaded", file_size);
+                file_name = "tmp.a2l";
             }
-            std::fs::remove_file(file_name)?;
-            std::fs::rename("tmp.a2l", file_name)?;
         }
 
-        // Read the uploaded A2L file
+        // Read the A2L file
         info!("Read A2L {}", file_name);
         if let Ok(a2l_file) = a2l_load(file_name) {
             if print_info {
                 a2l_printf_info(&a2l_file);
             }
             self.a2l_file = Some(a2l_file);
+            if upload {
+                std::fs::remove_file("tmp.a2l")?;
+            }
         } else {
-            error!("A2L file {} not found", file_name);
+            error!("Could not read A2L file {}", file_name);
             return Err(Box::new(XcpError::new(ERROR_A2L)) as Box<dyn Error>);
         }
 

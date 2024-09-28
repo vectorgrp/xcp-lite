@@ -225,11 +225,11 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
     //-------------------------------------------------------------------------------------------------------------------------------------
     // Create xcp_client and connect the XCP server
     info!("XCP CONNECT");
-    let dest_addr: Result<SocketAddr, _> = "127.0.0.1:5555".parse();
-    let local_addr: Result<SocketAddr, _> = "0.0.0.0:0".parse();
-    info!("  dest_addr: {:?}", dest_addr);
-    info!("  local_addr: {:?}", local_addr);
-    let mut xcp_client = XcpClient::new(dest_addr.unwrap(), local_addr.unwrap());
+    let dest_addr = "127.0.0.1:5555".parse().unwrap();
+    let local_addr = "0.0.0.0:0".parse().unwrap();
+    info!("  dest_addr: {}", dest_addr);
+    info!("  local_addr: {}", local_addr);
+    let mut xcp_client = XcpClient::new(dest_addr, local_addr);
     let daq_decoder = Arc::new(Mutex::new(DaqDecoder::new()));
     let serv_text_decoder = ServTextDecoder::new();
     xcp_client.connect(Arc::clone(&daq_decoder), serv_text_decoder).await.unwrap();

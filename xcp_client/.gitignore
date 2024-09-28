@@ -1,14 +1,2 @@
 /target/
 /Cargo.lock
-
-
-/xcp_lite.a2h
-/xcp_lite.a2l
-/xcp_lite.txt
-/xcp_client.a2l
-
-/tokio_demo.a2l
-/tokio_demo.txt
-/multi_thread_mutex_demo.txt
-/a2lfile.a2l
-/a2lfile.txt

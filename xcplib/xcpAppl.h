@@ -1,6 +1,8 @@
 #pragma once
 /* xcpAppl.h */
 
+// Additional functions for users of the XCP library xcplib
+
 extern void ApplXcpSetLogLevel(uint8_t level);
 
 extern void ApplXcpRegisterCallbacks(

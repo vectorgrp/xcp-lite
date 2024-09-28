@@ -111,7 +111,7 @@ fn main() {
 
         thread::sleep(Duration::from_millis(10)); // 100 Hz
 
-        xcp.write_a2l();
+        xcp.write_a2l().unwrap();
     }
 
     // Stop the XCP server

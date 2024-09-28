@@ -45,16 +45,26 @@ pub fn a2l_load(filename: &str) -> Result<a2lfile::A2lFile, a2lfile::A2lError> {
     trace!("Load A2L file {}", filename);
     let input_filename = &std::ffi::OsString::from(filename);
     let mut logmsgs = Vec::<A2lError>::new();
-    let a2l_file = a2lfile::load(input_filename, None, &mut logmsgs, true)?;
+    let res = a2lfile::load(input_filename, None, &mut logmsgs, true);
     for log_msg in logmsgs {
-        warn!("A2lLoader: {}", log_msg);
+        warn!("A2l Loader: {}", log_msg);
     }
+    match res {
+        Ok(a2l_file) => {
+            // Perform a consistency check
+            let mut logmsgs = Vec::<String>::new();
+            a2l_file.check(&mut logmsgs);
+            for log_msg in logmsgs {
+                warn!("A2l Checker: {}", log_msg);
+            }
+            Ok(a2l_file)
+        }
 
-    // Perform a consistency check
-    let mut logmsgs = Vec::<String>::new();
-    a2l_file.check(&mut logmsgs);
-
-    Ok(a2l_file)
+        Err(e) => {
+            error!("a2lfile::load failed: {:?}", e);
+            Err(e)
+        }
+    }
 }
 
 pub fn a2l_find_characteristic(a2l_file: &A2lFile, name: &str) -> Option<(A2lAddr, A2lType, A2lLimits)> {

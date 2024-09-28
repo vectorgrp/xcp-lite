@@ -2,7 +2,6 @@
 // xcp_client is a binary crate that uses the xcp_client library crate
 
 use std::error::Error;
-use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
 mod xcp_client;
@@ -136,11 +135,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("Calibrate the task cycle time and counter_max");
 
     // Create xcp_client
-    let dest_addr: Result<SocketAddr, _> = args.dest_addr.parse();
-    let local_addr: Result<SocketAddr, _> = args.bind_addr.parse();
-    info!("dest_addr: {:?}", dest_addr);
-    info!("local_addr: {:?}", local_addr);
-    let mut xcp_client = XcpClient::new(dest_addr.unwrap(), local_addr.unwrap());
+    let dest_addr = args.dest_addr.parse().map_err(|e| format!("{}", e))?;
+    let local_addr = args.bind_addr.parse().map_err(|e| format!("{}", e))?;
+    info!("dest_addr: {}", dest_addr);
+    info!("local_addr: {}", local_addr);
+    let mut xcp_client = XcpClient::new(dest_addr, local_addr);
 
     // Connect to the XCP server
     info!("XCP Connect");

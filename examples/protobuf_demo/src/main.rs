@@ -218,6 +218,6 @@ fn main() {
 
         thread::sleep(Duration::from_micros(1000000));
 
-        xcp.write_a2l(); // @@@@ test
+        xcp.write_a2l().unwrap(); // @@@@ test
     }
 }

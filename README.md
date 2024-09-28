@@ -250,12 +250,13 @@ Run a specific example:
 
 Tests may not run in parallel, as the XCP implementation is a singleton.
 Feature json and auto_reg must be enabled for testing. (Currently default)
+Feature a2l_reader enabled automatic check of generated A2L file with crate a2lfile
 
 
 ```
 
-  cargo test --features=json --features=auto_reg -- --test-threads=1 --nocapture
-  cargo test --features=json --features=auto_reg -- --test-threads=1 --nocapture  --test test_tokio_multi_thread
+  cargo test --features=json --features=auto_reg --features=a2l_reader -- --test-threads=1 --nocapture
+  cargo test --features=json --features=auto_reg --features=a2l_reader -- --test-threads=1 --nocapture  --test test_tokio_multi_thread
  
 ```
 
@@ -267,31 +268,34 @@ All measurement and calibration code instrumentation is non blocking and the tri
 There are no heap allocation during runtime, except for the lazy registrations of and for A2L generation.
   
 build.rs automatically builds a minimum static C library from individially preconfigured core XCPlite sources.   
-On C level, there is a synchronisation mutex for the mpsc transmit queue.  
+On C level, there is a synchronisation mutex or spinlock for the mpsc transmit queue.  
 The C code has the option to start the server with 2 normal threads for rx and tx socket handling.
 
-The generated A2L file is finalized on XCP connect and provided for upload via XCP.  
-This is achieved with a simple A2L writer which uses a template for the A2L.  
+The generated A2L file is finalized on XCP connect and provided for upload via XCP. 
 
-The proc macro for more convinient A2L generation is still in an experimantal state.
+The proc macro for more convinient A2L generation is still in an experimental state.
 
-Measurement of local variables is done with a macro which either copies to a static transfer buffer or directly accesses the value on stack.  
+Measurement of local variables is done with a macro which either copies to a static transfer buffer in the event or directly accesses the value on stack.  
 This involves a lazy initialization of the structures to build the A2l file describing the local variables.  
 
-The low word of a calibration parameter (CHARACTERISTIC) memory address in the A2L file is a relative offset in the calibration page struct. The high word is the index of the calibration segment in alphabetic order.  
-The memory addresses of local variables are relative addresses in their event capture buffer or to the stack location of the variable holding the event. 
-This concept is currently not supported by the A2L update tools, though A2L generation at runtime is the only option.
+There are 3 different addressing shemes, indicated by address extension (called _ABS, _DYN and _APP in the code).  
+In mode APP, the low word of a calibration parameters memory address in the A2L file is a relative offset in the calibration page struct.  
+The high word (& 0x7FFF) is the index of the calibration segment in a alphabetic ordered list.  
+The memory addresses of local measurement variables are relative addresses (mode DYN) in their event capture buffer on stack or to the stack location of the variable holding the event. 
+Mode ABS is the usual absolute addressing mode, relative to the module load address, which is only usefull for static cells.
+These concepts are currently not supported by the A2L update tools, though A2L generation at runtime is the only option for now.
 
-The EPK version string in the A2L file can be set by the application. It resides a seperate const memory segment.
+The EPK version string in the A2L file can be set by the application. It resides a seperate, hardcoded const memory segment.  
+
 
 ## Future improvements
 
-- Create a zero lock MPSC event queue, increase queue efficiency (optimize mutex contention) for many daq lists and events
-- The A2L file should not be loaded to memory to provide it for upload
+- Create a minimal lock MPSC event queue, increase queue efficiency (optimize mutex contention) for many daq lists and events
 - Support more types of calibration parameters, including types for curves and maps with axis
 - Avoid the mutex lock in CalSeg::Sync when there is no pending parameter modification
 - Improve the meta data annotations of the A2L serializer
-- Reduce the number of heap allocations and strings in the proc-macros and in A2L generation, reduce the overall memory footprint
+- Reduce the number of heap allocations and strings, reduce the overall memory footprint
+- Add sub groups of measurements for event instances
 - Add support to decribe the application clock domain in rust
 - Provide a no-std version and create a embassy example
 

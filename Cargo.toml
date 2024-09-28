@@ -79,8 +79,12 @@ json = ["dep:serde","dep:serde_json"]
 # Feature a2l_gen to enable automatic registry entries for calibration page structs
 auto_reg = ["dep:xcp_type_description_derive","dep:xcp_type_description"]
 
+# Feature a2l_reader to enable automatic check of the generated A2L file
+# Also needed to build the xcp_client demo application
+a2l_reader = ["dep:a2lfile"]
+
 default = ["json","auto_reg","xcp_server"]
-#default = ["json"]
+
 
 [dependencies]
 
@@ -128,13 +132,16 @@ xcp_type_description_derive = { path = "./xcp_type_description/xcp_type_descript
 xcp_idl_generator  = { path = "./xcp_idl_generator/"}
 xcp_idl_generator_derive  = { path = "./xcp_idl_generator/xcp_idl_generator_derive/"}
 
+# A2L reader
+a2lfile = { version="2.2.0", optional = true}
+
 
 
 [dev-dependencies]
 
-# used to implement the integration test XCP client and A2L parser
+# XCP test client
 tokio = { version = "1.37.0", features = ["full"] }
-a2lfile = "1.5.0"
+a2lfile = "2.2.0"
 bytes = "1.6.0"
 xcp_client = { path = "xcp_client" }
 

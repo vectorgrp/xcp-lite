@@ -48,7 +48,7 @@ where
 {
     fn load_from_file(name: &str) -> Result<Self, std::io::Error>;
 
-    fn save_to_file(&self, name: &str);
+    fn save_to_file(&self, name: &str) -> Result<(), std::io::Error>;
 
     fn register_fields(&self, calseg_name: &'static str);
 }
@@ -79,12 +79,13 @@ where
         Ok(page)
     }
 
-    fn save_to_file(&self, name: &str) {
+    fn save_to_file(&self, name: &str) -> Result<(), std::io::Error> {
         info!("Save parameter file {}", name);
-        let file = std::fs::File::create(name).unwrap();
+        let file = std::fs::File::create(name)?;
         let mut writer = std::io::BufWriter::new(file);
-        let s = serde_json::to_string(self).unwrap();
-        std::io::Write::write_all(&mut writer, s.as_ref()).unwrap();
+        let s = serde_json::to_string(self).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("serde_json::to_string failed: {}", e)))?;
+        std::io::Write::write_all(&mut writer, s.as_ref())?;
+        Ok(())
     }
 
     fn register_fields(&self, calseg_name: &'static str) {
