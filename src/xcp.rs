@@ -253,15 +253,6 @@ impl EventList {
     }
 
     fn register(&mut self) {
-        // Check event list is in untransformed order, may happen during testing
-        // @@@@ Remove this
-        for (i, e) in self.0.iter_mut().enumerate() {
-            if e.event.channel != i as u16 || e.event.get_channel() != i as u16 {
-                warn!("Event list is not in untransformed order");
-                break;
-            }
-        }
-
         // Sort the event list by name and then instance index
         self.sort_by_name_and_index();
 
@@ -753,13 +744,11 @@ impl Xcp {
     // Calibration page switching
 
     /// Set the active calibration page for the ECU access (used for test only)
-    // @@@@ ToDo: remove this pub
     pub fn set_ecu_cal_page(&self, page: XcpCalPage) {
         self.ecu_cal_page.store(page as u8, Ordering::Relaxed);
     }
 
     /// Set the active calibration page for the XCP access (used for test only)
-    // @@@@ ToDo: remove this pub
     pub fn set_xcp_cal_page(&self, page: XcpCalPage) {
         self.xcp_cal_page.store(page as u8, Ordering::Relaxed);
     }

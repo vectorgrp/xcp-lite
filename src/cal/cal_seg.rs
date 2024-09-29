@@ -4,11 +4,12 @@
 // Module cal_seg
 // Calibration Segment
 
-use std::{
-    marker::PhantomData,
-    ops::Deref,
-    sync::{Arc, Mutex},
-};
+use std::{marker::PhantomData, ops::Deref, sync::Arc};
+
+// Mutex used by CalSeg
+// parking_lot is about 2 times faster in this use case
+//use std::sync::Mutex;
+use parking_lot::Mutex;
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
@@ -145,14 +146,12 @@ where
             index,
             default_page,
             ecu_page: Box::new(CalPage {
-                // Heap allocation
                 ctr: 0,
                 init_request: false,
                 freeze_request: false,
                 page: init_page,
             }),
             xcp_page: Arc::new(Mutex::new(CalPage {
-                // Heap allocation
                 ctr: 0,
                 init_request: false,
                 freeze_request: false,
@@ -200,64 +199,62 @@ where
     /// # Returns
     /// true, if the calibration segment was modified
     pub fn sync(&self) -> bool {
-        let _xcp = Xcp::get();
         let mut modified = false;
 
         // Check for modifications and copy xcp_page to ecu_page, when active page is "RAM"
-        /*if xcp.get_xcp_cal_page() == XcpCalPage::Ram */
+        // let xcp = Xcp::get();
+        // if xcp.get_xcp_cal_page() == XcpCalPage::Ram
         {
             // @@@@ ToDo: Avoid the lock, when there is no pending modification for the XCP page
-            {
-                let mut xcp_page = self.xcp_page.lock().unwrap();
+            let mut xcp_page = self.xcp_page.lock(); // .unwrap(); // std::sync::MutexGuard
 
-                // Freeze - save xcp page to json file
-                #[cfg(feature = "json")]
-                if xcp_page.freeze_request {
-                    xcp_page.freeze_request = false;
-                    trace!("freeze: {})", self.get_name(),);
-                    // Reinitialize the calibration segment from default page
-                    let path = format!("{}.json", self.get_name());
-                    self.ecu_page.page.save_to_file(&path);
-                }
-
-                // Init - copy the default calibration page back to xcp page to reset it to default values
-                if xcp_page.init_request {
-                    xcp_page.init_request = false;
-                    // @@@@ unsafe - Implementation of init cal page in sync() with non mut self
-                    unsafe {
-                        trace!("init: {}: default_page => xcp_page ({})", self.get_name(), xcp_page.ctr,);
-
-                        let src_ptr = self.default_page as *const T;
-                        let dst_ptr = &xcp_page.page as *const _ as *mut T;
-                        core::ptr::copy_nonoverlapping(src_ptr, dst_ptr, 1);
-
-                        // Increment the modification counter to distribute the new xcp page to all clones
-                        xcp_page.ctr += 1;
-                        modified = true;
-                    }
-                }
-
-                // Copy shared (ctr,xcp_page) to (ctr,ecu_page) in this clone of the calibration segment
-                if xcp_page.ctr != self.ecu_page.ctr {
-                    trace!(
-                        "sync: {}-{:04X}: xcp_page ({}) => ecu_page ({})",
-                        self.get_name(),
-                        self.ecu_page.as_ref() as *const _ as u16,
-                        xcp_page.ctr,
-                        self.ecu_page.ctr
-                    );
-                    // @@@@ unsafe - Copy xcp_page to ecu_page
-                    unsafe {
-                        let dst_ptr: *mut u8 = self.ecu_page.as_ref() as *const _ as *mut u8;
-                        let src_ptr: *const u8 = &*xcp_page as *const _ as *const u8;
-                        let size: usize = std::mem::size_of::<(usize, T)>();
-                        core::ptr::copy_nonoverlapping(src_ptr, dst_ptr, size);
-                    }
-                    modified = true;
-                }
+            // Freeze - save xcp page to json file
+            #[cfg(feature = "json")]
+            if xcp_page.freeze_request {
+                xcp_page.freeze_request = false;
+                info!("freeze: {})", self.get_name(),);
+                // Reinitialize the calibration segment from default page
+                let path = format!("{}.json", self.get_name());
+                self.ecu_page.page.save_to_file(&path).unwrap();
             }
+
+            // Init - copy the default calibration page back to xcp page to reset it to default values
+            if xcp_page.init_request {
+                xcp_page.init_request = false;
+                // @@@@ unsafe - Implementation of init cal page in sync() with non mut self
+                unsafe {
+                    info!("init: {}: default_page => xcp_page ({})", self.get_name(), xcp_page.ctr,);
+
+                    let src_ptr = self.default_page as *const T;
+                    let dst_ptr = &xcp_page.page as *const _ as *mut T;
+                    core::ptr::copy_nonoverlapping(src_ptr, dst_ptr, 1);
+                }
+
+                // Increment the modification counter to distribute the new xcp page to all clones
+                xcp_page.ctr += 1;
+            }
+
+            // Sync - Copy shared (ctr,xcp_page) to (ctr,ecu_page) in this clone of the calibration segment
+            if xcp_page.ctr != self.ecu_page.ctr {
+                trace!(
+                    "sync: {}-{:04X}: xcp_page ({}) => ecu_page ({})",
+                    self.get_name(),
+                    self.ecu_page.as_ref() as *const _ as u16,
+                    xcp_page.ctr,
+                    self.ecu_page.ctr
+                );
+                // @@@@ unsafe - Copy xcp_page to ecu_page
+                unsafe {
+                    let dst_ptr: *mut u8 = self.ecu_page.as_ref() as *const _ as *mut u8;
+                    let src_ptr: *const u8 = &*xcp_page as *const _ as *const u8;
+                    let size: usize = std::mem::size_of::<(usize, T)>();
+                    core::ptr::copy_nonoverlapping(src_ptr, dst_ptr, size);
+                }
+                modified = true;
+            }
+
+            modified
         }
-        modified
     }
 }
 
@@ -308,19 +305,19 @@ where
         self.index
     }
     fn set_freeze_request(&self) {
-        let mut m = self.xcp_page.lock().unwrap();
+        let mut m = self.xcp_page.lock(); // .unwrap(); // std::sync::MutexGuard
         m.freeze_request = true;
     }
 
     fn set_init_request(&self) {
-        let mut m = self.xcp_page.lock().unwrap();
+        let mut m = self.xcp_page.lock(); // .unwrap(); // std::sync::MutexGuard
         m.init_request = true;
     }
 
     unsafe fn read(&self, offset: u16, len: u8, dst: *mut u8) -> bool {
         assert!(offset as usize + len as usize <= std::mem::size_of::<T>());
         if Xcp::get().get_xcp_cal_page() == XcpCalPage::Ram {
-            let xcp_page = self.xcp_page.lock().unwrap();
+            let xcp_page = self.xcp_page.lock(); // .unwrap(); // std::sync::MutexGuard
             let src: *const u8 = (&xcp_page.page as *const _ as *const u8).add(offset as usize);
             core::ptr::copy_nonoverlapping(src, dst, len as usize);
             true
@@ -334,7 +331,7 @@ where
     unsafe fn write(&self, offset: u16, len: u8, src: *const u8, delay: u8) -> bool {
         assert!(offset as usize + len as usize <= std::mem::size_of::<T>());
         if Xcp::get().get_xcp_cal_page() == XcpCalPage::Ram {
-            let mut xcp_page = self.xcp_page.lock().unwrap();
+            let mut xcp_page = self.xcp_page.lock(); // .unwrap(); // std::sync::MutexGuard
             let dst: *mut u8 = (&xcp_page.page as *const _ as *mut u8).add(offset as usize);
             core::ptr::copy_nonoverlapping(src, dst, len as usize);
             if delay == 0 {
@@ -348,7 +345,7 @@ where
     }
 
     fn flush(&self) {
-        let mut xcp_page = self.xcp_page.lock().unwrap();
+        let mut xcp_page = self.xcp_page.lock(); // .unwrap(); // std::sync::MutexGuard
         xcp_page.ctr = xcp_page.ctr.wrapping_add(1); // Increment modification counter
     }
 }
@@ -377,18 +374,18 @@ where
 // @@@@ For testing only
 // Deref to XCP page and increment the modification counter
 // This is undefined behaviour, because the reference to XCP data page will escape from its mutex
-// impl<T> DerefMut for CalSeg<T>
-// where
-//     T: CalPageTrait,
-// {
-//     fn deref_mut(&mut self) -> &mut Self::Target {
-//         warn!("Unsafe deref mut to XCP page of {}, this is undefined behaviour !!", self.get_name());
-//         let mut p = self.xcp_page.lock().unwrap();
-//         p.ctr = p.ctr.wrapping_add(1);
-//         let r: *mut T = &mut p.page;
-//         unsafe { &mut *r }
-//     }
-// }
+impl<T> std::ops::DerefMut for CalSeg<T>
+where
+    T: CalPageTrait,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        warn!("Unsafe deref mut to XCP page of {}, this is undefined behaviour !!", self.get_name());
+        let mut p = self.xcp_page.lock(); // .unwrap(); // std::sync::MutexGuard
+        p.ctr = p.ctr.wrapping_add(1);
+        let r: *mut T = &mut p.page;
+        unsafe { &mut *r }
+    }
+}
 
 //----------------------------------------------------------------------------------------------
 // Implement Clone for CalSegSync
@@ -465,9 +462,10 @@ mod cal_tests {
     use xcp_type_description_derive::XcpTypeDescription;
 
     use serde::{Deserialize, Serialize};
-    use std::sync::{mpsc, mpsc::Sender, Arc, Mutex, Once, RwLock};
+    use std::sync::{mpsc, mpsc::Sender, Arc, Once, RwLock};
     use std::thread;
     use std::thread::sleep;
+    use std::thread::JoinHandle;
     use std::time::{Duration, Instant};
 
     //-----------------------------------------------------------------------------
@@ -490,25 +488,19 @@ mod cal_tests {
         test: u8,
     }
 
-    fn task_calseg(cal_seg: CalSeg<CalPage0>) {
-        info!("task_calseg");
-        loop {
+    fn task_calseg(cal_seg: CalSeg<CalPage0>) -> u32 {
+        trace!("task_calseg start");
+        let mut i: u32 = 0;
+        for _ in 0..1000000 {
+            i += 1;
+            thread::yield_now();
             if cal_seg.stop {
                 break;
             }
             cal_seg.sync();
         }
-        info!("task_calseg end");
-    }
-
-    fn task_mutex(stop: Arc<Mutex<&bool>>) {
-        info!("task_stop");
-        loop {
-            if **(stop.lock().unwrap()) {
-                break;
-            }
-        }
-        info!("task_calseg end");
+        trace!("task_calseg end, loop count = {}", i);
+        i
     }
 
     #[test]
@@ -558,7 +550,7 @@ mod cal_tests {
         // The only effect would be, that we hold a reference to the wrong page, as demonstrated here
         const CAL_PAGE2: CalPage4 = CalPage4 { test: 0x55 }; // FLASH
         let cal_page2 = CalPage4 { test: 0xAA }; // RAM
-        cal_page2.save_to_file("calseg2.json");
+        cal_page2.save_to_file("calseg2.json").unwrap();
         let cal_seg2 = xcp.create_calseg("calseg2", &CAL_PAGE2, true);
         Xcp::get().set_ecu_cal_page(XcpCalPage::Ram);
         let r = &cal_seg2.test;
@@ -568,6 +560,40 @@ mod cal_tests {
         assert_eq!(*r, 0xAA); // RAM page
         assert_eq!(cal_seg2.test, 0x55); // FLASH page
         std::fs::remove_file("calseg2.json").ok();
+    }
+
+    #[test]
+    fn test_calibration_segment_performance() {
+        let xcp = xcp_test::test_setup(log::LevelFilter::Info);
+
+        const CAL_PAGE: CalPage0 = CalPage0 { stop: false };
+
+        let mut cal_seg1 = xcp.create_calseg("calseg1", &CAL_PAGE, false);
+        cal_seg1.sync();
+        assert!(!cal_seg1.stop);
+
+        // Create 10 tasks with 10 clones of cal_seg1
+        let mut t = Vec::new();
+        let loop_count = Arc::new(parking_lot::Mutex::new(Vec::with_capacity(10)));
+        let start = Instant::now();
+        for i in 0..10 {
+            let c = CalSeg::clone(&cal_seg1);
+            trace!("task {} clone = {}", i, cal_seg1.get_clone_count());
+            let l = loop_count.clone();
+            t.push(thread::spawn(move || {
+                let n = task_calseg(c);
+                l.lock().push(n);
+            }));
+        }
+        thread::sleep(Duration::from_millis(1000));
+        cal_seg1.stop = true;
+        t.into_iter().for_each(|t| t.join().unwrap());
+
+        let duration = start.elapsed().as_micros();
+        info!("Duration: {}us", duration);
+        let tot_loop_count: u32 = loop_count.lock().iter().sum();
+        info!("Loop counts: tot = {}, {:.3}us per loop", tot_loop_count, duration as f64 / tot_loop_count as f64);
+        info!(" {:?}", loop_count);
     }
 
     //-----------------------------------------------------------------------------
@@ -602,7 +628,7 @@ mod cal_tests {
 
         // Create a test_cal_page.json file with values from CAL_PAR_RAM
         let mut_page: Box<CalPage> = Box::new(CAL_PAR_RAM);
-        mut_page.save_to_file("test_cal_seg.json");
+        mut_page.save_to_file("test_cal_seg.json").unwrap();
 
         // Create a cal_seg with a mut_page from file test_cal_seg.json aka CAL_PAR_RAM, and a default page from CAL_PAR_FLASH
         let cal_seg = &xcp.create_calseg("test_cal_seg", &CAL_PAR_FLASH, true);
@@ -679,8 +705,8 @@ mod cal_tests {
         xcp_test::test_setup(log::LevelFilter::Info);
         let xcp = Xcp::get();
         let mut_page: CalPage2 = CalPage2 { a: 1, b: 3, c: 5 };
-        mut_page.save_to_file("test1.json");
-        mut_page.save_to_file("test2.json");
+        mut_page.save_to_file("test1.json").unwrap();
+        mut_page.save_to_file("test2.json").unwrap();
         let cal_seg = xcp.create_calseg("test1", &FLASH_PAGE2, true); // active page is RAM from test1.json
         assert_eq!(xcp.get_ecu_cal_page(), XcpCalPage::Ram, "XCP should be on RAM page here, there is no independant page switching yet");
         test_is_mut!(cal_seg); // Default page must be mut_page
@@ -720,7 +746,7 @@ mod cal_tests {
         assert!(std::mem::size_of::<CalPage3>() == 12);
 
         let mut_page1: CalPage1 = CalPage1 { a: 1, b: 3, c: 5 };
-        mut_page1.save_to_file("test1.json");
+        mut_page1.save_to_file("test1.json").unwrap();
 
         // Create calseg1 from def
         let calseg1 = xcp.create_calseg("test1", &FLASH_PAGE1, true);
@@ -789,7 +815,7 @@ mod cal_tests {
             info!(" {}: {}", i, s.get_name());
         }
 
-        let a: Arc<Mutex<Vec<Box<dyn CalSegTrait>>>> = Arc::new(Mutex::new(Vec::new()));
+        let a: Arc<std::sync::Mutex<Vec<Box<dyn CalSegTrait>>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
         {
             let mut v = a.lock().unwrap();
             v.push(Box::new(s1.clone()));

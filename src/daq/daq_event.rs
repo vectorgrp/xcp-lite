@@ -637,7 +637,7 @@ mod daq_tests {
                 break;
             }
         }
-        xcp.write_a2l().unwrap();
+        xcp.write_a2l().unwrap(); // @@@@ Remove: force A2L write
     }
 
     //-----------------------------------------------------------------------------
@@ -672,7 +672,7 @@ mod daq_tests {
                 break;
             }
         }
-        xcp.write_a2l().unwrap();
+        xcp.write_a2l().unwrap(); // @@@@ Remove: force A2L write
     }
 
     //-----------------------------------------------------------------------------
@@ -731,6 +731,6 @@ mod daq_tests {
 
         // daq_register_instance!(channel6, event5); // panic: duplicate measurement
 
-        xcp.write_a2l().unwrap();
+        xcp.write_a2l().unwrap(); // @@@@ Remove: force A2L write
     }
 }

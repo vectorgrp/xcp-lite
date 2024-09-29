@@ -162,6 +162,6 @@ fn main() {
         event_point_cloud.trigger();
 
         params.sync();
-        xcp.write_a2l().unwrap();
+        xcp.write_a2l().unwrap(); // @@@@ Remove: force A2L write
     }
 }

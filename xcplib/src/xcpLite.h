@@ -69,7 +69,7 @@ extern void XcpStart();
 extern void XcpReset();
 
 /* XCP command processor */
-extern uint8_t XcpCommand( const uint32_t* pCommand, uint16_t len );
+extern uint8_t XcpCommand( const uint32_t* pCommand, uint8_t len );
 
 /* Disconnect, stop DAQ, flush queue */
 extern void XcpDisconnect();

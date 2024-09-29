@@ -81,9 +81,10 @@ typedef HANDLE tXcpThread;
 #elif defined(_LINUX) // Linux
 
 typedef pthread_t tXcpThread;
-#define create_thread(h,t) pthread_create(h, NULL, t, NULL);
-#define join_thread(h) pthread_join(h,NULL);
+#define create_thread(h,t) pthread_create(h, NULL, t, NULL)
+#define join_thread(h) pthread_join(h,NULL)
 #define cancel_thread(h) { pthread_detach(h); pthread_cancel(h); }
+#define yield_thread() sched_yield()
 
 #endif
 

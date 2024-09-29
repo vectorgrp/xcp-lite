@@ -2,7 +2,7 @@
 // Integration test for XCP in a multi threaded application
 // Uses the test XCP client in xcp_client
 
-// cargo test --features=json --features=auto_reg -- --test-threads=1 --nocapture  --test test_multi_thread
+// cargo test --features=json --features=auto_reg --features=a2l_reader -- --test-threads=1 --nocapture  --test test_multi_thread
 
 #![allow(unused_assignments)]
 

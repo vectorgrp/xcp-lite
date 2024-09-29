@@ -486,7 +486,7 @@ fn main() {
         // Without this, the A2L file will be automatically written on XCP connect, to be available for download by CANape
         if idle_time >= 2.0 {
             // Test A2L write
-            xcp.write_a2l().unwrap();
+            xcp.write_a2l().unwrap(); // @@@@ Remove: force A2L write
 
             // Test init request
             // xcp.set_init_request();

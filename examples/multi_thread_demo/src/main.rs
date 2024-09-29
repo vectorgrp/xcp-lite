@@ -126,7 +126,7 @@ fn main() {
 
     // Test
     thread::sleep(Duration::from_millis(1000));
-    xcp.write_a2l().unwrap();
+    xcp.write_a2l().unwrap(); // @@@@ Remove: force A2L write
 
     t.into_iter().for_each(|t| t.join().unwrap());
 

@@ -268,7 +268,7 @@ All measurement and calibration code instrumentation is non blocking and the tri
 There are no heap allocation during runtime, except for the lazy registrations of and for A2L generation.
   
 build.rs automatically builds a minimum static C library from individially preconfigured core XCPlite sources.   
-On C level, there is a synchronisation mutex or spinlock for the mpsc transmit queue.  
+On C level, there is a synchronisation mutex for the mpsc transmit queue.  
 The C code has the option to start the server with 2 normal threads for rx and tx socket handling.
 
 The generated A2L file is finalized on XCP connect and provided for upload via XCP. 
@@ -288,7 +288,7 @@ These concepts are currently not supported by the A2L update tools, though A2L g
 The EPK version string in the A2L file can be set by the application. It resides a seperate, hardcoded const memory segment.  
 
 
-## Future improvements
+## Possible improvements
 
 - Create a minimal lock MPSC event queue, increase queue efficiency (optimize mutex contention) for many daq lists and events
 - Support more types of calibration parameters, including types for curves and maps with axis
@@ -296,7 +296,8 @@ The EPK version string in the A2L file can be set by the application. It resides
 - Improve the meta data annotations of the A2L serializer
 - Reduce the number of heap allocations and strings, reduce the overall memory footprint
 - Add sub groups of measurements for event instances
-- Add support to decribe the application clock domain in rust
+- Improve the pointer provenance checks in XcpEvent
+- Add support to describe the application clock domain in rust
 - Provide a no-std version and create a embassy example
 
 

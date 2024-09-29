@@ -43,11 +43,6 @@ static struct {
     SOCKET MulticastSock;
 #endif
 
-#if defined(_WIN) // Windows
-    HANDLE queue_event;
-    uint64_t queue_event_time;
-#endif
-
 } gXcpTl;
 #endif
 
@@ -154,10 +149,9 @@ void XcpEthTlSendMulticastCrm(const uint8_t* packet, uint16_t packet_size, const
 
 //------------------------------------------------------------------------------
 
-static int handleXcpCommand(int n, tXcpCtoMessage *p, uint8_t *srcAddr, uint16_t srcPort) {
+static int handleXcpCommand(tXcpCtoMessage *p, uint8_t *srcAddr, uint16_t srcPort) {
 
     int connected;
-    (void)n;
 
     // gXcpTl.LastCrmCtr = p->ctr;
     connected = XcpIsConnected();
@@ -193,8 +187,8 @@ static int handleXcpCommand(int n, tXcpCtoMessage *p, uint8_t *srcAddr, uint16_t
             }
         }
 #endif // UDP
-
-        XcpCommand((const uint32_t*)&p->packet[0], p->dlc); // Handle command
+        if (p->dlc>XCPTL_MAX_CTO_SIZE) return 0;
+        XcpCommand((const uint32_t*)&p->packet[0], (uint8_t)p->dlc); // Handle command
     }
 
     /* Not connected yet */
@@ -209,7 +203,7 @@ static int handleXcpCommand(int n, tXcpCtoMessage *p, uint8_t *srcAddr, uint16_t
             }
 #endif // UDP
             XcpTlResetTransmitQueue();
-            XcpCommand((const uint32_t*)&p->packet[0],p->dlc); // Handle CONNECT command
+            XcpCommand((const uint32_t*)&p->packet[0],(uint8_t)p->dlc); // Handle CONNECT command
         }
         else {
             DBG_PRINT_WARNING("WARNING: handleXcpCommand: no valid CONNECT command\n");
@@ -268,7 +262,7 @@ BOOL XcpEthTlHandleCommands(uint32_t timeout_ms) {
             n = socketRecv(gXcpTl.Sock, (uint8_t*)&msgBuf.packet, msgBuf.dlc, TRUE); // packet, recv blocking
             if (n > 0) {
                 if (n == msgBuf.dlc) {
-                    return handleXcpCommand(n, &msgBuf, NULL, 0);
+                    return handleXcpCommand(&msgBuf, NULL, 0);
                 }
                 else {
                     socketShutdown(gXcpTl.Sock); // Let the receive thread terminate without error message
@@ -303,7 +297,7 @@ BOOL XcpEthTlHandleCommands(uint32_t timeout_ms) {
               DBG_PRINT_ERROR("ERROR: corrupt message received!\n");
               return FALSE; // Error
             }
-            return handleXcpCommand(n, &msgBuf, srcAddr, srcPort);
+            return handleXcpCommand(&msgBuf, srcAddr, srcPort);
         }
     }
 #endif // UDP
@@ -327,7 +321,8 @@ static int handleXcpMulticastCommand(int n, tXcpCtoMessage* p, uint8_t* dstAddr,
 
     // Valid socket data received, at least transport layer header and 1 byte
     if (n >= XCPTL_TRANSPORT_LAYER_HEADER_SIZE + 1 && p->dlc <= n- XCPTL_TRANSPORT_LAYER_HEADER_SIZE) {
-        XcpCommand((const uint32_t*)&p->packet[0],p->dlc); // Handle command
+        if (p->dlc >= XCPTL_MAX_CTO_SIZE) return 0; // Error
+        XcpCommand((const uint32_t*)&p->packet[0],(uint8_t)p->dlc); // Handle command
     }
     else {
       printf("MULTICAST ignored\n");

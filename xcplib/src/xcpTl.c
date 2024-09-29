@@ -17,6 +17,14 @@
 #include "xcpTlQueue.h"   
 
 
+#if defined(_WIN) // Windows
+static struct {
+    HANDLE queue_event;
+    uint64_t queue_event_time;
+} gXcpTl;
+#endif
+
+
 BOOL XcpTlInit() {
 
     XcpTlInitTransmitQueue();
@@ -76,6 +84,7 @@ uint8_t XcpTlCommand( uint16_t msgLen, const uint8_t* msgBuf) {
 
     /* Connected */
     if (connected) {
+        if (p->dlc>XCPTL_MAX_CTO_SIZE) return CRC_CMD_SYNTAX;
         return XcpCommand((const uint32_t*)&p->packet[0], p->dlc); // Handle command
     }
 
@@ -84,7 +93,7 @@ uint8_t XcpTlCommand( uint16_t msgLen, const uint8_t* msgBuf) {
         /* Check for CONNECT command ? */
         if (p->dlc == 2 && p->packet[0] == CC_CONNECT) {
             XcpTlResetTransmitQueue();
-            return XcpCommand((const uint32_t*)&p->packet[0],p->dlc); // Handle CONNECT command
+            return XcpCommand((const uint32_t*)&p->packet[0],(uint8_t)p->dlc); // Handle CONNECT command
         }
         else {
             DBG_PRINTF_WARNING("WARNING: XcpTlCommand: no valid CONNECT command, dlc=%u, data=%02X\n", p->dlc, p->packet[0]);

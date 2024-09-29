@@ -2,8 +2,7 @@
 // Integration test for XCP in a single thread application
 // Uses the test XCP client in module xcp_client
 
-// cargo test --features=json --features=auto_reg -- --test-threads=1 --nocapture  --test test_single_thread
-
+// cargo test --features=json --features=auto_reg --features=a2l_reader -- --test-threads=1 --nocapture  --test test_single_thread
 use xcp::*;
 use xcp_type_description::prelude::*;
 

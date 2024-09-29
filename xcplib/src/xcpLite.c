@@ -289,7 +289,7 @@ static tXcpData gXcp = { 0 };
 #define CRM_WORD(x)               (gXcp.Crm.w[x])
 #define CRM_DWORD(x)              (gXcp.Crm.dw[x])
 
-static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint16_t cmdLen );
+static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint8_t cmdLen );
 
 
 /****************************************************************************/
@@ -686,8 +686,7 @@ static uint8_t XcpSetDaqListMode(uint16_t daq, uint16_t event, uint8_t mode, uin
     // Check all DAQ lists with same event have the same address extension
     uint8_t ext = DaqListAddrExt(daq);
     for (uint16_t daq0=0;daq0<gXcp.Daq.DaqCount;daq0++)  { 
-      uint16_t event0 = DaqListEventChannel(daq0); 
-      if (event0==event) {
+      if (DaqListEventChannel(daq0)==event) {
         uint8_t ext0 = DaqListAddrExt(daq0);
         if (ext != ext0) return CRC_DAQ_CONFIG; // Error address extension not unique
       }
@@ -1047,7 +1046,7 @@ static void XcpSendMulticastResponse( const tXcpCto* crm, uint8_t crmLen, uint8_
 //  Push XCP command which can not be executes in this context for later async execution
 #ifdef XCP_ENABLE_DYN_ADDRESSING
 
-static uint8_t XcpPushCommand( const tXcpCto* cmdBuf, uint16_t cmdLen) {
+static uint8_t XcpPushCommand( const tXcpCto* cmdBuf, uint8_t cmdLen) {
 
 #if defined(XCP_ENABLE_MULTITHREAD_CAL_EVENTS) 
     mutexLock(&gXcp.CmdPendingMutex);
@@ -1074,11 +1073,11 @@ static uint8_t XcpPushCommand( const tXcpCto* cmdBuf, uint16_t cmdLen) {
 #endif // XCP_ENABLE_DYN_ADDRESSING
 
 //  Handles incoming XCP commands
-uint8_t XcpCommand( const uint32_t* cmdBuf, uint16_t cmdLen ) {
+uint8_t XcpCommand( const uint32_t* cmdBuf, uint8_t cmdLen ) {
   return XcpAsyncCommand(FALSE, cmdBuf, cmdLen);
 }
 //  Handles incoming or asyncronous XCP commands
-static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint16_t cmdLen )
+static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint8_t cmdLen )
 {
   #define CRO                       ((tXcpCto*)cmdBuf)
   #define CRO_LEN                   (cmdLen)
@@ -1903,7 +1902,7 @@ void XcpPrint( const char *str ) {
   crm.b[0] = PID_SERV; /* Event*/
   crm.b[1] = 0x01;  /* Eventcode SERV_TEXT */
   uint8_t i;
-  uint16_t l = strlen(str);
+  uint16_t l = (uint16_t)strlen(str);
   for (i = 0; i < l && i < XCPTL_MAX_CTO_SIZE-4; i++) crm.b[i+2] = str[i];
   crm.b[i+2] = '\n';
   crm.b[i+3] = 0;

@@ -145,7 +145,7 @@ impl GenerateA2l for RegistryMeasurement {
             //     r#"/begin BLOB {name} "{comment}" 0x{addr:X} {buffer_size} ECU_ADDRESS_EXTENSION {ext} {annotation} /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT {event} /end DAQ_EVENT /end IF_DATA /end BLOB"#
             // )?;
 
-            // @@@@: Intermediate solution
+            // @@@@ ToDo: Intermediate solution
             // As ASCII string (old representation)
             write!(
                 writer,

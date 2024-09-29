@@ -16,10 +16,67 @@
 #include "dbg_print.h"
 #include "xcpLite.h"   
 
+// Experimental
+// Use spinlock/mutex instead of mutex for producer lock
+// This naiv approach is usually not faster compared to a mutex and can produce higher latencies and hard to predict impact on other threads
+// It might be a better solution for non preemptive tasks
+//#define USE_SPINLOCK
+//#define USE_YIELD
+//#define TEST_LOCK_TIMING
+
+/* 
+Test results from test_multi_thread with 32 tasks and 200us sleep time:   
+maxLock and avgLock time in ns
+
+SPINLOCK+YIELD
+    lockCount=501170, maxLock=296000, avgLock=768
+    lockCount=501019, maxLock=195000, avgLock=744
+    lockCount=500966, maxLock=210000, avgLock=724
+
+SPINLOCK without cache friendly lock check
+    lockCount=492952, maxLock=10115000, avgLock=1541
+
+SPINLOCK
+    lockCount=497254, maxLock=9935000, avgLock=512
+    lockCount=494866, maxLock=11935000, avgLock=1322
+    lockCount=490923, maxLock=10019000, avgLock=2073
+    lockCount=489831, maxLock=10024000, avgLock=1980
+
+MUTEX
+    lockCount=499798, maxLock=114000, avgLock=840
+    lockCount=500202, maxLock=135000, avgLock=806
+    lockCount=499972, maxLock=130000, avgLock=790
+    lockCount=500703, maxLock=124000, avgLock=755
+    lockCount=500773, maxLock=126000, avgLock=669
+*/
+
+#ifdef TEST_LOCK_TIMING
+static uint64_t lockTimeMax = 0;
+static uint64_t lockTimeSum = 0;
+static uint64_t lockCount = 0;
+#endif
+
+#ifndef _WIN
+
 #include <stdatomic.h>
 
-// Use spinlock instead of mutex for producer lock
-//#define USE_SPINLOCK
+#else
+
+#ifdef _WIN32_
+#error "Windows32 not implemented yet"
+#else
+
+#undef USE_SPINLOCK
+#define atomic_uint_fast64_t uint64_t
+#define atomic_store(a,b) (*a)=(b)
+#define atomic_load(a) (*a)
+#define atomic_load_explicit(a,b) (*a)
+#define atomic_fetch_add(a,b) { mutexLock(&gXcpTlQueue.mutex); (*a)+=(b); mutexUnlock(&gXcpTlQueue.mutex);}
+
+#endif
+
+#endif
+
 
 // Queue entry states
 #define RESERVED  0 // Reserved by producer
@@ -63,8 +120,8 @@ void XcpTlInitTransmitQueue() {
     gXcpTlQueue.tail_len = 0;
 #ifdef USE_SPINLOCK
     assert(atomic_is_lock_free(&lock)!=0);
-#endif
     assert(atomic_is_lock_free(&gXcpTlQueue.head)!=0);
+#endif
 }
 
 void XcpTlResetTransmitQueue() {
@@ -78,6 +135,10 @@ void XcpTlFreeTransmitQueue() {
     XcpTlResetTransmitQueue();
 #ifndef USE_SPINLOCK
     mutexDestroy(&gXcpTlQueue.mutex);
+#endif
+    
+#ifdef TEST_LOCK_TIMING
+    DBG_PRINTF3("XcpTlFreeTransmitQueue: overruns=%u, lockCount=%llu, maxLock=%llu, avgLock=%llu\n", gXcpTlQueue.overruns, lockCount, lockTimeMax, lockTimeSum/lockCount);
 #endif
 }
 
@@ -106,10 +167,26 @@ uint8_t* XcpTlGetTransmitBuffer(void** handle, uint16_t packet_len) {
     DBG_PRINTF5("XcpTlGetTransmitBuffer: len=%d\n", packet_len);
 
     // Producer lock
+#ifdef TEST_LOCK_TIMING
+    uint64_t c = clockGet();
+#endif
 #ifdef USE_SPINLOCK
-    while (atomic_flag_test_and_set(&lock));
+    for (uint32_t n = 1;1;n++) {
+        BOOL locked = atomic_load_explicit(&lock._Value, memory_order_relaxed);
+        if (!locked  && !atomic_flag_test_and_set_explicit(&lock, memory_order_acquire)) break;
+        //if ( !atomic_flag_test_and_set_explicit(&lock, memory_order_acquire)) break;
+    #ifdef USE_YIELD
+        if (n%16==0) yield_thread();
+    #endif
+    }
 #else
     mutexLock(&gXcpTlQueue.mutex);
+#endif
+#ifdef TEST_LOCK_TIMING
+    uint64_t d = clockGet() - c;
+    if (d>lockTimeMax) lockTimeMax = d;
+    lockTimeSum += d;
+    lockCount++;
 #endif
 
     uint64_t head = atomic_load(&gXcpTlQueue.head);
@@ -120,13 +197,13 @@ uint8_t* XcpTlGetTransmitBuffer(void** handle, uint16_t packet_len) {
         // Use the ctr as commmit state
         uint32_t offset = head % MPSC_QUEUE_SIZE;
         entry = (tXcpDtoMessage *)(gXcpTlQueue.buffer + offset);
-        entry->ctr = RESERVED;
+        entry->ctr = RESERVED;  
 
         atomic_store(&gXcpTlQueue.head, head+msg_len);
     }
 
 #ifdef USE_SPINLOCK
-    atomic_flag_clear(&lock);
+    atomic_flag_clear_explicit(&lock, memory_order_release);
 #else
     mutexUnlock(&gXcpTlQueue.mutex);
 #endif
@@ -167,10 +244,10 @@ void XcpTlFlushTransmitBuffer() {
 
 
 // Get transmit queue level in bytes
-static int32_t XcpTlGetTransmitQueueLevel() {
+static uint32_t XcpTlGetTransmitQueueLevel() {
     uint64_t head = atomic_load(&gXcpTlQueue.head);
     uint64_t tail = atomic_load(&gXcpTlQueue.tail);
-    return head-tail;
+    return (uint32_t)(head-tail);
 }
 
 // Wait (sleep) until transmit queue is empty 
@@ -204,22 +281,20 @@ const uint8_t * XcpTlTransmitQueuePeekMsg( uint16_t* msg_len ) {
 
     uint64_t head = atomic_load(&gXcpTlQueue.head);
     uint64_t tail = atomic_load(&gXcpTlQueue.tail);
-
     if (head == tail) return NULL;  // Queue is empty
-
-    uint32_t level = head-tail;
-    assert(level <= MPSC_QUEUE_SIZE); // Overrun not handled
-    DBG_PRINTF5("XcpTlTransmitQueuePeekMsg: level = %u, ctr=%u\n", level, gXcpTlQueue.ctr );
+    assert(head-tail<=MPSC_QUEUE_SIZE); // Overrun not handled
+    uint32_t level = (uint32_t)(head-tail);
+    DBG_PRINTF5("XcpTlTransmitQueuePeekMsg: level=%u, ctr=%u\n", level, gXcpTlQueue.ctr );
 
     uint32_t tail_offset = tail % MPSC_QUEUE_SIZE;  
-    tXcpDtoMessage *entry = (tXcpDtoMessage *)(gXcpTlQueue.buffer + tail_offset);
+    tXcpDtoMessage *entry1 = (tXcpDtoMessage *)(gXcpTlQueue.buffer + tail_offset);
 
     if (gXcpTlQueue.tail_len==0) {
 
-        uint16_t ctr = entry->ctr; // entry ctr may be concurrently changed by producer, when committed
-        if (ctr==RESERVED) return NULL;  // Not commited yet
-        assert(ctr==COMMITTED); 
-        assert(entry->dlc<=XCPTL_MAX_DTO_SIZE); // Max DTO size
+        uint16_t ctr1 = entry1->ctr; // entry ctr may be concurrently changed by producer, when committed
+        if (ctr1==RESERVED) return NULL;  // Not commited yet
+        assert(ctr1==COMMITTED); 
+        assert(entry1->dlc<=XCPTL_MAX_DTO_SIZE); // Max DTO size
         
         if (gXcpTlQueue.overruns) { // Add the number of overruns
             DBG_PRINTF3("XcpTlTransmitQueuePeekMsg: overruns=%u\n", gXcpTlQueue.overruns);
@@ -227,8 +302,8 @@ const uint8_t * XcpTlTransmitQueuePeekMsg( uint16_t* msg_len ) {
             gXcpTlQueue.overruns = 0;
         } 
 
-        entry->ctr = gXcpTlQueue.ctr++; // Set the transport layer packet counter 
-        uint16_t len = entry->dlc + XCPTL_TRANSPORT_LAYER_HEADER_SIZE;
+        entry1->ctr = gXcpTlQueue.ctr++; // Set the transport layer packet counter 
+        uint16_t len = entry1->dlc + XCPTL_TRANSPORT_LAYER_HEADER_SIZE;
 
         // Check for more packets to concatenate in a meassage segment
         uint16_t len1 = len;
@@ -259,7 +334,7 @@ const uint8_t * XcpTlTransmitQueuePeekMsg( uint16_t* msg_len ) {
 
     //DBG_PRINTF5("XcpTlTransmitQueuePeekMsg: msg_len = %u\n", gXcpTlQueue.tail_len );
     *msg_len = gXcpTlQueue.tail_len;
-    return (uint8_t*)entry;
+    return (uint8_t*)entry1;
 }
 
 
