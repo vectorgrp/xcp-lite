@@ -6,5 +6,5 @@
 // Submodules
 
 // DAQ event
-mod daq_event;
-pub use daq_event::*;
+pub mod daq_event;
+//pub use daq_event::*;

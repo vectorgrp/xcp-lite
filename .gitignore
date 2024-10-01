@@ -30,3 +30,5 @@ cargo.lock
 /a2lfile.txt
 /test.a2l
 /xcp_lite.a2l
+/test_registry.a2l
+*.a2l

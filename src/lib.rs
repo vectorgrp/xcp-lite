@@ -6,12 +6,7 @@
 // Note that the tests can not be executed in parallel
 // Use cargo test -- --test-threads=1 --nocapture
 
-// #![allow(non_upper_case_globals)]
-// #![allow(non_camel_case_types)]
-// #![allow(non_snake_case)]
-// #![allow(unused_variables)]
-// #![allow(unused_imports)]
-// #![allow(dead_code)]
+//#![warn(missing_docs)]
 
 // This crate is a library
 #![crate_type = "lib"]
@@ -25,6 +20,9 @@ use log::{debug, error, info, trace, warn};
 
 // Submodule xcp
 mod xcp;
+pub use xcp::cal::cal_seg::CalPageField;
+pub use xcp::cal::cal_seg::CalSeg;
+pub use xcp::daq::daq_event::DaqEvent;
 pub use xcp::Xcp;
 pub use xcp::XcpBuilder;
 pub use xcp::XcpCalPage;
@@ -33,27 +31,15 @@ pub use xcp::XcpLogLevel;
 pub use xcp::XcpSessionStatus;
 pub use xcp::XcpTransportLayer;
 
-// Submodule cal
-mod cal;
-pub use cal::CalPageField;
-pub use cal::CalPageTrait;
-pub use cal::CalSeg;
-pub use cal::CalSegTrait;
-
-// Submodule daq
-mod daq;
-pub use daq::DaqEvent;
+// @@@@ Reexport for integration tests
+pub use xcp::xcp_test::test_reinit;
 
 // Submodule reg
 mod reg;
-pub use reg::RegDataTypeHandler;
-pub use reg::RegDataTypeProperties;
 pub use reg::RegistryCharacteristic;
 pub use reg::RegistryDataType;
+pub use reg::RegistryDataTypeTrait;
 pub use reg::RegistryMeasurement;
-
-// @@@@ Reexport for integration tests
-pub use xcp::xcp_test::test_reinit;
 
 // XCPlite FFI bindings
 mod xcplib {
@@ -63,6 +49,7 @@ mod xcplib {
 //----------------------------------------------------------------------------------------------
 // Manually register a static measurement and calibration variables
 
+/// Register a static calibration parameter
 #[macro_export]
 macro_rules! cal_register_static {
     (   $variable:expr ) => {{
@@ -89,6 +76,7 @@ macro_rules! cal_register_static {
     }};
 }
 
+/// Register a static measurement variable with
 #[macro_export]
 macro_rules! daq_register_static {
     (   $variable:expr, $event:ident ) => {{
@@ -121,7 +109,7 @@ macro_rules! daq_register_static {
 //-----------------------------------------------------------------------------
 // XCP println macro
 
-// Print formated test to CANape console
+/// Print formated text to CANape console
 #[allow(unused_macros)]
 #[macro_export]
 macro_rules! xcp_println {

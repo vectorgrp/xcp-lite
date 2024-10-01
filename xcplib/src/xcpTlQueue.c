@@ -329,7 +329,7 @@ const uint8_t * XcpTlTransmitQueuePeekMsg( uint16_t* msg_len ) {
         gXcpTlQueue.tail_len = len;
     }
     else {
-        assert(0);  // @@@@@@@ This may happen, but not observed ever
+        assert(0);  // @@@@ This may happen, but not observed ever
     }
 
     //DBG_PRINTF5("XcpTlTransmitQueuePeekMsg: msg_len = %u\n", gXcpTlQueue.tail_len );
