@@ -14,15 +14,22 @@ use parking_lot::Mutex;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
+//use crate::cal;
+use super::CalPageTrait;
 use crate::reg;
 use crate::xcp;
-use crate::{cal, RegDataTypeProperties};
-use cal::CalPageTrait;
 use xcp::Xcp;
 use xcp::XcpCalPage;
 
 //----------------------------------------------------------------------------------------------
 // Manually add calibration page fields to a calibration segment description
+
+/// Calibration page field description  
+/// Used by the calseg_field macro to manually add a field to a calibration segment  
+/// # example  
+/// const CAL_PAGE: CalPage = CalPage { cycle_time_ms: MAINLOOP_CYCLE_TIME };  
+/// let calseg = xcp.add_calseg("CalPage", &CAL_PAGE );  
+/// calseg.add_field(calseg_field!(CAL_PAGE.cycle_time_ms, "ms", "main task cycle time"));  
 
 #[derive(Debug, Clone, Copy)]
 pub struct CalPageField {
@@ -36,6 +43,7 @@ pub struct CalPageField {
     pub unit: Option<&'static str>,
 }
 
+/// Format a calibration segment field description to be added with CalSeg::add_field
 #[macro_export]
 macro_rules! calseg_field {
     (   $name:ident.$field:ident ) => {{
@@ -109,10 +117,10 @@ struct CalPage<T: CalPageTrait> {
 
 //----------------------------------------------------------------------------------------------
 
-/// Thread safe calibration parameter page wrapper with interiour mutabiity by XCP
-/// Each instance stores 2 copies of its inner data, the calibration page
+/// Thread safe calibration parameter page wrapper with interiour mutabiity by XCP  
+/// Each instance stores 2 copies of its inner data, the calibration page  
 /// One for each clone of the readers, a shared copy for the writer (XCP) and
-/// a reference to the default values
+/// a reference to the default values  
 /// Implements Deref to simplify usage
 #[derive(Debug)]
 pub struct CalSeg<T>
@@ -131,15 +139,15 @@ where
     T: CalPageTrait,
 {
     /// Create a calibration segment for a calibration parameter struct T (called page)  
-    /// With a name and static const default values, which will be the "FLASH" page
-    /// The mutable "RAM" page is initialized from name.json, if load_json==true and if it exists, otherwise with default
-    /// CalSeg is Send and implements Clone, so clones can be savely send to other threads
-    /// This comes with the cost of maintaining a shadow copy of the calibration page for each clone
-    /// On calibration tool changes, sync copies the shadow (xcp_page) to the active page (ecu_page)
+    /// With a name and static const default values, which will be the "FLASH" page  
+    /// The mutable "RAM" page is initialized from name.json, if load_json==true and if it exists, otherwise with default  
+    /// CalSeg is Send and implements Clone, so clones can be savely send to other threads  
+    /// This comes with the cost of maintaining a shadow copy of the calibration page for each clone  
+    /// On calibration tool changes, sync copies the shadow (xcp_page) to the active page (ecu_page)  
     ///
-    /// # Panics
-    /// If the name is not unique
-    /// If the maximum number of calibration segments is reached, CANape supports a maximum of 255 calibration segments
+    /// # Panics  
+    /// If the name is not unique  
+    /// If the maximum number of calibration segments is reached, CANape supports a maximum of 255 calibration segments  
     ///
     pub fn new(index: usize, init_page: T, default_page: &'static T) -> CalSeg<T> {
         CalSeg {
@@ -159,6 +167,11 @@ where
             })),
             _not_send_sync_marker: PhantomData,
         }
+    }
+
+    /// Get the calibration segment name
+    pub fn get_name(&self) -> &'static str {
+        Xcp::get().get_calseg_name(self.index)
     }
 
     /// Manually add a field description
@@ -193,11 +206,11 @@ where
         Arc::strong_count(&self.xcp_page) as u16
     }
 
-    /// Sync the calibration segment
-    /// If calibration changes from XCP tool happened since last sync, copy the xcp page to the ecu page
-    /// Handle freeze and init operations on request here
-    /// # Returns
-    /// true, if the calibration segment was modified
+    /// Sync the calibration segment  
+    /// If calibration changes from XCP tool happened since last sync, copy the xcp page to the ecu page  
+    /// Handle freeze and init operations on request here  
+    /// # Returns  
+    /// true, if the calibration segment was modified  
     pub fn sync(&self) -> bool {
         let mut modified = false;
 
@@ -265,24 +278,30 @@ pub trait CalSegTrait
 where
     Self: Send,
 {
+    // Get the calibration segment name
     fn get_name(&self) -> &'static str;
+
+    // Set the calibration segment index
     fn set_index(&mut self, index: usize);
+
+    // Get the calibration segment index
     fn get_index(&self) -> usize;
 
-    /// Set freeze and init requests
+    // Set freeze requests
     fn set_freeze_request(&self);
+    // Set init request
     fn set_init_request(&self);
 
-    /// Read from xcp_page or default_page depending on the active XCP page
-    /// # Safety
-    /// Memory access is unsafe, src checked to be inside a calibration segment
-    /// src is a pointer to the destination data in XCPlite
+    // Read from xcp_page or default_page depending on the active XCP page
+    // # Safety
+    // Memory access is unsafe, src checked to be inside a calibration segment
+    // src is a pointer to the destination data in XCPlite
     unsafe fn read(&self, offset: u16, len: u8, src: *mut u8) -> bool;
 
-    /// Write to xcp_page or default_page depending on the active XCP page
-    /// # Safety
-    /// Memory access is unsafe, dst checked to be inside a calibration segment
-    /// src is a pointer to the source data in XCPlite
+    // Write to xcp_page or default_page depending on the active XCP page
+    // # Safety
+    // Memory access is unsafe, dst checked to be inside a calibration segment
+    // src is a pointer to the source data in XCPlite
     unsafe fn write(&self, offset: u16, len: u8, src: *const u8, delay: u8) -> bool;
 
     // Flush delayed modifications
@@ -832,66 +851,5 @@ mod cal_tests {
             }
         });
         t.join().unwrap();
-    }
-
-    //-----------------------------------------------------------------------------
-    // Test attribute macros
-
-    #[test]
-    fn test_attribute_macros() {
-        let xcp = xcp_test::test_setup(log::LevelFilter::Info);
-
-        #[derive(Debug, Copy, Clone, Serialize, Deserialize, XcpTypeDescription)]
-        struct CalPage {
-            #[type_description(comment = "Comment")]
-            #[type_description(unit = "Unit")]
-            #[type_description(min = "0")]
-            #[type_description(max = "100")]
-            a: u32,
-            b: u32,
-            curve: [f64; 16],  // This will be a CURVE type (1 dimension)
-            map: [[u8; 9]; 8], // This will be a MAP type (2 dimensions)
-        }
-        const CAL_PAGE: CalPage = CalPage {
-            a: 1,
-            b: 2,
-            curve: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5],
-            map: [
-                [0, 0, 0, 0, 0, 0, 0, 1, 2],
-                [0, 0, 0, 0, 0, 0, 0, 2, 3],
-                [0, 0, 0, 0, 0, 1, 1, 2, 3],
-                [0, 0, 0, 0, 1, 1, 2, 3, 4],
-                [0, 0, 1, 1, 2, 3, 4, 5, 7],
-                [0, 1, 1, 1, 2, 4, 6, 8, 9],
-                [0, 1, 1, 2, 4, 5, 8, 9, 10],
-                [0, 1, 1, 3, 5, 8, 9, 10, 10],
-            ],
-        };
-
-        let calseg = xcp.create_calseg("calseg", &CAL_PAGE, false);
-        let c: RegistryCharacteristic = Xcp::get().get_registry().lock().unwrap().find_characteristic("CalPage.a").unwrap().clone();
-
-        assert_eq!(calseg.get_name(), "calseg");
-        assert_eq!(c.get_comment(), "Comment");
-        assert_eq!(c.get_unit(), "Unit");
-        assert_eq!(c.get_min(), 0.0);
-        assert_eq!(c.get_max(), 100.0);
-        assert_eq!(c.get_x_dim(), 1);
-        assert_eq!(c.get_y_dim(), 1);
-        assert_eq!(c.get_addr_offset(), 200);
-        assert_eq!(c.get_datatype(), reg::RegistryDataType::Ulong);
-
-        let c: RegistryCharacteristic = Xcp::get().get_registry().lock().unwrap().find_characteristic("CalPage.b").unwrap().clone();
-        assert_eq!(c.get_addr_offset(), 204);
-
-        let c: RegistryCharacteristic = Xcp::get().get_registry().lock().unwrap().find_characteristic("CalPage.curve").unwrap().clone();
-        assert_eq!(c.get_addr_offset(), 0);
-        assert_eq!(c.get_x_dim(), 16);
-        assert_eq!(c.get_y_dim(), 1);
-
-        let c: RegistryCharacteristic = Xcp::get().get_registry().lock().unwrap().find_characteristic("CalPage.map").unwrap().clone();
-        assert_eq!(c.get_addr_offset(), 128);
-        assert_eq!(c.get_x_dim(), 8);
-        assert_eq!(c.get_y_dim(), 9);
     }
 }

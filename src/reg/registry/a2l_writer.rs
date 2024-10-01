@@ -11,13 +11,13 @@ use super::*;
 use crate::Xcp;
 
 trait GenerateA2l {
-    fn write_a2l(&self, writer: &mut dyn Write) -> std::io::Result<()>;
+    fn write_a2l(&self, writer: &mut dyn Write, registry: &Registry) -> std::io::Result<()>;
 }
 
 //-------------------------------------------------------------------------------------------------
 
 impl GenerateA2l for RegistryXcpTransportLayer {
-    fn write_a2l(&self, writer: &mut dyn Write) -> std::io::Result<()> {
+    fn write_a2l(&self, writer: &mut dyn Write, _registry: &Registry) -> std::io::Result<()> {
         let protocol = self.protocol_name.to_uppercase();
         let port = self.port;
         let addr = self.addr;
@@ -28,11 +28,11 @@ impl GenerateA2l for RegistryXcpTransportLayer {
 
 //-------------------------------------------------------------------------------------------------
 
-impl GenerateA2l for XcpEvent {
-    fn write_a2l(&self, writer: &mut dyn Write) -> std::io::Result<()> {
-        let name = self.get_name();
-        let index = self.get_index();
-        let channel = self.get_channel();
+impl GenerateA2l for RegistryEvent {
+    fn write_a2l(&self, writer: &mut dyn Write, _registry: &Registry) -> std::io::Result<()> {
+        let name = self.name;
+        let index = self.xcp_event.get_index();
+        let channel = self.xcp_event.get_channel();
 
         trace!("Write event {} index={}  channel={}", name, index, channel);
 
@@ -42,11 +42,11 @@ impl GenerateA2l for XcpEvent {
         if index > 0 {
             writeln!(
                 writer,
-                r#"/begin EVENT "{:.98}_{}" "{:.6}_{}" {} DAQ 0xFF 0 0 0 CONSISTENCY DAQ /end EVENT"#,
+                "/begin EVENT \"{:.98}_{}\" \"{:.6}_{}\" {} DAQ 0xFF 0 0 0 CONSISTENCY DAQ /end EVENT",
                 name, index, name, index, channel
             )
         } else {
-            writeln!(writer, r#"/begin EVENT "{:.100}" "{:.8}" {} DAQ 0xFF 0 0 0 CONSISTENCY DAQ /end EVENT"#, name, name, channel)
+            writeln!(writer, "/begin EVENT \"{:.100}\" \"{:.8}\" {} DAQ 0xFF 0 0 0 CONSISTENCY DAQ /end EVENT", name, name, channel)
         }
     }
 }
@@ -54,7 +54,7 @@ impl GenerateA2l for XcpEvent {
 //-------------------------------------------------------------------------------------------------
 
 impl GenerateA2l for RegistryEpk {
-    fn write_a2l(&self, writer: &mut dyn Write) -> std::io::Result<()> {
+    fn write_a2l(&self, writer: &mut dyn Write, _registry: &Registry) -> std::io::Result<()> {
         // Add a EPK memory segment for the EPK, to include the EPK in HEX-files
         if let Some(epk) = self.epk {
             trace!("write A2lEpkMemorySegment: epk={} epk_addr=0x{:08X}", epk, self.epk_addr);
@@ -75,7 +75,7 @@ impl GenerateA2l for RegistryEpk {
 //-------------------------------------------------------------------------------------------------
 
 impl GenerateA2l for RegistryCalSegList {
-    fn write_a2l(&self, writer: &mut dyn Write) -> std::io::Result<()> {
+    fn write_a2l(&self, writer: &mut dyn Write, _registry: &Registry) -> std::io::Result<()> {
         for (n, calseg) in self.iter().enumerate() {
             trace!("write A2lMemorySegment: {}  {}:0x{:X} size={}", calseg.name, calseg.addr_ext, calseg.addr, calseg.size);
             writeln!(
@@ -105,9 +105,9 @@ impl GenerateA2l for RegistryCalSegList {
 //-------------------------------------------------------------------------------------------------
 
 impl GenerateA2l for RegistryMeasurement {
-    fn write_a2l(&self, writer: &mut dyn Write) -> std::io::Result<()> {
+    fn write_a2l(&self, writer: &mut dyn Write, _registry: &Registry) -> std::io::Result<()> {
         let (ext, addr) = if self.addr == 0 {
-            self.event.get_dyn_ext_addr(self.addr_offset)
+            self.xcp_event.get_dyn_ext_addr(self.addr_offset)
         } else {
             Xcp::get_abs_ext_addr(self.addr)
         };
@@ -118,7 +118,7 @@ impl GenerateA2l for RegistryMeasurement {
             self.datatype.get_type_str(),
             ext,
             addr,
-            self.event.get_channel(),
+            self.xcp_event.get_channel(),
             self.addr_offset,
             self.addr
         );
@@ -133,7 +133,7 @@ impl GenerateA2l for RegistryMeasurement {
         let x_dim = self.x_dim;
         let y_dim = self.y_dim;
         let min = self.datatype.get_min();
-        let event = self.event.get_channel();
+        let event = self.xcp_event.get_channel();
 
         // Dynamic object as CHARACTERISTIC ASCII string with IDL annotation
         if self.datatype == RegistryDataType::Blob {
@@ -201,13 +201,17 @@ impl GenerateA2l for RegistryMeasurement {
 //-------------------------------------------------------------------------------------------------
 
 impl GenerateA2l for RegistryCharacteristic {
-    fn write_a2l(&self, writer: &mut dyn Write) -> std::io::Result<()> {
+    fn write_a2l(&self, writer: &mut dyn Write, registry: &Registry) -> std::io::Result<()> {
         let characteristic_type = self.get_type_str();
         let datatype = self.datatype.get_deposit_str();
+
+        // Calculate the address extension and address of this Characteristic
         let (a2l_ext, a2l_addr) = if let Some(calseg_name) = self.calseg_name {
-            // Segment relative addressing
             assert!(self.addr_offset <= 0xFFFF, "Address offset must be 16 bit");
-            Xcp::get_calseg_ext_addr(calseg_name, self.addr_offset as u16)
+
+            // Segment relative addressing
+            let index = registry.get_cal_seg_index(calseg_name).expect("unknown calseg");
+            Xcp::get_calseg_ext_addr(index, self.addr_offset as u16)
         } else {
             // Absolute addressing
             Xcp::get_abs_ext_addr(self.addr_offset)
@@ -348,8 +352,8 @@ impl<'a> A2lWriter<'a> {
 
         write!(self.writer, "\n\t\t/begin MOD_PAR \"\"")?;
 
-        mod_par.write_a2l(self.writer)?;
-        memory_segments.write_a2l(self.writer)?;
+        mod_par.write_a2l(self.writer, registry)?;
+        memory_segments.write_a2l(self.writer, registry)?;
 
         writeln!(self.writer, "\n\t\t/end MOD_PAR")
     }
@@ -393,7 +397,7 @@ impl<'a> A2lWriter<'a> {
         )?;
 
         let event_count = registry.event_list.len();
-        write!(
+        writeln!(
             self.writer,
             "\n\n\t\t\t/begin DAQ
             DYNAMIC 0 {event_count} 0 OPTIMISATION_TYPE_DEFAULT ADDRESS_EXTENSION_FREE IDENTIFICATION_FIELD_TYPE_RELATIVE_BYTE GRANULARITY_ODT_ENTRY_SIZE_DAQ_BYTE 0xF8 OVERLOAD_INDICATION_PID
@@ -405,40 +409,40 @@ impl<'a> A2lWriter<'a> {
 
         // Eventlist
         for e in registry.event_list.iter() {
-            e.write_a2l(self.writer)?
+            e.write_a2l(self.writer, registry)?
         }
 
         write!(self.writer, "\n\t\t\t/end DAQ\n")?;
 
         // Transport layer parameters in IF_DATA
         if let Some(tl_params) = registry.tl_params {
-            tl_params.write_a2l(self.writer)?;
+            tl_params.write_a2l(self.writer, registry)?;
         }
 
-        write!(self.writer, "\n\t\t/end IF_DATA\n")?;
+        write!(self.writer, "\n\t\t/end IF_DATA\n\n")?;
         Ok(())
     }
 
     fn write_a2l_measurements(&mut self, registry: &Registry) -> std::io::Result<()> {
         // Measurements
         for m in registry.measurement_list.iter() {
-            m.write_a2l(self.writer)?;
+            m.write_a2l(self.writer, registry)?;
         }
 
         // Create a root measurement group for each event, if more than one element
         for e in registry.event_list.iter() {
-            if e.get_index() > 1 {
+            if e.xcp_event.get_index() > 1 {
                 // Ignore all but the first event instance
                 continue;
             }
-            if registry.measurement_list.iter().filter(|m| m.event.get_name() == e.get_name()).count() > 1 {
-                write!(self.writer, "\n/begin GROUP {} \"\" ROOT /begin REF_MEASUREMENT", e.get_name())?;
+            if registry.measurement_list.iter().filter(|m| registry.event_list.get_name(m.xcp_event) == e.name).count() > 1 {
+                write!(self.writer, "\n/begin GROUP {} \"\" ROOT /begin REF_MEASUREMENT", e.name)?;
                 for m in registry.measurement_list.iter() {
-                    if m.event.get_name() == e.get_name() {
+                    if registry.event_list.get_name(m.xcp_event) == e.name {
                         write!(self.writer, " {}", m.name)?;
                     }
                 }
-                write!(self.writer, " /end REF_MEASUREMENT /end GROUP")?;
+                writeln!(self.writer, " /end REF_MEASUREMENT /end GROUP")?;
             }
         }
 
@@ -449,7 +453,7 @@ impl<'a> A2lWriter<'a> {
         // Characteristics not in a in calibration segment
         for c in registry.characteristic_list.iter() {
             if c.calseg_name.is_none() {
-                c.write_a2l(self.writer)?;
+                c.write_a2l(self.writer, registry)?;
             }
         }
 
@@ -459,7 +463,7 @@ impl<'a> A2lWriter<'a> {
             for c in registry.characteristic_list.iter() {
                 if let Some(calseg_name) = c.calseg_name {
                     if s.name == calseg_name {
-                        c.write_a2l(self.writer)?;
+                        c.write_a2l(self.writer, registry)?;
                     }
                 }
             }

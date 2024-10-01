@@ -2,22 +2,24 @@
 // Module registry
 // Registry for calibration segments, parameters and measurement signals
 
+#![allow(dead_code)]
+
 use core::panic;
 use std::net::Ipv4Addr;
-
-mod a2l_writer;
-use a2l_writer::A2lWriter;
-
-use crate::xcp;
-use xcp::XcpEvent;
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-//-------------------------------------------------------------------------------------------------
-// Datatypes and datatype properties
+use crate::xcp;
+use xcp::XcpEvent;
 
-// Basic type (ASAM naming convention)
+mod a2l_writer;
+use a2l_writer::A2lWriter;
+
+//-------------------------------------------------------------------------------------------------
+// Datatype
+
+/// Basic registry dta type (enum wtth ASAM naming convention)
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RegistryDataType {
     Ubyte,
@@ -35,6 +37,92 @@ pub enum RegistryDataType {
 }
 
 impl RegistryDataType {
+    /// Get minimum value for data type
+    pub fn get_min(&self) -> f64 {
+        match self {
+            RegistryDataType::Sbyte => -128.0,
+            RegistryDataType::Sword => -32768.0,
+            RegistryDataType::Slong => -2147483648.0,
+            RegistryDataType::AInt64 => -1e12,
+            RegistryDataType::Float32Ieee => -1e12,
+            RegistryDataType::Float64Ieee => -1e12,
+            _ => 0.0,
+        }
+    }
+
+    /// Get maximum value for data type
+    pub fn get_max(&self) -> f64 {
+        match self {
+            RegistryDataType::Ubyte => 255.0,
+            RegistryDataType::Uword => 65535.0,
+            RegistryDataType::Ulong => 4294967295.0,
+            RegistryDataType::AUint64 => 1e12,
+            RegistryDataType::Sbyte => 127.0,
+            RegistryDataType::Sword => 32767.0,
+            RegistryDataType::Slong => 2147483647.0,
+            RegistryDataType::AInt64 => 1e12,
+            RegistryDataType::Float32Ieee => 1e12,
+            RegistryDataType::Float64Ieee => 1e12,
+            RegistryDataType::Blob => 0.0,
+            _ => panic!("get_max: Unsupported data type"),
+        }
+    }
+
+    /// Get data type as str
+    fn get_type_str(&self) -> &'static str {
+        match self {
+            RegistryDataType::Ubyte => "UBYTE",
+            RegistryDataType::Uword => "UWORD",
+            RegistryDataType::Ulong => "ULONG",
+            RegistryDataType::AUint64 => "A_UINT64",
+            RegistryDataType::Sbyte => "SBYTE",
+            RegistryDataType::Sword => "SWORD",
+            RegistryDataType::Slong => "SLONG",
+            RegistryDataType::AInt64 => "A_INT64",
+            RegistryDataType::Float32Ieee => "FLOAT32_IEEE",
+            RegistryDataType::Float64Ieee => "FLOAT64_IEEE",
+            RegistryDataType::Blob => "BLOB",
+            _ => panic!("get_type_str: Unsupported data type"),
+        }
+    }
+
+    /// Get data type as str for A2L deposit
+    fn get_deposit_str(&self) -> &'static str {
+        match self {
+            RegistryDataType::Ubyte => "U8",
+            RegistryDataType::Uword => "U16",
+            RegistryDataType::Ulong => "U32",
+            RegistryDataType::AUint64 => "U64",
+            RegistryDataType::Sbyte => "S8",
+            RegistryDataType::Sword => "S16",
+            RegistryDataType::Slong => "S32",
+            RegistryDataType::AInt64 => "S64",
+            RegistryDataType::Float32Ieee => "F32",
+            RegistryDataType::Float64Ieee => "F64",
+            RegistryDataType::Blob => "BLOB",
+            _ => panic!("get_deposit_str: Unsupported data type"),
+        }
+    }
+
+    /// Get data type size
+    pub fn get_size(&self) -> usize {
+        match self {
+            RegistryDataType::Ubyte => 1,
+            RegistryDataType::Uword => 2,
+            RegistryDataType::Ulong => 4,
+            RegistryDataType::AUint64 => 8,
+            RegistryDataType::Sbyte => 1,
+            RegistryDataType::Sword => 2,
+            RegistryDataType::Slong => 4,
+            RegistryDataType::AInt64 => 8,
+            RegistryDataType::Float32Ieee => 4,
+            RegistryDataType::Float64Ieee => 8,
+            RegistryDataType::Blob => 0,
+            _ => panic!("get_size: Unsupported data type"),
+        }
+    }
+
+    /// Convert from Rust basic type as str
     pub fn from_rust_basic_type(s: &str) -> RegistryDataType {
         match s {
             "bool" => RegistryDataType::Ubyte,
@@ -54,6 +142,7 @@ impl RegistryDataType {
         }
     }
 
+    /// Convert from Rust type as str
     pub fn from_rust_type(s: &str) -> RegistryDataType {
         let t = RegistryDataType::from_rust_basic_type(s);
         if t != RegistryDataType::Unknown {
@@ -76,151 +165,69 @@ impl RegistryDataType {
     }
 }
 
-// Get RegDataType for a Rust basic type
-pub trait RegDataTypeHandler {
+//-------------------------------------------------------------------------------------------------
+// Get RegistryDataType from rust variables
+
+/// Get RegDataType for a Rust basic type  
+/// Used by the register_xxx macros
+pub trait RegistryDataTypeTrait {
+    /// Get RegDataType for a Rust basic type
     fn get_type(&self) -> RegistryDataType;
 }
 
-impl RegDataTypeHandler for bool {
+impl RegistryDataTypeTrait for bool {
     fn get_type(&self) -> RegistryDataType {
         RegistryDataType::Ubyte
     }
 }
-impl RegDataTypeHandler for i8 {
+impl RegistryDataTypeTrait for i8 {
     fn get_type(&self) -> RegistryDataType {
         RegistryDataType::Sbyte
     }
 }
-impl RegDataTypeHandler for i16 {
+impl RegistryDataTypeTrait for i16 {
     fn get_type(&self) -> RegistryDataType {
         RegistryDataType::Sword
     }
 }
-impl RegDataTypeHandler for i32 {
+impl RegistryDataTypeTrait for i32 {
     fn get_type(&self) -> RegistryDataType {
         RegistryDataType::Slong
     }
 }
-impl RegDataTypeHandler for i64 {
+impl RegistryDataTypeTrait for i64 {
     fn get_type(&self) -> RegistryDataType {
         RegistryDataType::AInt64
     }
 }
-impl RegDataTypeHandler for u8 {
+impl RegistryDataTypeTrait for u8 {
     fn get_type(&self) -> RegistryDataType {
         RegistryDataType::Ubyte
     }
 }
-impl RegDataTypeHandler for u16 {
+impl RegistryDataTypeTrait for u16 {
     fn get_type(&self) -> RegistryDataType {
         RegistryDataType::Uword
     }
 }
-impl RegDataTypeHandler for u32 {
+impl RegistryDataTypeTrait for u32 {
     fn get_type(&self) -> RegistryDataType {
         RegistryDataType::Ulong
     }
 }
-impl RegDataTypeHandler for u64 {
+impl RegistryDataTypeTrait for u64 {
     fn get_type(&self) -> RegistryDataType {
         RegistryDataType::AUint64
     }
 }
-impl RegDataTypeHandler for f32 {
+impl RegistryDataTypeTrait for f32 {
     fn get_type(&self) -> RegistryDataType {
         RegistryDataType::Float32Ieee
     }
 }
-impl RegDataTypeHandler for f64 {
+impl RegistryDataTypeTrait for f64 {
     fn get_type(&self) -> RegistryDataType {
         RegistryDataType::Float64Ieee
-    }
-}
-
-pub trait RegDataTypeProperties {
-    fn get_min(&self) -> f64;
-    fn get_max(&self) -> f64;
-    fn get_size(&self) -> usize;
-    fn get_type_str(&self) -> &'static str;
-    fn get_deposit_str(&self) -> &'static str;
-}
-
-impl RegDataTypeProperties for RegistryDataType {
-    fn get_min(&self) -> f64 {
-        match self {
-            RegistryDataType::Sbyte => -128.0,
-            RegistryDataType::Sword => -32768.0,
-            RegistryDataType::Slong => -2147483648.0,
-            RegistryDataType::AInt64 => -1e12,
-            RegistryDataType::Float32Ieee => -1e12,
-            RegistryDataType::Float64Ieee => -1e12,
-            _ => 0.0,
-        }
-    }
-
-    fn get_max(&self) -> f64 {
-        match self {
-            RegistryDataType::Ubyte => 255.0,
-            RegistryDataType::Uword => 65535.0,
-            RegistryDataType::Ulong => 4294967295.0,
-            RegistryDataType::AUint64 => 1e12,
-            RegistryDataType::Sbyte => 127.0,
-            RegistryDataType::Sword => 32767.0,
-            RegistryDataType::Slong => 2147483647.0,
-            RegistryDataType::AInt64 => 1e12,
-            RegistryDataType::Float32Ieee => 1e12,
-            RegistryDataType::Float64Ieee => 1e12,
-            RegistryDataType::Blob => 0.0,
-            _ => panic!("get_max: Unsupported data type"),
-        }
-    }
-    fn get_type_str(&self) -> &'static str {
-        match self {
-            RegistryDataType::Ubyte => "UBYTE",
-            RegistryDataType::Uword => "UWORD",
-            RegistryDataType::Ulong => "ULONG",
-            RegistryDataType::AUint64 => "A_UINT64",
-            RegistryDataType::Sbyte => "SBYTE",
-            RegistryDataType::Sword => "SWORD",
-            RegistryDataType::Slong => "SLONG",
-            RegistryDataType::AInt64 => "A_INT64",
-            RegistryDataType::Float32Ieee => "FLOAT32_IEEE",
-            RegistryDataType::Float64Ieee => "FLOAT64_IEEE",
-            RegistryDataType::Blob => "BLOB",
-            _ => panic!("get_type_str: Unsupported data type"),
-        }
-    }
-    fn get_deposit_str(&self) -> &'static str {
-        match self {
-            RegistryDataType::Ubyte => "U8",
-            RegistryDataType::Uword => "U16",
-            RegistryDataType::Ulong => "U32",
-            RegistryDataType::AUint64 => "U64",
-            RegistryDataType::Sbyte => "S8",
-            RegistryDataType::Sword => "S16",
-            RegistryDataType::Slong => "S32",
-            RegistryDataType::AInt64 => "S64",
-            RegistryDataType::Float32Ieee => "F32",
-            RegistryDataType::Float64Ieee => "F64",
-            RegistryDataType::Blob => "BLOB",
-            _ => panic!("get_deposit_str: Unsupported data type"),
-        }
-    }
-    fn get_size(&self) -> usize {
-        match self {
-            RegistryDataType::Ubyte => 1,
-            RegistryDataType::Uword => 2,
-            RegistryDataType::Ulong => 4,
-            RegistryDataType::AUint64 => 8,
-            RegistryDataType::Sbyte => 1,
-            RegistryDataType::Sword => 2,
-            RegistryDataType::Slong => 4,
-            RegistryDataType::AInt64 => 8,
-            RegistryDataType::Float32Ieee => 4,
-            RegistryDataType::Float64Ieee => 8,
-            RegistryDataType::Blob => 0,
-            _ => panic!("get_size: Unsupported data type"),
-        }
     }
 }
 
@@ -249,21 +256,35 @@ impl Default for RegistryXcpTransportLayer {
 // Events
 // For A2l XCP IF_DATA
 
+#[derive(Debug, Copy, Clone)]
+struct RegistryEvent {
+    name: &'static str,
+    xcp_event: XcpEvent,
+}
+
 #[derive(Debug)]
-struct RegistryEventList(Vec<XcpEvent>);
+struct RegistryEventList(Vec<RegistryEvent>);
 
 impl RegistryEventList {
     fn new() -> Self {
         RegistryEventList(Vec::new())
     }
-    pub fn push(&mut self, event: XcpEvent) {
+    pub fn push(&mut self, event: RegistryEvent) {
         self.0.push(event);
     }
     pub fn len(&self) -> usize {
         self.0.len()
     }
-    pub fn iter(&self) -> std::slice::Iter<XcpEvent> {
+    pub fn iter(&self) -> std::slice::Iter<RegistryEvent> {
         self.0.iter()
+    }
+    pub fn get_name(&self, xcp_event: XcpEvent) -> &'static str {
+        for event in self.0.iter() {
+            if event.xcp_event == xcp_event {
+                return event.name;
+            }
+        }
+        panic!("Event not found");
     }
 }
 
@@ -273,14 +294,15 @@ impl RegistryEventList {
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq)]
 struct RegistryCalSeg {
     name: &'static str,
+    index: u16,
     addr: u32,
     addr_ext: u8,
     size: u32,
 }
 
 impl RegistryCalSeg {
-    fn new(name: &'static str, addr: u32, addr_ext: u8, size: u32) -> RegistryCalSeg {
-        RegistryCalSeg { name, addr, addr_ext, size }
+    fn new(name: &'static str, index: u16, addr: u32, addr_ext: u8, size: u32) -> RegistryCalSeg {
+        RegistryCalSeg { name, index, addr, addr_ext, size }
     }
 }
 
@@ -318,13 +340,14 @@ impl RegistryEpk {
 //-------------------------------------------------------------------------------------------------
 // Measurement signals
 
+/// Measurement signal
 #[derive(Clone, Debug)]
 pub struct RegistryMeasurement {
     name: String,
     datatype: RegistryDataType, // Basic types Ubyte, SByte, AUint64, Float64Ieee, ...  or Blob
     x_dim: u16,                 // 1 = basic type (A2L MEASUREMENT), >1 = array[dim] of basic type (A2L MEASUREMENT with MATRIX_DIM x (max u16))
     y_dim: u16,                 // 1 = basic type (A2L MEASUREMENT), >1 = array[x_dim,y_dim] of basic type (A2L MEASUREMENT with MATRIX_DIM x,y (max u16))
-    event: XcpEvent,
+    xcp_event: XcpEvent,
     addr_offset: i16, // Address offset (signed!) relative to event memory context (XCP_ADDR_EXT_DYN)
     addr: u64,
     factor: f64,
@@ -335,13 +358,14 @@ pub struct RegistryMeasurement {
 }
 
 impl RegistryMeasurement {
+    /// Create a new measurement signal
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         name: String,
         datatype: RegistryDataType,
         x_dim: u16,
         y_dim: u16,
-        event: XcpEvent,
+        xcp_event: XcpEvent,
         event_offset: i16,
         addr: u64,
         factor: f64,
@@ -356,7 +380,7 @@ impl RegistryMeasurement {
             datatype,
             x_dim,
             y_dim,
-            event,
+            xcp_event,
             addr_offset: event_offset,
             addr,
             factor,
@@ -367,39 +391,39 @@ impl RegistryMeasurement {
         }
     }
 
-    pub fn get_name(&self) -> &str {
-        &self.name
-    }
-    pub fn get_datatype(&self) -> RegistryDataType {
-        self.datatype
-    }
-    pub fn get_dim(&self) -> (u16, u16) {
-        (self.x_dim, self.y_dim)
-    }
-    pub fn get_event(&self) -> XcpEvent {
-        self.event
-    }
-    pub fn get_addr_offset(&self) -> i16 {
-        self.addr_offset
-    }
-    pub fn get_addr(&self) -> u64 {
-        self.addr
-    }
-    pub fn get_factor(&self) -> f64 {
-        self.factor
-    }
-    pub fn get_offset(&self) -> f64 {
-        self.offset
-    }
-    pub fn get_comment(&self) -> &str {
-        self.comment
-    }
-    pub fn get_unit(&self) -> &str {
-        self.unit
-    }
-    pub fn get_annotation(&self) -> Option<&String> {
-        self.annotation.as_ref()
-    }
+    // pub fn get_name(&self) -> &str {
+    //     &self.name
+    // }
+    // pub fn get_datatype(&self) -> RegistryDataType {
+    //     self.datatype
+    // }
+    // pub fn get_dim(&self) -> (u16, u16) {
+    //     (self.x_dim, self.y_dim)
+    // }
+    // pub fn get_event(&self) -> XcpEvent {
+    //     self.event
+    // }
+    // pub fn get_addr_offset(&self) -> i16 {
+    //     self.addr_offset
+    // }
+    // pub fn get_addr(&self) -> u64 {
+    //     self.addr
+    // }
+    // pub fn get_factor(&self) -> f64 {
+    //     self.factor
+    // }
+    // pub fn get_offset(&self) -> f64 {
+    //     self.offset
+    // }
+    // pub fn get_comment(&self) -> &str {
+    //     self.comment
+    // }
+    // pub fn get_unit(&self) -> &str {
+    //     self.unit
+    // }
+    // pub fn get_annotation(&self) -> Option<&String> {
+    //     self.annotation.as_ref()
+    // }
 }
 
 #[derive(Debug)]
@@ -430,6 +454,7 @@ impl RegistryMeasurementList {
 //-------------------------------------------------------------------------------------------------
 // Calibration parameters
 
+/// Calibration parameter
 #[derive(Clone, Debug)]
 pub struct RegistryCharacteristic {
     calseg_name: Option<&'static str>,
@@ -447,6 +472,7 @@ pub struct RegistryCharacteristic {
 
 #[allow(clippy::too_many_arguments)]
 impl RegistryCharacteristic {
+    /// Create a new calibration parameter
     pub fn new(
         calseg_name: Option<&'static str>,
         name: String,
@@ -474,44 +500,47 @@ impl RegistryCharacteristic {
         }
     }
 
-    pub fn get_calseg_name(&self) -> Option<&'static str> {
+    fn get_calseg_name(&self) -> Option<&'static str> {
         self.calseg_name
     }
-    pub fn get_name(&self) -> &str {
+    fn get_name(&self) -> &str {
         &self.name
     }
-    pub fn get_datatype(&self) -> RegistryDataType {
+    fn get_datatype(&self) -> RegistryDataType {
         self.datatype
     }
-    pub fn get_comment(&self) -> &str {
+    fn get_comment(&self) -> &str {
         self.comment
     }
-    pub fn get_min(&self) -> f64 {
+    fn get_min(&self) -> f64 {
         self.min
     }
-    pub fn get_max(&self) -> f64 {
+    fn get_max(&self) -> f64 {
         self.max
     }
-    pub fn get_unit(&self) -> &str {
+    fn get_unit(&self) -> &str {
         self.unit
     }
-    pub fn get_x_dim(&self) -> usize {
+    fn get_x_dim(&self) -> usize {
         self.x_dim
     }
-    pub fn get_y_dim(&self) -> usize {
+    fn get_y_dim(&self) -> usize {
         self.y_dim
     }
-    pub fn get_addr_offset(&self) -> u64 {
+    fn get_addr_offset(&self) -> u64 {
         self.addr_offset
     }
 
-    pub fn get_event(&self) -> Option<XcpEvent> {
+    fn get_event(&self) -> Option<XcpEvent> {
         self.event
     }
+
+    /// Set the event associated with the calibration parameter
     pub fn set_event(&mut self, event: XcpEvent) {
         self.event = Some(event);
     }
 
+    /// Get the A2L object type of the calibration parameter
     pub fn get_type_str(&self) -> &'static str {
         if self.x_dim > 1 && self.y_dim > 1 {
             "MAP"
@@ -634,16 +663,15 @@ impl Registry {
     }
 
     // Add an event
-    pub fn add_event(&mut self, event: XcpEvent) {
-        debug!("Registry add_event: channel={}, index={}", event.get_channel(), event.get_index());
+    pub fn add_event(&mut self, name: &'static str, xcp_event: XcpEvent) {
+        debug!("Registry add_event: channel={}, index={}", xcp_event.get_channel(), xcp_event.get_index());
         assert!(!self.is_frozen(), "Registry is closed");
 
-        self.event_list.push(event);
+        self.event_list.push(RegistryEvent { name, xcp_event });
     }
 
     // Add a calibration segment
-    pub fn add_cal_seg(&mut self, name: &'static str, addr: u32, addr_ext: u8, size: u32) {
-        debug!("Registry add_cal_seg: {} {}:0x{:08X}-{} ", name, addr_ext, addr, size);
+    pub fn add_cal_seg(&mut self, name: &'static str, index: u16, size: u32) {
         assert!(!self.is_frozen(), "Registry is closed");
 
         // Length of calseg should be %4 to avoid problems with CANape and checksum calculations
@@ -651,16 +679,30 @@ impl Registry {
         if size % 4 != 0 {
             warn!("Calibration segment size should be multiple of 4");
         }
-        if addr % 4 != 0 {
-            warn!("Calibration segment address should be multiple of 4");
-        }
 
         // Check if name already exists and panic
         for s in self.cal_seg_list.iter() {
             assert!(s.name != name, "Duplicate calibration segment: {}", name);
         }
 
-        self.cal_seg_list.push(RegistryCalSeg::new(name, addr, addr_ext, size));
+        // Address calculation
+        // Address format for calibration segment field is index | 0x8000 in high word, addr_ext is 0
+        // (CANape does not support addr_ext in memory segments)
+        let (addr_ext, addr) = crate::Xcp::get_calseg_ext_addr_base(index);
+
+        debug!("Registry add_cal_seg: {} {} {}:0x{:08X}-{} ", name, index, addr_ext, addr, size);
+
+        self.cal_seg_list.push(RegistryCalSeg::new(name, index, addr, addr_ext, size));
+    }
+
+    // Get calibration segment index by name
+    pub fn get_cal_seg_index(&self, name: &str) -> Option<u16> {
+        for s in self.cal_seg_list.iter() {
+            if s.name == name {
+                return Some(s.index);
+            }
+        }
+        None
     }
 
     pub fn get_measurement_list(&self) -> &Vec<RegistryMeasurement> {
@@ -680,7 +722,7 @@ impl Registry {
             m.datatype,
             m.x_dim,
             m.y_dim,
-            m.event.get_channel(),
+            m.xcp_event.get_channel(),
             m.addr_offset
         );
 
@@ -688,8 +730,8 @@ impl Registry {
         assert!(!self.is_frozen(), "Registry is closed");
 
         // Append event index to name in case of a multi instance event (index>0)
-        if m.event.get_index() > 0 {
-            m.name = format!("{}_{}", m.name, m.event.get_index())
+        if m.xcp_event.get_index() > 0 {
+            m.name = format!("{}_{}", m.name, m.xcp_event.get_index())
         }
 
         // Panic if symbol_name with same name already exists
@@ -800,54 +842,69 @@ impl Registry {
 #[cfg(test)]
 mod registry_tests {
 
-    use std::sync::{Arc, Mutex};
-
     use super::*;
     use crate::xcp;
     use xcp::*;
+    use xcp_type_description::prelude::*;
 
     //-----------------------------------------------------------------------------
-    // Test A2L writer
+    // Test attribute macros
+
     #[test]
-    fn test_a2l_writer() {
-        xcp_test::test_setup(log::LevelFilter::Info);
+    fn test_attribute_macros() {
+        let xcp = xcp_test::test_setup(log::LevelFilter::Info);
 
-        let xcp = Xcp::get();
+        #[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize, XcpTypeDescription)]
+        struct CalPage {
+            #[type_description(comment = "Comment")]
+            #[type_description(unit = "Unit")]
+            #[type_description(min = "0")]
+            #[type_description(max = "100")]
+            a: u32,
+            b: u32,
+            curve: [f64; 16],  // This will be a CURVE type (1 dimension)
+            map: [[u8; 9]; 8], // This will be a MAP type (2 dimensions)
+        }
+        const CAL_PAGE: CalPage = CalPage {
+            a: 1,
+            b: 2,
+            curve: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5],
+            map: [
+                [0, 0, 0, 0, 0, 0, 0, 1, 2],
+                [0, 0, 0, 0, 0, 0, 0, 2, 3],
+                [0, 0, 0, 0, 0, 1, 1, 2, 3],
+                [0, 0, 0, 0, 1, 1, 2, 3, 4],
+                [0, 0, 1, 1, 2, 3, 4, 5, 7],
+                [0, 1, 1, 1, 2, 4, 6, 8, 9],
+                [0, 1, 1, 2, 4, 5, 8, 9, 10],
+                [0, 1, 1, 3, 5, 8, 9, 10, 10],
+            ],
+        };
 
-        let a = Arc::new(Mutex::new(Registry::new()));
-        let mut r = a.lock().unwrap();
+        let calseg = xcp.create_calseg("calseg", &CAL_PAGE, false);
+        let c: RegistryCharacteristic = Xcp::get().get_registry().lock().unwrap().find_characteristic("CalPage.a").unwrap().clone();
 
-        r.set_name("test");
-        r.set_epk("TEST_EPK", 0x80000000);
-        r.set_tl_params("UDP", Ipv4Addr::new(127, 0, 0, 1), 5555);
-        r.add_cal_seg("test_memory_segment_1", 0x80010000, 0, 4);
-        r.add_cal_seg("test_memory_segment_2", 0x80020000, 0, 4);
+        assert_eq!(calseg.get_name(), "calseg");
+        assert_eq!(c.get_comment(), "Comment");
+        assert_eq!(c.get_unit(), "Unit");
+        assert_eq!(c.get_min(), 0.0);
+        assert_eq!(c.get_max(), 100.0);
+        assert_eq!(c.get_x_dim(), 1);
+        assert_eq!(c.get_y_dim(), 1);
+        assert_eq!(c.get_addr_offset(), 200);
+        assert_eq!(c.get_datatype(), RegistryDataType::Ulong);
 
-        let event = xcp.create_event("test_event");
-        r.add_measurement(RegistryMeasurement::new(
-            "signal1".to_string(),
-            RegistryDataType::Float64Ieee,
-            1,
-            1,
-            event,
-            0,
-            0,
-            1.0,
-            0.0,
-            "unit",
-            "comment",
-            Some("annotation".to_string()),
-        ));
+        let c: RegistryCharacteristic = Xcp::get().get_registry().lock().unwrap().find_characteristic("CalPage.b").unwrap().clone();
+        assert_eq!(c.get_addr_offset(), 204);
 
-        r.write_a2l().unwrap();
+        let c: RegistryCharacteristic = Xcp::get().get_registry().lock().unwrap().find_characteristic("CalPage.curve").unwrap().clone();
+        assert_eq!(c.get_addr_offset(), 0);
+        assert_eq!(c.get_x_dim(), 16);
+        assert_eq!(c.get_y_dim(), 1);
 
-        // Check update optimization
-        //std::fs::remove_file("test.a2h").ok();
-        // let res = r.write();
-        // let updated = res.expect("A2L write write failed");
-        // assert!(updated);
-        // let res = r.write(); // Write again and it should not be written
-        // let updated = res.expect("A2L write write failed");
-        // assert!(!updated);
+        let c: RegistryCharacteristic = Xcp::get().get_registry().lock().unwrap().find_characteristic("CalPage.map").unwrap().clone();
+        assert_eq!(c.get_addr_offset(), 128);
+        assert_eq!(c.get_x_dim(), 8);
+        assert_eq!(c.get_y_dim(), 9);
     }
 }

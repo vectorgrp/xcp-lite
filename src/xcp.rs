@@ -19,14 +19,27 @@ use lazy_static::lazy_static;
 // Using bitflags crate for the XCP session status flags
 use bitflags::bitflags;
 
-use crate::{cal, reg, xcplib};
-use cal::*;
+use crate::{reg, xcplib};
+
 use reg::*;
+
+//-----------------------------------------------------------------------------
+// Submodules
+
+// Submodule daq
+pub mod daq;
+
+// Submodule cal
+pub mod cal;
+use cal::cal_seg::*;
+use cal::*;
 
 //----------------------------------------------------------------------------------------------
 // XCP log level
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+
+/// Represents the log level for the XCP protocol layer
 pub enum XcpLogLevel {
     Off = 0,
     Error = 1,
@@ -53,6 +66,7 @@ impl From<u8> for XcpLogLevel {
 use log::{debug, error, info, trace, warn};
 
 impl XcpLogLevel {
+    /// Convert XcpLogLevel to log::LevelFilter
     pub fn to_log_level_filter(self) -> log::LevelFilter {
         match self {
             XcpLogLevel::Off => log::LevelFilter::Off,
@@ -99,10 +113,10 @@ pub struct XcpEvent {
 impl XcpEvent {
     /// Maximum number of events
     pub const XCP_MAX_EVENTS: usize = 1024;
-    // Undefined event channel number
+    /// Undefined event channel number
     pub const XCP_UNDEFINED_EVENT_CHANNEL: u16 = 0xFFFF;
 
-    // Uninitialized event
+    /// Uninitialized event
     pub const XCP_UNDEFINED_EVENT: XcpEvent = XcpEvent {
         channel: XcpEvent::XCP_UNDEFINED_EVENT_CHANNEL,
         index: 0,
@@ -268,7 +282,7 @@ impl EventList {
 
         // Register all events
         let r = Xcp::get().get_registry();
-        self.0.iter().for_each(|e| r.lock().unwrap().add_event(e.event));
+        self.0.iter().for_each(|e| r.lock().unwrap().add_event(e.name, e.event));
     }
 
     fn create_event_ext(&mut self, name: &'static str, indexed: bool) -> XcpEvent {
@@ -307,7 +321,9 @@ pub const XCP_CAL_PAGE_FLASH: u8 = 1;
 /// enum to specify the active calibration page (mutable by XCP ("Ram") or const default ("Flash")) of a calibration segment
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum XcpCalPage {
+    /// The mutable page
     Ram = XCP_CAL_PAGE_RAM as isize,
+    /// The deafult page
     Flash = XCP_CAL_PAGE_FLASH as isize,
 }
 
@@ -327,7 +343,9 @@ impl From<u8> for XcpCalPage {
 /// enum to specify the transport layer of the XCP server
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum XcpTransportLayer {
+    /// UDP transport layer
     Udp = 0,
+    /// TCP transport layer
     Tcp = 1,
 }
 
@@ -421,7 +439,6 @@ impl XcpBuilder {
         {
             let mut r = xcp.registry.lock().unwrap();
             r.set_name(self.name);
-
             r.set_tl_params(tl.protocol_name(), ipv4_addr, port); // Transport layer parameters
             r.set_epk(self.epk, Xcp::XCP_EPK_ADDR); // EPK
         }
@@ -562,6 +579,8 @@ impl Xcp {
         }
     }
 
+    /// Get the next message in the transmit queue, do not advance the read pointer
+    /// Data is ready to be sent over TCP or UDP socket
     pub fn tl_transmit_queue_peek(&self) -> Option<&'static [u8]> {
         unsafe {
             let mut buf_len: u16 = 0;
@@ -574,16 +593,19 @@ impl Xcp {
         None
     }
 
+    /// Check if the transmit queue has a message ready to be sent
     pub fn tl_transmit_queue_has_msg(&self) -> bool {
         unsafe { xcplib::XcpTlTransmitQueueHasMsg() != 0 }
     }
 
+    /// Advance the transmit queue read pointer
     pub fn tl_transmit_queue_next(&self) {
         unsafe {
             xcplib::XcpTlTransmitQueueNextMsg();
         }
     }
 
+    /// Shut down the XCP transport layer
     pub fn tl_shutdown(&self) {
         // @@@@ unsafe - C library call
         unsafe {
@@ -617,9 +639,9 @@ impl Xcp {
     //------------------------------------------------------------------------------------------
     // Calibration segments
 
-    /// Create a calibration segment
-    /// # Panics
-    /// Panics if the calibration segment name already exists
+    /// Create a calibration segment  
+    /// # Panics  
+    /// Panics if the calibration segment name already exists  
     pub fn create_calseg<T>(&self, name: &'static str, default_page: &'static T, load_json: bool) -> CalSeg<T>
     where
         T: CalPageTrait,
@@ -628,9 +650,9 @@ impl Xcp {
         m.create_calseg(name, default_page, true, load_json)
     }
 
-    /// Create a calibration segment, don't register fields and don't load json
-    /// # Panics
-    /// Panics if the calibration segment name already exists
+    /// Create a calibration segment, don't register fields and don't load json  
+    /// # Panics  
+    /// Panics if the calibration segment name already exists  
     pub fn add_calseg<T>(&self, name: &'static str, default_page: &'static T) -> CalSeg<T>
     where
         T: CalPageTrait,
@@ -645,27 +667,25 @@ impl Xcp {
         m.get_index(name)
     }
 
+    /// Get calibration segment name by index
     pub fn get_calseg_name(&self, index: usize) -> &'static str {
         let m = self.calseg_list.lock().unwrap();
         m.get_name(index)
     }
 
-    //------------------------------------------------------------------------------------------
-    // Associated functions
-    // @@@@ Move to somewhere else ??
-
-    /// Get registry addr base for a CalSeg
-    pub fn get_calseg_addr_base(calseg_index: usize) -> u32 {
-        (((calseg_index as u32) + 1) | 0x8000) << 16 // Address format for calibration segment field is index | 0x8000 in high word, addr_ext is 0 (CANape does not support addr_ext in memory segments)
+    /// Get A2L addr (ext,addr) of a CalSeg
+    pub fn get_calseg_ext_addr_base(calseg_index: u16) -> (u8, u32) {
+        // Address format for calibration segment field is index | 0x8000 in high word, addr_ext is 0 (CANape does not support addr_ext in memory segments)
+        let addr_ext = Xcp::XCP_ADDR_EXT_APP;
+        let addr = (((calseg_index as u32) + 1) | 0x8000) << 16;
+        (addr_ext, addr)
     }
 
-    // Get (ext,addr) for A2L generation of calibration values in a CalSeg
-    // The address is relative to the base pointer of the calibration segment
-    // The address extension is set to XCP_ADDR_EXT_DYN
-    pub fn get_calseg_ext_addr(calseg_name: &str, offset: u16) -> (u8, u32) {
-        let addr_ext = Xcp::XCP_ADDR_EXT_APP;
-        let calseg_index = Xcp::get().get_calseg_index(calseg_name).unwrap();
-        let addr: u32 = offset as u32 + Xcp::get_calseg_addr_base(calseg_index);
+    /// Get A2L addr (ext,addr) for a calibration value field at offset in a CalSeg
+    /// The address is relative to the base addr of the calibration segment
+    pub fn get_calseg_ext_addr(calseg_index: u16, offset: u16) -> (u8, u32) {
+        let (addr_ext, mut addr) = Xcp::get_calseg_ext_addr_base(calseg_index);
+        addr += offset as u32;
         (addr_ext, addr)
     }
 
@@ -681,15 +701,15 @@ impl Xcp {
     //------------------------------------------------------------------------------------------
     // XCP events
 
-    // Create daq event
-    // index==0 event is owned by a static in a function  (macro daq_create_event)
-    // index>0 event is hold in thread local memory, index is the thread instance count (macro daq_create_event_tli)
+    /// Create daq event
+    /// index==0 event is owned by a static in a function  (macro daq_create_event)
+    /// index>0 event is hold in thread local memory, index is the thread instance count (macro daq_create_event_tli)
     pub fn create_event_ext(&self, name: &'static str, indexed: bool) -> XcpEvent {
         self.event_list.lock().unwrap().create_event_ext(name, indexed)
     }
 
-    // Create daq event
-    // Event is owned by a static in a function  (macro daq_create_event)
+    /// Create daq event
+    /// Event is owned by a static in a function  (macro daq_create_event)
     pub fn create_event(&self, name: &'static str) -> XcpEvent {
         self.event_list.lock().unwrap().create_event_ext(name, false)
     }
@@ -744,18 +764,18 @@ impl Xcp {
     // Calibration page switching
 
     /// Set the active calibration page for the ECU access (used for test only)
-    pub fn set_ecu_cal_page(&self, page: XcpCalPage) {
+    fn set_ecu_cal_page(&self, page: XcpCalPage) {
         self.ecu_cal_page.store(page as u8, Ordering::Relaxed);
     }
 
     /// Set the active calibration page for the XCP access (used for test only)
-    pub fn set_xcp_cal_page(&self, page: XcpCalPage) {
+    fn set_xcp_cal_page(&self, page: XcpCalPage) {
         self.xcp_cal_page.store(page as u8, Ordering::Relaxed);
     }
 
     /// Get the active calibration page for the ECU access
     #[inline(always)]
-    pub fn get_ecu_cal_page(&self) -> XcpCalPage {
+    fn get_ecu_cal_page(&self) -> XcpCalPage {
         if self.ecu_cal_page.load(Ordering::Relaxed) == XcpCalPage::Ram as u8 {
             XcpCalPage::Ram
         } else {
@@ -764,7 +784,7 @@ impl Xcp {
     }
 
     /// Get the active calibration page for the XCP access
-    pub fn get_xcp_cal_page(&self) -> XcpCalPage {
+    fn get_xcp_cal_page(&self) -> XcpCalPage {
         if self.xcp_cal_page.load(Ordering::Relaxed) == XcpCalPage::Ram as u8 {
             XcpCalPage::Ram
         } else {
@@ -777,14 +797,15 @@ impl Xcp {
 
     /// Set calibration segment init request
     /// Called on init cal from XCP server
-    pub fn set_init_request(&self) {
+
+    fn set_init_request(&self) {
         let mut m = self.calseg_list.lock().unwrap();
         m.set_init_request();
     }
 
     /// Set calibration segment freeze request
     /// Called on freeze cal from XCP server
-    pub fn set_freeze_request(&self) {
+    fn set_freeze_request(&self) {
         let mut m = self.calseg_list.lock().unwrap();
         m.set_freeze_request();
     }

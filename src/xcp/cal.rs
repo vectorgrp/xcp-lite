@@ -6,8 +6,9 @@
 // Submodules
 
 // Calibration segment
-mod cal_seg;
-pub use cal_seg::*;
+
+pub mod cal_seg;
+use cal_seg::*;
 
 //-----------------------------------------------------------------------------
 
@@ -40,16 +41,20 @@ where
 {
 }
 
+/// Calibration parameter page structs which can be wrapped by CalSeg, must implement this trait
 #[cfg(feature = "auto_reg")]
 #[cfg(feature = "json")]
 pub trait CalPageTrait
 where
     Self: Sized + Send + Sync + Copy + Clone + 'static + xcp_type_description::XcpTypeDescription + serde::Serialize + serde::de::DeserializeOwned,
 {
+    /// Load the calibration page from a json file
     fn load_from_file(name: &str) -> Result<Self, std::io::Error>;
 
+    /// Save the calibration page to a json file
     fn save_to_file(&self, name: &str) -> Result<(), std::io::Error>;
 
+    /// Register all fields in the XCP registry
     fn register_fields(&self, calseg_name: &'static str);
 }
 
@@ -183,9 +188,9 @@ pub struct CalSegList(Vec<CalSegDescriptor>);
 #[allow(unused_mut)]
 
 impl CalSegList {
-    /// Create a calibration segment
-    /// # Panics
-    /// Panics if the calibration segment name already exists
+    /// Create a calibration segment  
+    /// # Panics  
+    /// Panics if the calibration segment name already exists  
     pub fn create_calseg<T>(&mut self, name: &'static str, default_page: &'static T, auto_reg: bool, load_json: bool) -> CalSeg<T>
     where
         T: CalPageTrait,
@@ -274,11 +279,7 @@ impl CalSegList {
             for (i, d) in self.0.iter().enumerate() {
                 trace!("Register CalSeg {}, size={}", d.get_name(), d.get_size());
                 assert!(i == d.calseg.lock().unwrap().get_index());
-                Xcp::get()
-                    .get_registry()
-                    .lock()
-                    .unwrap()
-                    .add_cal_seg(d.get_name(), Xcp::get_calseg_addr_base(i), Xcp::XCP_ADDR_EXT_APP, d.get_size() as u32);
+                Xcp::get().get_registry().lock().unwrap().add_cal_seg(d.get_name(), i as u16, d.get_size() as u32);
             }
         }
     }

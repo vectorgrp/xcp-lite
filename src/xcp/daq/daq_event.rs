@@ -10,7 +10,7 @@ use crate::{reg::RegistryMeasurement, xcp::*, RegistryDataType};
 // XcpEvent
 
 impl Xcp {
-    // Create a measurement event and a measurement variable directly associated to the event with memory offset 0
+    /// Create a measurement event and a measurement variable directly associated to the event with memory offset 0
     pub fn create_measurement_object(&self, name: &'static str, data_type: RegistryDataType, x_dim: u16, y_dim: u16, comment: &'static str) -> XcpEvent {
         let event = self.create_event(name);
         self.get_registry().lock().unwrap().add_measurement(RegistryMeasurement::new(
@@ -68,6 +68,7 @@ impl PartialEq for DaqEvent<0> {
 }
 
 impl<const N: usize> DaqEvent<N> {
+    /// Create a new DaqEvent with a given name and optional capture buffer
     pub fn new(name: &'static str) -> DaqEvent<N> {
         let xcp = Xcp::get();
         DaqEvent {
@@ -76,6 +77,8 @@ impl<const N: usize> DaqEvent<N> {
             buffer: [0; N],
         }
     }
+
+    /// Create a new DaqEvent from an existing XcpEvent
     pub fn new_from(xcp_event: &XcpEvent) -> DaqEvent<N> {
         DaqEvent {
             event: *xcp_event,
