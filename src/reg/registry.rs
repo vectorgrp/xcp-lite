@@ -818,8 +818,8 @@ impl Registry {
         let a2l_path = format!("{}.a2l", a2l_name);
         let a2l_file = std::fs::File::create(&a2l_path)?;
         let a2l_file_writer: &mut dyn std::io::Write = &mut std::io::LineWriter::new(a2l_file);
-        let mut writer = A2lWriter::new(a2l_file_writer);
-        writer.write_a2l(a2l_name, a2l_name, self)?;
+        let mut writer = A2lWriter::new(a2l_file_writer, self);
+        writer.write_a2l(a2l_name, a2l_name)?;
 
         // @@@@ Dev
         // Check A2L file

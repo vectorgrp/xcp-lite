@@ -111,7 +111,7 @@ mod registry_tests {
 
         reg.write_a2l().unwrap();
 
-        if let Err(e) = reg.a2l_load("test_registry.a2l") {
+        if let Err(e) = reg.a2l_load("test_registry_2.a2l") {
             log::error!("A2l file check error: {}", e);
         } else {
             log::info!("A2L file check ok");
@@ -153,7 +153,7 @@ mod registry_tests {
         crate::xcp::xcp_test::test_setup(log::LevelFilter::Info);
 
         let xcp = crate::Xcp::get();
-        let mut reg_ref = xcp.get_registry();
+        let reg_ref = xcp.get_registry();
 
         {
             let mut reg = reg_ref.lock().unwrap();
@@ -223,7 +223,7 @@ mod registry_tests {
         {
             let mut reg = reg_ref.lock().unwrap();
 
-            if let Err(e) = reg.a2l_load("test_registry.a2l") {
+            if let Err(e) = reg.a2l_load("test_registry_1.a2l") {
                 log::error!("A2l file check error: {}", e);
             } else {
                 log::info!("A2L file check ok");
