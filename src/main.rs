@@ -23,8 +23,8 @@ use std::{
 
 //-----------------------------------------------------------------------------
 
-const TASK1_CYCLE_TIME: u32 = 10000; // 10ms
-const TASK2_CYCLE_TIME: u32 = 10000; // 10ms
+const TASK1_CYCLE_TIME_US: u32 = 10000; // 10ms
+const TASK2_CYCLE_TIME_US: u32 = 1000; // 1ms
 const TASK2_INSTANCE_COUNT: usize = 10;
 const MAINLOOP_CYCLE_TIME: u32 = 100; // 100ms
 
@@ -103,8 +103,8 @@ struct CalPage00 {
 }
 
 static CAL_PAGE0: once_cell::sync::OnceCell<CalPage00> = once_cell::sync::OnceCell::with_value(CalPage00 {
-    task1_cycle_time_us: TASK1_CYCLE_TIME,
-    task2_cycle_time_us: TASK2_CYCLE_TIME,
+    task1_cycle_time_us: TASK1_CYCLE_TIME_US,
+    task2_cycle_time_us: TASK2_CYCLE_TIME_US,
 });
 
 //-----------------------------------------------------------------------------

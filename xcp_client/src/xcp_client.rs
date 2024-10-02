@@ -308,6 +308,10 @@ impl XcpCalibrationObject {
         self.value = bytes.to_vec();
     }
 
+    pub fn get_value(&mut self) -> &[u8] {
+        &self.value
+    }
+
     pub fn get_value_u64(&self) -> u64 {
         let mut value = 0u64;
         for i in (0..self.get_type.size).rev() {
@@ -382,13 +386,13 @@ pub trait XcpTextDecoder {
 struct DefaultTextDecoder;
 
 impl DefaultTextDecoder {
+    /// Handle incomming text data from XCP server
     pub fn new() -> DefaultTextDecoder {
         DefaultTextDecoder {}
     }
 }
 
 impl XcpTextDecoder for DefaultTextDecoder {
-    // Handle incomming text data from XCP server
     fn decode(&self, data: &[u8]) {
         print!("SERV_TEXT: ");
         let mut j = 0;
@@ -406,7 +410,8 @@ impl XcpTextDecoder for DefaultTextDecoder {
 // Default printf decoder for XCP DAQ data
 
 pub trait XcpDaqDecoder {
-    fn decode(&mut self, control: &XcpTaskControl, data: &[u8]);
+    /// Handle incomming DAQ data from XCP server
+    fn decode(&mut self, lost: u32, daq: u16, odt: u8, timestamp: u32, data: &[u8]);
 }
 
 struct DefaultDaqDecoder;
@@ -418,38 +423,8 @@ impl DefaultDaqDecoder {
 }
 
 impl XcpDaqDecoder for DefaultDaqDecoder {
-    // Handle incomming DAQ data from XCP server
-    fn decode(&mut self, control: &XcpTaskControl, data: &[u8]) {
-        if control.running && control.connected {
-            let large_header = true;
-            let mut odt = data[0];
-            if (odt & 0x80) != 0 {
-                error!("DAQ queue overflow!");
-                odt &= 0x7F;
-            }
-
-            let (timestamp, daq) = if large_header {
-                (
-                    if odt == 0 {
-                        data[4] as u32 | (data[5] as u32) << 8 | (data[6] as u32) << 16 | (data[7] as u32) << 24
-                    } else {
-                        0
-                    },
-                    data[2] as u16 | (data[3] as u16) << 8,
-                )
-            } else {
-                (
-                    if odt == 0 {
-                        data[2] as u32 | (data[3] as u32) << 8 | (data[4] as u32) << 16 | (data[5] as u32) << 24
-                    } else {
-                        0
-                    },
-                    data[1] as u16,
-                )
-            };
-
-            trace!("DAQ: daq = {}, odt = {} timestamp = {} data={:?})", daq, odt, timestamp, &data[6..]);
-        }
+    fn decode(&mut self, lost: u32, daq: u16, odt: u8, timestamp: u32, data: &[u8]) {
+        trace!("DAQ: lost = {}, daq = {}, odt = {} timestamp = {} data={:?})", lost, daq, odt, timestamp, data);
     }
 }
 
@@ -501,6 +476,8 @@ impl XcpClient {
     ) -> Result<(), Box<dyn Error>> {
         let mut ctr_last: u16 = 0;
         let mut ctr_first: bool = true;
+        let mut ctr_lost: u32 = 0;
+
         let mut buf: [u8; 8000] = [0; 8000];
         let mut task_control: Option<XcpTaskControl> = None;
 
@@ -513,9 +490,19 @@ impl XcpClient {
                         Some(c) => {
                             debug!("receive_task: task control status changed: connected={} running={}", c.connected, c.running);
 
+                            // Disconnect
                             if !c.connected { // Handle the data from rx_daq_decoder
                                 info!("receive_task: stop, disconnect");
                                 return Ok(());
+                            }
+
+                            // Start DAQ
+                            if c.running {
+                                info!("receive_task: start DAQ");
+                                ctr_first = true;
+                                ctr_last = 0;
+                                ctr_lost = 0;
+
                             }
 
                             task_control = Some(c);
@@ -544,17 +531,15 @@ impl XcpClient {
                                     return Err(Box::new(XcpError::new(ERROR_TL_HEADER)) as Box<dyn Error>);
                                 }
                                 let len = buf[i] as usize + ((buf[i + 1] as usize) << 8);
-                                if len > size - 4 || len == 0 {
+                                if len > size - 4 || len == 0 { // Corrupt packet received, not enough data received or no content
                                     return Err(Box::new(XcpError::new(ERROR_TL_HEADER)) as Box<dyn Error>);
                                 }
                                 let ctr = buf[i + 2] as u16 + ((buf[i + 3] as u16) << 8);
                                 if ctr_first {
                                     ctr_first = false;
                                 } else if ctr != ctr_last.wrapping_add(1) {
-                                    error!(
-                                        "xcp_receive: missing packet, last_ctr = {}, ctr = {}",
-                                        ctr_last, ctr
-                                    );
+                                    ctr_lost += ctr.wrapping_sub(ctr_last) as u32;
+
                                 }
                                 ctr_last = ctr;
                                 let pid = buf[i + 4];
@@ -596,8 +581,23 @@ impl XcpClient {
 
                                             // Handle DAQ data if DAQ running
                                             if c.running {
+
+                                                let data = &buf[i + 4..i + 4 + len];
+                                                assert_eq!(data[1], 0xAA); // @@@@ remove, xcp-lite specific
+                                                let daq: u16 = data[2] as u16 | (data[3] as u16) << 8;
+                                                let odt: u8 = data[0];
+
                                                 let mut m = decode_daq.lock().unwrap();
-                                                m.decode(c, &buf[i + 4..i + 4 + len]);
+                                                if odt==0 {
+                                                    assert!(len>=4);
+                                                    // Note that a packet theoretically may be empty, when it is just an event
+                                                    let timestamp: u32 =  data[4] as u32 | (data[4 + 1] as u32) << 8 | (data[4 + 2] as u32) << 16 | (data[4 + 3] as u32) << 24;
+                                                    m.decode(ctr_lost, daq, odt, timestamp, &buf[i + 12..i + 4 + len]);
+                                                } else {
+                                                    m.decode(ctr_lost, daq, odt, 0, &buf[i + 8..i + 4 + len]);
+
+                                                }
+                                                ctr_lost = 0;
                                             }
                                         }
                                     }
@@ -667,8 +667,8 @@ impl XcpClient {
 
     pub async fn connect<D, T>(&mut self, daq_decoder: Arc<Mutex<D>>, text_decoder: T) -> Result<(), Box<dyn Error>>
     where
-        T: XcpTextDecoder + Copy + Send + 'static,
-        D: XcpDaqDecoder + Copy + Send + 'static,
+        T: XcpTextDecoder + Send + 'static,
+        D: XcpDaqDecoder + Send + 'static,
     {
         // Create socket
         let socket = UdpSocket::bind(self.bind_addr).await?;
@@ -1000,13 +1000,22 @@ impl XcpClient {
         self.calibration_objects[handle.0].set_value(slice);
         Ok(())
     }
+    pub async fn set_value_f64(&mut self, handle: XcpCalibrationObjectHandle, value: f64) -> Result<(), Box<dyn Error>> {
+        let obj = &self.calibration_objects[handle.0];
+        if value > obj.a2l_limits.upper || value < obj.a2l_limits.lower {
+            return Err(Box::new(XcpError::new(ERROR_LIMIT)) as Box<dyn Error>);
+        }
+        let size: usize = obj.get_type.size as usize;
+        let slice = &value.to_le_bytes()[0..size];
+        self.short_download(obj.a2l_addr.addr, obj.a2l_addr.ext, slice).await?;
+        self.calibration_objects[handle.0].set_value(slice);
+        Ok(())
+    }
 
     pub async fn read_value_u64(&mut self, index: XcpCalibrationObjectHandle) -> Result<u64, Box<dyn Error>> {
         let a2l_addr = self.calibration_objects[index.0].a2l_addr;
         let get_type = self.calibration_objects[index.0].get_type;
-
         let resp = self.short_upload(a2l_addr.addr, a2l_addr.ext, get_type.size).await?;
-
         let value = resp[1..=get_type.size as usize].to_vec();
         self.calibration_objects[index.0].value = value;
         Ok(self.get_value_u64(index))
@@ -1021,9 +1030,17 @@ impl XcpClient {
         let obj = &self.calibration_objects[index.0];
         obj.get_value_i64()
     }
+    pub fn get_value_f64(&mut self, index: XcpCalibrationObjectHandle) -> f64 {
+        let obj = &self.calibration_objects[index.0];
+        let v = obj.get_value_u64();
+        #[allow(clippy::transmute_int_to_float)]
+        unsafe {
+            std::mem::transmute(v)
+        }
+    }
 
     //------------------------------------------------------------------------
-    // XcpMeasurmentObject, XcpMeasurmentObjectHandle (index pointer to XcpCMeasurmentObject),
+    // XcpMeasurementObject, XcpMeasurmentObjectHandle (index pointer to XcpCMeasurmentObject),
     //
 
     pub fn create_measurement_object(&mut self, name: &str) -> Option<XcpMeasurementObjectHandle> {
@@ -1057,7 +1074,7 @@ impl XcpClient {
             *count += 1;
         }
         let event_count: u16 = event_map.len() as u16;
-        info!("event_count = {}", event_count);
+        info!("event/daq count = {}", event_count);
 
         // Transform to a sorted array
         let mut event_list: Vec<(u16, u16)> = Vec::new();
@@ -1128,13 +1145,13 @@ impl XcpClient {
         // Set DAQ list events
         for daq in 0..daq_count {
             let event = event_list[daq as usize].0;
-            self.set_daq_list_mode(daq as u16, event).await?;
+            self.set_daq_list_mode(daq, event).await?;
             debug!("Set event: daq={}, event={}", daq, event);
         }
 
         // Select all DAQ lists
         for daq in 0..daq_count {
-            self.start_stop_daq_list(XcpClient::XCP_SELECT, daq as u16).await?;
+            self.start_stop_daq_list(XcpClient::XCP_SELECT, daq).await?;
         }
 
         // Send running=true throught the DAQ control channel to the receive task

@@ -2,6 +2,7 @@
 // xcp_client is a binary crate that uses the xcp_client library crate
 
 use std::error::Error;
+
 use std::sync::{Arc, Mutex};
 
 mod xcp_client;
@@ -35,9 +36,8 @@ impl ToLogLevelFilter for u8 {
 //------------------------------------------------------------------------
 // Handle incomming DAQ data
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 struct DaqDecoder {
-    // Add any state needed to decode DAQ data
     event_count: usize,
     byte_count: usize,
 }
@@ -52,23 +52,21 @@ impl DaqDecoder {
 // This is a simple example, a real application would need to decode the data according to the actual measurement setup
 // Assumes first signal is a 32 bit counter and there is only one ODT
 impl XcpDaqDecoder for DaqDecoder {
-    // Handle incomming text data from XCP server
-    // Hard coded decoder for DAQ data with measurement of counter:u32 or channel_x:f64
-    fn decode(&mut self, _control: &XcpTaskControl, data: &[u8]) {
-        let odt = data[0];
-        let daq = data[1];
-        let data_len = data.len() - 6; // 6 bytes header (odt, daq, timestamp)
-
+    fn decode(&mut self, lost: u32, daq: u16, odt: u8, timestamp: u32, data: &[u8]) {
         if odt == 0 {
-            assert!(data_len >= 4);
-            let timestamp = data[2] as u32 | (data[3] as u32) << 8 | (data[4] as u32) << 16 | (data[5] as u32) << 24;
-            let counter = data[6] as u32 | (data[7] as u32) << 8 | (data[8] as u32) << 16 | (data[9] as u32) << 24;
-            trace!("DAQ: daq={}, odt={}: timestamp={} counter={} data={:?}", daq, odt, timestamp, counter, data);
+            // Decode data
+            // counter:u32 assumed to be first signal in daq list 0
+            if daq == 0 {
+                assert!(data.len() >= 4);
+                let counter = data[0] as u32 | (data[1] as u32) << 8 | (data[2] as u32) << 16 | (data[3] as u32) << 24;
+                //trace!("DAQ: lost={}, daq={}, odt={}: timestamp={} counter={} data={:?}", lost, daq, odt, t, counter, data);
+                info!("DAQ: lost={}, daq={}, odt={}: t={} counter={}", lost, daq, odt, timestamp, counter);
+            }
         } else {
             panic!("ODT != 0")
         }
 
-        self.byte_count += data_len; // payload byte count
+        self.byte_count += data.len(); // payload byte count
         self.event_count += 1;
     }
 }
@@ -123,22 +121,11 @@ struct Args {
 }
 
 //------------------------------------------------------------------------
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    let args = Args::parse();
-    let log_level = args.log_level.to_log_level_filter();
-    env_logger::Builder::new().filter_level(log_level).init();
-
-    println!("Test XCP client demo application");
+async fn xcp_client(dest_addr: std::net::SocketAddr, local_addr: std::net::SocketAddr) -> Result<(), Box<dyn Error>> {
+    println!("XCP client demo");
     println!("Calibrate and measure objects from xcp-lite main demo application");
-    println!("Measure counter from task1 and all channel_x from all task2 instances");
-    println!("Calibrate the task cycle time and counter_max");
 
     // Create xcp_client
-    let dest_addr = args.dest_addr.parse().map_err(|e| format!("{}", e))?;
-    let local_addr = args.bind_addr.parse().map_err(|e| format!("{}", e))?;
-    info!("dest_addr: {}", dest_addr);
-    info!("local_addr: {}", local_addr);
     let mut xcp_client = XcpClient::new(dest_addr, local_addr);
 
     // Connect to the XCP server
@@ -167,15 +154,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     info!("XCP Measurement");
 
-    // Speed up cycle time of demo tasks to 50us
+    // Set cycle time of main demo tasks 250ms/100us
     if let Ok(cycle_time) = xcp_client.create_calibration_object("calpage00.task1_cycle_time_us").await {
-        xcp_client.set_value_u64(cycle_time, 50).await?;
+        xcp_client.set_value_u64(cycle_time, 250000).await?;
     }
     if let Ok(cycle_time) = xcp_client.create_calibration_object("calpage00.task2_cycle_time_us").await {
-        xcp_client.set_value_u64(cycle_time, 50).await?;
+        xcp_client.set_value_u64(cycle_time, 100).await?;
     }
 
-    // Measurement of counter:u32
+    // Measurement signals
     xcp_client.create_measurement_object("counter").unwrap();
     info!(r#"Created measurement object "counter""#);
     if let Some(_m) = xcp_client.create_measurement_object("counter_u8") {
@@ -191,7 +178,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         info!(r#"Created measurement object counter_u64"#);
     }
 
-    // Measurement of channel_x:f64, add all instances found
+    // Measurement of channel_x:f64, add all instances found in A2L file
     let mut i = 0;
     loop {
         i += 1;
@@ -206,7 +193,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Measure for 2 seconds
     let start_time = tokio::time::Instant::now();
     xcp_client.start_measurement().await?;
-    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    tokio::time::sleep(std::time::Duration::from_secs(6)).await;
     xcp_client.stop_measurement().await?;
     let elapsed_time = start_time.elapsed().as_micros();
 
@@ -219,12 +206,25 @@ async fn main() -> Result<(), Box<dyn Error>> {
         event_count as f64 * 1_000_000.0 / elapsed_time as f64,
         byte_count as f64 / elapsed_time as f64
     );
-    info!("Expected {} events/s, {} byte/s", 1_000_000 / 50 * 10, 90 * 1_000_000 / 50 * 10);
 
     // Disconnect
     xcp_client.disconnect().await?;
 
-    // Done
-    info!("Done");
     Ok(())
+}
+
+//------------------------------------------------------------------------
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    let args = Args::parse();
+
+    let log_level = args.log_level.to_log_level_filter();
+    env_logger::Builder::new().filter_level(log_level).init();
+
+    let dest_addr: std::net::SocketAddr = args.dest_addr.parse().map_err(|e| format!("{}", e))?;
+    let local_addr: std::net::SocketAddr = args.bind_addr.parse().map_err(|e| format!("{}", e))?;
+    info!("dest_addr: {}", dest_addr);
+    info!("local_addr: {}", local_addr);
+
+    xcp_client(dest_addr, local_addr).await
 }

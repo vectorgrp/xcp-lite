@@ -102,8 +102,9 @@ bitflags! {
 static XCP_EVENT_MAP: OnceCell<[u16; XcpEvent::XCP_MAX_EVENTS]> = OnceCell::new();
 
 /// Represents a measurement event  
-/// Holds the u16 XCP event number used in the XCP protocol and A2L to identify an event
-/// May have an index > 0 to identify multiple events with the same name in instanciated in different threads
+/// Glue needed for the macros
+/// Holds the raw u16 XCP event number used in the XCP protocol and in A2L IF_DATA to identify an event
+/// May have an index > 0 to express multiple events with the same name are instanciated in different thread local instances
 #[derive(Debug, Clone, Copy)]
 pub struct XcpEvent {
     channel: u16, // Number used in A2L and XCP protocol

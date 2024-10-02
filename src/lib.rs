@@ -1,10 +1,75 @@
 //-----------------------------------------------------------------------------
 // Crate xcp
 // Path: src/lib.rs
-// xcp is a library crate that provides an XCP on ETH implementation, calibration data segment handling and registry functionality.
 
+//
 // Note that the tests can not be executed in parallel
 // Use cargo test -- --test-threads=1 --nocapture
+
+//! A lightweight XCP on Ethernet implementation
+//! The 'xcp' crate provides an XCP on ETH implementation,a wrapper type for calibration variables and
+//! a registry to describe events, meaesurement and calibration objects for A2L generation.
+//!
+//! ## Example
+//!
+//! ```
+//!
+//! use xcp::*;
+//! use xcp_type_description::prelude::*;
+//!
+//! #[derive(XcpTypeDescription)]
+//! #[derive(serde::Serialize, serde::Deserialize)]
+//! #[derive(Debug, Clone, Copy)]
+//! struct CalPage {
+//!     #[type_description(comment = "Amplitude")]
+//!     #[type_description(unit = "Volt")]
+//!     #[type_description(min = "0")]
+//!     #[type_description(max = "400")]
+//!     ampl: f64,
+//!
+//!     #[type_description(comment = "Period")]
+//!     #[type_description(unit = "s")]
+//!     #[type_description(min = "0")]
+//!     #[type_description(max = "1000")]
+//!     period: f64,
+//! }
+//!
+//!
+//! const CAL_PAGE: CalPage = CalPage {
+//!     ampl: 100.0,
+//!     period: 1.0,
+//! };
+//!
+//! // Initialize XCP
+//! let xcp = XcpBuilder::new("xcp_lite").start_server(XcpTransportLayer::Tcp, [127,0,0,1], 5555).unwrap();
+//!
+//! // Create a calibration segment and auto register its fields as calibration variables
+//! let cal_page = xcp.create_calseg("CalPage", &CAL_PAGE, false);
+//!
+//! // Create an event
+//! let event = daq_create_event!("task1");
+//!
+//! let mut signal: f64 = 0.0;
+//!
+//! // Register a variable of basic type to be captured directly from stack
+//! daq_register!(signal, event, "", "", 1.0, 0.0);
+//!
+//! loop {
+//!
+//!     signal += 0.1;
+//!     if signal > cal_page.ampl { signal = 0.0; } // calibration parameter access to ampl
+//!
+//!     // Trigger event "task1" for data acquisition, reading variable signal from stack happens here
+//!     event.trigger();
+//!
+//!     // Sync the calibration segment with modifications from the XCP client
+//!     cal_page.sync();
+//! }
+//!
+//! ```
+//!
+//!
+//!
 
 //#![warn(missing_docs)]
 

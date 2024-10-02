@@ -25,11 +25,13 @@ use xcp::XcpCalPage;
 // Manually add calibration page fields to a calibration segment description
 
 /// Calibration page field description  
-/// Used by the calseg_field macro to manually add a field to a calibration segment  
+/// Glue used by the calseg_field macro to manually add a field to a calibration segment  
 /// # example  
+/// '''
 /// const CAL_PAGE: CalPage = CalPage { cycle_time_ms: MAINLOOP_CYCLE_TIME };  
 /// let calseg = xcp.add_calseg("CalPage", &CAL_PAGE );  
 /// calseg.add_field(calseg_field!(CAL_PAGE.cycle_time_ms, "ms", "main task cycle time"));  
+/// '''
 
 #[derive(Debug, Clone, Copy)]
 pub struct CalPageField {

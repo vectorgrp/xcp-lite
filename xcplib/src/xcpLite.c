@@ -849,13 +849,13 @@ static void XcpTriggerDaq(uint16_t daq, const uint8_t* base, uint64_t clock) {
             gXcp.DaqOverflowCount++;
             DaqListState(daq) |= DAQ_STATE_OVERRUN;
             DBG_PRINTF4("DAQ queue overrun, daq=%u, odt=%u, overruns=%u\n", daq, odt, gXcp.DaqOverflowCount);
-            return; // Skip rest of this event on queue overrun
+            return; // Skip rest of this event on queue overrun, to simplify resynchronisation of the client
         }
 
         // ODT header (ODT8,FIL8,DAQ16 or ODT8,DAQ8)
         d0[0] = (uint8_t)(odt-DaqListFirstOdt(daq)); /* Relative odt number as byte*/
 #if ODT_HEADER_SIZE==4
-        d0[1] = 0xAA; // Align byte
+        d0[1] = 0xAA; // Align byte 
         *((uint16_t*)&d0[2]) = daq;
 #else
         d0[1] = (uint8_t)daq;

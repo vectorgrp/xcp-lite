@@ -53,7 +53,7 @@ macro_rules! daq_event_ref {
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // DaqEvent
 
-/// DaqEvent is a wrapper for XcpEvent which adds on optional capture buffer (N may be 0)
+/// DaqEvent is a wrapper for XcpEvent which adds the capabilizy to read variables from stack or adds an optional capture buffer to capture variable values
 #[derive(Debug)]
 pub struct DaqEvent<const N: usize> {
     event: XcpEvent,

@@ -111,10 +111,13 @@ mod registry_tests {
 
         reg.write_a2l().unwrap();
 
-        if let Err(e) = reg.a2l_load("test_registry_2.a2l") {
-            log::error!("A2l file check error: {}", e);
-        } else {
-            log::info!("A2L file check ok");
+        #[cfg(feature = "a2l_reader")]
+        {
+            if let Err(e) = reg.a2l_load("test_registry_2.a2l") {
+                log::error!("A2l file check error: {}", e);
+            } else {
+                log::info!("A2L file check ok");
+            }
         }
 
         reg.freeze();
@@ -220,6 +223,7 @@ mod registry_tests {
 
         xcp.write_a2l().unwrap();
 
+        #[cfg(feature = "a2l_reader")]
         {
             let mut reg = reg_ref.lock().unwrap();
 

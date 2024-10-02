@@ -26,8 +26,8 @@ pub const OPTION_XCP_LOG_LEVEL: xcp::XcpLogLevel = xcp::XcpLogLevel::Info;
 
 // Test parameters
 pub const MULTI_THREAD_TASK_COUNT: usize = 16; // Number of threads
-pub const DAQ_TEST_TASK_SLEEP_TIME_US: u64 = 1000; // us
-const DAQ_TEST_DURATION_MS: u64 = 4000; // ms
+pub const DAQ_TEST_TASK_SLEEP_TIME_US: u64 = 1000; // Measurement thread task cycle time in us
+const DAQ_TEST_DURATION_MS: u64 = 6000; // DAQ test duration, 6s to get a nano second 32 bit overflow while checking timestamp monotony
 const CAL_TEST_MAX_ITER: u32 = 4000; // Number of calibrations
 const CAL_TEST_TASK_SLEEP_TIME_US: u64 = 50; // Checking task cycle time in us
 
@@ -65,11 +65,10 @@ impl XcpTextDecoder for ServTextDecoder {
 #[derive(Debug, Clone, Copy)]
 struct DaqDecoder {
     tot_events: u32,
-    daq0_timestamp: u32,
-    daq0_timestamp_max: u32,
-    daq0_timestamp_min: u32,
+    packets_lost: u32,
     daq_max: u16,
     odt_max: u8,
+    daq_timestamp: [u64; MULTI_THREAD_TASK_COUNT],
     daq_events: [u32; MULTI_THREAD_TASK_COUNT],
     max_counter: [u32; MULTI_THREAD_TASK_COUNT],
     last_counter: [u32; MULTI_THREAD_TASK_COUNT],
@@ -79,12 +78,11 @@ impl DaqDecoder {
     pub fn new() -> DaqDecoder {
         DaqDecoder {
             tot_events: 0,
-            daq_events: [0; MULTI_THREAD_TASK_COUNT],
-            daq0_timestamp: 0,
-            daq0_timestamp_max: 0,
-            daq0_timestamp_min: 0xFFFFFFFF,
+            packets_lost: 0,
             daq_max: 0,
             odt_max: 0,
+            daq_timestamp: [0; MULTI_THREAD_TASK_COUNT],
+            daq_events: [0; MULTI_THREAD_TASK_COUNT],
             max_counter: [0; MULTI_THREAD_TASK_COUNT],
             last_counter: [0; MULTI_THREAD_TASK_COUNT],
         }
@@ -93,44 +91,38 @@ impl DaqDecoder {
 
 impl XcpDaqDecoder for DaqDecoder {
     // Handle incomming DAQ DTOs from XCP server
-    fn decode(&mut self, _control: &XcpTaskControl, data: &[u8]) {
-        let timestamp_offset = 4;
-
-        // DAQ
-        let daq: u16 = if timestamp_offset == 4 {
-            assert_eq!(data[1], 0xAA);
-            data[2] as u16 | (data[3] as u16) << 8
-        } else {
-            data[1] as u16
-        };
+    fn decode(&mut self, lost: u32, daq: u16, odt: u8, timestamp: u32, data: &[u8]) {
         assert!(daq < MULTI_THREAD_TASK_COUNT as u16);
+
+        if lost > 0 {
+            self.packets_lost += lost;
+            warn!("packet loss = {}, total = {}", lost, self.packets_lost);
+        }
+
         if daq > self.daq_max {
             self.daq_max = daq;
         }
 
-        // ODT
-        let mut odt = data[0];
-        if odt > self.odt_max {
-            self.odt_max = odt;
+        // Decode time as u64
+        // Check declining timestamps
+        if odt == 0 {
+            let t_last = self.daq_timestamp[daq as usize];
+            let tl = (t_last & 0xFFFFFFFF) as u32;
+            let mut th = (t_last >> 32) as u32;
+            if timestamp < tl {
+                th += 1;
+            }
+            let t = timestamp as u64 | (th as u64) << 32;
+            if t < t_last {
+                warn!("Timestamp of daq {} declining {} -> {}", daq, t_last, t);
+            }
+            self.daq_timestamp[daq as usize] = t;
         }
-
-        // Check queue overflow
-        if (odt & 0x80) != 0 {
-            error!("DAQ queue overflow!");
-            odt &= 0x7F;
-        }
-
-        // Timestamp
-        let timestamp = if odt == 0 {
-            data[timestamp_offset] as u32 | (data[timestamp_offset + 1] as u32) << 8 | (data[timestamp_offset + 2] as u32) << 16 | (data[timestamp_offset + 3] as u32) << 24
-        } else {
-            0
-        };
 
         // Hardcoded decoding of data (only first ODT)
         assert!(odt == 0);
-        if odt == 0 && data.len() >= 14 {
-            let o = timestamp_offset + 4;
+        if odt == 0 && data.len() >= 8 {
+            let o = 0;
 
             // Check counter_max and counter
             let counter_max = data[o] as u32 | (data[o + 1] as u32) << 8 | (data[o + 2] as u32) << 16 | (data[o + 3] as u32) << 24;
@@ -145,7 +137,7 @@ impl XcpDaqDecoder for DaqDecoder {
             }
 
             // Check cal_test pattern
-            if data.len() >= 22 {
+            if data.len() >= 16 {
                 let cal_test = data[o + 8] as u64
                     | (data[o + 9] as u64) << 8
                     | (data[o + 10] as u64) << 16
@@ -158,31 +150,10 @@ impl XcpDaqDecoder for DaqDecoder {
             }
 
             // Check each counter is incrementing
-            if self.daq_events[daq as usize] != 0 && counter != self.last_counter[daq as usize] + 1 && counter != 0 {
-                if daq != 0 {
-                    error!("counter error: daq={} {} -> {} max={} ", daq, self.last_counter[daq as usize], counter, counter_max,);
-                }
+            if self.daq_events[daq as usize] != 0 && counter != self.last_counter[daq as usize] + 1 && counter != 0 && daq != 0 {
+                error!("counter error: daq={} {} -> {} max={} ", daq, self.last_counter[daq as usize], counter, counter_max,);
             }
             self.last_counter[daq as usize] = counter;
-
-            // Check timestamp of daq 0 is growing
-            if daq == 0 && odt == 0 {
-                if self.daq_events[0] != 0 {
-                    if timestamp < self.daq0_timestamp {
-                        error!("declining timestamp: timestamp={} last={}", timestamp, self.daq0_timestamp);
-                    } else {
-                        let dt = timestamp - self.daq0_timestamp;
-                        self.daq0_timestamp = timestamp;
-                        if dt > self.daq0_timestamp_max {
-                            self.daq0_timestamp_max = dt;
-                        }
-                        if dt < self.daq0_timestamp_min {
-                            self.daq0_timestamp_min = dt;
-                        }
-                    }
-                }
-                self.daq0_timestamp = timestamp;
-            }
 
             trace!(
                 "DAQ: daq = {}, odt = {} timestamp = {} counter={}, counter_max={} (rest={:?})",
@@ -422,6 +393,7 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
                 }
                 info!("  signals = {}", MULTI_THREAD_TASK_COUNT * 8);
                 info!("  cycles = {}", d.daq_events[0]);
+                info!("  packets lost = {}", d.packets_lost);
                 info!("  events = {}", d.tot_events);
                 info!("  events per sec= {:.0}", d.tot_events as f64 / duration_s);
                 info!("  bytes per event = {}", bytes_per_event);
@@ -432,16 +404,7 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
                 info!("  average datarate = {:.3} MByte/s", (bytes_per_event as f64 * d.tot_events as f64) / 1000.0 / duration_ms,);
                 assert!(duration_ms > DAQ_TEST_DURATION_MS as f64 && duration_ms < DAQ_TEST_DURATION_MS as f64 + 100.0);
                 let avg_cycletime_us = (duration_ms * 1000.0) / d.daq_events[0] as f64;
-                info!("  task cycle time:",);
-                info!("    average = {}us", avg_cycletime_us,);
-                info!("    min = {}us", d.daq0_timestamp_min);
-                info!("    max = {}us", d.daq0_timestamp_max);
-                let jitter = d.daq0_timestamp_max - d.daq0_timestamp_min;
-                info!("    jitter = {}us", jitter);
-                //assert!(jitter < 150); // us tolerance
-                let diff: f64 = (d.daq0_timestamp_min as f64 - DAQ_TEST_TASK_SLEEP_TIME_US as f64).abs();
-                info!("    ecu task cpu time = {:.1}us", diff);
-                //assert!(diff < 50.0); // us tolerance
+                info!("  average task cycle time = {}us", avg_cycletime_us,);
                 if test_mode_daq == TestModeDaq::MultiThreadDAQ {
                     assert_eq!(d.daq_max, (MULTI_THREAD_TASK_COUNT - 1) as u16);
                     // Check all max counters are now 255

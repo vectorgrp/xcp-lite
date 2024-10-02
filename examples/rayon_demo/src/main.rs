@@ -60,7 +60,7 @@ fn write_image(filename: &str, pixels: &[u8]) {
     // Create rgb image buffer and write to file
     let mut imgbuf = ImageBuffer::new(X_RES as u32, Y_RES as u32);
     for (x, y, rgb_pixel) in imgbuf.enumerate_pixels_mut() {
-        *rgb_pixel = color_map[pixels[y as usize * X_RES as usize + x as usize] as usize];
+        *rgb_pixel = color_map[pixels[y as usize * X_RES + x as usize] as usize];
     }
     imgbuf.save(filename).unwrap();
 }
@@ -113,6 +113,7 @@ fn render(pixels: &mut [u8], row: usize, length: usize, upper_left: Complex<f64>
     event.trigger(); // measure line and timestamp of calculation start
 
     // Render line
+    // @@@@
     for column in 0..length {
         let point = pixel_to_point((column, row), upper_left, lower_right);
         pixels[column] = match escape_time(point, 255) {

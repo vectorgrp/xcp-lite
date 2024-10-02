@@ -36,8 +36,8 @@
 #define OFF 0
 
 // Set clock resolution (for clock function in platform.c)
-#define CLOCK_USE_APP_TIME_US
-// #define CLOCK_USE_UTC_TIME_NS
+//#define CLOCK_USE_APP_TIME_US
+#define CLOCK_USE_UTC_TIME_NS
 
 // #define PLATFORM_ENABLE_GET_LOCAL_ADDR
 // #define PLATFORM_ENABLE_KEYBOARD

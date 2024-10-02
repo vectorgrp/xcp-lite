@@ -45,7 +45,7 @@ fn main() {
         .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
         .unwrap();
 
-    let calseg = xcp.create_calseg("calseg", &CAL_PAGE, true);
+    let calseg = xcp.create_calseg("CalPage", &CAL_PAGE, true);
 
     // Measurement signal
     let mut counter: u16 = calseg.min;
@@ -68,6 +68,6 @@ fn main() {
 
         thread::sleep(Duration::from_micros(calseg.delay as u64));
 
-        //xcp.write_a2l();
+        xcp.write_a2l().unwrap(); // Force writing the A2L file once (for inspection)
     }
 }

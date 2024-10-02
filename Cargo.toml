@@ -1,6 +1,6 @@
 [package]
 name = "xcp"
-version = "0.3.0"
+version = "0.1.0"
 edition = "2021"
 resolver = "2"
 rust-version = "1.76"
@@ -157,6 +157,14 @@ image = "0.25.2"
 # dependencies for protobuf demo example
 prost = "0.13.1"
 prost-types = "0.13.1"
+
+# benchmarking
+criterion = { version = "0.4", features = ["html_reports"] }
+
+[[bench]]
+name = "xcp_benchmark"
+harness = false
+
 
 [build-dependencies]
 cc = "1.0"

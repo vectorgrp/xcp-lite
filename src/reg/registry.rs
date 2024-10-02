@@ -19,7 +19,7 @@ use a2l_writer::A2lWriter;
 //-------------------------------------------------------------------------------------------------
 // Datatype
 
-/// Basic registry dta type (enum wtth ASAM naming convention)
+/// Basic registry data type enum (with ASAM naming convention)
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RegistryDataType {
     Ubyte,
@@ -169,7 +169,7 @@ impl RegistryDataType {
 // Get RegistryDataType from rust variables
 
 /// Get RegDataType for a Rust basic type  
-/// Used by the register_xxx macros
+/// Glue used by the register_xxx macros
 pub trait RegistryDataTypeTrait {
     /// Get RegDataType for a Rust basic type
     fn get_type(&self) -> RegistryDataType;
@@ -341,6 +341,7 @@ impl RegistryEpk {
 // Measurement signals
 
 /// Measurement signal
+/// Used by the register macros
 #[derive(Clone, Debug)]
 pub struct RegistryMeasurement {
     name: String,
@@ -455,6 +456,7 @@ impl RegistryMeasurementList {
 // Calibration parameters
 
 /// Calibration parameter
+/// Used by the register macros
 #[derive(Clone, Debug)]
 pub struct RegistryCharacteristic {
     calseg_name: Option<&'static str>,
@@ -817,9 +819,28 @@ impl Registry {
         let a2l_name = self.name.unwrap();
         let a2l_path = format!("{}.a2l", a2l_name);
         let a2l_file = std::fs::File::create(&a2l_path)?;
-        let a2l_file_writer: &mut dyn std::io::Write = &mut std::io::LineWriter::new(a2l_file);
-        let mut writer = A2lWriter::new(a2l_file_writer, self);
-        writer.write_a2l(a2l_name, a2l_name)?;
+        let writer: &mut dyn std::io::Write = &mut std::io::LineWriter::new(a2l_file);
+        let mut a2l_writer = A2lWriter::new(writer, self);
+        a2l_writer.write_a2l(a2l_name, a2l_name)?;
+
+        // stdout
+        // {
+        //     let mut stdout = std::io::stdout().lock();
+        //     let mut a2l_writer = A2lWriter::new(&mut stdout, self);
+        //     a2l_writer.write_a2l(a2l_name, a2l_name)?;
+        // }
+
+        // Vec - String - Hash
+        // {
+        //     let mut vec = std::io::Cursor::new(Vec::with_capacity(1024));
+        //     let mut a2l_writer = A2lWriter::new(&mut vec, self);
+        //     a2l_writer.write_a2l(a2l_name, a2l_name)?;
+        //     let s = String::from_utf8(vec.into_inner()).unwrap();
+        //     let mut hasher = std::hash::DefaultHasher::new();
+        //     std::hash::Hash::hash(&s.as_str(), &mut hasher);
+        //     let a2l_hash: u64 = hasher.finish();
+        //     info!("Current A2L hash = {}", a2l_hash);
+        // }
 
         // @@@@ Dev
         // Check A2L file
