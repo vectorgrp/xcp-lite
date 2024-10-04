@@ -6,7 +6,7 @@
 
 memcpy versus this:
 
-'''
+```
             if (n==8) {
                 *(uint64_t*)d = *(uint64_t*)&base[OdtEntryAddr(e)];
                 d += 8;
@@ -25,7 +25,7 @@ memcpy versus this:
                 d += n;
             }
             e++;
-'''
+```
 
 
 ![trigger bench](image.png)
@@ -33,6 +33,8 @@ memcpy versus this:
 
 
 ## CalSeg::Sync
+
+parking_lot::mutex versus std::sync::mutex
 
 
 ![sync bench](image-1.png)
