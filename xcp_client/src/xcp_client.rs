@@ -9,9 +9,11 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
+use byteorder::{LittleEndian, ReadBytesExt};
 use bytes::{BufMut, BytesMut};
 use std::collections::HashMap;
 use std::error::Error;
+use std::io::Cursor;
 use std::io::Write;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
@@ -200,7 +202,6 @@ pub const CC_GET_PAGE_INFO: u8 = 0xE7;
 pub const CC_SET_SEGMENT_MODE: u8 = 0xE6;
 pub const CC_GET_SEGMENT_MODE: u8 = 0xE5;
 pub const CC_COPY_CAL_PAGE: u8 = 0xE4;
-
 pub const CC_ALLOC_ODT: u8 = 0xD4;
 pub const CC_ALLOC_ODT_ENTRY: u8 = 0xD3;
 pub const CC_SET_DAQ_LIST_MODE: u8 = 0xE0;
@@ -211,6 +212,7 @@ pub const CC_WRITE_DAQ: u8 = 0xE1;
 pub const CC_GET_DAQ_LIST_MODE: u8 = 0xDF;
 pub const CC_START_STOP_DAQ_LIST: u8 = 0xDE;
 pub const CC_START_STOP_SYNCH: u8 = 0xDD;
+pub const CC_TIME_CORRELATION_PROPERTIES: u8 = 0xC6;
 pub const CC_GET_DAQ_CLOCK: u8 = 0xDC;
 pub const CC_GET_DAQ_RESOLUTION_INFO: u8 = 0xD9;
 pub const CC_GET_DAQ_LIST_INFO: u8 = 0xD8;
@@ -377,22 +379,10 @@ impl XcpMeasurementObject {
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------------------------
-// Default printf decoder for XCP SERV_TEXT data
+// Text decoder trait for XCP SERV_TEXT messages
 
 pub trait XcpTextDecoder {
-    fn decode(&self, data: &[u8]);
-}
-
-struct DefaultTextDecoder;
-
-impl DefaultTextDecoder {
-    /// Handle incomming text data from XCP server
-    pub fn new() -> DefaultTextDecoder {
-        DefaultTextDecoder {}
-    }
-}
-
-impl XcpTextDecoder for DefaultTextDecoder {
+    /// Handle incomming SERV_TEXT data from XCP server
     fn decode(&self, data: &[u8]) {
         print!("SERV_TEXT: ");
         let mut j = 0;
@@ -407,24 +397,16 @@ impl XcpTextDecoder for DefaultTextDecoder {
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------------------------
-// Default printf decoder for XCP DAQ data
+// DAQ decoder trait for XCP DAQ messages
 
 pub trait XcpDaqDecoder {
     /// Handle incomming DAQ data from XCP server
-    fn decode(&mut self, lost: u32, daq: u16, odt: u8, timestamp: u32, data: &[u8]);
-}
-
-struct DefaultDaqDecoder;
-
-impl DefaultDaqDecoder {
-    pub fn new() -> DefaultDaqDecoder {
-        DefaultDaqDecoder {}
-    }
-}
-
-impl XcpDaqDecoder for DefaultDaqDecoder {
     fn decode(&mut self, lost: u32, daq: u16, odt: u8, timestamp: u32, data: &[u8]) {
         trace!("DAQ: lost = {}, daq = {}, odt = {} timestamp = {} data={:?})", lost, daq, odt, timestamp, data);
+    }
+    /// Measurement start 64 bit time stamp
+    fn start(&mut self, start_time: u64) {
+        trace!("DAQ: start time = {}", start_time);
     }
 }
 
@@ -455,6 +437,7 @@ pub struct XcpClient {
     rx_cmd_resp: Option<mpsc::Receiver<Vec<u8>>>,
     tx_task_control: Option<mpsc::Sender<XcpTaskControl>>,
     task_control: XcpTaskControl,
+    daq_decoder: Option<Arc<Mutex<dyn XcpDaqDecoder>>>,
     ctr: u16,
     max_cto_size: u8,
     max_dto_size: u16,
@@ -464,6 +447,28 @@ pub struct XcpClient {
 }
 
 impl XcpClient {
+    //------------------------------------------------------------------------
+    // new
+    //
+    #[allow(clippy::type_complexity)] // clippy complaining about the measurment_list slice
+    pub fn new(dest_addr: SocketAddr, bind_addr: SocketAddr) -> XcpClient {
+        XcpClient {
+            bind_addr,
+            dest_addr,
+            socket: None,
+            rx_cmd_resp: None,
+            tx_task_control: None,
+            task_control: XcpTaskControl::new(),
+            daq_decoder: None,
+            ctr: 0,
+            max_cto_size: 0,
+            max_dto_size: 0,
+            a2l_file: None,
+            calibration_objects: Vec::new(),
+            measurement_objects: Vec::new(),
+        }
+    }
+
     //------------------------------------------------------------------------
     // receiver task
     // Handle incomming data from XCP server
@@ -674,8 +679,12 @@ impl XcpClient {
         let socket = UdpSocket::bind(self.bind_addr).await?;
         self.socket = Some(Arc::new(socket));
 
-        // Spawn a task to handle incomming data
+        // Keep a reference to the DAQ decoder for measurement start
+        self.daq_decoder = Some(daq_decoder.clone());
 
+        // Spawn a rx task to handle incomming data
+        // Hand over the DAQ decoder and the text decoder
+        // Create channels for command responses and DAQ state control
         {
             let socket = Arc::clone(self.socket.as_ref().unwrap());
             let (tx_resp, rx_resp) = mpsc::channel(1);
@@ -688,6 +697,7 @@ impl XcpClient {
             tokio::time::sleep(Duration::from_millis(100)).await; // wait for the receive task to start
         }
 
+        // Connect
         let data = self.send_command(XcpCommandBuilder::new(CC_CONNECT).add_u8(0).build()).await?;
         assert!(data.len() >= 8);
         let max_cto_size: u8 = data[3];
@@ -696,6 +706,7 @@ impl XcpClient {
         self.max_cto_size = max_cto_size;
         self.max_dto_size = max_dto_size;
 
+        // Notify the rx task
         self.task_control.connected = true; // the task will end, when it gets connected = false over the XcpControl channel
         self.task_control.running = false;
         self.tx_task_control.as_ref().unwrap().send(self.task_control).await.unwrap();
@@ -905,6 +916,52 @@ impl XcpClient {
     async fn start_stop_sync(&mut self, mode: u8) -> Result<(), Box<dyn Error>> {
         self.send_command(XcpCommandBuilder::new(CC_START_STOP_SYNCH).add_u8(mode).build()).await?;
         Ok(())
+    }
+
+    // CC_TIME_CORRELATION_PROPERTIES
+    async fn time_correlation_properties(&mut self) -> Result<(), Box<dyn Error>> {
+        let request: u8 = 2; // set responce format to SERVER_CONFIG_RESPONSE_FMT_ADVANCED
+        let properties: u8 = 0;
+        let cluster_id: u16 = 0;
+        let _data = self
+            .send_command(
+                XcpCommandBuilder::new(CC_TIME_CORRELATION_PROPERTIES)
+                    .add_u8(request)
+                    .add_u8(properties)
+                    .add_u8(0)
+                    .add_u16(cluster_id)
+                    .build(),
+            )
+            .await?;
+        trace!("TIME_CORRELATION_PROPERIES set response format to SERVER_CONFIG_RESPONSE_FMT_ADVANCED");
+        Ok(())
+    }
+
+    // GET_DAQ_CLOCK
+    async fn get_daq_clock64(&mut self) -> Result<u64, Box<dyn Error>> {
+        let data = self.send_command(XcpCommandBuilder::new(CC_GET_DAQ_CLOCK).build()).await?;
+        let mut c = Cursor::new(&data[2..]);
+
+        // Trigger info and payload format
+        // TIME_OF_TS_SAMPLING: (trigger_info >> 3) & 0x03 : 3-reception, 2-transmission, 1-low jitter, 0-during commend processing
+        // TRIGGER_INITIATOR:   (trigger_info >> 0) & 0x07 : not relevant for GET_DAQ_CLOCK
+        // FMT_XCP_SLV: (payload_fmt >> 0) & 0x03 let payload_fmt = data[3];
+        let trigger_info = c.read_u8()?;
+        let payload_fmt = c.read_u8()?;
+
+        // Timestamp
+        let timestamp64 = if payload_fmt == 1 {
+            // 32 bit slave clock
+            c.read_u32::<LittleEndian>()? as u64
+        } else if payload_fmt == 2 {
+            // 64 bit slave clock
+            c.read_u64::<LittleEndian>()?
+        } else {
+            return Err(Box::new(XcpError::new(CRC_OUT_OF_RANGE)) as Box<dyn Error>);
+        };
+
+        trace!("GET_DAQ_CLOCK trigger_info=0x{:2X}, payload_fmt=0x{:2X} time={}", trigger_info, payload_fmt, timestamp64);
+        Ok(timestamp64)
     }
 
     //-------------------------------------------------------------------------------------------------
@@ -1154,6 +1211,13 @@ impl XcpClient {
             self.start_stop_daq_list(XcpClient::XCP_SELECT, daq).await?;
         }
 
+        // Reset the DAQ decoder and set measurement start time
+        self.time_correlation_properties().await?; // Set 64 bit response format for GET_DAQ_CLOCK
+        let start_time = self.get_daq_clock64().await?;
+        if let Some(daq_decoder) = self.daq_decoder.as_ref() {
+            daq_decoder.lock().unwrap().start(start_time);
+        }
+
         // Send running=true throught the DAQ control channel to the receive task
         self.task_control.running = true;
         self.tx_task_control.as_ref().unwrap().send(self.task_control).await.unwrap();
@@ -1173,26 +1237,5 @@ impl XcpClient {
         self.tx_task_control.as_ref().unwrap().send(self.task_control).await?;
 
         res
-    }
-
-    //------------------------------------------------------------------------
-    // new
-    //
-    #[allow(clippy::type_complexity)] // clippy complaining about the measurment_list slice
-    pub fn new(dest_addr: SocketAddr, bind_addr: SocketAddr) -> XcpClient {
-        XcpClient {
-            dest_addr,
-            bind_addr,
-            socket: None,
-            ctr: 0,
-            max_cto_size: 0,
-            max_dto_size: 0,
-            rx_cmd_resp: None,
-            tx_task_control: None,
-            task_control: XcpTaskControl::new(),
-            a2l_file: None,
-            calibration_objects: Vec::new(),
-            measurement_objects: Vec::new(),
-        }
     }
 }

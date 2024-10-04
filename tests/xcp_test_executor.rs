@@ -90,6 +90,20 @@ impl DaqDecoder {
 }
 
 impl XcpDaqDecoder for DaqDecoder {
+    // Set start time and reset
+    fn start(&mut self, timestamp: u64) {
+        self.tot_events = 0;
+        self.packets_lost = 0;
+        self.daq_max = 0;
+        self.odt_max = 0;
+        for i in 0..MULTI_THREAD_TASK_COUNT {
+            self.daq_timestamp[i] = timestamp;
+            self.daq_events[i] = 0;
+            self.max_counter[i] = 0;
+            self.last_counter[i] = 0;
+        }
+    }
+
     // Handle incomming DAQ DTOs from XCP server
     fn decode(&mut self, lost: u32, daq: u16, odt: u8, timestamp: u32, data: &[u8]) {
         assert!(daq < MULTI_THREAD_TASK_COUNT as u16);

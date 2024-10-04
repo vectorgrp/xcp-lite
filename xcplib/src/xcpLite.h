@@ -95,12 +95,12 @@ extern BOOL XcpIsDaqRunning();
 extern BOOL XcpIsDaqEventRunning(uint16_t event);
 extern uint64_t XcpGetDaqStartTime();
 extern uint32_t XcpGetDaqOverflowCount();
-#ifdef XCP_ENABLE_DAQ_CLOCK_MULTICAST
-extern uint16_t XcpGetClusterId();
-#endif
 
 /* Time synchronisation */
 #ifdef XCP_ENABLE_DAQ_CLOCK_MULTICAST
+  #if XCP_PROTOCOL_LAYER_VERSION < 0x0103
+    #error "Protocol layer version must be >=0x0103
+  #endif
 extern uint16_t XcpGetClusterId();
 #endif
 

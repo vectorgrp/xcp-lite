@@ -31,8 +31,8 @@ static BOOL write_delay = FALSE;
 
 // This is used by the Rust ffi to set the log level
 void ApplXcpSetLogLevel(uint8_t level) {
+    if (level>3) DBG_PRINTF_WARNING("Set log level %u -> %u\n", gDebugLevel, level);
     gDebugLevel = level;
-    if (level>3) DBG_PRINTF_WARNING("Set log level to %d\n", level);
 }
 
 /**************************************************************************/

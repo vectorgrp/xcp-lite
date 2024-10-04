@@ -709,7 +709,7 @@ char* clockGetString(char* s, uint32_t l, uint64_t c) {
 
 
 BOOL clockInit()
-{
+{    
     DBG_PRINT3("\nInit clock\n  (");
 #ifdef CLOCK_USE_UTC_TIME_NS
     DBG_PRINT3("CLOCK_USE_UTC_TIME_NS,");
@@ -746,8 +746,8 @@ BOOL clockInit()
         clock_gettime(CLOCK_TYPE, &gts);
         DBG_PRINTF4("  CLOCK_REALTIME=%lus time=%lu timeofday=%lu\n", gts.tv_sec, now, ptm.tv_sec);
         t1 = clockGet(); sleepNs(100000); t2 = clockGet();
-        DBG_PRINTF4("  +0us:   %s\n", clockGetString(s, sizeof(s), t1));
-        DBG_PRINTF4("  +100us: %s (%u)\n", clockGetString(s, sizeof(s), t2), (uint32_t)(t2 - t1));
+        DBG_PRINTF4("  +0us:   %llu %s\n", t1, clockGetString(s, sizeof(s), t1));
+        DBG_PRINTF4("  +100us: %llu %s (dt=%u)\n", t2, clockGetString(s, sizeof(s), t2), (uint32_t)(t2 - t1));
         DBG_PRINT4("\n");
     }
 #endif

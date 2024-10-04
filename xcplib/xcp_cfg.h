@@ -16,6 +16,9 @@
 // Driver version (GET_COMM_MODE_INFO)
 #define XCP_DRIVER_VERSION 0x01
 
+// Enable Ethernet specific protocol layer commands
+#define XCP_ENABLE_PROTOCOL_LAYER_ETH
+
 // Protocol layer version
 //#define XCP_PROTOCOL_LAYER_VERSION 0x0101
 //#define XCP_PROTOCOL_LAYER_VERSION 0x0103  // GET_DAQ_CLOCK_MULTICAST, GET_TIME_CORRELATION_PROPERTIES
@@ -117,8 +120,8 @@
 
 
 // Clock resolution
-#define XCP_DAQ_CLOCK_32BIT  // Use 32 Bit time stamps
-
+//#define XCP_DAQ_CLOCK_32BIT  // Use 32 Bit time stamps
+#define XCP_DAQ_CLOCK_64BIT // Use 64 Bit time stamps
 #if CLOCK_TICKS_PER_S == 1000000  // Settings for 32 bit us since application start (CLOCK_USE_APP_TIME_US)
 
   #define XCP_TIMESTAMP_UNIT DAQ_TIMESTAMP_UNIT_1US // unit DAQ_TIMESTAMP_UNIT_xxx

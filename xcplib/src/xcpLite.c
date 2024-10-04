@@ -224,7 +224,8 @@ typedef struct {
 #endif
 
 #ifdef DBG_LEVEL
-    const tXcpCto  *CmdLast;
+    uint8_t CmdLast;
+    uint8_t CmdLast1;
 #endif
 
     /* Memory Transfer Address as pointer (ApplXcpGetPointer) */
@@ -259,11 +260,12 @@ typedef struct {
 
 #if XCP_PROTOCOL_LAYER_VERSION >= 0x0103
 
+#ifdef XCP_ENABLE_PROTOCOL_LAYER_ETH
+
 #ifdef XCP_ENABLE_DAQ_CLOCK_MULTICAST
     uint16_t ClusterId;
 #endif
 
-#if XCP_TRANSPORT_LAYER_TYPE!=XCP_TRANSPORT_LAYER_CAN
     #pragma pack(push, 1)
     struct {
         T_CLOCK_INFO server;
@@ -274,7 +276,7 @@ typedef struct {
     } ClockInfo;
     #pragma pack(pop)
 #endif
-#endif
+#endif // XCP_ENABLE_PROTOCOL_LAYER_ETH
 
 } tXcpData;
 
@@ -1095,7 +1097,7 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint8_t cmdL
   CRM_LEN = 1; /* Length = 1 */
 
   // CONNECT ?
-#if XCP_TRANSPORT_LAYER_TYPE!=XCP_TRANSPORT_LAYER_CAN
+#ifdef XCP_ENABLE_PROTOCOL_LAYER_ETH
   if (CRO_LEN==CRO_CONNECT_LEN && CRO_CMD==CC_CONNECT)
 #else
   if (CRO_LEN>=CRO_CONNECT_LEN && CRO_CMD==CC_CONNECT)
@@ -1121,8 +1123,9 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint8_t cmdL
       CRM_CONNECT_PROTOCOL_VERSION =  (uint8_t)( (uint16_t)XCP_PROTOCOL_LAYER_VERSION >> 8 );
       CRM_CONNECT_MAX_CTO_SIZE = XCPTL_MAX_CTO_SIZE;
       CRM_CONNECT_MAX_DTO_SIZE = XCPTL_MAX_DTO_SIZE;
-      CRM_CONNECT_RESOURCE = RM_DAQ;       /* Data Acquisition supported */
-      CRM_CONNECT_COMM_BASIC = CMB_OPTIONAL;
+      CRM_CONNECT_RESOURCE = RM_DAQ|RM_CAL_PAG; /* DAQ and CAL supported */
+      CRM_CONNECT_COMM_BASIC = CMB_OPTIONAL; // GET_COMM_MODE_INFO available, byte order Intel, address granularity byte, no server block mode
+      assert(*(uint8_t*)&gXcp.SessionStatus==0); // Intel byte order
   }
 
   // Handle other all other commands
@@ -1635,7 +1638,7 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint8_t cmdL
           }
           break;
 
-#if XCP_PROTOCOL_LAYER_VERSION >= 0x0103 && XCP_TRANSPORT_LAYER_TYPE!=XCP_TRANSPORT_LAYER_CAN
+#if XCP_PROTOCOL_LAYER_VERSION >= 0x0103 && defined(XCP_ENABLE_PROTOCOL_LAYER_ETH)
         case CC_TIME_CORRELATION_PROPERTIES:
           {
             check_len(CRO_TIME_SYNCH_PROPERTIES_LEN);
@@ -1731,7 +1734,7 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint8_t cmdL
               break;
               #endif // XCP_ENABLE_DAQ_CLOCK_MULTICAST
 
-              #if XCP_TRANSPORT_LAYER_TYPE!=XCP_TRANSPORT_LAYER_CAN
+              #ifdef XCPTL_ENABLE_MULTICAST
               case CC_TL_GET_SERVER_ID:
                     goto no_response; // Not supported, no response, response has atypical layout
 
@@ -1760,7 +1763,7 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint8_t cmdL
                       XcpSendMulticastResponse(&CRM, CRM_LEN,client_addr,client_port); // Transmit multicast command response
                     #endif // PLATFORM_ENABLE_GET_LOCAL_ADDR
                     goto no_response;
-              #endif // !XCP_TRANSPORT_LAYER_CAN
+              #endif // XCPTL_ENABLE_MULTICAST
 
               case 0:
               default: /* unknown transport layer command */
@@ -1924,17 +1927,13 @@ void XcpInit()
     // Initialize gXcp to zero
     memset((uint8_t*)&gXcp, 0, sizeof(gXcp));
     
-    #ifdef XCP_ENABLE_MULTITHREAD_CAL_EVENTS
-      mutexInit(&gXcp.CmdPendingMutex, FALSE, 1000);
-    #endif
+#ifdef XCP_ENABLE_MULTITHREAD_CAL_EVENTS
+    mutexInit(&gXcp.CmdPendingMutex, FALSE, 1000);
+#endif
 
-#if XCP_TRANSPORT_LAYER_TYPE!=XCP_TRANSPORT_LAYER_CAN
-  #if XCP_PROTOCOL_LAYER_VERSION >= 0x0103
-    #ifdef XCP_ENABLE_DAQ_CLOCK_MULTICAST
-      gXcp.ClusterId = XCP_MULTICAST_CLUSTER_ID;  // XCP default cluster id (multicast addr 239,255,0,1, group 127,0,1 (mac 01-00-5E-7F-00-01)
-      XcpEthTlSetClusterId(gXcp.ClusterId);
-    #endif
-  #endif
+#ifdef XCP_ENABLE_DAQ_CLOCK_MULTICAST
+    gXcp.ClusterId = XCP_MULTICAST_CLUSTER_ID;  // XCP default cluster id (multicast addr 239,255,0,1, group 127,0,1 (mac 01-00-5E-7F-00-01)
+    XcpEthTlSetClusterId(gXcp.ClusterId);    
 #endif
 
     // Initialize high resolution clock
@@ -1989,7 +1988,7 @@ void XcpStart()
     DBG_PRINT3(")\n\n");
 #endif
 
-#if XCP_TRANSPORT_LAYER_TYPE!=XCP_TRANSPORT_LAYER_CAN
+#ifdef XCP_ENABLE_PROTOCOL_LAYER_ETH
   #if XCP_PROTOCOL_LAYER_VERSION >= 0x0103
 
     // XCP server clock default description
@@ -2027,7 +2026,7 @@ void XcpStart()
       DBG_PRINT5("  ClockRelation: local=0, origin=0\n");
     }
   #endif // PTP
-#endif // XCP_TRANSPORT_LAYER_TYPE
+#endif // XCP_ENABLE_PROTOCOL_LAYER_ETH
 
     DBG_PRINT3("Start XCP protocol layer\n");
 
@@ -2127,11 +2126,12 @@ static void XcpPrintCmd(const tXcpCto* cmdBuf) {
 #undef CRO_BYTE
 #undef CRO_WORD
 #undef CRO_DWORD
-#define CRO_BYTE(x)               (gXcp.CmdLast->b[x])
-#define CRO_WORD(x)               (gXcp.CmdLast->w[x])
-#define CRO_DWORD(x)              (gXcp.CmdLast->dw[x])
+#define CRO_BYTE(x)               (cmdBuf->b[x])
+#define CRO_WORD(x)               (cmdBuf->w[x])
+#define CRO_DWORD(x)              (cmdBuf->dw[x])
 
-  gXcp.CmdLast = cmdBuf;
+  gXcp.CmdLast = CRO_CMD;
+  gXcp.CmdLast1 = CRO_LEVEL_1_COMMAND_CODE;
   switch (CRO_CMD) {
 
     case CC_SET_CAL_PAGE:  printf("SET_CAL_PAGE segment=%u,page=%u,mode=%02Xh\n", CRO_SET_CAL_PAGE_SEGMENT, CRO_SET_CAL_PAGE_PAGE, CRO_SET_CAL_PAGE_MODE); break;
@@ -2236,7 +2236,7 @@ static void XcpPrintCmd(const tXcpCto* cmdBuf) {
 
      case CC_TRANSPORT_LAYER_CMD:
         switch (CRO_TL_SUBCOMMAND) {
-#if XCP_PROTOCOL_LAYER_VERSION >= 0x0103             
+#ifdef XCP_ENABLE_DAQ_CLOCK_MULTICAST     
           case CC_TL_GET_DAQ_CLOCK_MULTICAST:
               {
                   printf("GET_DAQ_CLOCK_MULTICAST counter=%u, cluster=%u\n", CRO_GET_DAQ_CLOCK_MCAST_COUNTER, CRO_GET_DAQ_CLOCK_MCAST_CLUSTER_IDENTIFIER);
@@ -2246,7 +2246,7 @@ static void XcpPrintCmd(const tXcpCto* cmdBuf) {
           case CC_TL_GET_SERVER_ID:
             printf("GET_SERVER_ID %u:%u:%u:%u:%u\n", CRO_TL_GET_SERVER_ID_ADDR(0), CRO_TL_GET_SERVER_ID_ADDR(1), CRO_TL_GET_SERVER_ID_ADDR(2), CRO_TL_GET_SERVER_ID_ADDR(3), CRO_TL_GET_SERVER_ID_PORT );
             break;
-#endif // >= 0x0103
+#endif // XCP_ENABLE_DAQ_CLOCK_MULTICAST
           default:  printf("UNKNOWN TRANSPORT LAYER COMMAND %02X\n", CRO_TL_SUBCOMMAND); break;
         } // switch (CRO_TL_SUBCOMMAND)
 
@@ -2294,7 +2294,7 @@ static void XcpPrintRes(const tXcpCto* crm) {
         printf("<- ERROR: %02Xh - %s\n", CRM_ERR, e );
     }
     else {
-        switch (0) {
+        switch (gXcp.CmdLast) {
 
         case CC_CONNECT:
             printf("<- version=%02Xh/%02Xh, maxcro=%u, maxdto=%u, resource=%02X, mode=%u\n",
@@ -2312,26 +2312,6 @@ static void XcpPrintRes(const tXcpCto* crm) {
 
         case CC_GET_ID:
             printf("<- mode=%u,len=%u\n", CRM_GET_ID_MODE, CRM_GET_ID_LENGTH);
-            break;
-
-        case CC_UPLOAD:
-            if (DBG_LEVEL >= 4) {
-                printf("<- data=");
-                for (int i = 0; i < CRO_UPLOAD_SIZE; i++) {
-                    printf("%02Xh ", CRM_UPLOAD_DATA[i]);
-                }
-                printf("\n");
-            }
-            break;
-
-        case CC_SHORT_UPLOAD:
-            if (DBG_LEVEL >= 4) {
-                printf("<- data=");
-                for (int i = 0; i < (uint16_t)CRO_SHORT_UPLOAD_SIZE; i++) {
-                    printf("%02Xh ", CRM_SHORT_UPLOAD_DATA[i]);
-                }
-                printf("\n");
-            }
             break;
 
 #ifdef XCP_ENABLE_CAL_PAGE
@@ -2366,13 +2346,13 @@ static void XcpPrintRes(const tXcpCto* crm) {
                 }
                 else {
                     if (CRM_GET_DAQ_CLOCK_PAYLOAD_FMT == DAQ_CLOCK_PAYLOAD_FMT_SLV_32) {
-                        printf("<- X t=0x%" PRIx32 " sync=%u\n", CRM_GET_DAQ_CLOCK_TIME, CRM_GET_DAQ_CLOCK_SYNCH_STATE);
+                        printf("<- X32 t=0x%" PRIx32 " sync=%u\n", CRM_GET_DAQ_CLOCK_TIME, CRM_GET_DAQ_CLOCK_SYNCH_STATE);
                     }
                     else {
                         char ts[64];
                         uint64_t t = (((uint64_t)CRM_GET_DAQ_CLOCK_TIME64_HIGH) << 32) | CRM_GET_DAQ_CLOCK_TIME64_LOW;
                         clockGetString(ts, sizeof(ts), t);
-                        printf("<- X t=%" PRIu64 " (%s), sync=%u\n", t&0xFFFFFFFF, ts, CRM_GET_DAQ_CLOCK_SYNCH_STATE64);
+                        printf("<- X64 t=%" PRIu64 " (%s), sync=%u\n", t&0xFFFFFFFF, ts, CRM_GET_DAQ_CLOCK_SYNCH_STATE64);
                     }
                 }
             }
@@ -2386,7 +2366,7 @@ static void XcpPrintRes(const tXcpCto* crm) {
 
 #if XCP_PROTOCOL_LAYER_VERSION >= 0x0104
         case CC_LEVEL_1_COMMAND:
-            switch (CRO_LEVEL_1_COMMAND_CODE) {
+            switch (gXcp.CmdLast1) {
 
             case CC_GET_VERSION:
                 printf("<- protocol layer version: major=%02Xh/minor=%02Xh, transport layer version: major=%02Xh/minor=%02Xh\n",
@@ -2406,8 +2386,8 @@ static void XcpPrintRes(const tXcpCto* crm) {
 #endif
 
         case CC_TRANSPORT_LAYER_CMD:
-            switch (CRO_TL_SUBCOMMAND) {
-#if XCP_PROTOCOL_LAYER_VERSION >= 0x0103
+            switch (gXcp.CmdLast1) {
+#ifdef XCP_ENABLE_DAQ_CLOCK_MULTICAST
             case CC_TL_GET_DAQ_CLOCK_MULTICAST:
                 {
                     if (isLegacyMode()) {
@@ -2429,7 +2409,9 @@ static void XcpPrintRes(const tXcpCto* crm) {
                 }
 
                 break;
+#endif // XCP_ENABLE_DAQ_CLOCK_MULTICAST
 
+#ifdef XCPTL_ENABLE_MULTICAST
             case CC_TL_GET_SERVER_ID:
               printf("<- %u.%u.%u.%u:%u %s\n",
                 CRM_TL_GET_SERVER_ID_ADDR(0), CRM_TL_GET_SERVER_ID_ADDR(1), CRM_TL_GET_SERVER_ID_ADDR(2), CRM_TL_GET_SERVER_ID_ADDR(3), CRM_TL_GET_SERVER_ID_PORT, &CRM_TL_GET_SERVER_ID_ID);

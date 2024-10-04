@@ -15,7 +15,6 @@
 // Transport layer
 #define XCP_TRANSPORT_LAYER_VERSION 0x0104
 
-
 #if defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)
 
 // Multicast (GET_DAQ_CLOCK_MULTICAST)

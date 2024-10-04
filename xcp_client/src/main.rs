@@ -36,15 +36,22 @@ impl ToLogLevelFilter for u8 {
 //------------------------------------------------------------------------
 // Handle incomming DAQ data
 
+const MAX_EVENT: usize = 16;
+
 #[derive(Debug)]
 struct DaqDecoder {
     event_count: usize,
     byte_count: usize,
+    daq_timestamp: [u64; MAX_EVENT],
 }
 
 impl DaqDecoder {
     pub fn new() -> DaqDecoder {
-        DaqDecoder { event_count: 0, byte_count: 0 }
+        DaqDecoder {
+            event_count: 0,
+            byte_count: 0,
+            daq_timestamp: [0; MAX_EVENT],
+        }
     }
 }
 
@@ -52,22 +59,45 @@ impl DaqDecoder {
 // This is a simple example, a real application would need to decode the data according to the actual measurement setup
 // Assumes first signal is a 32 bit counter and there is only one ODT
 impl XcpDaqDecoder for DaqDecoder {
+    // Set start time and reset
+    fn start(&mut self, timestamp: u64) {
+        self.event_count = 0;
+        self.byte_count = 0;
+        for t in self.daq_timestamp.iter_mut() {
+            *t = timestamp;
+        }
+    }
+
+    // Decode DAQ data
     fn decode(&mut self, lost: u32, daq: u16, odt: u8, timestamp: u32, data: &[u8]) {
-        if odt == 0 {
-            // Decode data
-            // counter:u32 assumed to be first signal in daq list 0
-            if daq == 0 {
-                assert!(data.len() >= 4);
-                let counter = data[0] as u32 | (data[1] as u32) << 8 | (data[2] as u32) << 16 | (data[3] as u32) << 24;
-                //trace!("DAQ: lost={}, daq={}, odt={}: timestamp={} counter={} data={:?}", lost, daq, odt, t, counter, data);
-                info!("DAQ: lost={}, daq={}, odt={}: t={} counter={}", lost, daq, odt, timestamp, counter);
-            }
-        } else {
-            panic!("ODT != 0")
+        assert!(daq < MAX_EVENT as u16);
+        assert!(odt == 0);
+
+        // Decode full 64 bit timestamp
+        let t_last = self.daq_timestamp[daq as usize];
+        let tl = (t_last & 0xFFFFFFFF) as u32;
+        let mut th = (t_last >> 32) as u32;
+        if timestamp < tl {
+            th += 1;
+        }
+        let t = timestamp as u64 | (th as u64) << 32;
+        if t < t_last {
+            warn!("Timestamp of daq {} declining {} -> {}", daq, t_last, t);
+        }
+        self.daq_timestamp[daq as usize] = t;
+
+        // Hardcoded:
+        // Decode data of daq list 0
+        // A counter:u32 assumed to be first signal in daq list 0
+        if daq == 0 {
+            assert!(data.len() >= 4);
+            let counter = data[0] as u32 | (data[1] as u32) << 8 | (data[2] as u32) << 16 | (data[3] as u32) << 24;
+            //trace!("DAQ: lost={}, daq={}, odt={}: timestamp={} counter={} data={:?}", lost, daq, odt, t, counter, data);
+            info!("DAQ: lost={}, daq={}, odt={}, t={}, counter={}", lost, daq, odt, t, counter);
         }
 
-        self.byte_count += data.len(); // payload byte count
-        self.event_count += 1;
+        self.byte_count += data.len(); // overall payload byte count
+        self.event_count += 1; // overall event count
     }
 }
 
@@ -190,7 +220,8 @@ async fn xcp_client(dest_addr: std::net::SocketAddr, local_addr: std::net::Socke
         };
     }
 
-    // Measure for 2 seconds
+    // Measure for 6 seconds
+    // 32 bit DAQ timestamp will overflow after 4.2s
     let start_time = tokio::time::Instant::now();
     xcp_client.start_measurement().await?;
     tokio::time::sleep(std::time::Duration::from_secs(6)).await;
