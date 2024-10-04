@@ -1,7 +1,17 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+// cargo bench -- --save-baseline parking_lot
+// cargo bench -- --baseline parking_lot
+// cargo bench -- --save-baseline parking_lot
+// cargo bench -- --load-baseline new --baseline parking_lot
+// --warm-up-time 0
+// --nresamples <nresamples>
+//
+//
 
-#[allow(unused_imports)]
+#![allow(unused_assignments)]
+#![allow(unused_imports)]
+
 use log::{debug, error, info, trace, warn};
+
 use std::{
     fmt::Debug,
     sync::{Arc, Mutex},
@@ -11,10 +21,10 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 use xcp::*;
+use xcp_client::xcp_client::*;
 use xcp_type_description::prelude::*;
 
-use xcp_client::xcp_client::*;
-
+use criterion::{criterion_group, criterion_main, Criterion};
 //-----------------------------------------------------------------------------
 // Calibration parameters
 
@@ -112,8 +122,15 @@ async fn xcp_client(dest_addr: std::net::SocketAddr, local_addr: std::net::Socke
             match current_mode {
                 ClientMode::Measure => {
                     info!("Start Measurement");
-                    // Measurement of signal
-                    xcp_client.create_measurement_object("signal").expect("measurmeent signal not found");
+                    // Measurement signals
+                    xcp_client.create_measurement_object("signal1").expect("measurement signal not found");
+                    xcp_client.create_measurement_object("signal2").expect("measurement signal not found");
+                    xcp_client.create_measurement_object("signal3").expect("measurement signal not found");
+                    xcp_client.create_measurement_object("signal4").expect("measurement signal not found");
+                    xcp_client.create_measurement_object("signal5").expect("measurement signal not found");
+                    xcp_client.create_measurement_object("signal6").expect("measurement signal not found");
+                    xcp_client.create_measurement_object("signal7").expect("measurement signal not found");
+                    xcp_client.create_measurement_object("signal8").expect("measurement signal not found");
                     // Measure start
                     xcp_client.start_measurement().await.expect("could not start measurement");
                 }
@@ -209,11 +226,25 @@ fn xcp_benchmark(c: &mut Criterion) {
     let cal_page = xcp.create_calseg("CalPage", &CAL_PAGE, true);
 
     // Measurement signal
-    let mut signal: f64 = 0.0;
+    let mut signal1: u32 = 0;
+    let mut signal2: u64 = 0;
+    let mut signal3: u8 = 0;
+    let mut signal4: u16 = 0;
+    let mut signal5: u64 = 0;
+    let mut signal6: u32 = 0;
+    let mut signal7: u16 = 0;
+    let mut signal8: u64 = 0;
 
     // Register a measurement event and bind it to the counter signal
     let event = daq_create_event!("mainloop");
-    daq_register!(signal, event);
+    daq_register!(signal1, event);
+    daq_register!(signal2, event);
+    daq_register!(signal3, event);
+    daq_register!(signal4, event);
+    daq_register!(signal5, event);
+    daq_register!(signal6, event);
+    daq_register!(signal7, event);
+    daq_register!(signal8, event);
 
     // Wait a moment
     thread::sleep(Duration::from_millis(100));
@@ -247,17 +278,26 @@ fn xcp_benchmark(c: &mut Criterion) {
     thread::sleep(Duration::from_millis(100));
 
     // Bench measurement trigger
+    signal1 += 1;
+    signal2 += 1;
+    signal3 += 1;
+    signal4 += 1;
+    signal5 += 1;
+    signal6 += 1;
+    signal7 += 1;
+    signal8 += 1;
     info!("Start measurement bench");
+    let mut count: u32 = 0;
     *mode.lock() = ClientMode::Measure;
     c.bench_function("trigger", |b| {
         b.iter(|| {
-            signal += 1.0;
+            count += 1;
             event.trigger()
         })
     });
     *mode.lock() = ClientMode::Wait;
     thread::sleep(Duration::from_millis(100));
-    info!("Measurement bench done, count = {}", signal);
+    info!("Measurement bench done, count = {}", count);
 
     // Wait a moment
     thread::sleep(Duration::from_millis(100));

@@ -893,9 +893,24 @@ static void XcpTriggerDaq(uint16_t daq, const uint8_t* base, uint64_t clock) {
 #ifdef XCP_ENABLE_PACKED_MODE
                 if (sc>1) n *= sc; // packed mode
 #endif
+
+              if (n==8) {
+                *(uint64_t*)d = *(uint64_t*)&base[OdtEntryAddr(e)];
+                d += 8;
+              }
+              else if (n==4) {
+                *(uint32_t*)d = *(uint32_t*)&base[OdtEntryAddr(e)];
+                d += 4;
+              }
+              else if (n<4) {
+                uint8_t *s = &base[OdtEntryAddr(e)];
+                do { *d++ = *s++; } while (--n); 
+              } else
+              {
                 memcpy((uint8_t*)d, &base[OdtEntryAddr(e)], n);
                 d += n;
-                e++;
+              }
+              e++;
             } // ODT entry
         }
         // Dynamic length

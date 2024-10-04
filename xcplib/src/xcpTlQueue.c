@@ -297,7 +297,7 @@ const uint8_t * XcpTlTransmitQueuePeekMsg( uint16_t* msg_len ) {
         assert(entry1->dlc<=XCPTL_MAX_DTO_SIZE); // Max DTO size
         
         if (gXcpTlQueue.overruns) { // Add the number of overruns
-            DBG_PRINTF3("XcpTlTransmitQueuePeekMsg: overruns=%u\n", gXcpTlQueue.overruns);
+            DBG_PRINTF4("XcpTlTransmitQueuePeekMsg: overruns=%u\n", gXcpTlQueue.overruns);
             gXcpTlQueue.ctr += gXcpTlQueue.overruns;
             gXcpTlQueue.overruns = 0;
         } 
