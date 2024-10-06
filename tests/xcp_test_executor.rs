@@ -26,7 +26,7 @@ pub const OPTION_XCP_LOG_LEVEL: xcp::XcpLogLevel = xcp::XcpLogLevel::Info;
 
 // Test parameters
 pub const MULTI_THREAD_TASK_COUNT: usize = 16; // Number of threads
-pub const DAQ_TEST_TASK_SLEEP_TIME_US: u64 = 1000; // Measurement thread task cycle time in us
+pub const DAQ_TEST_TASK_SLEEP_TIME_US: u64 = 100; // Measurement thread task cycle time in us
 const DAQ_TEST_DURATION_MS: u64 = 6000; // DAQ test duration, 6s to get a nano second 32 bit overflow while checking timestamp monotony
 const CAL_TEST_MAX_ITER: u32 = 4000; // Number of calibrations
 const CAL_TEST_TASK_SLEEP_TIME_US: u64 = 50; // Checking task cycle time in us
@@ -66,6 +66,7 @@ impl XcpTextDecoder for ServTextDecoder {
 struct DaqDecoder {
     tot_events: u32,
     packets_lost: u32,
+    counter_errors: u32,
     daq_max: u16,
     odt_max: u8,
     daq_timestamp: [u64; MULTI_THREAD_TASK_COUNT],
@@ -79,6 +80,7 @@ impl DaqDecoder {
         DaqDecoder {
             tot_events: 0,
             packets_lost: 0,
+            counter_errors: 0,
             daq_max: 0,
             odt_max: 0,
             daq_timestamp: [0; MULTI_THREAD_TASK_COUNT],
@@ -94,6 +96,7 @@ impl XcpDaqDecoder for DaqDecoder {
     fn start(&mut self, timestamp: u64) {
         self.tot_events = 0;
         self.packets_lost = 0;
+        self.counter_errors = 0;
         self.daq_max = 0;
         self.odt_max = 0;
         for i in 0..MULTI_THREAD_TASK_COUNT {
@@ -133,12 +136,12 @@ impl XcpDaqDecoder for DaqDecoder {
             self.daq_timestamp[daq as usize] = t;
         }
 
-        // Hardcoded decoding of data (only first ODT)
+        // Hardcoded decoding of data (only one ODT)
         assert!(odt == 0);
         if odt == 0 && data.len() >= 8 {
             let o = 0;
 
-            // Check counter_max and counter
+            // Check counter_max (+0) and counter (+4)
             let counter_max = data[o] as u32 | (data[o + 1] as u32) << 8 | (data[o + 2] as u32) << 16 | (data[o + 3] as u32) << 24;
             let counter = data[o + 4] as u32 | (data[o + 5] as u32) << 8 | (data[o + 6] as u32) << 16 | (data[o + 7] as u32) << 24;
             if counter_max > 255 || counter > 255 || counter > counter_max {
@@ -150,7 +153,7 @@ impl XcpDaqDecoder for DaqDecoder {
                 self.max_counter[daq as usize] = counter_max;
             }
 
-            // Check cal_test pattern
+            // Check cal_test pattern (+8)
             if data.len() >= 16 {
                 let cal_test = data[o + 8] as u64
                     | (data[o + 9] as u64) << 8
@@ -165,7 +168,7 @@ impl XcpDaqDecoder for DaqDecoder {
 
             // Check each counter is incrementing
             if self.daq_events[daq as usize] != 0 && counter != self.last_counter[daq as usize] + 1 && counter != 0 && daq != 0 {
-                error!("counter error: daq={} {} -> {} max={} ", daq, self.last_counter[daq as usize], counter, counter_max,);
+                trace!("counter error: daq={} {} -> {} max={} ", daq, self.last_counter[daq as usize], counter, counter_max,);
             }
             self.last_counter[daq as usize] = counter;
 
@@ -347,11 +350,11 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
                     let cal_test = "cal_test_".to_string() + &i.to_string();
                     let loop_counter = "loop_counter_".to_string() + &i.to_string();
                     let changes = "changes_".to_string() + &i.to_string();
-                    xcp_client.create_measurement_object(counter_max.as_str()).unwrap();
-                    xcp_client.create_measurement_object(counter.as_str()).unwrap();
-                    xcp_client.create_measurement_object(cal_test.as_str()).unwrap();
-                    xcp_client.create_measurement_object(loop_counter.as_str()).unwrap();
-                    xcp_client.create_measurement_object(changes.as_str()).unwrap();
+                    xcp_client.create_measurement_object(counter_max.as_str()).unwrap(); // +0
+                    xcp_client.create_measurement_object(counter.as_str()).unwrap(); // +4
+                    xcp_client.create_measurement_object(cal_test.as_str()).unwrap(); // +8
+                    xcp_client.create_measurement_object(loop_counter.as_str()).unwrap(); // +16
+                    xcp_client.create_measurement_object(changes.as_str()).unwrap(); //
                     for j in 0.. {
                         let name = format!("test{}_{}", j, i);
                         let res = xcp_client.create_measurement_object(name.as_str());
@@ -365,7 +368,8 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
             } else {
                 xcp_client.create_measurement_object("counter_max").unwrap();
                 xcp_client.create_measurement_object("counter").unwrap();
-                8
+                xcp_client.create_measurement_object("cal_test").unwrap();
+                16
             };
             xcp_client.start_measurement().await.unwrap();
 
@@ -408,6 +412,7 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
                 info!("  signals = {}", MULTI_THREAD_TASK_COUNT * 8);
                 info!("  cycles = {}", d.daq_events[0]);
                 info!("  packets lost = {}", d.packets_lost);
+                info!("  counter errors = {}", d.counter_errors);
                 info!("  events = {}", d.tot_events);
                 info!("  events per sec= {:.0}", d.tot_events as f64 / duration_s);
                 info!("  bytes per event = {}", bytes_per_event);
@@ -430,6 +435,8 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
                     assert_eq!(d.max_counter[0], 255); // @@@@
                 }
                 assert_eq!(d.odt_max, 0);
+                assert_eq!(d.counter_errors, 0);
+                assert_eq!(d.packets_lost, 0);
             }
         }
 

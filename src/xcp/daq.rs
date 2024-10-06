@@ -7,4 +7,3 @@
 
 // DAQ event
 pub mod daq_event;
-//pub use daq_event::*;

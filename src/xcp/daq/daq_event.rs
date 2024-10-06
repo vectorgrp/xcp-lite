@@ -320,33 +320,24 @@ macro_rules! daq_capture {
 macro_rules! daq_register {
     // name, event, comment, unit, factor, offset
     ( $id:ident, $daq_event:expr, $comment:expr, $unit:expr, $factor:expr, $offset:expr ) => {{
-        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 = std::sync::atomic::AtomicI16::new(-32768);
-        if DAQ_OFFSET__
-            .compare_exchange(-32768, 0, std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed)
-            .is_ok()
-        {
+        static ONCE: std::sync::Once = std::sync::Once::new();
+        ONCE.call_once(|| {
             $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, $id.get_type(), 1, 1, $factor, $offset, $unit, $comment);
-        };
+        });
     }};
     // name, event, comment, unit
     ( $id:ident, $daq_event:expr, $comment:expr, $unit:expr ) => {{
-        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 = std::sync::atomic::AtomicI16::new(-32768);
-        if DAQ_OFFSET__
-            .compare_exchange(-32768, 0, std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed)
-            .is_ok()
-        {
+        static ONCE: std::sync::Once = std::sync::Once::new();
+        ONCE.call_once(|| {
             $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, $id.get_type(), 1, 1, 1.0, 0.0, $unit, $comment);
-        };
+        });
     }};
     // name, event
     ( $id:ident, $daq_event:expr ) => {{
-        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 = std::sync::atomic::AtomicI16::new(-32768);
-        if DAQ_OFFSET__
-            .compare_exchange(-32768, 0, std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed)
-            .is_ok()
-        {
+        static ONCE: std::sync::Once = std::sync::Once::new();
+        ONCE.call_once(|| {
             $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, $id.get_type(), 1, 1, 1.0, 0.0, "", "");
-        };
+        });
     }};
 }
 
@@ -358,14 +349,11 @@ macro_rules! daq_register {
 macro_rules! daq_register_array {
     // name, event
     ( $id:ident, $daq_event:expr ) => {{
-        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 = std::sync::atomic::AtomicI16::new(-32768);
-        if DAQ_OFFSET__
-            .compare_exchange(-32768, 0, std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed)
-            .is_ok()
-        {
+        static ONCE: std::sync::Once = std::sync::Once::new();
+        ONCE.call_once(|| {
             let dim = (std::mem::size_of_val(&$id) / std::mem::size_of_val(&$id[0])) as u16;
             $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, ($id[0]).get_type(), dim, 1, 1.0, 0.0, "", "");
-        };
+        });
     }};
 }
 
@@ -378,13 +366,10 @@ macro_rules! daq_register_array {
 macro_rules! daq_register_ref {
     // name, event
     ( $id:ident, $daq_event:expr ) => {{
-        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 = std::sync::atomic::AtomicI16::new(-32768);
-        if DAQ_OFFSET__
-            .compare_exchange(-32768, 0, std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed)
-            .is_ok()
-        {
+        static ONCE: std::sync::Once = std::sync::Once::new();
+        ONCE.call_once(|| {
             $daq_event.add_heap(stringify!($id), &(*$id) as *const _ as *const u8, (*$id).get_type(), 1, 1, 1.0, 0.0, "", "", None);
-        };
+        });
     }};
 }
 

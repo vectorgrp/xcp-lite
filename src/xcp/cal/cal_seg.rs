@@ -14,7 +14,6 @@ use parking_lot::Mutex;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-//use crate::cal;
 use super::CalPageTrait;
 use crate::reg;
 use crate::xcp;
@@ -470,23 +469,19 @@ unsafe impl<T> Send for CalSeg<T> where T: CalPageTrait {}
 mod cal_tests {
 
     #![allow(dead_code)]
-    #![allow(unused_imports)]
 
     use super::*;
-    use crate::reg::RegistryCharacteristic;
     use crate::xcp;
-    use crate::xcplib;
-    use reg::Registry;
+
     use xcp_type_description::prelude::*;
 
     use xcp::*;
     use xcp_type_description_derive::XcpTypeDescription;
 
     use serde::{Deserialize, Serialize};
-    use std::sync::{mpsc, mpsc::Sender, Arc, Once, RwLock};
+    use std::sync::Arc;
     use std::thread;
-    use std::thread::sleep;
-    use std::thread::JoinHandle;
+
     use std::time::{Duration, Instant};
 
     //-----------------------------------------------------------------------------

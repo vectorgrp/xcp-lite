@@ -450,7 +450,7 @@ impl XcpClient {
     //------------------------------------------------------------------------
     // new
     //
-    #[allow(clippy::type_complexity)] // clippy complaining about the measurment_list slice
+    #[allow(clippy::type_complexity)]
     pub fn new(dest_addr: SocketAddr, bind_addr: SocketAddr) -> XcpClient {
         XcpClient {
             bind_addr,
@@ -968,12 +968,12 @@ impl XcpClient {
     // A2L upload
 
     // Upload the A2L via XCP and load it
-    pub async fn load_a2l(&mut self, file_name: &str, upload: bool, print_info: bool) -> Result<(), Box<dyn Error>> {
-        let mut file_name: &str = file_name;
+    pub async fn load_a2l<P: AsRef<std::path::Path>>(&mut self, file_name: P, upload: bool, print_info: bool) -> Result<(), Box<dyn Error>> {
+        let mut file_name = file_name.as_ref();
         // Upload the A2L via XCP
         // Be aware the file name may be the original A2L file written by registry
         if upload {
-            info!("Upload A2L to {}", file_name);
+            info!("Upload A2L to {}", file_name.display());
             {
                 let file = std::fs::File::create("tmp.a2l")?;
                 let mut writer = std::io::BufWriter::new(file);
@@ -989,22 +989,22 @@ impl XcpClient {
                 }
                 writer.flush()?;
                 info!("  Upload complete, {} bytes loaded", file_size);
-                file_name = "tmp.a2l";
+                file_name = std::path::Path::new("tmp.a2l");
             }
         }
 
         // Read the A2L file
-        info!("Read A2L {}", file_name);
+        info!("Read A2L {}", file_name.display());
         if let Ok(a2l_file) = a2l_load(file_name) {
             if print_info {
                 a2l_printf_info(&a2l_file);
             }
             self.a2l_file = Some(a2l_file);
             if upload {
-                std::fs::remove_file("tmp.a2l")?;
+                std::fs::remove_file(file_name)?;
             }
         } else {
-            error!("Could not read A2L file {}", file_name);
+            error!("Could not read A2L file {}", file_name.display());
             return Err(Box::new(XcpError::new(ERROR_A2L)) as Box<dyn Error>);
         }
 

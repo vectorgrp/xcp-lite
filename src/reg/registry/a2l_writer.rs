@@ -107,8 +107,10 @@ impl GenerateA2l for RegistryCalSegList {
 impl GenerateA2l for RegistryMeasurement {
     fn write_a2l(&self, writer: &mut A2lWriter) -> std::io::Result<()> {
         let (ext, addr) = if self.addr == 0 {
+            // DYN
             self.xcp_event.get_dyn_ext_addr(self.addr_offset)
         } else {
+            // ABS
             Xcp::get_abs_ext_addr(self.addr)
         };
 

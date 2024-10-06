@@ -67,16 +67,7 @@ use xcp::*;
 use xcp_type_description::prelude::*;
 
 //-----------------------------------------------------------------------------
-// Static variables
-
-lazy_static::lazy_static! {
-
-    // Application start time
-    static ref START_TIME: Instant = Instant::now();
-
-    // Stop all tasks if false
-    static ref RUN: AtomicBool = AtomicBool::new(true);
-}
+// Static measurement and calibration variables
 
 struct StaticVars {
     test_u32: u32,
@@ -238,6 +229,15 @@ const CAL_PAGE2: CalPage2 = CalPage2 {
 //-----------------------------------------------------------------------------
 // Demo application cyclic tasks in threads
 
+lazy_static::lazy_static! {
+
+    // Application start time
+    static ref START_TIME: Instant = Instant::now();
+
+    // Stop all tasks if false
+    static ref RUN: AtomicBool = AtomicBool::new(true);
+}
+
 // A task which calculates some measurement signals depending on calibration parameters in a shared calibration segment
 // This task is instantiated multiple times
 fn task2(task_id: usize, calseg: CalSeg<CalPage>, calseg2: CalSeg<CalPage2>) {
@@ -362,7 +362,7 @@ fn main() {
         })
         .unwrap();
 
-    // Register a static calibration page
+    // Register static calibration variables (from a const struct)
     let calpage00 = CAL_PAGE0.get().unwrap();
     cal_register_static!(calpage00.task1_cycle_time_us, "task1 cycle time", "us");
     cal_register_static!(calpage00.task2_cycle_time_us, "task2 cycle time", "us");
@@ -407,27 +407,26 @@ fn main() {
         task1(c, calseg1);
     });
 
-    // Mainloop
-    xcp_println!("Main task starts");
-
     // Variables on heap and stack
     let mut mainloop_counter1: u64 = 0;
     let mut mainloop_counter2 = Box::new(0u64);
     let mut mainloop_map = Box::new([[0u8; 16]; 16]);
-
+    // Create associated event and register
     let mut mainloop_event = daq_create_event!("mainloop", 64); // Capture buffer 64 bytes
     daq_register!(mainloop_counter1, mainloop_event);
 
-    // Mutable static variables
-    let static_event = xcp.create_event("static_event");
+    // Mutable static variables (borrowed from a StaticCell)
     let static_vars: &'static mut StaticVars = STATIC_VARS.init(StaticVars { test_u32: 0, test_f64: 0.0 });
     static_vars.test_u32 = 1;
     assert_eq!(static_vars.test_u32, 1);
+    // Create associated event and register as characteristics with absolute addressing and associated XCP event
+    let static_event = xcp.create_event("static_event");
     daq_register_static!(static_vars.test_u32, static_event, "Test static u32");
     daq_register_static!(static_vars.test_f64, static_event, "Test static f64");
 
+    // Mainloop
+    xcp_println!("Main task starts");
     let mut current_session_status = xcp.get_session_status();
-
     let mut idle_time = 0.0;
     while RUN.load(Ordering::Acquire) {
         // @@@@ Dev: Terminate mainloop for shutdown if calibration parameter run is false, for test automation
@@ -454,7 +453,6 @@ fn main() {
         // Measure static variables
         static_vars.test_u32 += 1;
         static_vars.test_f64 += 0.1;
-
         static_event.trigger();
 
         // Sync

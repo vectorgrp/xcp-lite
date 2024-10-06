@@ -73,16 +73,18 @@ const CAL_PAR1: CalPage1 = CalPage1 {
 fn task(cal_seg: CalSeg<CalPage1>) {
     let mut loop_counter: u32 = 0;
     let mut changes: u32 = 0;
-    let mut page_borrow = &cal_seg.page;
-
-    // Create a DAQ event and register local variables for measurment
-    let event = daq_create_event!("task");
     let mut cal_test: u64 = 0;
     let mut counter_max: u32 = cal_seg.counter_max;
     let mut counter: u32 = 0;
-    daq_register!(cal_test, event);
+
+    // Create a DAQ event and register local variables for measurment
+    let event = daq_create_event!("task");
+
+    daq_register!(changes, event);
+    daq_register!(loop_counter, event);
     daq_register!(counter_max, event);
     daq_register!(counter, event);
+    daq_register!(cal_test, event);
 
     loop {
         // Sleep for a calibratable amount of microseconds
@@ -106,12 +108,6 @@ fn task(cal_seg: CalSeg<CalPage1>) {
             changes += 1;
             cal_test = cal_seg.cal_test;
             assert_eq!((cal_test >> 32) ^ 0x55555555, cal_test & 0xFFFFFFFF);
-        }
-
-        // Test calibration page changes
-        if *page_borrow != cal_seg.page {
-            page_borrow = &cal_seg.page;
-            info!("Task: Calibration page changed to {}", cal_seg.page);
         }
 
         // Trigger DAQ event

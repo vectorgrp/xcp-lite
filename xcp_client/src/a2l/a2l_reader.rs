@@ -5,8 +5,6 @@
 
 #![allow(dead_code)]
 
-use std::{fs::File, io::Write};
-
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
@@ -41,11 +39,11 @@ pub struct A2lLimits {
     pub upper: f64,
 }
 
-pub fn a2l_load(filename: &str) -> Result<a2lfile::A2lFile, a2lfile::A2lError> {
-    trace!("Load A2L file {}", filename);
-    let input_filename = &std::ffi::OsString::from(filename);
+pub fn a2l_load<P: AsRef<std::path::Path>>(filename: P) -> Result<a2lfile::A2lFile, a2lfile::A2lError> {
+    let filename = filename.as_ref();
+    trace!("Load A2L file {}", filename.display());
     let mut logmsgs = Vec::<A2lError>::new();
-    let res = a2lfile::load(input_filename, None, &mut logmsgs, true);
+    let res = a2lfile::load(filename, None, &mut logmsgs, true);
     for log_msg in logmsgs {
         warn!("A2l Loader: {}", log_msg);
     }
@@ -240,12 +238,11 @@ pub fn a2l_printf_info(a2l_file: &A2lFile) {
         );
     }
 
-    let filename = "a2lfile.txt";
-    let mut file = File::create(filename).expect("create file failed");
-    let s = format!("{:#?}", a2l_file);
-    file.write_all(s.as_bytes()).expect("write failed");
-
     // Write A2L to a file
-    let filename = "a2lfile.a2l";
-    a2l_file.write(std::ffi::OsString::from(filename), Some("Rewritten by xcp-lite")).expect("failed to write output");
+    // let filename = "a2lfile.txt";
+    // let mut file = File::create(filename).expect("create file failed");
+    // let s = format!("{:#?}", a2l_file);
+    // file.write_all(s.as_bytes()).expect("write failed");
+    // let filename = "a2lfile.a2l";
+    // a2l_file.write(std::ffi::OsString::from(filename), Some("Rewritten by xcp-lite")).expect("failed to write output");
 }

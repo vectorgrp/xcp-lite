@@ -895,15 +895,15 @@ static void XcpTriggerDaq(uint16_t daq, const uint8_t* base, uint64_t clock) {
 #endif
 
               if (n==8) {
-                *(uint64_t*)d = *(uint64_t*)&base[OdtEntryAddr(e)];
+                *(uint64_t*)d = *(const uint64_t*)&base[OdtEntryAddr(e)];
                 d += 8;
               }
               else if (n==4) {
-                *(uint32_t*)d = *(uint32_t*)&base[OdtEntryAddr(e)];
+                *(uint32_t*)d = *(const uint32_t*)&base[OdtEntryAddr(e)];
                 d += 4;
               }
               else if (n<4) {
-                uint8_t *s = &base[OdtEntryAddr(e)];
+                const uint8_t *s = &base[OdtEntryAddr(e)];
                 do { *d++ = *s++; } while (--n); 
               } else
               {

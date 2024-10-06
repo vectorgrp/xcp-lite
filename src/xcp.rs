@@ -19,8 +19,7 @@ use lazy_static::lazy_static;
 // Using bitflags crate for the XCP session status flags
 use bitflags::bitflags;
 
-use crate::{reg, xcplib};
-
+use crate::reg;
 use reg::*;
 
 //-----------------------------------------------------------------------------
@@ -31,8 +30,12 @@ pub mod daq;
 
 // Submodule cal
 pub mod cal;
-use cal::cal_seg::*;
-use cal::*;
+use cal::cal_seg::CalSeg;
+use cal::CalPageTrait;
+use cal::CalSegList;
+
+// XCPlite FFI bindings
+mod xcplib;
 
 //----------------------------------------------------------------------------------------------
 // XCP log level
@@ -931,6 +934,7 @@ extern "C" fn cb_read(addr: u32, len: u8, dst: *mut u8) -> u8 {
         let epk = *m;
         let epk_len = epk.len();
 
+        // @@@@ callbacks should not panic
         assert!(
             offset as usize + len as usize <= epk_len && epk_len <= 0xFF,
             "cb_read: EPK length error ! offset={} len={} epk_len={}",
@@ -960,6 +964,7 @@ extern "C" fn cb_read(addr: u32, len: u8, dst: *mut u8) -> u8 {
 #[no_mangle]
 extern "C" fn cb_write(addr: u32, len: u8, src: *const u8, delay: u8) -> u8 {
     trace!("cb_write: dst=0x{:08X}, len={}, src={:?}, delay={}", addr, len, src, delay);
+    // @@@@ callbacks should not panic
     assert!(len > 0, "cb_write: zero length");
 
     // Decode addr

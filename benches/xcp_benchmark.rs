@@ -229,11 +229,11 @@ fn xcp_benchmark(c: &mut Criterion) {
     let mut signal1: u32 = 0;
     let mut signal2: u64 = 0;
     let mut signal3: u8 = 0;
-    let mut signal4: u16 = 0;
-    let mut signal5: u64 = 0;
+    let mut signal4: u8 = 0;
+    let mut signal5: u16 = 0;
     let mut signal6: u32 = 0;
-    let mut signal7: u16 = 0;
-    let mut signal8: u64 = 0;
+    let mut signal7: u64 = 0;
+    let mut signal8: u32 = 0;
 
     // Register a measurement event and bind it to the counter signal
     let event = daq_create_event!("mainloop");

@@ -85,6 +85,7 @@ fn task(index: usize, cal_seg: CalSeg<CalPage1>) {
     let mut cal_test: u64 = 0;
     let mut counter_max: u32 = 0;
     let mut test0: u64 = 0;
+
     let test1: u64 = 0;
     let test2: u64 = 0;
     let test3: u64 = 0;
@@ -164,6 +165,8 @@ fn task(index: usize, cal_seg: CalSeg<CalPage1>) {
     daq_register_tli!(loop_counter, event);
     daq_register_tli!(counter_max, event);
     daq_register_tli!(counter, event);
+    //daq_register_tli!(cal_test, event);
+
     daq_register_tli!(test0, event);
     daq_register_tli!(test1, event);
     daq_register_tli!(test2, event);

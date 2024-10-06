@@ -78,9 +78,6 @@
 // The library crate is named "xcp"
 #![crate_name = "xcp"]
 
-#[allow(unused_imports)]
-use log::{debug, error, info, trace, warn};
-
 //-----------------------------------------------------------------------------
 
 // Submodule xcp
@@ -106,11 +103,6 @@ pub use reg::RegistryDataType;
 pub use reg::RegistryDataTypeTrait;
 pub use reg::RegistryMeasurement;
 
-// XCPlite FFI bindings
-mod xcplib {
-    include!("xcplite.rs");
-}
-
 //----------------------------------------------------------------------------------------------
 // Manually register a static measurement and calibration variables
 
@@ -119,14 +111,14 @@ mod xcplib {
 macro_rules! cal_register_static {
     (   $variable:expr ) => {{
         let name = stringify!($variable);
-        let datatype = unsafe { ($variable).get_type() };
+        let datatype = ($variable).get_type();
         let addr = unsafe { &($variable) as *const _ as u64 };
         let c = RegistryCharacteristic::new(None, name.to_string(), datatype, "", datatype.get_min(), datatype.get_max(), "", 1, 1, addr);
         Xcp::get().get_registry().lock().unwrap().add_characteristic(c);
     }};
     (   $variable:expr, $comment:expr ) => {{
         let name = stringify!($variable);
-        let datatype = unsafe { ($variable).get_type() };
+        let datatype = ($variable).get_type();
         let addr = unsafe { &($variable) as *const _ as u64 };
         let c = RegistryCharacteristic::new(None, name.to_string(), datatype, $comment, datatype.get_min(), datatype.get_max(), "", 1, 1, addr);
         Xcp::get().get_registry().lock().unwrap().add_characteristic(c);
@@ -134,19 +126,19 @@ macro_rules! cal_register_static {
 
     (   $variable:expr, $comment:expr, $unit:expr ) => {{
         let name = stringify!($variable);
-        let datatype = unsafe { ($variable).get_type() };
+        let datatype = ($variable).get_type();
         let addr = unsafe { &($variable) as *const _ as u64 };
         let c = RegistryCharacteristic::new(None, name.to_string(), datatype, $comment, datatype.get_min(), datatype.get_max(), $unit, 1, 1, addr);
         Xcp::get().get_registry().lock().unwrap().add_characteristic(c);
     }};
 }
 
-/// Register a static measurement variable with
+/// Register a static measurement variable
 #[macro_export]
 macro_rules! daq_register_static {
     (   $variable:expr, $event:ident ) => {{
         let name = stringify!($variable);
-        let datatype = unsafe { ($variable).get_type() };
+        let datatype = ($variable).get_type();
         let addr = unsafe { &($variable) as *const _ as u64 };
         let mut c = RegistryCharacteristic::new(None, name.to_string(), datatype, "", datatype.get_min(), datatype.get_max(), "", 1, 1, addr);
         c.set_event($event);
@@ -154,7 +146,7 @@ macro_rules! daq_register_static {
     }};
     (   $variable:expr, $event:ident, $comment:expr ) => {{
         let name = stringify!($variable);
-        let datatype = unsafe { ($variable).get_type() };
+        let datatype = ($variable).get_type();
         let addr = unsafe { &($variable) as *const _ as u64 };
         let mut c = RegistryCharacteristic::new(None, name.to_string(), datatype, $comment, datatype.get_min(), datatype.get_max(), "", 1, 1, addr);
         c.set_event($event);
@@ -163,7 +155,7 @@ macro_rules! daq_register_static {
 
     (   $variable:expr, $event:ident, $comment:expr, $unit:expr ) => {{
         let name = stringify!($variable);
-        let datatype = unsafe { ($variable).get_type() };
+        let datatype = ($variable).get_type();
         let addr = unsafe { &($variable) as *const _ as u64 };
         let mut c = RegistryCharacteristic::new(None, name.to_string(), datatype, $comment, datatype.get_min(), datatype.get_max(), $unit, 1, 1, addr);
         c.set_event($event);

@@ -3,13 +3,14 @@ XCP for Rust - based on XCPlite
   
 Disclaimer:  
 This code is in experimental state. There is no release yet.  
-This is no implementation of XCP in Rust, it is an experimental API for measurement and calibration, which uses the ASAM XCP protocol for communication with a measurement and calibration tool like CANape and ASAM A2L for data description. 
+This is no implementation of XCP in Rust, it is an API for measurement and calibration, which uses the ASAM XCP protocol for communication with a measurement and calibration tool like CANape and ASAM A2L for data description. 
 
 Main purpose was to experiment with Rust and to demonstrate some more advanced features of measurement and calibration with CANape:
 - Automatic A2L and IDL generation with proc-macros
-- A thread safe, transparent wrapper for calibration variables which enables offline calibration, calibration page switching, reinit, load and save to file
-- Measurement of dynamic data from stack or heap
-- Measurement of data with non static lifetime
+- A transparent wrapper for calibration variables which provides synchronized and memory safe calibration access
+- Support for offline calibration, calibration page switching, reinit, load and save to json file
+- Measurement of dynamic variables from stack or heap
+- Measurement of variables with non static lifetime
 - Measurement of thread local data instances
 - Data objects and containers with dynamic size like point clouds or detection lists, to demonstrate CANape ADAS features
 - Support Google protobuf or OMG DDS/CDR serialized data objects with XCP and CANape

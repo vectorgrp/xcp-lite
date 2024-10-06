@@ -269,16 +269,16 @@ impl RegistryEventList {
     fn new() -> Self {
         RegistryEventList(Vec::new())
     }
-    pub fn push(&mut self, event: RegistryEvent) {
+    fn push(&mut self, event: RegistryEvent) {
         self.0.push(event);
     }
-    pub fn len(&self) -> usize {
+    fn len(&self) -> usize {
         self.0.len()
     }
-    pub fn iter(&self) -> std::slice::Iter<RegistryEvent> {
+    fn iter(&self) -> std::slice::Iter<RegistryEvent> {
         self.0.iter()
     }
-    pub fn get_name(&self, xcp_event: XcpEvent) -> &'static str {
+    fn get_name(&self, xcp_event: XcpEvent) -> &'static str {
         for event in self.0.iter() {
             if event.xcp_event == xcp_event {
                 return event.name;
@@ -345,17 +345,20 @@ impl RegistryEpk {
 #[derive(Clone, Debug)]
 pub struct RegistryMeasurement {
     name: String,
+    // Type
     datatype: RegistryDataType, // Basic types Ubyte, SByte, AUint64, Float64Ieee, ...  or Blob
     x_dim: u16,                 // 1 = basic type (A2L MEASUREMENT), >1 = array[dim] of basic type (A2L MEASUREMENT with MATRIX_DIM x (max u16))
     y_dim: u16,                 // 1 = basic type (A2L MEASUREMENT), >1 = array[x_dim,y_dim] of basic type (A2L MEASUREMENT with MATRIX_DIM x,y (max u16))
-    xcp_event: XcpEvent,
-    addr_offset: i16, // Address offset (signed!) relative to event memory context (XCP_ADDR_EXT_DYN)
-    addr: u64,
+    annotation: Option<String>, // For serialized data of variable size (RegistryDataType::Blob)
+    // Addressing
+    xcp_event: XcpEvent, // Raw XCP event associated with the measurement signal
+    addr_offset: i16,    // If addr==0, signed offset relative to event memory context (XCP_ADDR_EXT_DYN)
+    addr: u64,           // Pointer (*mut u8 as u64 to be send) to the measurement signal in memory (XCP_ADDR_EXT_ABS)
+    // Metadata
     factor: f64,
     offset: f64,
     comment: &'static str,
     unit: &'static str,
-    annotation: Option<String>,
 }
 
 impl RegistryMeasurement {
@@ -391,59 +394,25 @@ impl RegistryMeasurement {
             annotation,
         }
     }
-
-    // pub fn get_name(&self) -> &str {
-    //     &self.name
-    // }
-    // pub fn get_datatype(&self) -> RegistryDataType {
-    //     self.datatype
-    // }
-    // pub fn get_dim(&self) -> (u16, u16) {
-    //     (self.x_dim, self.y_dim)
-    // }
-    // pub fn get_event(&self) -> XcpEvent {
-    //     self.event
-    // }
-    // pub fn get_addr_offset(&self) -> i16 {
-    //     self.addr_offset
-    // }
-    // pub fn get_addr(&self) -> u64 {
-    //     self.addr
-    // }
-    // pub fn get_factor(&self) -> f64 {
-    //     self.factor
-    // }
-    // pub fn get_offset(&self) -> f64 {
-    //     self.offset
-    // }
-    // pub fn get_comment(&self) -> &str {
-    //     self.comment
-    // }
-    // pub fn get_unit(&self) -> &str {
-    //     self.unit
-    // }
-    // pub fn get_annotation(&self) -> Option<&String> {
-    //     self.annotation.as_ref()
-    // }
 }
 
 #[derive(Debug)]
 struct RegistryMeasurementList(Vec<RegistryMeasurement>);
 
 impl RegistryMeasurementList {
-    pub fn new() -> Self {
+    fn new() -> Self {
         RegistryMeasurementList(Vec::new())
     }
 
-    pub fn push(&mut self, m: RegistryMeasurement) {
+    fn push(&mut self, m: RegistryMeasurement) {
         self.0.push(m);
     }
 
-    // pub fn len(&self) -> usize {
-    //     self.0.len()
-    // }
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
 
-    pub fn iter(&self) -> std::slice::Iter<RegistryMeasurement> {
+    fn iter(&self) -> std::slice::Iter<RegistryMeasurement> {
         self.0.iter()
     }
 
@@ -459,17 +428,21 @@ impl RegistryMeasurementList {
 /// Used by the register macros
 #[derive(Clone, Debug)]
 pub struct RegistryCharacteristic {
-    calseg_name: Option<&'static str>,
     name: String,
+    // Type
     datatype: RegistryDataType,
+    x_dim: usize,
+    // Addressing
+    calseg_name: Option<&'static str>, // Name of the calibration segment, if none absolute addressing
+    addr_offset: u64,                  // Offset relative to calibration segment (XCP_ADDR_EXT_APP) or absolute address (XCP_ADDR_EXT_ABS) if calseg_name is None
+    event: Option<XcpEvent>,           // The event associated with the calibration parameter to enable event triggered measurement
+    // Metadata
     comment: &'static str,
     min: f64,
     max: f64,
     unit: &'static str,
-    x_dim: usize,
+
     y_dim: usize,
-    addr_offset: u64,
-    event: Option<XcpEvent>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -555,7 +528,7 @@ impl RegistryCharacteristic {
 }
 
 #[derive(Debug)]
-pub struct RegistryCharacteristicList(Vec<RegistryCharacteristic>);
+struct RegistryCharacteristicList(Vec<RegistryCharacteristic>);
 
 impl RegistryCharacteristicList {
     pub fn new() -> Self {
@@ -780,11 +753,11 @@ impl Registry {
     }
 
     #[cfg(feature = "a2l_reader")]
-    pub fn a2l_load(&mut self, filename: &str) -> Result<a2lfile::A2lFile, String> {
-        trace!("Load A2L file {}", filename);
-        let input_filename = &std::ffi::OsString::from(filename);
+    pub fn a2l_load<P: AsRef<std::path::Path>>(&mut self, filename: P) -> Result<a2lfile::A2lFile, String> {
+        let filename = filename.as_ref();
+        trace!("Load A2L file {}", filename.display());
         let mut logmsgs = Vec::<a2lfile::A2lError>::new();
-        let res = a2lfile::load(input_filename, None, &mut logmsgs, true);
+        let res = a2lfile::load(filename, None, &mut logmsgs, true);
         for log_msg in logmsgs {
             warn!("A2l Loader: {}", log_msg);
         }
@@ -817,7 +790,8 @@ impl Registry {
 
         // Write to A2L file
         let a2l_name = self.name.unwrap();
-        let a2l_path = format!("{}.a2l", a2l_name);
+        let mut a2l_path = std::path::PathBuf::from(a2l_name);
+        a2l_path.set_extension("a2l");
         let a2l_file = std::fs::File::create(&a2l_path)?;
         let writer: &mut dyn std::io::Write = &mut std::io::LineWriter::new(a2l_file);
         let mut a2l_writer = A2lWriter::new(writer, self);
@@ -846,7 +820,7 @@ impl Registry {
         // Check A2L file
         #[cfg(feature = "a2l_reader")]
         {
-            if let Err(e) = self.a2l_load(&a2l_path) {
+            if let Err(e) = self.a2l_load(a2l_path) {
                 error!("A2l file check error: {}", e);
             } else {
                 info!("A2L file check ok");

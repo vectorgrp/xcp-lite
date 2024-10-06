@@ -162,9 +162,10 @@ async fn task(index: usize, cal_seg: CalSeg<CalPage1>) {
     let event = daq_create_event_instance!("task");
     daq_register_instance!(changes, event);
     daq_register_instance!(loop_counter, event);
-    daq_register_instance!(cal_test, event); // pattern checked in DaqDecoder
     daq_register_instance!(counter_max, event);
     daq_register_instance!(counter, event);
+    daq_register_instance!(cal_test, event); // pattern checked in DaqDecoder
+
     daq_register_instance!(test0, event);
     daq_register_instance!(test1, event);
     daq_register_instance!(test2, event);

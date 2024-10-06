@@ -214,6 +214,7 @@ uint8_t* XcpTlGetTransmitBuffer(void** handle, uint16_t packet_len) {
 
     entry->dlc = msg_len-XCPTL_TRANSPORT_LAYER_HEADER_SIZE;
     *handle = entry;
+    assert((((uint64_t)entry)&0x3)==0); // Check alignment
     return entry->data;
 }
 
