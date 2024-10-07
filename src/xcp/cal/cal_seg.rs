@@ -496,21 +496,21 @@ mod cal_tests {
 
     #[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
     struct CalPage0 {
-        stop: bool,
+        stop: u8,
     }
 
     #[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
-    struct CalPage4 {
+    struct CalPageTest {
         test: u8,
     }
 
     fn task_calseg(cal_seg: CalSeg<CalPage0>) -> u32 {
         trace!("task_calseg start");
         let mut i: u32 = 0;
-        for _ in 0..1000000 {
+        loop {
             i += 1;
             thread::yield_now();
-            if cal_seg.stop {
+            if cal_seg.stop != 0 {
                 break;
             }
             cal_seg.sync();
@@ -534,59 +534,64 @@ mod cal_tests {
         is_clone::<CalSeg<CalPage1>>();
         //is_copy::<CalSeg<CalPage0>>(); // CalSeg is not copy
 
-        const CAL_PAGE: CalPage0 = CalPage0 { stop: true };
+        // Interiour mutability, page switch and unwanted compiler optimizations
+        const CAL_PAGE_TEST: CalPageTest = CalPageTest { test: 0 };
+        let cal_page_test = xcp.create_calseg("CalPageTest", &CAL_PAGE_TEST, false);
+        let mut test = cal_page_test.test;
+        assert_eq!(test, 0);
+        let data: u8 = 1;
+        let index = cal_page_test.get_index();
+        assert_eq!(index, 0); // Segment index
+        cb_write(0x80000000u32 + (((index + 1) as u32) << 16), 1, &data, 0);
+        cal_page_test.sync();
+        test = cal_page_test.test;
+        assert_eq!(cal_page_test.test, 1);
+        assert_eq!(test, 1);
+        cb_set_cal_page((index + 1) as u8, XCP_CAL_PAGE_FLASH, CAL_PAGE_MODE_ECU | CAL_PAGE_MODE_ALL);
+        test = cal_page_test.test;
+        assert_eq!(cal_page_test.test, 0);
+        assert_eq!(test, 0);
+        cb_set_cal_page((index + 1) as u8, XCP_CAL_PAGE_RAM, CAL_PAGE_MODE_ECU | CAL_PAGE_MODE_ALL);
 
-        // Intended use
-        let cal_seg1 = xcp.create_calseg("calseg1", &CAL_PAGE, false);
-        cal_seg1.sync();
-        assert!(cal_seg1.stop);
-        let c1 = CalSeg::clone(&cal_seg1);
-        let c2 = CalSeg::clone(&cal_seg1);
-        assert!(cal_seg1.get_clone_count() == 4); // 2 explicit clones, 1 for Xcp calseg_list and the original
+        // Move to threads
+        const CAL_PAGE0: CalPage0 = CalPage0 { stop: 0 };
+        let cal_page0 = xcp.create_calseg("calseg1", &CAL_PAGE0, false);
+        let index = cal_page0.get_index();
+        assert_eq!(index, 1); // Segment index
+        cal_page0.sync();
+        assert!(cal_page0.stop == 0);
+        let c1 = CalSeg::clone(&cal_page0);
+        let c2 = CalSeg::clone(&cal_page0);
+        assert!(cal_page0.get_clone_count() == 4); // 2 explicit clones, 1 for Xcp calseg_list and the original
         let t1 = thread::spawn(move || {
             task_calseg(c1);
         });
-
         let t2 = thread::spawn(move || {
             task_calseg(c2);
         });
+        let data: u8 = 1;
+        cb_write(0x80000000u32 + (((index + 1) as u32) << 16), 1, &data, 0);
         t1.join().unwrap();
         t2.join().unwrap();
+        cal_page0.sync();
+        assert!(cal_page0.stop == 1);
+
+        // Test drop and expected size
         let size = std::mem::size_of::<CalSeg<CalPage1>>();
-        let clones = cal_seg1.get_clone_count();
-        info!("CalSeg: {} size = {} bytes, clone_count = {}", cal_seg1.get_name(), size, clones);
+        let clones = cal_page0.get_clone_count();
+        info!("CalSeg: {} size = {} bytes, clone_count = {}", cal_page0.get_name(), size, clones);
         assert_eq!(size, 32);
         assert!(clones == 2); // 2 clones move to threads and dropped
-        drop(cal_seg1);
-
-        // Illegal use
-        // Creating references to interiour mutable calibration parameters
-        // This can not result in undefined behaviour, because the reference can never escape this thread
-        // The mutation (value change and page switch) always happens in cal_seg.sync in this thread
-        // The only effect would be, that we hold a reference to the wrong page, as demonstrated here
-        const CAL_PAGE2: CalPage4 = CalPage4 { test: 0x55 }; // FLASH
-        let cal_page2 = CalPage4 { test: 0xAA }; // RAM
-        cal_page2.save_to_file("calseg2.json").unwrap();
-        let cal_seg2 = xcp.create_calseg("calseg2", &CAL_PAGE2, true);
-        Xcp::get().set_ecu_cal_page(XcpCalPage::Ram);
-        let r = &cal_seg2.test;
-        assert_eq!(*r, 0xAA); // RAM page
-        assert_eq!(cal_seg2.test, 0xAA); // RAM page
-        Xcp::get().set_ecu_cal_page(XcpCalPage::Flash);
-        assert_eq!(*r, 0xAA); // RAM page
-        assert_eq!(cal_seg2.test, 0x55); // FLASH page
-        std::fs::remove_file("calseg2.json").ok();
+        drop(cal_page0);
     }
 
     #[test]
     fn test_calibration_segment_performance() {
         let xcp = xcp_test::test_setup(log::LevelFilter::Info);
 
-        const CAL_PAGE: CalPage0 = CalPage0 { stop: false };
+        const CAL_PAGE: CalPage0 = CalPage0 { stop: 0 };
 
         let mut cal_seg1 = xcp.create_calseg("calseg1", &CAL_PAGE, false);
-        cal_seg1.sync();
-        assert!(!cal_seg1.stop);
 
         // Create 10 tasks with 10 clones of cal_seg1
         let mut t = Vec::new();
@@ -602,14 +607,13 @@ mod cal_tests {
             }));
         }
         thread::sleep(Duration::from_millis(1000));
-        cal_seg1.stop = true;
+        cal_seg1.stop = 1; // deref_mut
         t.into_iter().for_each(|t| t.join().unwrap());
 
         let duration = start.elapsed().as_micros();
         info!("Duration: {}us", duration);
         let tot_loop_count: u32 = loop_count.lock().iter().sum();
         info!("Loop counts: tot = {}, {:.3}us per loop", tot_loop_count, duration as f64 / tot_loop_count as f64);
-        info!(" {:?}", loop_count);
     }
 
     //-----------------------------------------------------------------------------
