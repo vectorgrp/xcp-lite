@@ -20,6 +20,7 @@ use a2l_writer::A2lWriter;
 // Datatype
 
 /// Basic registry data type enum (with ASAM naming convention)
+/// Used by the register macros
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RegistryDataType {
     Ubyte,
@@ -38,6 +39,7 @@ pub enum RegistryDataType {
 
 impl RegistryDataType {
     /// Get minimum value for data type
+    /// Used by the register macros
     pub fn get_min(&self) -> f64 {
         match self {
             RegistryDataType::Sbyte => -128.0,
@@ -51,6 +53,7 @@ impl RegistryDataType {
     }
 
     /// Get maximum value for data type
+    /// Used by the register macros
     pub fn get_max(&self) -> f64 {
         match self {
             RegistryDataType::Ubyte => 255.0,
@@ -68,7 +71,8 @@ impl RegistryDataType {
         }
     }
 
-    /// Get data type as str
+    // Get data type as str
+    // Used by A2L writer
     fn get_type_str(&self) -> &'static str {
         match self {
             RegistryDataType::Ubyte => "UBYTE",
@@ -86,7 +90,8 @@ impl RegistryDataType {
         }
     }
 
-    /// Get data type as str for A2L deposit
+    // Get data type as str for A2L deposit
+    // Used by A2L writer
     fn get_deposit_str(&self) -> &'static str {
         match self {
             RegistryDataType::Ubyte => "U8",
@@ -105,6 +110,7 @@ impl RegistryDataType {
     }
 
     /// Get data type size
+    /// Used by the register macros
     pub fn get_size(&self) -> usize {
         match self {
             RegistryDataType::Ubyte => 1,
@@ -123,6 +129,7 @@ impl RegistryDataType {
     }
 
     /// Convert from Rust basic type as str
+    /// Used by the register macros
     pub fn from_rust_basic_type(s: &str) -> RegistryDataType {
         match s {
             "bool" => RegistryDataType::Ubyte,
@@ -143,6 +150,7 @@ impl RegistryDataType {
     }
 
     /// Convert from Rust type as str
+    /// Used by the register macros
     pub fn from_rust_type(s: &str) -> RegistryDataType {
         let t = RegistryDataType::from_rust_basic_type(s);
         if t != RegistryDataType::Unknown {
@@ -475,48 +483,14 @@ impl RegistryCharacteristic {
         }
     }
 
-    fn get_calseg_name(&self) -> Option<&'static str> {
-        self.calseg_name
-    }
-    fn get_name(&self) -> &str {
-        &self.name
-    }
-    fn get_datatype(&self) -> RegistryDataType {
-        self.datatype
-    }
-    fn get_comment(&self) -> &str {
-        self.comment
-    }
-    fn get_min(&self) -> f64 {
-        self.min
-    }
-    fn get_max(&self) -> f64 {
-        self.max
-    }
-    fn get_unit(&self) -> &str {
-        self.unit
-    }
-    fn get_x_dim(&self) -> usize {
-        self.x_dim
-    }
-    fn get_y_dim(&self) -> usize {
-        self.y_dim
-    }
-    fn get_addr_offset(&self) -> u64 {
-        self.addr_offset
-    }
-
-    fn get_event(&self) -> Option<XcpEvent> {
-        self.event
-    }
-
     /// Set the event associated with the calibration parameter
+    /// Used by the register macros
     pub fn set_event(&mut self, event: XcpEvent) {
         self.event = Some(event);
     }
 
     /// Get the A2L object type of the calibration parameter
-    pub fn get_type_str(&self) -> &'static str {
+    fn get_type_str(&self) -> &'static str {
         if self.x_dim > 1 && self.y_dim > 1 {
             "MAP"
         } else if self.x_dim > 1 || self.y_dim > 1 {
@@ -849,7 +823,8 @@ mod registry_tests {
     fn test_attribute_macros() {
         let xcp = xcp_test::test_setup(log::LevelFilter::Info);
 
-        #[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize, XcpTypeDescription)]
+        #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+        #[derive(Debug, Copy, Clone, XcpTypeDescription)]
         struct CalPage {
             #[type_description(comment = "Comment")]
             #[type_description(unit = "Unit")]
@@ -880,26 +855,26 @@ mod registry_tests {
         let c: RegistryCharacteristic = Xcp::get().get_registry().lock().unwrap().find_characteristic("CalPage.a").unwrap().clone();
 
         assert_eq!(calseg.get_name(), "calseg");
-        assert_eq!(c.get_comment(), "Comment");
-        assert_eq!(c.get_unit(), "Unit");
-        assert_eq!(c.get_min(), 0.0);
-        assert_eq!(c.get_max(), 100.0);
-        assert_eq!(c.get_x_dim(), 1);
-        assert_eq!(c.get_y_dim(), 1);
-        assert_eq!(c.get_addr_offset(), 200);
-        assert_eq!(c.get_datatype(), RegistryDataType::Ulong);
+        assert_eq!(c.comment, "Comment");
+        assert_eq!(c.unit, "Unit");
+        assert_eq!(c.min, 0.0);
+        assert_eq!(c.max, 100.0);
+        assert_eq!(c.x_dim, 1);
+        assert_eq!(c.y_dim, 1);
+        assert_eq!(c.addr_offset, 200);
+        assert_eq!(c.datatype, RegistryDataType::Ulong);
 
         let c: RegistryCharacteristic = Xcp::get().get_registry().lock().unwrap().find_characteristic("CalPage.b").unwrap().clone();
-        assert_eq!(c.get_addr_offset(), 204);
+        assert_eq!(c.addr_offset, 204);
 
         let c: RegistryCharacteristic = Xcp::get().get_registry().lock().unwrap().find_characteristic("CalPage.curve").unwrap().clone();
-        assert_eq!(c.get_addr_offset(), 0);
-        assert_eq!(c.get_x_dim(), 16);
-        assert_eq!(c.get_y_dim(), 1);
+        assert_eq!(c.addr_offset, 0);
+        assert_eq!(c.x_dim, 16);
+        assert_eq!(c.y_dim, 1);
 
         let c: RegistryCharacteristic = Xcp::get().get_registry().lock().unwrap().find_characteristic("CalPage.map").unwrap().clone();
-        assert_eq!(c.get_addr_offset(), 128);
-        assert_eq!(c.get_x_dim(), 8);
-        assert_eq!(c.get_y_dim(), 9);
+        assert_eq!(c.addr_offset, 128);
+        assert_eq!(c.x_dim, 8);
+        assert_eq!(c.y_dim, 9);
     }
 }

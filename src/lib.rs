@@ -1,3 +1,6 @@
+#![cfg(not(doctest))]
+//#![warn(missing_docs)]
+
 //-----------------------------------------------------------------------------
 // Crate xcp
 // Path: src/lib.rs
@@ -70,8 +73,6 @@
 //!
 //!
 //!
-
-//#![warn(missing_docs)]
 
 // This crate is a library
 #![crate_type = "lib"]

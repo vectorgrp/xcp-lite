@@ -19,7 +19,6 @@ use std::{
     time::Duration,
 };
 
-use serde::{Deserialize, Serialize};
 use xcp::*;
 use xcp_client::xcp_client::*;
 use xcp_type_description::prelude::*;
@@ -28,7 +27,8 @@ use criterion::{criterion_group, criterion_main, Criterion};
 //-----------------------------------------------------------------------------
 // Calibration parameters
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Copy, XcpTypeDescription)]
 struct CalPage {
     #[type_description(comment = "Amplitude value")]
     #[type_description(min = "0")]

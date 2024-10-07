@@ -63,7 +63,7 @@ where
 #[cfg(not(feature = "json"))]
 pub trait CalPageTrait
 where
-    Self: Sized + Send + Sync + Copy + Clone + 'static + XcpTypeDescription,
+    Self: Sized + Send + Sync + Copy + Clone + 'static + xcp_type_description::XcpTypeDescription,
 {
     fn register_fields(&self, calseg_name: &'static str);
 }
@@ -122,24 +122,23 @@ where
 #[cfg(not(feature = "json"))]
 impl<T> CalPageTrait for T
 where
-    T: Sized + Send + Sync + Copy + Clone + 'static + XcpTypeDescription,
+    T: Sized + Send + Sync + Copy + Clone + 'static + xcp_type_description::XcpTypeDescription,
 {
     fn register_fields(&self, calseg_name: &'static str) {
         trace!("Register all fields in {}", calseg_name);
 
         for field in self.type_description().unwrap().iter() {
             let c = reg::RegistryCharacteristic::new(
-                calseg_name,
+                Some(calseg_name),
                 field.name().to_string(),
-                field.datatype(),
+                reg::RegistryDataType::from_rust_type(field.datatype()),
                 field.comment(),
                 field.min(),
                 field.max(),
                 field.unit(),
                 if field.x_dim() == 0 { 1 } else { field.x_dim() },
                 if field.y_dim() == 0 { 1 } else { field.y_dim() },
-                field.offset(),
-                Xcp::XCP_ADDR_EXT_APP, // segment relative addressing
+                field.offset() as u64,
             );
 
             Xcp::get().get_registry().lock().unwrap().add_characteristic(c);
@@ -205,24 +204,29 @@ impl CalSegList {
         if auto_reg {
             default_page.register_fields(name);
         }
-        // Load the active calibration page from file or set to default
-        let mut page = *default_page;
 
+        // Load the active calibration page from file or set to default
         #[cfg(feature = "json")]
-        if load_json {
+        let page = if load_json {
             let filename = format!("{}.json", name);
             if std::path::Path::new(&filename).exists() {
-                page = CalPageTrait::load_from_file(&filename).unwrap_or(*default_page);
                 info!("Load parameter file {}.json as RAM page", name);
+                CalPageTrait::load_from_file(&filename).unwrap_or(*default_page)
             } else {
                 info!("File {}.json does not exist, using default page", name);
+                *default_page
             }
-        }
+        } else {
+            *default_page
+        };
 
         #[cfg(not(feature = "json"))]
-        if load_json {
-            error!("Feature json not enabled");
-        }
+        let page = {
+            if load_json {
+                warn!("Feature json not enabled, load_json=true ignored, using default page for {}", name);
+            }
+            *default_page
+        };
 
         // Create the calibration segment
         let index = self.0.len();

@@ -9,7 +9,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use serde::{Deserialize, Serialize};
 use xcp::*;
 use xcp_type_description::prelude::*;
 
@@ -17,7 +16,8 @@ use xcp_type_description::prelude::*;
 // Demo calibration parameters
 
 // Define a struct with calibration parameters
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Copy, XcpTypeDescription)]
 struct CalPage {
     #[type_description(comment = "Amplitude of the sine signal")]
     #[type_description(unit = "Volt")]

@@ -1,9 +1,11 @@
-# xcp_lite
+# xcp-lite
 XCP for Rust - based on XCPlite  
   
-Disclaimer:  
-This code is in experimental state. There is no release yet.  
-This is no implementation of XCP in Rust, it is an API for measurement and calibration, which uses the ASAM XCP protocol for communication with a measurement and calibration tool like CANape and ASAM A2L for data description. 
+Disclaimer: This code is in experimental state. There is no release yet.  
+
+xcp-lite is a Rust API for measurement and calibration, which uses the ASAM XCP protocol for communication with a measurement and calibration tool like CANape and ASAM A2L for data description.  
+
+This is no complete implementation of XCP in Rust, parts of it are still C/C++ from XCPlite.  
 
 Main purpose was to experiment with Rust and to demonstrate some more advanced features of measurement and calibration with CANape:
 - Automatic A2L and IDL generation with proc-macros
@@ -113,7 +115,8 @@ The registration of objects has to be completed, before the A2L file is generate
 // Calibration parameter segment
 // Each calibration parameter struct defines a MEMORY_SEGMENT in A2L and CANape
 // The A2L serializer will create an A2L CHARACTERISTIC for each field. 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Copy, XcpTypeDescription)]
 struct CalPage {
 
     #[type_description(comment = "Amplitude")]
@@ -299,18 +302,21 @@ The EPK version string in the A2L file can be set by the application. It resides
 - Add sub groups of measurements for event instances
 - Improve the pointer provenance checks in XcpEvent
 - Add support to describe the application clock domain in rust
-- Provide a no-std version and create a embassy example
+- Provide a no-std version and create an embassy example
 
 
-Suggested changes to the XCP standard
-- Add GET_ID type to upload (from ECU) binary schemas (.ZIP, .desc), referenced in A2L file
+Suggested simplifications and optimizations for the XCP on ETH standard
+- Support 64 Bit addresses in SHORT_UPLOAD, SHORT_DONWLOAD and SET_MTA
+- Support more than (256-4)/(128-4) ODTs (ODT number as u16), avoid event based queue overload indication
+- Add an option for 64 bit transport layer packet alignment
+- Add an option to require a 1:1 association from event to daq list to simplify data structures and reduce event runtime
+
 - Support variable length ODT entries for serialized data types
 - Support segmented DTOs larger than segment size
-- Support 64 Bit addresses
-- Support more than (256-4)/(128-4) ODTs to avoid event based queue overload indication
-- Add the option to require a 1:1 association from event to daq list to simplify data structures and reduce event runtime
-- Make GET_DAQ_CLOCK obsolete (when PTP TAI time is provided), by supporting 64 Bit DAQ timestamps
 
+- Add GET_ID type to upload (from ECU) binary schemas (.ZIP, .desc), referenced in A2L file
+- Make GET_DAQ_CLOCK obsolete (when PTP TAI time is provided), by supporting 64 Bit DAQ timestamps
+- Remove clock properties legacy mode
 
 
 

@@ -18,7 +18,6 @@ mod xcp_server_task;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 //-----------------------------------------------------------------------------
@@ -30,9 +29,8 @@ use std::fmt::Debug;
 //-----------------------------------------------------------------------------
 // Calibration Segment
 
-use xcp_type_description_derive::XcpTypeDescription;
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Copy, XcpTypeDescription)]
 struct TestInts {
     test_bool: bool,
     test_u8: u8,
@@ -47,7 +45,8 @@ struct TestInts {
     test_f64: f64,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Copy, XcpTypeDescription)]
 struct CalPage1 {
     run: bool,
     counter_max: u32,

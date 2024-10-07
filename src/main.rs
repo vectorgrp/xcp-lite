@@ -106,7 +106,7 @@ static CAL_PAGE0: once_cell::sync::OnceCell<CalPage00> = once_cell::sync::OnceCe
 // Each page defines a MEMORY_SEGMENT in A2L and CANape
 // A2l addresses are relative to the segment start address, the segment numer is coded in the address
 
-// Implement Serialize, Deserialize for json file persistency
+// Implement Serialize, serde::Deserialize for json file persistency
 // Implement XcpTypeDescription for auto registration of fields in the A2L registry
 
 //---------------------------------------------------
@@ -250,7 +250,7 @@ fn task2(task_id: usize, calseg: CalSeg<CalPage>, calseg2: CalSeg<CalPage2>) {
     // Create one static event for all instances of this thread, with 8 byte capture buffer
     let mut event = daq_create_event!("task2_static", 8);
 
-    while RUN.load(Ordering::Acquire) {
+    while RUN.load(Ordering::Relaxed) {
         // Stop task if calibration parameter run2 is false
         if !calseg.run2 {
             break;
@@ -308,7 +308,7 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
     daq_register!(counter_u64, event, "wrapping counter: u64", "");
     daq_register_array!(array1, event);
 
-    while RUN.load(Ordering::Acquire) {
+    while RUN.load(Ordering::Relaxed) {
         // Stop task if calibration parameter run1 is false
         if !calseg.run1 {
             break;
@@ -428,7 +428,7 @@ fn main() {
     xcp_println!("Main task starts");
     let mut current_session_status = xcp.get_session_status();
     let mut idle_time = 0.0;
-    while RUN.load(Ordering::Acquire) {
+    while RUN.load(Ordering::Relaxed) {
         // @@@@ Dev: Terminate mainloop for shutdown if calibration parameter run is false, for test automation
         if !calseg.run {
             break;

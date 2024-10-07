@@ -646,10 +646,14 @@ impl Xcp {
     /// Create a calibration segment  
     /// # Panics  
     /// Panics if the calibration segment name already exists  
+    /// Panics if the calibration page size exceeds 64k
     pub fn create_calseg<T>(&self, name: &'static str, default_page: &'static T, load_json: bool) -> CalSeg<T>
     where
         T: CalPageTrait,
     {
+        if std::mem::size_of::<T>() > 0x10000 || std::mem::size_of::<T>() == 0 {
+            panic!("CalPage size is 0 or exceeds 64k");
+        }
         let mut m = self.calseg_list.lock().unwrap();
         m.create_calseg(name, default_page, true, load_json)
     }
@@ -705,15 +709,15 @@ impl Xcp {
     //------------------------------------------------------------------------------------------
     // XCP events
 
-    /// Create daq event
-    /// index==0 event is owned by a static in a function  (macro daq_create_event)
-    /// index>0 event is hold in thread local memory, index is the thread instance count (macro daq_create_event_tli)
+    /// Create XCP event  
+    /// index==0 single instance  
+    /// index>0 multi instance (instance number is attached to name)  
     pub fn create_event_ext(&self, name: &'static str, indexed: bool) -> XcpEvent {
         self.event_list.lock().unwrap().create_event_ext(name, indexed)
     }
 
-    /// Create daq event
-    /// Event is owned by a static in a function  (macro daq_create_event)
+    /// Create XCP event  
+    /// Single instance  
     pub fn create_event(&self, name: &'static str) -> XcpEvent {
         self.event_list.lock().unwrap().create_event_ext(name, false)
     }
@@ -721,9 +725,9 @@ impl Xcp {
     //------------------------------------------------------------------------------------------
     // Registry
 
-    /// Write A2L
-    /// A2l is normally automatically written on connect of the XCP client tool
-    /// This function is used to force the A2L to be written immediately
+    /// Write A2L  
+    /// A2l is normally automatically written on connect of the XCP client tool  
+    /// This function is used to force the A2L to be written immediately  
     pub fn write_a2l(&self) -> Result<bool, std::io::Error> {
         // Do nothing, if the registry is already written, or does not exist
         if self.registry.lock().unwrap().is_frozen() {
@@ -799,16 +803,15 @@ impl Xcp {
     //------------------------------------------------------------------------------------------
     // Freeze and Init
 
-    /// Set calibration segment init request
-    /// Called on init cal from XCP server
-
+    /// Set calibration segment init request  
+    /// Called on init cal from XCP server  
     fn set_init_request(&self) {
         let mut m = self.calseg_list.lock().unwrap();
         m.set_init_request();
     }
 
-    /// Set calibration segment freeze request
-    /// Called on freeze cal from XCP server
+    /// Set calibration segment freeze request  
+    /// Called on freeze cal from XCP server  
     fn set_freeze_request(&self) {
         let mut m = self.calseg_list.lock().unwrap();
         m.set_freeze_request();
@@ -1034,23 +1037,4 @@ pub mod xcp_test {
         xcp.set_xcp_cal_page(XcpCalPage::Ram);
         xcp
     }
-
-    // Direct calls to the XCP driver callbacks for init and freeze
-    #[allow(dead_code)]
-    pub fn test_freeze_cal() {
-        cb_freeze_cal();
-    }
-    #[allow(dead_code)]
-    pub fn test_init_cal() {
-        cb_init_cal(1, 0);
-    }
-    // pub fn test_set_cal_page(page: u8) {
-    //     cb_set_cal_page(0, page, CAL_PAGE_MODE_XCP);
-    // }
-    // pub fn test_get_ecu_cal_page() -> u8 {
-    //     cb_get_cal_page(0, CAL_PAGE_MODE_ECU)
-    // }
-    // pub fn test_get_xcp_cal_page() -> u8 {
-    //     cb_get_cal_page(0, CAL_PAGE_MODE_XCP)
-    // }
 }

@@ -4,10 +4,10 @@
 |
 | Description:
 |   XCP transport layer queue
-|   Multi producer single consumer queue (supported on 64 bit systems with atomic 64 bit operations)
+|   Multi producer single consumer queue (using atomic 64 bit operations)
 |
 | Copyright (c) Vector Informatik GmbH. All rights reserved.
-| Licensed under the MIT license. See LICENSE file in the project root for details.
+| See LICENSE file in the project root for details.
 |
  ----------------------------------------------------------------------------*/
 
@@ -68,10 +68,9 @@ static uint64_t lockCount = 0;
 
 #undef USE_SPINLOCK
 #define atomic_uint_fast64_t uint64_t
-#define atomic_store(a,b) (*a)=(b)
-#define atomic_load(a) (*a)
-#define atomic_load_explicit(a,b) (*a)
-#define atomic_fetch_add(a,b) { mutexLock(&gXcpTlQueue.mutex); (*a)+=(b); mutexUnlock(&gXcpTlQueue.mutex);}
+#define atomic_store_explcit(a,b,c) (*(a))=(b)
+#define atomic_load_explicit(a,b) (*(a))
+#define atomic_fetch_add_explicit(a,b,c) { mutexLock(&gXcpTlQueue.mutex); (*(a))+=(b); mutexUnlock(&gXcpTlQueue.mutex);}
 
 #endif
 
@@ -115,8 +114,8 @@ void XcpTlInitTransmitQueue() {
 #ifndef USE_SPINLOCK
     mutexInit(&gXcpTlQueue.mutex, FALSE, 1000);
 #endif
-    atomic_store(&gXcpTlQueue.head, 0);
-    atomic_store(&gXcpTlQueue.tail, 0);
+    atomic_store_explicit(&gXcpTlQueue.head, 0, memory_order_relaxed);
+    atomic_store_explicit(&gXcpTlQueue.tail, 0, memory_order_relaxed);
     gXcpTlQueue.tail_len = 0;
 #ifdef USE_SPINLOCK
     assert(atomic_is_lock_free(&lock)!=0);
@@ -127,8 +126,8 @@ void XcpTlInitTransmitQueue() {
 void XcpTlResetTransmitQueue() {
     gXcpTlQueue.tail_len = 0;
     gXcpTlQueue.overruns = 0;
-    atomic_store(&gXcpTlQueue.head, 0);
-    atomic_store(&gXcpTlQueue.tail, 0);
+    atomic_store_explicit(&gXcpTlQueue.head, 0, memory_order_relaxed);
+    atomic_store_explicit(&gXcpTlQueue.tail, 0, memory_order_relaxed);
 }
 
 void XcpTlFreeTransmitQueue() {
@@ -189,7 +188,7 @@ uint8_t* XcpTlGetTransmitBuffer(void** handle, uint16_t packet_len) {
     lockCount++;
 #endif
 
-    uint64_t head = atomic_load(&gXcpTlQueue.head);
+    uint64_t head = atomic_load_explicit(&gXcpTlQueue.head,memory_order_relaxed);
     uint64_t tail = atomic_load_explicit(&gXcpTlQueue.tail,memory_order_relaxed);
     if (MPSC_QUEUE_SIZE - (uint32_t)(head-tail) >= msg_len) {
 
@@ -199,7 +198,7 @@ uint8_t* XcpTlGetTransmitBuffer(void** handle, uint16_t packet_len) {
         entry = (tXcpDtoMessage *)(gXcpTlQueue.buffer + offset);
         entry->ctr = RESERVED;  
 
-        atomic_store(&gXcpTlQueue.head, head+msg_len);
+        atomic_store_explicit(&gXcpTlQueue.head, head+msg_len,memory_order_relaxed);
     }
 
 #ifdef USE_SPINLOCK
@@ -241,17 +240,20 @@ void XcpTlFlushTransmitBuffer() {
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
 // Consumer functions
-// Thread safe for single consumer only !!
+// Single consumer thread !!!!!!!!!!
+// The consumer is lock free against the providers, it does not contend for the mutex or spinlock used by the providers
 
 
 // Get transmit queue level in bytes
+// This function is thread safe, any thread can ask for the queue level
 static uint32_t XcpTlGetTransmitQueueLevel() {
-    uint64_t head = atomic_load(&gXcpTlQueue.head);
-    uint64_t tail = atomic_load(&gXcpTlQueue.tail);
+    uint64_t head = atomic_load_explicit(&gXcpTlQueue.head,memory_order_relaxed);
+    uint64_t tail = atomic_load_explicit(&gXcpTlQueue.tail,memory_order_relaxed);
     return (uint32_t)(head-tail);
 }
 
 // Wait (sleep) until transmit queue is empty 
+// This function is thread safe, any thread can wait for transmit queue empty
 void XcpTlWaitForTransmitQueueEmpty() {
     uint16_t timeout = 0;
     do {
@@ -261,7 +263,7 @@ void XcpTlWaitForTransmitQueueEmpty() {
 
 }
 
-
+// Check if the queu has enough packets to consider transmitting a message
 BOOL XcpTlTransmitQueueHasMsg() {
 
     uint32_t n = XcpTlGetTransmitQueueLevel();
@@ -276,12 +278,12 @@ BOOL XcpTlTransmitQueueHasMsg() {
     return FALSE;
 }
 
-// Check if there is a fully commited message segment in the transmit queue
+// Check if there is message segment in the transmit queue with at least one committed packet
 // Return the message length and a pointer to the message
 const uint8_t * XcpTlTransmitQueuePeekMsg( uint16_t* msg_len ) {
 
-    uint64_t head = atomic_load(&gXcpTlQueue.head);
-    uint64_t tail = atomic_load(&gXcpTlQueue.tail);
+    uint64_t head = atomic_load_explicit(&gXcpTlQueue.head,memory_order_relaxed);
+    uint64_t tail = atomic_load_explicit(&gXcpTlQueue.tail,memory_order_relaxed);
     if (head == tail) return NULL;  // Queue is empty
     assert(head-tail<=MPSC_QUEUE_SIZE); // Overrun not handled
     uint32_t level = (uint32_t)(head-tail);
@@ -344,7 +346,7 @@ void XcpTlTransmitQueueNextMsg() {
     
     DBG_PRINTF5("XcpTlTransmitQueueNext: msg_len = %u\n", gXcpTlQueue.tail_len );
     if (gXcpTlQueue.tail_len==0) return;
-    atomic_fetch_add(&gXcpTlQueue.tail,gXcpTlQueue.tail_len);
+    atomic_fetch_add_explicit(&gXcpTlQueue.tail,gXcpTlQueue.tail_len,memory_order_relaxed);
     gXcpTlQueue.tail_len = 0;
     gXcpTlQueue.flush = FALSE;
 }

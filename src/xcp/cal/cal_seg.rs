@@ -470,19 +470,15 @@ mod cal_tests {
 
     #![allow(dead_code)]
 
+    use std::sync::Arc;
+    use std::thread;
+    use std::time::{Duration, Instant};
+
     use super::*;
     use crate::xcp;
 
-    use xcp_type_description::prelude::*;
-
     use xcp::*;
-    use xcp_type_description_derive::XcpTypeDescription;
-
-    use serde::{Deserialize, Serialize};
-    use std::sync::Arc;
-    use std::thread;
-
-    use std::time::{Duration, Instant};
+    use xcp_type_description::prelude::*;
 
     //-----------------------------------------------------------------------------
     // Test Types
@@ -494,12 +490,14 @@ mod cal_tests {
     fn is_send_clone<T: Sized + Send + Clone>() {}
     fn is_send_sync<T: Sized + Send + Sync>() {}
 
-    #[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
+    #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+    #[derive(Debug, Clone, Copy, XcpTypeDescription)]
     struct CalPage0 {
         stop: u8,
     }
 
-    #[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
+    #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+    #[derive(Debug, Clone, Copy, XcpTypeDescription)]
     struct CalPageTest {
         test: u8,
     }
@@ -523,6 +521,7 @@ mod cal_tests {
     fn test_calibration_segment_basics() {
         let xcp = xcp_test::test_setup(log::LevelFilter::Info);
 
+        // Check markers
         is_sync::<Xcp>();
         is_sync::<XcpEvent>();
         //is_sync::<DaqEvent>();
@@ -586,6 +585,31 @@ mod cal_tests {
     }
 
     #[test]
+    fn test_calibration_segment_corner_cases() {
+        let xcp = xcp_test::test_setup(log::LevelFilter::Info);
+
+        // Zero size
+        // #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+        // #[derive(Debug, Clone, Copy, XcpTypeDescription)]
+        // struct CalPageTest1 {}
+        // const CAL_PAGE_TEST1: CalPageTest1 = CalPageTest1 {};
+        // let cal_page_test1 = xcp.create_calseg("CalPageTest1", &CAL_PAGE_TEST1, false);
+        // cal_page_test1.sync();
+        // drop(cal_page_test1);
+
+        // Maximum size
+        #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+        #[derive(Debug, Clone, Copy, XcpTypeDescription)]
+        struct CalPageTest2 {
+            a: [u8; 0x10000],
+        }
+        const CAL_PAGE_TEST2: CalPageTest2 = CalPageTest2 { a: [0; 0x10000] };
+        let cal_page_test2 = xcp.create_calseg("CalPageTest2", &CAL_PAGE_TEST2, false);
+        cal_page_test2.sync();
+        drop(cal_page_test2);
+    }
+
+    #[test]
     fn test_calibration_segment_performance() {
         let xcp = xcp_test::test_setup(log::LevelFilter::Info);
 
@@ -619,11 +643,13 @@ mod cal_tests {
     //-----------------------------------------------------------------------------
     // Test file read and write of a cal_seg
 
+    #[cfg(feature = "json")]
     #[test]
     fn test_calibration_segment_persistence() {
         xcp_test::test_setup(log::LevelFilter::Info);
 
-        #[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
+        #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+        #[derive(Debug, Clone, Copy, XcpTypeDescription)]
         struct CalPage {
             test_byte: u8,
             test_short: u16,
@@ -677,21 +703,24 @@ mod cal_tests {
     //-----------------------------------------------------------------------------
     // Test cal page switching
 
-    #[derive(Debug, Copy, Clone, Serialize, Deserialize, XcpTypeDescription)]
+    #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+    #[derive(Debug, Copy, Clone, XcpTypeDescription)]
     struct CalPage1 {
         a: u32,
         b: u32,
         c: u32,
     }
 
-    #[derive(Debug, Copy, Clone, Serialize, Deserialize, XcpTypeDescription)]
+    #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+    #[derive(Debug, Copy, Clone, XcpTypeDescription)]
     struct CalPage2 {
         a: u32,
         b: u32,
         c: u32,
     }
 
-    #[derive(Debug, Copy, Clone, Serialize, Deserialize, XcpTypeDescription)]
+    #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+    #[derive(Debug, Copy, Clone, XcpTypeDescription)]
     struct CalPage3 {
         a: u32,
         b: u32,
@@ -702,6 +731,7 @@ mod cal_tests {
     static FLASH_PAGE2: CalPage2 = CalPage2 { a: 2, b: 4, c: 6 };
     static FLASH_PAGE3: CalPage3 = CalPage3 { a: 2, b: 4, c: 6 };
 
+    #[cfg(feature = "json")]
     macro_rules! test_is_mut {
         ( $s:ident ) => {
             if $s.a != 1 || $s.b != 3 || $s.c != 5 {
@@ -711,6 +741,7 @@ mod cal_tests {
         };
     }
 
+    #[cfg(feature = "json")]
     macro_rules! test_is_default {
         ( $s:ident ) => {
             if $s.a != 2 || $s.b != 4 || $s.c != 6 {
@@ -720,6 +751,7 @@ mod cal_tests {
         };
     }
 
+    #[cfg(feature = "json")]
     #[test]
     fn test_cal_page_switch() {
         xcp_test::test_setup(log::LevelFilter::Info);
@@ -757,6 +789,7 @@ mod cal_tests {
     //-----------------------------------------------------------------------------
     // Test cal page freeze
     // @@@@ Bug: Test fails occasionally
+    #[cfg(feature = "json")]
     #[test]
     fn test_cal_page_freeze() {
         let xcp = xcp_test::test_setup(log::LevelFilter::Warn);
@@ -774,7 +807,7 @@ mod cal_tests {
 
         // Freeze calseg1 to new test1.json
         std::fs::remove_file("test1.json").ok();
-        xcp_test::test_freeze_cal(); // Save mut_page to file "test1.json"
+        cb_freeze_cal(); // Save mut_page to file "test1.json"
         calseg1.sync();
 
         // Create calseg2 from freeze file test1.json of calseg1
@@ -793,19 +826,22 @@ mod cal_tests {
     fn test_cal_page_trait() {
         let xcp = xcp_test::test_setup(log::LevelFilter::Info);
 
-        #[derive(Debug, Copy, Clone, Serialize, Deserialize, XcpTypeDescription)]
+        #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+        #[derive(Debug, Copy, Clone, XcpTypeDescription)]
         struct Page1 {
             a: u32,
         }
 
         const PAGE1: Page1 = Page1 { a: 1 };
-        #[derive(Debug, Copy, Clone, Serialize, Deserialize, XcpTypeDescription)]
+        #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+        #[derive(Debug, Copy, Clone, XcpTypeDescription)]
         struct Page2 {
             b: u32,
         }
 
         const PAGE2: Page2 = Page2 { b: 1 };
-        #[derive(Debug, Copy, Clone, Serialize, Deserialize, XcpTypeDescription)]
+        #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+        #[derive(Debug, Copy, Clone, XcpTypeDescription)]
         struct Page3 {
             c: u32,
         }

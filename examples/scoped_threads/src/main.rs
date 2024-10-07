@@ -4,13 +4,13 @@
 use log::{debug, error, info, trace, warn};
 use std::{fmt::Debug, thread, time::Duration};
 
-use serde::{Deserialize, Serialize};
 use xcp::*;
 use xcp_type_description::prelude::*;
 
 //-----------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Copy, XcpTypeDescription)]
 struct CalPage {
     #[type_description(comment = "Max counter value")]
     #[type_description(min = "0")]

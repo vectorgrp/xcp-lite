@@ -74,7 +74,8 @@ path = "examples/protobuf_demo/src/main.rs"
 xcp_server = []
 
 # Feature json enables dependency to serde and serde_json
-json = ["dep:serde","dep:serde_json"]
+# json = ["dep:serde","dep:serde_json"]
+json = []
 
 # Feature a2l_gen to enable automatic registry entries for calibration page structs
 auto_reg = ["dep:xcp_type_description_derive","dep:xcp_type_description"]
@@ -83,7 +84,8 @@ auto_reg = ["dep:xcp_type_description_derive","dep:xcp_type_description"]
 # Also needed to build the xcp_client demo application
 a2l_reader = ["dep:a2lfile"]
 
-default = ["json","auto_reg","xcp_server"]
+#default = ["json","auto_reg","xcp_server"]
+default = ["auto_reg","xcp_server"]
 
 
 [dependencies]
@@ -109,9 +111,10 @@ env_logger = "0.11.3"
 # build-info = "0.0.36"
 
 # A generic serialization/deserialization framework
-# Used to handle json parameter files
-serde = { version = "1.0", features = ["derive"], optional = true }
-serde_json = { version = "1.0", optional = true }
+# Used to handle json parameter files (optional)
+# Used in point_cloud_demo
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0" }
 
 # Binary serialization strategies for transforming structs into bytes
 # bincode = "1.3.3"

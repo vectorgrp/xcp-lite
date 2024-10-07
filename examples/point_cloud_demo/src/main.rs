@@ -9,8 +9,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use serde::{Deserialize, Serialize};
-
 //-----------------------------------------------------------------------------
 // Defaults
 
@@ -39,7 +37,8 @@ lazy_static::lazy_static! {
 //-----------------------------------------------------------------------------
 // Parameters
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Copy, XcpTypeDescription)]
 struct Params {
     #[type_description(unit = "s")]
     #[type_description(min = "0.001")]
@@ -83,14 +82,14 @@ const PARAMS: Params = Params {
 
 //---------------------------------------------------------------------------------------
 
-#[derive(Debug, Serialize, IdlGenerator)]
+#[derive(Debug, serde::Serialize, IdlGenerator)]
 struct Point {
     x: f32,
     y: f32,
     z: f32,
 }
 
-#[derive(Debug, Serialize, IdlGenerator)]
+#[derive(Debug, serde::Serialize, IdlGenerator)]
 struct PointCloud {
     points: Vec<Point>,
 }

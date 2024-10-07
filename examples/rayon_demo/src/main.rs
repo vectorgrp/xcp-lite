@@ -10,16 +10,15 @@ use num::Complex;
 use rayon::prelude::*;
 use std::{thread, time::Duration};
 
-use serde::{Deserialize, Serialize};
 use xcp::*;
-
 use xcp_type_description::prelude::*;
 
 // Arrays measured may not exeed 2^15
 const X_RES: usize = 1024 * 2;
 const Y_RES: usize = 768 * 2;
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, XcpTypeDescription)]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Copy, Clone, XcpTypeDescription)]
 struct Mandelbrot {
     x: f64,
     y: f64,

@@ -7,7 +7,6 @@
 use log::{debug, error, info, trace, warn};
 
 use core::f64::consts::PI;
-use serde::{Deserialize, Serialize};
 use std::error::Error;
 
 use xcp::*;
@@ -42,7 +41,8 @@ static CAL_PAGE0: once_cell::sync::OnceCell<CalPage0> = once_cell::sync::OnceCel
 // Creates a memory segment "CalPage1" with 2 pages, a default "FLASH" page and a mutable "RAM" page
 
 // Define a struct with calibration parameters
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, XcpTypeDescription)]
+#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Clone, Copy, XcpTypeDescription)]
 struct CalPage1 {
     #[type_description(comment = "Amplitude of the sine signal")]
     #[type_description(unit = "Volt")]
