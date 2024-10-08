@@ -9,8 +9,7 @@ use xcp_type_description::prelude::*;
 
 //-----------------------------------------------------------------------------
 
-#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
 struct CalPage {
     #[type_description(comment = "Max counter value")]
     #[type_description(min = "0")]
@@ -66,7 +65,8 @@ fn main() {
         .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
         .unwrap();
 
-    let calseg = xcp.create_calseg("calseg", &CAL_PAGE, true);
+    let calseg = xcp.create_calseg("calseg", &CAL_PAGE);
+    calseg.register_fields();
 
     thread::scope(|s| {
         for _ in 0..2 {

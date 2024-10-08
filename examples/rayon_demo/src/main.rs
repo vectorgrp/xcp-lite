@@ -17,8 +17,7 @@ use xcp_type_description::prelude::*;
 const X_RES: usize = 1024 * 2;
 const Y_RES: usize = 768 * 2;
 
-#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Copy, Clone, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, XcpTypeDescription)]
 struct Mandelbrot {
     x: f64,
     y: f64,
@@ -143,7 +142,8 @@ fn main() {
         .start_server(XcpTransportLayer::Udp, BIND_ADDR, 5555)
         .unwrap();
 
-    let mandelbrot = xcp.create_calseg("mandelbrot", &MANDELBROT, true);
+    let mandelbrot = xcp.create_calseg("mandelbrot", &MANDELBROT);
+    mandelbrot.register_fields();
 
     // The pixel array on heap
     let mut pixels = vec![0; X_RES * Y_RES];

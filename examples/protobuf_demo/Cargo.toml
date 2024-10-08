@@ -14,7 +14,7 @@ prost = "0.13.1"
 prost-types = "0.13.1"
 
 
-xcp = { path = "../../", features = ["auto_reg","json"] }
+xcp = { path = "../../", features = [] }
 xcp_type_description  = { path = "../../xcp_type_description/"}
 xcp_type_description_derive = { path = "../../xcp_type_description/xcp_type_description_derive/" }
 

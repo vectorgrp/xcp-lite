@@ -14,7 +14,7 @@ use parking_lot::Mutex;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use super::CalPageTrait;
+use super::RegisterFieldsTrait;
 use crate::reg;
 use crate::xcp;
 use xcp::Xcp;
@@ -109,24 +109,53 @@ macro_rules! calseg_field {
 // Calibration parameter page wrapper for T with modification counter, init and freeze requests
 
 #[derive(Debug, Copy, Clone)]
-struct CalPage<T: CalPageTrait> {
+struct CalPage<T: Sized + Send + Sync + Copy + Clone + 'static> {
     ctr: u16,
     init_request: bool,
     freeze_request: bool,
     page: T,
 }
 
+//-----------------------------------------------------------------------------
+// CalPageTrait
+
+// Calibration pages must be Sized + Send + Sync + Copy + Clone + 'static
+
+#[cfg(feature = "calseg_freeze")]
+pub trait CalPageTrait
+where
+    Self: Sized + Send + Sync + Copy + Clone + 'static + serde::Serialize + serde::de::DeserializeOwned,
+{
+}
+
+#[cfg(not(feature = "calseg_freeze"))]
+pub trait CalPageTrait
+where
+    Self: Sized + Send + Sync + Copy + Clone + 'static,
+{
+}
+
+// Implement CalPageTrait for all types that may be a calibration page
+#[cfg(feature = "calseg_freeze")]
+impl<T> CalPageTrait for T where T: Sized + Send + Sync + Copy + Clone + 'static + serde::Serialize + serde::de::DeserializeOwned {}
+
+#[cfg(not(feature = "calseg_freeze"))]
+impl<T> CalPageTrait for T where T: Sized + Send + Sync + Copy + Clone + 'static {}
+
 //----------------------------------------------------------------------------------------------
+// CalSeg
 
 /// Thread safe calibration parameter page wrapper with interiour mutabiity by XCP  
 /// Each instance stores 2 copies of its inner data, the calibration page  
 /// One for each clone of the readers, a shared copy for the writer (XCP) and
 /// a reference to the default values  
 /// Implements Deref to simplify usage
+///
+
 #[derive(Debug)]
 pub struct CalSeg<T>
 where
-    T: CalPageTrait,
+    T: Sized + Send + Sync + Copy + Clone + 'static,
 {
     index: usize,
     default_page: &'static T,
@@ -135,11 +164,60 @@ where
     _not_send_sync_marker: PhantomData<*mut ()>,
 }
 
+// Impl register_fields for types which implement RegisterFieldsTrait
+impl<T> CalSeg<T>
+where
+    T: RegisterFieldsTrait,
+{
+    /// Register all fields of a calibration segment in the registry
+    /// Requires the calibration page to implement XcpTypeDescription
+    pub fn register_fields(&self) -> &Self {
+        self.default_page.register_fields(self.get_name());
+        self
+    }
+}
+
+// Impl load and save for type which implement serde::Serialize and serde::de::DeserializeOwned
+impl<T> CalSeg<T>
+where
+    T: Sized + Send + Sync + Copy + Clone + 'static + serde::Serialize + serde::de::DeserializeOwned,
+{
+    /// Load a calibration segment from json file
+    /// Requires the calibration page type to implement serde::Serialize + serde::de::DeserializeOwned
+    pub fn load<P: AsRef<std::path::Path>>(&mut self, filename: P) -> Result<(), std::io::Error> {
+        let path = filename.as_ref();
+        info!("Load {} from file {} ", self.get_name(), path.display());
+        if let Ok(file) = std::fs::File::open(path) {
+            let reader = std::io::BufReader::new(file);
+            let page = serde_json::from_reader::<_, T>(reader)?;
+            self.xcp_page.lock().page = page;
+            self.xcp_page.lock().ctr += 1;
+            self.sync();
+            Ok(())
+        } else {
+            warn!("File not found: {}", path.display());
+            Err(std::io::Error::new(std::io::ErrorKind::NotFound, format!("File not found: {}", path.display())))
+        }
+    }
+
+    /// Write a calibrationsegment to json file
+    /// Requires the calibration page type to implement serde::Serialize + serde::de::DeserializeOwned
+    pub fn save<P: AsRef<std::path::Path>>(&self, filename: P) -> Result<(), std::io::Error> {
+        let path = filename.as_ref();
+        info!("Save {} to file {}", self.get_name(), path.display());
+        let file = std::fs::File::create(path)?;
+        let mut writer = std::io::BufWriter::new(file);
+        let s = serde_json::to_string(&self.xcp_page.lock().page).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("serde_json::to_string failed: {}", e)))?;
+        std::io::Write::write_all(&mut writer, s.as_ref())?;
+        Ok(())
+    }
+}
+
 impl<T> CalSeg<T>
 where
     T: CalPageTrait,
 {
-    /// Create a calibration segment for a calibration parameter struct T (called page)  
+    /// Create a calibration segment for a calibration parameter struct T (called calibration page type)  
     /// With a name and static const default values, which will be the "FLASH" page  
     /// The mutable "RAM" page is initialized from name.json, if load_json==true and if it exists, otherwise with default  
     /// CalSeg is Send and implements Clone, so clones can be savely send to other threads  
@@ -176,7 +254,6 @@ where
     }
 
     /// Manually add a field description
-    #[allow(clippy::too_many_arguments)]
     pub fn add_field(&self, field: CalPageField) -> &CalSeg<T> {
         trace!("add_field: {:?}", field);
         let datatype = field.datatype;
@@ -223,13 +300,21 @@ where
             let mut xcp_page = self.xcp_page.lock(); // .unwrap(); // std::sync::MutexGuard
 
             // Freeze - save xcp page to json file
-            #[cfg(feature = "json")]
+            // @@@@ don't panic, if the file can't be written
+            #[cfg(feature = "calseg_freeze")]
             if xcp_page.freeze_request {
                 xcp_page.freeze_request = false;
-                info!("freeze: {})", self.get_name(),);
-                // Reinitialize the calibration segment from default page
-                let path = format!("{}.json", self.get_name());
-                self.ecu_page.page.save_to_file(&path).unwrap();
+                info!("freeze: save {}.json)", self.get_name());
+
+                let mut path = std::path::PathBuf::from(self.get_name());
+                path.set_extension("json");
+
+                let file = std::fs::File::create(path).unwrap();
+                let mut writer = std::io::BufWriter::new(file);
+                let s = serde_json::to_string(&self.xcp_page.lock().page)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("serde_json::to_string failed: {}", e)))
+                    .unwrap();
+                std::io::Write::write_all(&mut writer, s.as_ref()).unwrap();
             }
 
             // Init - copy the default calibration page back to xcp page to reset it to default values
@@ -290,6 +375,7 @@ where
 
     // Set freeze requests
     fn set_freeze_request(&self);
+
     // Set init request
     fn set_init_request(&self);
 
@@ -311,7 +397,7 @@ where
 
 impl<T> CalSegTrait for CalSeg<T>
 where
-    T: CalPageTrait,
+    T: Sized + Send + Sync + Copy + Clone + 'static,
 {
     fn get_name(&self) -> &'static str {
         Xcp::get().get_calseg_name(self.index)
@@ -375,7 +461,7 @@ where
 
 impl<T> Deref for CalSeg<T>
 where
-    T: CalPageTrait,
+    T: Sized + Send + Sync + Copy + Clone + 'static,
 {
     type Target = T;
 
@@ -396,7 +482,7 @@ where
 // This is undefined behaviour, because the reference to XCP data page will escape from its mutex
 impl<T> std::ops::DerefMut for CalSeg<T>
 where
-    T: CalPageTrait,
+    T: Sized + Send + Sync + Copy + Clone + 'static,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         warn!("Unsafe deref mut to XCP page of {}, this is undefined behaviour !!", self.get_name());
@@ -412,7 +498,7 @@ where
 
 impl<T> Clone for CalSeg<T>
 where
-    T: CalPageTrait,
+    T: Sized + Send + Sync + Copy + Clone + 'static,
 {
     fn clone(&self) -> Self {
         CalSeg {
@@ -431,7 +517,7 @@ where
 
 // impl<T> Drop for CalSeg<T>
 // where
-//     T: CalPageTrait,
+//     T: Sized + Send + Sync + Copy + Clone + 'static,
 // {
 //     fn drop(&mut self) {
 //         let clone_count = self.get_clone_count();
@@ -458,7 +544,7 @@ where
 /// Send is reimplemented here
 /// Sync stays disabled, because this would allow to call calseg.sync() from multiple threads with references to the same CalSeg
 // @@@@ unsafe - Implementation of Send marker for CalSeg
-unsafe impl<T> Send for CalSeg<T> where T: CalPageTrait {}
+unsafe impl<T> Send for CalSeg<T> where T: Sized + Send + Sync + Copy + Clone + 'static {}
 
 //----------------------------------------------------------------------------------------------
 // Test
@@ -481,7 +567,7 @@ mod cal_tests {
     use xcp_type_description::prelude::*;
 
     //-----------------------------------------------------------------------------
-    // Test Types
+    // Test helpers
 
     fn is_copy<T: Sized + Copy>() {}
     fn is_send<T: Sized + Send>() {}
@@ -490,13 +576,25 @@ mod cal_tests {
     fn is_send_clone<T: Sized + Send + Clone>() {}
     fn is_send_sync<T: Sized + Send + Sync>() {}
 
-    #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-    #[derive(Debug, Clone, Copy, XcpTypeDescription)]
+    /// Write to json file
+    pub fn save<T, P: AsRef<std::path::Path>>(page: &T, filename: P) -> Result<(), std::io::Error>
+    where
+        T: serde::Serialize,
+    {
+        let path = filename.as_ref();
+        info!("Save to file {}", path.display());
+        let file = std::fs::File::create(path)?;
+        let mut writer = std::io::BufWriter::new(file);
+        let s = serde_json::to_string(page).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("serde_json::to_string failed: {}", e)))?;
+        std::io::Write::write_all(&mut writer, s.as_ref())?;
+        Ok(())
+    }
+
+    #[derive(Debug, Clone, Copy)]
     struct CalPage0 {
         stop: u8,
     }
 
-    #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
     #[derive(Debug, Clone, Copy, XcpTypeDescription)]
     struct CalPageTest {
         test: u8,
@@ -535,7 +633,8 @@ mod cal_tests {
 
         // Interiour mutability, page switch and unwanted compiler optimizations
         const CAL_PAGE_TEST: CalPageTest = CalPageTest { test: 0 };
-        let cal_page_test = xcp.create_calseg("CalPageTest", &CAL_PAGE_TEST, false);
+        let cal_page_test = xcp.create_calseg("CalPageTest", &CAL_PAGE_TEST);
+        cal_page_test.register_fields();
         let mut test = cal_page_test.test;
         assert_eq!(test, 0);
         let data: u8 = 1;
@@ -554,7 +653,7 @@ mod cal_tests {
 
         // Move to threads
         const CAL_PAGE0: CalPage0 = CalPage0 { stop: 0 };
-        let cal_page0 = xcp.create_calseg("calseg1", &CAL_PAGE0, false);
+        let cal_page0 = xcp.create_calseg("calseg1", &CAL_PAGE0);
         let index = cal_page0.get_index();
         assert_eq!(index, 1); // Segment index
         cal_page0.sync();
@@ -584,30 +683,27 @@ mod cal_tests {
         drop(cal_page0);
     }
 
-    #[test]
-    fn test_calibration_segment_corner_cases() {
-        let xcp = xcp_test::test_setup(log::LevelFilter::Info);
-
-        // Zero size
-        // #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-        // #[derive(Debug, Clone, Copy, XcpTypeDescription)]
-        // struct CalPageTest1 {}
-        // const CAL_PAGE_TEST1: CalPageTest1 = CalPageTest1 {};
-        // let cal_page_test1 = xcp.create_calseg("CalPageTest1", &CAL_PAGE_TEST1, false);
-        // cal_page_test1.sync();
-        // drop(cal_page_test1);
-
-        // Maximum size
-        #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-        #[derive(Debug, Clone, Copy, XcpTypeDescription)]
-        struct CalPageTest2 {
-            a: [u8; 0x10000],
-        }
-        const CAL_PAGE_TEST2: CalPageTest2 = CalPageTest2 { a: [0; 0x10000] };
-        let cal_page_test2 = xcp.create_calseg("CalPageTest2", &CAL_PAGE_TEST2, false);
-        cal_page_test2.sync();
-        drop(cal_page_test2);
-    }
+    // #[test]
+    // fn test_calibration_segment_corner_cases() {
+    //     let xcp = xcp_test::test_setup(log::LevelFilter::Info);
+    // Zero size
+    // #[derive(serde::Serialize, serde::Deserialize)]
+    // #[derive(Debug, Clone, Copy, XcpTypeDescription)]
+    // struct CalPageTest1 {}
+    // const CAL_PAGE_TEST1: CalPageTest1 = CalPageTest1 {};
+    // let cal_page_test1 = xcp.create_calseg("CalPageTest1", &CAL_PAGE_TEST1, false).register_fields();
+    // cal_page_test1.sync();
+    // drop(cal_page_test1);
+    // Maximum size
+    // #[derive(Debug, Clone, Copy, XcpTypeDescription)]
+    // struct CalPageTest2 {
+    //     a: [u8; 0x10000],
+    // }
+    // const CAL_PAGE_TEST2: CalPageTest2 = CalPageTest2 { a: [0; 0x10000] };
+    // let cal_page_test2 = xcp.create_calseg("CalPageTest2", &CAL_PAGE_TEST2).register_fields();
+    // cal_page_test2.sync();
+    // drop(cal_page_test2);
+    //}
 
     #[test]
     fn test_calibration_segment_performance() {
@@ -615,7 +711,7 @@ mod cal_tests {
 
         const CAL_PAGE: CalPage0 = CalPage0 { stop: 0 };
 
-        let mut cal_seg1 = xcp.create_calseg("calseg1", &CAL_PAGE, false);
+        let mut cal_seg1 = xcp.create_calseg("calseg1", &CAL_PAGE);
 
         // Create 10 tasks with 10 clones of cal_seg1
         let mut t = Vec::new();
@@ -643,13 +739,11 @@ mod cal_tests {
     //-----------------------------------------------------------------------------
     // Test file read and write of a cal_seg
 
-    #[cfg(feature = "json")]
     #[test]
     fn test_calibration_segment_persistence() {
         xcp_test::test_setup(log::LevelFilter::Info);
 
-        #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-        #[derive(Debug, Clone, Copy, XcpTypeDescription)]
+        #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
         struct CalPage {
             test_byte: u8,
             test_short: u16,
@@ -674,10 +768,12 @@ mod cal_tests {
 
         // Create a test_cal_page.json file with values from CAL_PAR_RAM
         let mut_page: Box<CalPage> = Box::new(CAL_PAR_RAM);
-        mut_page.save_to_file("test_cal_seg.json").unwrap();
+        save(&mut_page, "test_cal_seg.json").unwrap();
 
         // Create a cal_seg with a mut_page from file test_cal_seg.json aka CAL_PAR_RAM, and a default page from CAL_PAR_FLASH
-        let cal_seg = &xcp.create_calseg("test_cal_seg", &CAL_PAR_FLASH, true);
+        let mut cal_seg = xcp.create_calseg("test_cal_seg", &CAL_PAR_FLASH);
+        cal_seg.load("test_cal_seg.json").unwrap();
+
         let cal_seg1 = cal_seg.clone();
         let cal_seg2 = cal_seg.clone();
 
@@ -703,24 +799,21 @@ mod cal_tests {
     //-----------------------------------------------------------------------------
     // Test cal page switching
 
-    #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-    #[derive(Debug, Copy, Clone, XcpTypeDescription)]
+    #[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, XcpTypeDescription)]
     struct CalPage1 {
         a: u32,
         b: u32,
         c: u32,
     }
 
-    #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-    #[derive(Debug, Copy, Clone, XcpTypeDescription)]
+    #[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, XcpTypeDescription)]
     struct CalPage2 {
         a: u32,
         b: u32,
         c: u32,
     }
 
-    #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-    #[derive(Debug, Copy, Clone, XcpTypeDescription)]
+    #[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, XcpTypeDescription)]
     struct CalPage3 {
         a: u32,
         b: u32,
@@ -731,7 +824,6 @@ mod cal_tests {
     static FLASH_PAGE2: CalPage2 = CalPage2 { a: 2, b: 4, c: 6 };
     static FLASH_PAGE3: CalPage3 = CalPage3 { a: 2, b: 4, c: 6 };
 
-    #[cfg(feature = "json")]
     macro_rules! test_is_mut {
         ( $s:ident ) => {
             if $s.a != 1 || $s.b != 3 || $s.c != 5 {
@@ -741,7 +833,6 @@ mod cal_tests {
         };
     }
 
-    #[cfg(feature = "json")]
     macro_rules! test_is_default {
         ( $s:ident ) => {
             if $s.a != 2 || $s.b != 4 || $s.c != 6 {
@@ -751,15 +842,16 @@ mod cal_tests {
         };
     }
 
-    #[cfg(feature = "json")]
     #[test]
     fn test_cal_page_switch() {
         xcp_test::test_setup(log::LevelFilter::Info);
         let xcp = Xcp::get();
         let mut_page: CalPage2 = CalPage2 { a: 1, b: 3, c: 5 };
-        mut_page.save_to_file("test1.json").unwrap();
-        mut_page.save_to_file("test2.json").unwrap();
-        let cal_seg = xcp.create_calseg("test1", &FLASH_PAGE2, true); // active page is RAM from test1.json
+        save(&mut_page, "test1.json").unwrap();
+        save(&mut_page, "test2.json").unwrap();
+        let mut cal_seg = xcp.create_calseg("test1", &FLASH_PAGE2);
+        cal_seg.load("test1.json").unwrap();
+        cal_seg.sync();
         assert_eq!(xcp.get_ecu_cal_page(), XcpCalPage::Ram, "XCP should be on RAM page here, there is no independant page switching yet");
         test_is_mut!(cal_seg); // Default page must be mut_page
         xcp.set_ecu_cal_page(XcpCalPage::Flash); // Simulate a set cal page to default from XCP master
@@ -789,7 +881,8 @@ mod cal_tests {
     //-----------------------------------------------------------------------------
     // Test cal page freeze
     // @@@@ Bug: Test fails occasionally
-    #[cfg(feature = "json")]
+
+    #[cfg(feature = "calseg_freeze")]
     #[test]
     fn test_cal_page_freeze() {
         let xcp = xcp_test::test_setup(log::LevelFilter::Warn);
@@ -799,10 +892,12 @@ mod cal_tests {
         assert!(std::mem::size_of::<CalPage3>() == 12);
 
         let mut_page1: CalPage1 = CalPage1 { a: 1, b: 3, c: 5 };
-        mut_page1.save_to_file("test1.json").unwrap();
+        save(&mut_page1, "test1.json").unwrap();
 
         // Create calseg1 from def
-        let calseg1 = xcp.create_calseg("test1", &FLASH_PAGE1, true);
+        let mut calseg1 = xcp.create_calseg("test1", &FLASH_PAGE1);
+        calseg1.load("test1.json").unwrap();
+
         test_is_mut!(calseg1);
 
         // Freeze calseg1 to new test1.json
@@ -812,7 +907,9 @@ mod cal_tests {
 
         // Create calseg2 from freeze file test1.json of calseg1
         std::fs::copy("test1.json", "test2.json").unwrap();
-        let calseg2 = xcp.create_calseg("test2", &FLASH_PAGE2, true);
+        let mut calseg2 = xcp.create_calseg("test2", &FLASH_PAGE2);
+        calseg2.load("test2.json").unwrap();
+
         test_is_mut!(calseg2);
 
         std::fs::remove_file("test1.json").ok();
@@ -826,31 +923,28 @@ mod cal_tests {
     fn test_cal_page_trait() {
         let xcp = xcp_test::test_setup(log::LevelFilter::Info);
 
-        #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-        #[derive(Debug, Copy, Clone, XcpTypeDescription)]
+        #[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, XcpTypeDescription)]
         struct Page1 {
             a: u32,
         }
 
         const PAGE1: Page1 = Page1 { a: 1 };
-        #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-        #[derive(Debug, Copy, Clone, XcpTypeDescription)]
+        #[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, XcpTypeDescription)]
         struct Page2 {
             b: u32,
         }
 
         const PAGE2: Page2 = Page2 { b: 1 };
-        #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-        #[derive(Debug, Copy, Clone, XcpTypeDescription)]
+        #[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, XcpTypeDescription)]
         struct Page3 {
             c: u32,
         }
 
         const PAGE3: Page3 = Page3 { c: 1 };
 
-        let s1 = &xcp.create_calseg("test1", &PAGE1, true);
-        let s2 = &xcp.create_calseg("test2", &PAGE2, true);
-        let s3 = &xcp.create_calseg("test3", &PAGE3, true);
+        let s1 = &xcp.create_calseg("test1", &PAGE1);
+        let s2 = &xcp.create_calseg("test2", &PAGE2);
+        let s3 = &xcp.create_calseg("test3", &PAGE3);
 
         info!("s1: {}", s1.get_name());
         info!("s2: {}", s2.get_name());

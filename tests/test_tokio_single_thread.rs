@@ -2,7 +2,7 @@
 // Integration test for XCP in a single thread application
 // Uses the test XCP client in xcp_client
 
-// cargo test --features=json --features=auto_reg -- --test-threads=1 --nocapture  --test test_tokio_single_thread
+// cargo test --features=json --features=#[derive(serde::Serialize, serde::Deserialize)] -- --test-threads=1 --nocapture  --test test_tokio_single_thread
 
 use xcp::*;
 use xcp_type_description::prelude::*;
@@ -35,8 +35,7 @@ use tokio::time::Duration;
 //-----------------------------------------------------------------------------
 // Calibration Segment
 
-#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
 struct TestInts {
     test_bool: bool,
     test_u8: u8,
@@ -51,8 +50,7 @@ struct TestInts {
     test_f64: f64,
 }
 
-#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
 struct CalPage1 {
     run: bool,
     counter_max: u32,
@@ -165,7 +163,8 @@ async fn test_tokio_single_thread() {
     let _xcp_task = tokio::spawn(xcp_server_task::xcp_task(xcp, [127, 0, 0, 1], 5555));
 
     // Create a calibration segment
-    let cal_seg = xcp.create_calseg("cal_seg", &CAL_PAR1, false);
+    let cal_seg = xcp.create_calseg("cal_seg", &CAL_PAR1);
+    cal_seg.register_fields();
 
     // Create a test task
     let t1 = thread::spawn(move || {
@@ -182,4 +181,6 @@ async fn test_tokio_single_thread() {
     .await; // Start the test executor XCP client
 
     t1.join().ok();
+
+    std::fs::remove_file("test_tokio_single_thread.a2l").unwrap();
 }

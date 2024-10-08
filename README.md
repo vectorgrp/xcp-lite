@@ -50,7 +50,7 @@ Currently xcp-lite for Rust uses a C library build from XCPlite sources, which c
 
 The code should work on Linux, Windows and Mac, Intel and ARM.  
   
-The project creates a library crate xcp and a main application to showcase usage. There are more basic examples in the examples folder.  
+The project creates a library crate xcp and a main application to demonstrate all use case. A entry level example is hello_xcp in the example folder. There are other, more specific examples in the examples folder.  
 There is an integration test, where the crate a2lfile is used to verify the generated A2L file and a quick and dirty, tokio based XCP client with hardcoded DAQ decoding for blackbox testing.
 
 
@@ -115,7 +115,7 @@ The registration of objects has to be completed, before the A2L file is generate
 // Calibration parameter segment
 // Each calibration parameter struct defines a MEMORY_SEGMENT in A2L and CANape
 // The A2L serializer will create an A2L CHARACTERISTIC for each field. 
-#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Debug, Clone, Copy, XcpTypeDescription)]
 struct CalPage {
 
@@ -187,8 +187,7 @@ fn main() {
      let calseg = xcp.create_calseg(
         "calseg", // name of the calibration segment in A2L as MEMORY_SEGMENT and as .json file
         &CAL_PAGE, // default calibration values
-        true,      // load RAM page from file "cal_seg1".json
-        );
+        ).register_fields();
 
     // Use CalSeg::Clone() to share the calibration segments between threads
     // No locks, calseg.sync() must be called in each thread
@@ -229,8 +228,8 @@ XCP is a development tool, it is not integrated in production code or it is save
 ### Features
 
 Features are:
-- auto_reg provides a proc-macro to automatically register fields of a calibration segment
-- json enables persistecy features of calibration segments
+- xcp_server
+- a2l_reader
 
 ### Build, Run, Test
 
@@ -239,7 +238,7 @@ Build, Run, Test examples:
 ```
 
 Build:
-  cargo build --release --features=json --features=auto_reg
+  cargo build --release --features=json --features=#[derive(serde::Serialize, serde::Deserialize)]
   cargo b  --examples
 
 Run the main example:
@@ -253,14 +252,14 @@ Run a specific example:
 ```
 
 Tests may not run in parallel, as the XCP implementation is a singleton.
-Feature json and auto_reg must be enabled for testing. (Currently default)
+Feature json and #[derive(serde::Serialize, serde::Deserialize)] must be enabled for testing. (Currently default)
 Feature a2l_reader enabled automatic check of generated A2L file with crate a2lfile
 
 
 ```
 
-  cargo test --features=json --features=auto_reg --features=a2l_reader -- --test-threads=1 --nocapture
-  cargo test --features=json --features=auto_reg --features=a2l_reader -- --test-threads=1 --nocapture  --test test_tokio_multi_thread
+  cargo test --features=a2l_reader -- --test-threads=1 --nocapture
+  cargo test --features=a2l_reader -- --test-threads=1 --nocapture  --test test_tokio_multi_thread
  
 ```
 

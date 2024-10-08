@@ -8,6 +8,7 @@
 // Calibration segment
 
 pub mod cal_seg;
+use cal_seg::CalPageTrait;
 use cal_seg::CalSeg;
 use cal_seg::CalSegTrait;
 
@@ -19,112 +20,25 @@ use std::sync::{Arc, Mutex};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
+use crate::reg;
 use crate::xcp;
 use xcp::Xcp;
 
-#[cfg(feature = "auto_reg")]
-use crate::reg;
-
 //-----------------------------------------------------------------------------
-// CalPageTrait
+// Implement RegisterFields for all types that implement xcp_type_description::XcpTypeDescription
 
-/// Calibration parameter page structs which can be wrapped by CalSeg, must implement this trait
-/// Calibration pages must be Sized + Send + Sync + Copy + Clone + 'static
-/// Optional:
-/// The CalPageTrait is used to register all fields in the XCP registry
-/// The CalPageTrait is used to load and save the calibration page from/to a json file
-///
-#[cfg(not(feature = "auto_reg"))]
-#[cfg(not(feature = "json"))]
-pub trait CalPageTrait
-where
-    Self: Sized + Send + Sync + Copy + Clone + 'static,
-{
-}
-
-/// Calibration parameter page structs which can be wrapped by CalSeg, must implement this trait
-#[cfg(feature = "auto_reg")]
-#[cfg(feature = "json")]
-pub trait CalPageTrait
-where
-    Self: Sized + Send + Sync + Copy + Clone + 'static + xcp_type_description::XcpTypeDescription + serde::Serialize + serde::de::DeserializeOwned,
-{
-    /// Load the calibration page from a json file
-    fn load_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self, std::io::Error>;
-
-    /// Save the calibration page to a json file
-    fn save_to_file<P: AsRef<std::path::Path>>(&self, path: P) -> Result<(), std::io::Error>;
-
-    /// Register all fields in the XCP registry
-    fn register_fields(&self, calseg_name: &'static str);
-}
-
-#[cfg(feature = "auto_reg")]
-#[cfg(not(feature = "json"))]
-pub trait CalPageTrait
+pub trait RegisterFieldsTrait
 where
     Self: Sized + Send + Sync + Copy + Clone + 'static + xcp_type_description::XcpTypeDescription,
 {
-    fn register_fields(&self, calseg_name: &'static str);
+    fn register_fields(&self, calseg_name: &'static str) -> &Self;
 }
 
-//-----------------------------------------------------------------------------
-// Implement CalPageTrait for all types that may be a calibration page
-
-#[cfg(feature = "auto_reg")]
-#[cfg(feature = "json")]
-impl<T> CalPageTrait for T
-where
-    T: Sized + Send + Sync + Copy + Clone + 'static + xcp_type_description::XcpTypeDescription + serde::Serialize + serde::de::DeserializeOwned,
-{
-    fn load_from_file<P: AsRef<std::path::Path>>(filename: P) -> Result<Self, std::io::Error> {
-        let path = filename.as_ref();
-        trace!("Load parameter file {}", path.display());
-        let file = std::fs::File::open(path)?;
-        let reader = std::io::BufReader::new(file);
-        let page = serde_json::from_reader::<_, Self>(reader)?;
-        Ok(page)
-    }
-
-    fn save_to_file<P: AsRef<std::path::Path>>(&self, filename: P) -> Result<(), std::io::Error> {
-        let path = filename.as_ref();
-        info!("Save parameter file {}", path.display());
-        let file = std::fs::File::create(path)?;
-        let mut writer = std::io::BufWriter::new(file);
-        let s = serde_json::to_string(self).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("serde_json::to_string failed: {}", e)))?;
-        std::io::Write::write_all(&mut writer, s.as_ref())?;
-        Ok(())
-    }
-
-    fn register_fields(&self, calseg_name: &'static str) {
-        trace!("Register all fields in {}", calseg_name);
-
-        for field in self.type_description().unwrap().iter() {
-            let c = reg::RegistryCharacteristic::new(
-                Some(calseg_name),
-                field.name().to_string(),
-                reg::RegistryDataType::from_rust_type(field.datatype()),
-                field.comment(),
-                field.min(),
-                field.max(),
-                field.unit(),
-                if field.x_dim() == 0 { 1 } else { field.x_dim() },
-                if field.y_dim() == 0 { 1 } else { field.y_dim() },
-                field.offset() as u64,
-            );
-
-            Xcp::get().get_registry().lock().unwrap().add_characteristic(c);
-        }
-    }
-}
-
-#[cfg(feature = "auto_reg")]
-#[cfg(not(feature = "json"))]
-impl<T> CalPageTrait for T
+impl<T> RegisterFieldsTrait for T
 where
     T: Sized + Send + Sync + Copy + Clone + 'static + xcp_type_description::XcpTypeDescription,
 {
-    fn register_fields(&self, calseg_name: &'static str) {
+    fn register_fields(&self, calseg_name: &'static str) -> &Self {
         trace!("Register all fields in {}", calseg_name);
 
         for field in self.type_description().unwrap().iter() {
@@ -143,12 +57,9 @@ where
 
             Xcp::get().get_registry().lock().unwrap().add_characteristic(c);
         }
+        self
     }
 }
-
-#[cfg(not(feature = "auto_reg"))]
-#[cfg(not(feature = "json"))]
-impl<T> CalPageTrait for T where T: Sized + Send + Sync + Copy + Clone + 'static {}
 
 //-----------------------------------------------------------------------------
 // CalSegDescriptor
@@ -190,47 +101,24 @@ impl CalSegList {
     /// Create a calibration segment  
     /// # Panics  
     /// Panics if the calibration segment name already exists  
-    pub fn create_calseg<T>(&mut self, name: &'static str, default_page: &'static T, auto_reg: bool, load_json: bool) -> CalSeg<T>
+    /// Panics if the calibration page size exceeds 64k
+    pub fn create_calseg<T>(&mut self, name: &'static str, default_page: &'static T) -> CalSeg<T>
     where
         T: CalPageTrait,
     {
+        // Check size of calibration page
+        if std::mem::size_of::<T>() > 0x10000 || std::mem::size_of::<T>() == 0 {
+            panic!("CalPage size is 0 or exceeds 64k");
+        }
+
         // Check for duplicate name
         self.0.iter().for_each(|s| {
             assert!(s.get_name() != name, "CalSeg {} already exists", name);
         });
 
-        // Register all fields
-        #[cfg(feature = "auto_reg")]
-        if auto_reg {
-            default_page.register_fields(name);
-        }
-
-        // Load the active calibration page from file or set to default
-        #[cfg(feature = "json")]
-        let page = if load_json {
-            let filename = format!("{}.json", name);
-            if std::path::Path::new(&filename).exists() {
-                info!("Load parameter file {}.json as RAM page", name);
-                CalPageTrait::load_from_file(&filename).unwrap_or(*default_page)
-            } else {
-                info!("File {}.json does not exist, using default page", name);
-                *default_page
-            }
-        } else {
-            *default_page
-        };
-
-        #[cfg(not(feature = "json"))]
-        let page = {
-            if load_json {
-                warn!("Feature json not enabled, load_json=true ignored, using default page for {}", name);
-            }
-            *default_page
-        };
-
         // Create the calibration segment
         let index = self.0.len();
-        let calseg = CalSeg::new(index, page, default_page);
+        let calseg = CalSeg::new(index, *default_page, default_page);
 
         // Create the calibration segment descriptor
         let c = CalSeg::clone(&calseg);

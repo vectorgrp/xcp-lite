@@ -2,7 +2,7 @@
 // Integration test for XCP in a multi threaded application
 // Uses the test XCP client in xcp_client
 
-// cargo test --features=json --features=auto_reg --features=a2l_reader -- --test-threads=1 --nocapture  --test test_multi_thread
+// cargo test --features=json --features=#[derive(serde::Serialize, serde::Deserialize)] --features=a2l_reader -- --test-threads=1 --nocapture  --test test_multi_thread
 
 #![allow(unused_assignments)]
 
@@ -24,8 +24,7 @@ use tokio::time::Duration;
 //-----------------------------------------------------------------------------
 // Calibration Segment
 
-#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
 struct TestInts {
     test_bool: bool,
     test_u8: u8,
@@ -40,8 +39,7 @@ struct TestInts {
     test_f64: f64,
 }
 
-#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
 struct CalPage1 {
     run: bool,
     counter_max: u32,
@@ -307,7 +305,8 @@ async fn test_multi_thread() {
     };
 
     // Create a calibration segment
-    let cal_seg = xcp.create_calseg("cal_seg", &CAL_PAR1, true);
+    let cal_seg = xcp.create_calseg("cal_seg", &CAL_PAR1);
+    cal_seg.register_fields();
 
     // Create MULTI_THREAD_TASK_COUNT test tasks
     let mut v = Vec::new();
@@ -329,4 +328,6 @@ async fn test_multi_thread() {
 
     info!("Stop XCP server");
     xcp.stop_server();
+
+    std::fs::remove_file("test_multi_thread.a2l").unwrap();
 }

@@ -17,7 +17,6 @@ mod registry_tests {
     use super::*;
     use std::net::Ipv4Addr;
 
-    #[cfg(feature = "auto_reg")]
     use xcp_type_description::prelude::*;
 
     //-----------------------------------------------------------------------------
@@ -125,14 +124,14 @@ mod registry_tests {
 
         let err = reg.write_a2l();
         assert!(err.is_err());
+
+        std::fs::remove_file("test_registry_2.a2l").unwrap();
     }
 
     //-----------------------------------------------------------------------------
     // Test A2L writer
 
-    #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-    #[cfg_attr(feature = "auto_reg", derive(XcpTypeDescription))]
-    #[derive(Debug, Clone, Copy)]
+    #[derive(serde::Serialize, serde::Deserialize, XcpTypeDescription, Debug, Clone, Copy)]
     struct CalPage {
         #[type_description(comment = "comment")]
         #[type_description(unit = "unit")]
@@ -166,7 +165,7 @@ mod registry_tests {
             reg.set_tl_params("UDP", Ipv4Addr::new(127, 0, 0, 1), 5555);
         }
 
-        let _calseg1 = xcp.create_calseg("test_cal_seg_1", &CAL_PAGE, true);
+        let _calseg1 = xcp.create_calseg("test_cal_seg_1", &CAL_PAGE).register_fields();
 
         let event1_1 = xcp.create_event_ext("event1", true);
         let event1_2 = xcp.create_event_ext("event1", true);
@@ -233,5 +232,7 @@ mod registry_tests {
                 log::info!("A2L file check ok");
             }
         }
+
+        std::fs::remove_file("test_registry_1.a2l").unwrap();
     }
 }

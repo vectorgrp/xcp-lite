@@ -47,7 +47,7 @@
 //! let xcp = XcpBuilder::new("xcp_lite").start_server(XcpTransportLayer::Tcp, [127,0,0,1], 5555).unwrap();
 //!
 //! // Create a calibration segment and auto register its fields as calibration variables
-//! let cal_page = xcp.create_calseg("CalPage", &CAL_PAGE, false);
+//! let cal_page = xcp.create_calseg("CalPage", &CAL_PAGE);
 //!
 //! // Create an event
 //! let event = daq_create_event!("task1");

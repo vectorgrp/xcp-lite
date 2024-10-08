@@ -37,7 +37,7 @@ lazy_static::lazy_static! {
 //-----------------------------------------------------------------------------
 // Parameters
 
-#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Debug, Clone, Copy, XcpTypeDescription)]
 struct Params {
     #[type_description(unit = "s")]
@@ -116,7 +116,7 @@ fn main() {
         .start_server(XcpTransportLayer::Udp, BIND_ADDR, 5555)
         .unwrap();
 
-    let params = xcp.create_calseg("Params", &PARAMS, true);
+    let params = xcp.create_calseg("Params", &PARAMS);
 
     let mut point_cloud = create_point_cloud();
     let mut event_point_cloud = daq_create_event!("point_cloud", POINT_COUNT * 12 + 8);

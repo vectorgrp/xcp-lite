@@ -41,8 +41,7 @@ static CAL_PAGE0: once_cell::sync::OnceCell<CalPage0> = once_cell::sync::OnceCel
 // Creates a memory segment "CalPage1" with 2 pages, a default "FLASH" page and a mutable "RAM" page
 
 // Define a struct with calibration parameters
-#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
 struct CalPage1 {
     #[type_description(comment = "Amplitude of the sine signal")]
     #[type_description(unit = "Volt")]
@@ -132,8 +131,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let calseg = xcp.create_calseg(
         "CalPage1", // name of the calibration segment and the .json file
         &CAL_PAGE1, // default calibration values
-        true,       // load RAM page from file "cal_seg".json
     );
+    calseg.register_fields();
 
     // Mainloop
     trace!("Start");

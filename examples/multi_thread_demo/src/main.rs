@@ -20,7 +20,7 @@ lazy_static::lazy_static! {
 //-----------------------------------------------------------------------------
 // Demo calibration parameters
 
-#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Debug, Clone, Copy, XcpTypeDescription)]
 struct CalPage1 {
     #[type_description(comment = "Amplitude of the sine signal")]
@@ -110,7 +110,6 @@ fn main() {
     let calseg = xcp.create_calseg(
         "calseg",  // name of the calibration segment and the .json file
         &CAL_PAGE, // default calibration values
-        true,      // load RAM page from file "cal_seg1".json
     );
 
     // Start multiple instances of the demo task

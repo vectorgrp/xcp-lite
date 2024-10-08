@@ -63,22 +63,23 @@ struct Args {
 // XCP
 
 use xcp::*;
-#[cfg(feature = "auto_reg")]
 use xcp_type_description::prelude::*;
 
 //-----------------------------------------------------------------------------
-// Static measurement and calibration variables
+// Static measurement variables
+
+// This is the classical address oriented calibration approach for indivual measurement signals
 
 struct StaticVars {
     test_u32: u32,
     test_f64: f32,
 }
 
-// Statically allocate memory for a `u32`.
 static STATIC_VARS: static_cell::StaticCell<StaticVars> = static_cell::StaticCell::new();
 
 //-----------------------------------------------------------------------------
-// Static calibration data example
+// Static calibration variables
+
 // This is the classical address oriented calibration approach for indivual calibration parameters or structs
 // The calibration parameters are defined as static instances with constant memory address
 // Each variable or struct field has to be registered manually in the A2L registry
@@ -88,12 +89,12 @@ static STATIC_VARS: static_cell::StaticCell<StaticVars> = static_cell::StaticCel
 // The inner UnsafeCell allows interiour mutability, but this could theoretically cause undefined behaviour or inconsistencies depending on the nature of the platform
 // Many C,C++ implementations of XCP do not care about this, but this approach is not recommended for rust projects
 
-struct CalPage00 {
+struct StaticCalPage {
     task1_cycle_time_us: u32, // Cycle time of task1 in microseconds
     task2_cycle_time_us: u32, // Cycle time of task2 in microseconds
 }
 
-static CAL_PAGE0: once_cell::sync::OnceCell<CalPage00> = once_cell::sync::OnceCell::with_value(CalPage00 {
+static STATIC_CAL_PAGE: once_cell::sync::OnceCell<StaticCalPage> = once_cell::sync::OnceCell::with_value(StaticCalPage {
     task1_cycle_time_us: TASK1_CYCLE_TIME_US,
     task2_cycle_time_us: TASK2_CYCLE_TIME_US,
 });
@@ -102,18 +103,17 @@ static CAL_PAGE0: once_cell::sync::OnceCell<CalPage00> = once_cell::sync::OnceCe
 // Dynamic calibration data example
 // This approach uses the segment oriented calibration approach with a calibrastion segment wrapper cell type
 // It provides defined behaviour, thread safety and data consistency
-// Fields may be automatically added to the A2L registry by the auto_reg feature and the XcpTypeDescription derive macro
+// Fields may be automatically added to the A2L registry by the #[derive(serde::Serialize, serde::Deserialize)] feature and the XcpTypeDescription derive macro
 // Each page defines a MEMORY_SEGMENT in A2L and CANape
-// A2l addresses are relative to the segment start address, the segment numer is coded in the address
+// A2l addresses are relative to the segment start address, the segment number is coded in the address
 
-// Implement Serialize, serde::Deserialize for json file persistency
-// Implement XcpTypeDescription for auto registration of fields in the A2L registry
+// Implement Serialize, serde::Deserialize (feature=json) for json file persistency
+// Implement XcpTypeDescription (feature=#[derive(serde::Serialize, serde::Deserialize)]) for auto registration of fields in the A2L registry
 
 //---------------------------------------------------
 // CalPage
-#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "auto_reg", derive(XcpTypeDescription))]
-#[derive(Debug, Clone, Copy)]
+//#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(XcpTypeDescription, serde::Serialize, serde::Deserialize, Debug, Clone, Copy)]
 struct CalPage {
     run: bool,          // Stop all tasks
     run1: bool,         // Stop demo task1
@@ -130,9 +130,7 @@ const CAL_PAGE: CalPage = CalPage {
 
 //---------------------------------------------------
 // CalPage1
-#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "auto_reg", derive(XcpTypeDescription))]
-#[derive(Debug, Clone, Copy)]
+#[derive(serde::Serialize, serde::Deserialize, XcpTypeDescription, Debug, Clone, Copy)]
 struct TestInts {
     test_bool: bool,
     test_u8: u8,
@@ -147,9 +145,7 @@ struct TestInts {
     test_f64: f64,
 }
 
-#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "auto_reg", derive(XcpTypeDescription))]
-#[derive(Debug, Clone, Copy)]
+#[derive(serde::Serialize, serde::Deserialize, XcpTypeDescription, Debug, Clone, Copy)]
 struct CalPage1 {
     counter_max: u32,
 
@@ -177,10 +173,7 @@ const CAL_PAGE1: CalPage1 = CalPage1 {
 
 //---------------------------------------------------
 // CalPage2
-#[cfg(feature = "auto_reg")]
-#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "auto_reg", derive(XcpTypeDescription))]
-#[derive(Debug, Clone, Copy)]
+#[derive(serde::Serialize, serde::Deserialize, XcpTypeDescription, Debug, Clone, Copy)]
 struct CalPage2 {
     #[type_description(comment = "Amplitude")]
     #[type_description(unit = "Volt")]
@@ -199,15 +192,6 @@ struct CalPage2 {
 
     #[type_description(comment = "Demo map", unit = "ms", min = "-100", max = "100")]
     map: [[u8; 9]; 8], // This will be a MAP type (2 dimensions)
-}
-
-#[cfg(not(feature = "auto_reg"))]
-#[derive(Debug, Clone, Copy)]
-struct CalPage2 {
-    ampl: f64,         // Amplitude of the demo sine signals
-    period: f64,       // Period of the demo sine signals
-    array: [f64; 16],  // Demo curve
-    map: [[u8; 9]; 8], // Demo map
 }
 
 const CAL_PAGE2: CalPage2 = CalPage2 {
@@ -242,7 +226,7 @@ lazy_static::lazy_static! {
 // This task is instantiated multiple times
 fn task2(task_id: usize, calseg: CalSeg<CalPage>, calseg2: CalSeg<CalPage2>) {
     // Static calibration parameters
-    let calpage0 = CAL_PAGE0.get().unwrap();
+    let static_cal_page = STATIC_CAL_PAGE.get().unwrap();
 
     // Create an event instance for each thread, with 8 byte capture buffer
     let mut instance_event = daq_create_event_tli!("task2_inst", 8);
@@ -257,7 +241,7 @@ fn task2(task_id: usize, calseg: CalSeg<CalPage>, calseg2: CalSeg<CalPage2>) {
         }
 
         // Sleep for a calibratable amount of microseconds
-        thread::sleep(Duration::from_micros(calpage0.task2_cycle_time_us as u64));
+        thread::sleep(Duration::from_micros(static_cal_page.task2_cycle_time_us as u64));
 
         // Calculate demo measurement variable depending on calibration parameters (sine signal with ampl and period)
         let time = START_TIME.elapsed().as_micros() as f64 * 0.000001; // s
@@ -295,7 +279,7 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
     }
 
     // Static calibration parameters
-    let calpage0 = CAL_PAGE0.get().unwrap();
+    let static_cal_page = STATIC_CAL_PAGE.get().unwrap();
 
     // Create an event with capture capacity of 1024 bytes for point_cloud serialization
     let event = daq_create_event!("task1");
@@ -315,7 +299,7 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
         }
 
         // Sleep for a calibratable amount of microseconds
-        thread::sleep(Duration::from_micros(calpage0.task1_cycle_time_us as u64));
+        thread::sleep(Duration::from_micros(static_cal_page.task1_cycle_time_us as u64));
 
         // Basic types and array variables on stack
         counter = counter.wrapping_add(1);
@@ -345,13 +329,14 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
 fn main() {
     println!("XCP for Rust - CANape Demo (project ./CANape)");
 
+    // Args
     let args = Args::parse();
     let log_level = XcpLogLevel::from(args.log_level);
 
     // Logging
     env_logger::Builder::new().filter_level(log_level.to_log_level_filter()).init();
 
-    // Initialize XCP driver singleton, the transport layer server and enable the A2L writer
+    // Initialize XCP and start the XCP on ETH server
     let xcp = XcpBuilder::new("xcp_lite")
         .set_log_level(log_level)
         // .set_epk(build_info::format!("{}", $.timestamp)); // Create new EPK from build info
@@ -362,32 +347,44 @@ fn main() {
         })
         .unwrap();
 
-    // Register static calibration variables (from a const struct)
-    let calpage00 = CAL_PAGE0.get().unwrap();
-    cal_register_static!(calpage00.task1_cycle_time_us, "task1 cycle time", "us");
-    cal_register_static!(calpage00.task2_cycle_time_us, "task2 cycle time", "us");
+    // Option1: Create and register static calibration variables (from a OnceCell<StaticCalPage>)
+    let static_cal_page = STATIC_CAL_PAGE.get().unwrap();
+    cal_register_static!(static_cal_page.task1_cycle_time_us, "task1 cycle time", "us");
+    cal_register_static!(static_cal_page.task2_cycle_time_us, "task2 cycle time", "us");
 
-    // Create calibration parameter sets
+    // Create and register calibration parameter segments (with memory segments in A2L)
     // Calibration segments have "static" lifetime, the Xcp singleton holds a smart pointer clone to each
     // When a calibration segment is dropped by the application and sync is no longer called, the XCP tool will get a timeout when attempting to access it
     // Calibration segments have 2 pages, a constant default "FLASH" page and a mutable "RAM" page
-    // FLASH or RAM can be switched during runtime (XCP set_cal_page), saved to json (XCP freeze), reinitialized from default FLASH page (XCP copy_cal_page)
-    // The initial RAM page can be loaded from a json file (load_json=true) or set to the default FLASH page (load_json=false)
+    // FLASH or RAM can be switched during runtime (XCP set_cal_page), saved to json (feature freeze), reinitialized from default FLASH page (XCP copy_cal_page)
 
-    // Create a calibration segment wrapper for CAL_PAGE, add fields manually to registry
-    let calseg = xcp.add_calseg(
+    // Option2: Create a calibration segment wrapper for CAL_PAGE, add fields manually to registry
+    let mut calseg = xcp.add_calseg(
         "CalPage", // name of the calibration segment and the .json file
-        &CAL_PAGE, // default calibration values with static lifetime, trait bound from CalPageTrait must be possible
+        &CAL_PAGE, // default calibration values with static lifetime
     );
     calseg
         .add_field(calseg_field!(CAL_PAGE.run, 0, 1, "bool"))
         .add_field(calseg_field!(CAL_PAGE.run1, 0, 1, "bool"))
         .add_field(calseg_field!(CAL_PAGE.run2, 0, 1, "bool"))
         .add_field(calseg_field!(CAL_PAGE.cycle_time_ms, "ms", "main task cycle time"));
+    if calseg.load("xcp-lite_calseg.json").is_err() {
+        calseg.save("xcp-lite_calseg.json").unwrap();
+    }
 
-    // Create calibration segments for CAL_PAGE1 and CAL_PAGE2, add fields with macro derive(XcpTypeDescription))
-    let calseg1 = xcp.create_calseg("CalPage1", &CAL_PAGE1, true);
-    let calseg2 = xcp.create_calseg("CalPage2", &CAL_PAGE2, true);
+    // Option3: Create a calibration segment wrapper add fields automatically with derive macro XcpTypeDescription
+    let mut calseg1 = xcp.create_calseg("CalPage1", &CAL_PAGE1);
+    calseg1.register_fields();
+    if calseg1.load("xcp-lite_calseg1.json").is_err() {
+        calseg1.save("xcp-lite_calseg1.json").unwrap();
+    }
+    let mut calseg2 = xcp.create_calseg("CalPage2", &CAL_PAGE2);
+    calseg2.register_fields();
+    if calseg2.load("xcp-lite_calseg2.json").is_err() {
+        calseg2.save("xcp-lite_calseg2.json").unwrap();
+    }
+
+    // Create multiple tasks which have local or thread local measurement signals
 
     // Task2 - 9 instances
     // To demonstrate the difference between single instance and multi instance events and measurement values
@@ -407,7 +404,7 @@ fn main() {
         task1(c, calseg1);
     });
 
-    // Variables on heap and stack
+    // Create measurment variables on heap and stack
     let mut mainloop_counter1: u64 = 0;
     let mut mainloop_counter2 = Box::new(0u64);
     let mut mainloop_map = Box::new([[0u8; 16]; 16]);
@@ -415,7 +412,7 @@ fn main() {
     let mut mainloop_event = daq_create_event!("mainloop", 64); // Capture buffer 64 bytes
     daq_register!(mainloop_counter1, mainloop_event);
 
-    // Mutable static variables (borrowed from a StaticCell)
+    // Mutable static variables (borrowed from a StaticCell<StaticVars>)
     let static_vars: &'static mut StaticVars = STATIC_VARS.init(StaticVars { test_u32: 0, test_f64: 0.0 });
     static_vars.test_u32 = 1;
     assert_eq!(static_vars.test_u32, 1);
@@ -429,7 +426,6 @@ fn main() {
     let mut current_session_status = xcp.get_session_status();
     let mut idle_time = 0.0;
     while RUN.load(Ordering::Relaxed) {
-        // @@@@ Dev: Terminate mainloop for shutdown if calibration parameter run is false, for test automation
         if !calseg.run {
             break;
         }
@@ -500,9 +496,11 @@ fn main() {
     }
 
     info!("Main task finished");
+
+    // Stop the other tasks
     RUN.store(false, Ordering::Relaxed);
 
-    // Wait for the threads to finish
+    // Wait for the tasks to finish
     t1.join().ok().unwrap();
     t.into_iter().for_each(|t| t.join().ok().unwrap());
     info!("All tasks finished");

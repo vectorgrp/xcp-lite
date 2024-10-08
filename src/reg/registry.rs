@@ -823,8 +823,7 @@ mod registry_tests {
     fn test_attribute_macros() {
         let xcp = xcp_test::test_setup(log::LevelFilter::Info);
 
-        #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-        #[derive(Debug, Copy, Clone, XcpTypeDescription)]
+        #[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, XcpTypeDescription)]
         struct CalPage {
             #[type_description(comment = "Comment")]
             #[type_description(unit = "Unit")]
@@ -851,7 +850,8 @@ mod registry_tests {
             ],
         };
 
-        let calseg = xcp.create_calseg("calseg", &CAL_PAGE, false);
+        let calseg = xcp.create_calseg("calseg", &CAL_PAGE);
+        calseg.register_fields();
         let c: RegistryCharacteristic = Xcp::get().get_registry().lock().unwrap().find_characteristic("CalPage.a").unwrap().clone();
 
         assert_eq!(calseg.get_name(), "calseg");

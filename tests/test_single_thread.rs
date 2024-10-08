@@ -2,7 +2,7 @@
 // Integration test for XCP in a single thread application
 // Uses the test XCP client in module xcp_client
 
-// cargo test --features=json --features=auto_reg --features=a2l_reader -- --test-threads=1 --nocapture  --test test_single_thread
+// cargo test --features=json --features=#[derive(serde::Serialize, serde::Deserialize)] --features=a2l_reader -- --test-threads=1 --nocapture  --test test_single_thread
 use xcp::*;
 use xcp_type_description::prelude::*;
 
@@ -19,8 +19,7 @@ use tokio::time::Duration;
 //-----------------------------------------------------------------------------
 // Calibration Segment
 
-#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
 struct TestInts {
     test_bool: bool,
     test_u8: u8,
@@ -35,8 +34,7 @@ struct TestInts {
     test_f64: f64,
 }
 
-#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
 struct CalPage1 {
     run: bool,
     counter_max: u32,
@@ -147,7 +145,8 @@ async fn test_single_thread() {
     let xcp = Xcp::get();
 
     // Create a calibration segment
-    let cal_seg = xcp.create_calseg("cal_seg", &CAL_PAR1, false);
+    let cal_seg = xcp.create_calseg("cal_seg", &CAL_PAR1);
+    cal_seg.register_fields();
 
     // Test calibration and measurement in a single thread
     {
@@ -207,5 +206,7 @@ async fn test_single_thread() {
         xcp_test_executor(xcp, xcp_test_executor::TestModeCal::None, xcp_test_executor::TestModeDaq::None, "test_single_thread.a2l", false).await; // Start the test executor XCP client
 
         xcp.stop_server();
+
+        std::fs::remove_file("test_single_thread.a2l").unwrap();
     }
 }

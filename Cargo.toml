@@ -73,19 +73,14 @@ path = "examples/protobuf_demo/src/main.rs"
 # Feature xcp_server enables the build in XCP server 
 xcp_server = []
 
-# Feature json enables dependency to serde and serde_json
-# json = ["dep:serde","dep:serde_json"]
-json = []
-
-# Feature a2l_gen to enable automatic registry entries for calibration page structs
-auto_reg = ["dep:xcp_type_description_derive","dep:xcp_type_description"]
+# Feature calseg_freeze enables dependency to serde and serde_json for segment freeze request by XCP server
+calseg_freeze = []
 
 # Feature a2l_reader to enable automatic check of the generated A2L file
-# Also needed to build the xcp_client demo application
+# Also needed to build the xcp_client as demo application
 a2l_reader = ["dep:a2lfile"]
 
-#default = ["json","auto_reg","xcp_server"]
-default = ["auto_reg","xcp_server"]
+default = ["xcp_server"]
 
 
 [dependencies]
@@ -132,8 +127,8 @@ static_cell = "2.1.0"
 parking_lot = "0.12.3"
 
 # proc-macro A2L serializer for structs
-xcp_type_description  = { path = "./xcp_type_description/", optional = true}
-xcp_type_description_derive = { path = "./xcp_type_description/xcp_type_description_derive/", optional = true }
+xcp_type_description  = { path = "./xcp_type_description/"}
+xcp_type_description_derive = { path = "./xcp_type_description/xcp_type_description_derive/" }
 
 # proc-macro IDL generator
 xcp_idl_generator  = { path = "./xcp_idl_generator/"}

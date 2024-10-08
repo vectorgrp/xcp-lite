@@ -30,8 +30,7 @@ pub mod daq;
 
 // Submodule cal
 pub mod cal;
-use cal::cal_seg::CalSeg;
-use cal::CalPageTrait;
+use cal::cal_seg::{CalPageTrait, CalSeg};
 use cal::CalSegList;
 
 // XCPlite FFI bindings
@@ -647,26 +646,24 @@ impl Xcp {
     /// # Panics  
     /// Panics if the calibration segment name already exists  
     /// Panics if the calibration page size exceeds 64k
-    pub fn create_calseg<T>(&self, name: &'static str, default_page: &'static T, load_json: bool) -> CalSeg<T>
+    pub fn create_calseg<T>(&self, name: &'static str, default_page: &'static T) -> CalSeg<T>
     where
         T: CalPageTrait,
     {
-        if std::mem::size_of::<T>() > 0x10000 || std::mem::size_of::<T>() == 0 {
-            panic!("CalPage size is 0 or exceeds 64k");
-        }
         let mut m = self.calseg_list.lock().unwrap();
-        m.create_calseg(name, default_page, true, load_json)
+        m.create_calseg(name, default_page)
     }
 
     /// Create a calibration segment, don't register fields and don't load json  
     /// # Panics  
     /// Panics if the calibration segment name already exists  
+    /// Panics if the calibration page size exceeds 64k
     pub fn add_calseg<T>(&self, name: &'static str, default_page: &'static T) -> CalSeg<T>
     where
         T: CalPageTrait,
     {
         let mut m = self.calseg_list.lock().unwrap();
-        m.create_calseg(name, default_page, false, false)
+        m.create_calseg(name, default_page)
     }
 
     /// Get calibration segment index by name

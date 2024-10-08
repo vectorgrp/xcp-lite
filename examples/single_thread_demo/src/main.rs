@@ -16,8 +16,7 @@ use xcp_type_description::prelude::*;
 // Demo calibration parameters
 
 // Define a struct with calibration parameters
-#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
 struct CalPage {
     #[type_description(comment = "Amplitude of the sine signal")]
     #[type_description(unit = "Volt")]
@@ -71,8 +70,8 @@ fn main() {
     let calseg = xcp.create_calseg(
         "calseg",  // name of the calibration segment and the .json file
         &CAL_PAGE, // default calibration values
-        true,      // load RAM page from file "cal_seg".json
     );
+    calseg.register_fields();
 
     // Mainloop
     let start_time = Instant::now();

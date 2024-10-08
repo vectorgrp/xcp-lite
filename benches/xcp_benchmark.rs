@@ -27,7 +27,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 //-----------------------------------------------------------------------------
 // Calibration parameters
 
-#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
+#[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Debug, Clone, Copy, XcpTypeDescription)]
 struct CalPage {
     #[type_description(comment = "Amplitude value")]
@@ -223,7 +223,7 @@ fn xcp_benchmark(c: &mut Criterion) {
         .unwrap();
 
     // Create a calibration segment
-    let cal_page = xcp.create_calseg("CalPage", &CAL_PAGE, true);
+    let cal_page = xcp.create_calseg("CalPage", &CAL_PAGE);
 
     // Measurement signal
     let mut signal1: u32 = 0;
