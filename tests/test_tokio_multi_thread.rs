@@ -2,7 +2,7 @@
 // Integration test for XCP in a multi threaded application
 // Uses the test XCP client in xcp_client
 
-// cargo test --features=json --features=#[derive(serde::Serialize, serde::Deserialize)] -- --test-threads=1 --nocapture  --test test_tokio_multi_thread
+// cargo test -- --test-threads=1 --features=serde --nocapture  --test test_tokio_multi_thread
 
 use xcp::*;
 use xcp_type_description::prelude::*;
@@ -279,7 +279,10 @@ async fn task(index: usize, cal_seg: CalSeg<CalPage1>) {
 #[ignore]
 #[tokio::test]
 async fn test_tokio_multi_thread() {
-    env_logger::Builder::new().filter_level(OPTION_LOG_LEVEL.to_log_level_filter()).init();
+    env_logger::Builder::new()
+        .target(env_logger::Target::Stdout)
+        .filter_level(OPTION_LOG_LEVEL.to_log_level_filter())
+        .init();
 
     // Start tokio XCP server
     // Initialize the xcplib transport and protocol layer only, not the server

@@ -27,8 +27,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 //-----------------------------------------------------------------------------
 // Calibration parameters
 
-#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
 struct CalPage {
     #[type_description(comment = "Amplitude value")]
     #[type_description(min = "0")]
@@ -213,14 +212,13 @@ fn xcp_client_task(mode: Arc<parking_lot::Mutex<ClientMode>>) {
 fn xcp_benchmark(c: &mut Criterion) {
     println!("XCP Benchmark");
 
-    env_logger::Builder::new().filter_level(log::LevelFilter::Info).init();
+    env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(log::LevelFilter::Info).init();
 
     // Start XCP server
     let xcp = XcpBuilder::new("xcp_benchmark")
         .set_log_level(XcpLogLevel::Info)
         .set_epk("EPK_")
-        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
-        .unwrap();
+        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)?;
 
     // Create a calibration segment
     let cal_page = xcp.create_calseg("CalPage", &CAL_PAGE);

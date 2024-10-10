@@ -52,7 +52,7 @@ extern "C" {
     pub fn XcpEvent(event: u16);
 }
 extern "C" {
-    pub fn XcpEventExt(event: u16, base: *const u8, len: u32) -> u8;
+    pub fn XcpEventExt(event: u16, base: *const u8) -> u8;
 }
 extern "C" {
     pub fn XcpPrint(str_: *const ::std::os::raw::c_char);

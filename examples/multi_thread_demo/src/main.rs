@@ -9,6 +9,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+use anyhow::Result;
+
 use xcp::*;
 use xcp_type_description::prelude::*;
 
@@ -20,8 +22,7 @@ lazy_static::lazy_static! {
 //-----------------------------------------------------------------------------
 // Demo calibration parameters
 
-#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
 struct CalPage1 {
     #[type_description(comment = "Amplitude of the sine signal")]
     #[type_description(unit = "Volt")]
@@ -90,18 +91,17 @@ fn task(id: u32, cal_seg: CalSeg<CalPage1>) {
 //-----------------------------------------------------------------------------
 // Demo application main
 
-fn main() {
+fn main() -> Result<()> {
     println!("XCPlite Multi Thread Demo");
 
     // Logging
-    env_logger::Builder::new().filter_level(log::LevelFilter::Info).init();
+    env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(log::LevelFilter::Info).init();
 
     // Initialize XCP driver singleton, the transport layer server and enable the registry
     let xcp = XcpBuilder::new("multi_thread_demo")
         .set_log_level(XcpLogLevel::Warn)
         .set_epk("EPK_12345678")
-        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
-        .unwrap();
+        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)?;
 
     // Create calibration parameter sets (CalSeg in rust, MEMORY_SEGMENT in A2L) from annotated structs
     // Calibration segments have 2 pages, a constant default "FLASH" page and a mutable "RAM" page
@@ -131,4 +131,6 @@ fn main() {
 
     // Stop the XCP server
     xcp.stop_server();
+
+    Ok(())
 }

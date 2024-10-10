@@ -16,6 +16,26 @@ use xcp::XcpEvent;
 mod a2l_writer;
 use a2l_writer::A2lWriter;
 
+//----------------------------------------------------------------------------------------------
+// Registry error
+
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum RegistryError {
+    #[error("io error")]
+    Io(#[from] std::io::Error),
+
+    #[error("registry error: duplicate symbol `{0}` ")]
+    Duplicate(String),
+
+    #[error("registry error: `{0}` not found")]
+    NotFound(&'static str),
+
+    #[error("unknown error")]
+    Unknown,
+}
+
 //-------------------------------------------------------------------------------------------------
 // Datatype
 
@@ -286,13 +306,13 @@ impl RegistryEventList {
     fn iter(&self) -> std::slice::Iter<RegistryEvent> {
         self.0.iter()
     }
-    fn get_name(&self, xcp_event: XcpEvent) -> &'static str {
+    fn get_name(&self, xcp_event: XcpEvent) -> Option<&'static str> {
         for event in self.0.iter() {
             if event.xcp_event == xcp_event {
-                return event.name;
+                return Some(event.name);
             }
         }
-        panic!("Event not found");
+        None
     }
 }
 
@@ -664,7 +684,7 @@ impl Registry {
     /// # panics
     ///   If a measurement with the same name already exists
     ///   If the registry is closed
-    pub fn add_measurement(&mut self, mut m: RegistryMeasurement) {
+    pub fn add_measurement(&mut self, mut m: RegistryMeasurement) -> Result<(), RegistryError> {
         debug!(
             "Registry add_measurement: {} type={:?}[{},{}] event={}+({})",
             m.name,
@@ -686,12 +706,13 @@ impl Registry {
         // Panic if symbol_name with same name already exists
         for m1 in self.measurement_list.iter() {
             if m1.name == m.name {
-                panic!("Duplicate measurement: {}", m.name);
+                return Err(RegistryError::Duplicate(m.name));
             }
         }
 
         // Add to list
         self.measurement_list.push(m);
+        Ok(())
     }
 
     // pub fn find_measurement(&self, name: &str) -> Option<&RegistryMeasurement> {
@@ -702,7 +723,7 @@ impl Registry {
     /// # panics
     ///   If a measurement with the same name already exists
     ///   If the registry is closed
-    pub fn add_characteristic(&mut self, c: RegistryCharacteristic) {
+    pub fn add_characteristic(&mut self, c: RegistryCharacteristic) -> Result<(), RegistryError> {
         debug!("Registry add_characteristic: {:?}.{} type={:?} offset={}", c.calseg_name, c.name, c.datatype, c.addr_offset);
 
         // Panic if registry is closed
@@ -711,7 +732,7 @@ impl Registry {
         // Panic if duplicate
         for c1 in self.characteristic_list.iter() {
             if c.name == c1.name {
-                panic!("Duplicate characteristic: {}", c.name);
+                return Err(RegistryError::Duplicate(c.name));
             }
         }
 
@@ -720,6 +741,7 @@ impl Registry {
         assert!(c.y_dim > 0);
 
         self.characteristic_list.push(c);
+        Ok(())
     }
 
     pub fn find_characteristic(&self, name: &str) -> Option<&RegistryCharacteristic> {

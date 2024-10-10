@@ -1,16 +1,14 @@
 // protobuf_demo
 
-#![allow(unused_imports)]
-
+use anyhow::Result;
+#[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use std::{fmt::Debug, thread, time::Duration};
+use std::{thread, time::Duration};
 
 use xcp::*;
 
 use prost::Message;
-use prost_types::{DescriptorProto, FieldDescriptorProto, FileDescriptorProto, FileDescriptorSet};
-use std::fs::File;
-use std::io::{self, Write};
+//use prost_types::{DescriptorProto, FieldDescriptorProto, FileDescriptorProto, FileDescriptorSet};
 
 /*
 
@@ -148,16 +146,15 @@ pub struct TestData {
     pub signal: f64,
 }
 
-fn main() {
+fn main() -> Result<()> {
     println!("protobuf demo");
 
-    env_logger::Builder::new().filter_level(log::LevelFilter::Info).init();
+    env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(log::LevelFilter::Info).init();
 
     let xcp = XcpBuilder::new("xcp_demo")
         .set_log_level(XcpLogLevel::Debug)
         .set_epk("EPK_")
-        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
-        .unwrap();
+        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)?;
 
     // Data struct to be measured
     let mut test_data = TestData { counter: 0, signal: 0.0 };
@@ -190,20 +187,24 @@ fn main() {
 
     let mut buf = Vec::new();
     let event = xcp.create_event("test_data");
-    xcp.get_registry().lock().unwrap().add_measurement(RegistryMeasurement::new(
-        "test_data".to_string(),
-        RegistryDataType::Blob,
-        1,
-        1,
-        event,
-        0,
-        0u64,
-        1.0,
-        0.0,
-        "proto serialized test data",
-        "",
-        Some(annotation),
-    ));
+    xcp.get_registry()
+        .lock()
+        .unwrap()
+        .add_measurement(RegistryMeasurement::new(
+            "test_data".to_string(),
+            RegistryDataType::Blob,
+            1,
+            1,
+            event,
+            0,
+            0u64,
+            1.0,
+            0.0,
+            "proto serialized test data",
+            "",
+            Some(annotation),
+        ))
+        .expect("Duplicate");
 
     // Loop
     loop {
@@ -214,10 +215,11 @@ fn main() {
         buf.clear();
         test_data.encode(&mut buf).unwrap();
         println!("Capacity: {}, Data: {:?}", buf.capacity(), buf);
-        event.trigger_ext(buf.as_ptr(), 0);
+        event.trigger_ext(buf.as_ptr());
 
         thread::sleep(Duration::from_micros(1000000));
 
         xcp.write_a2l().unwrap(); // @@@@ Remove: force A2L write
     }
+    // Ok(())
 }

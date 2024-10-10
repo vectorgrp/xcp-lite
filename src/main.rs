@@ -112,8 +112,9 @@ static STATIC_CAL_PAGE: once_cell::sync::OnceCell<StaticCalPage> = once_cell::sy
 
 //---------------------------------------------------
 // CalPage
-//#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(XcpTypeDescription, serde::Serialize, serde::Deserialize, Debug, Clone, Copy)]
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(XcpTypeDescription, Debug, Clone, Copy)]
 struct CalPage {
     run: bool,          // Stop all tasks
     run1: bool,         // Stop demo task1
@@ -130,7 +131,9 @@ const CAL_PAGE: CalPage = CalPage {
 
 //---------------------------------------------------
 // CalPage1
-#[derive(serde::Serialize, serde::Deserialize, XcpTypeDescription, Debug, Clone, Copy)]
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(XcpTypeDescription, Debug, Clone, Copy)]
 struct TestInts {
     test_bool: bool,
     test_u8: u8,
@@ -145,7 +148,8 @@ struct TestInts {
     test_f64: f64,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, XcpTypeDescription, Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(XcpTypeDescription, Debug, Clone, Copy)]
 struct CalPage1 {
     counter_max: u32,
 
@@ -173,7 +177,8 @@ const CAL_PAGE1: CalPage1 = CalPage1 {
 
 //---------------------------------------------------
 // CalPage2
-#[derive(serde::Serialize, serde::Deserialize, XcpTypeDescription, Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(XcpTypeDescription, Debug, Clone, Copy)]
 struct CalPage2 {
     #[type_description(comment = "Amplitude")]
     #[type_description(unit = "Volt")]
@@ -334,7 +339,7 @@ fn main() {
     let log_level = XcpLogLevel::from(args.log_level);
 
     // Logging
-    env_logger::Builder::new().filter_level(log_level.to_log_level_filter()).init();
+    env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(log_level.to_log_level_filter()).init();
 
     // Initialize XCP and start the XCP on ETH server
     let xcp = XcpBuilder::new("xcp_lite")
@@ -342,10 +347,7 @@ fn main() {
         // .set_epk(build_info::format!("{}", $.timestamp)); // Create new EPK from build info
         .set_epk("EPK_")
         .start_server(if args.tcp { XcpTransportLayer::Tcp } else { XcpTransportLayer::Udp }, args.bind, args.port)
-        .map_err(|e| {
-            panic!("XCP server initialization failed: {:?}", e);
-        })
-        .unwrap();
+        .expect("could not start XCP server");
 
     // Option1: Create and register static calibration variables (from a OnceCell<StaticCalPage>)
     let static_cal_page = STATIC_CAL_PAGE.get().unwrap();
@@ -359,7 +361,7 @@ fn main() {
     // FLASH or RAM can be switched during runtime (XCP set_cal_page), saved to json (feature freeze), reinitialized from default FLASH page (XCP copy_cal_page)
 
     // Option2: Create a calibration segment wrapper for CAL_PAGE, add fields manually to registry
-    let mut calseg = xcp.add_calseg(
+    let calseg = xcp.add_calseg(
         "CalPage", // name of the calibration segment and the .json file
         &CAL_PAGE, // default calibration values with static lifetime
     );
@@ -368,20 +370,23 @@ fn main() {
         .add_field(calseg_field!(CAL_PAGE.run1, 0, 1, "bool"))
         .add_field(calseg_field!(CAL_PAGE.run2, 0, 1, "bool"))
         .add_field(calseg_field!(CAL_PAGE.cycle_time_ms, "ms", "main task cycle time"));
+    #[cfg(feature = "serde")]
     if calseg.load("xcp-lite_calseg.json").is_err() {
-        calseg.save("xcp-lite_calseg.json").unwrap();
+        calseg.save("xcp-lite_calseg.json").expect("could not write json");
     }
 
     // Option3: Create a calibration segment wrapper add fields automatically with derive macro XcpTypeDescription
-    let mut calseg1 = xcp.create_calseg("CalPage1", &CAL_PAGE1);
+    let calseg1 = xcp.create_calseg("CalPage1", &CAL_PAGE1);
     calseg1.register_fields();
+    #[cfg(feature = "serde")]
     if calseg1.load("xcp-lite_calseg1.json").is_err() {
-        calseg1.save("xcp-lite_calseg1.json").unwrap();
+        calseg1.save("xcp-lite_calseg1.json").expect("could not write json");
     }
-    let mut calseg2 = xcp.create_calseg("CalPage2", &CAL_PAGE2);
+    let calseg2 = xcp.create_calseg("CalPage2", &CAL_PAGE2);
     calseg2.register_fields();
+    #[cfg(feature = "serde")]
     if calseg2.load("xcp-lite_calseg2.json").is_err() {
-        calseg2.save("xcp-lite_calseg2.json").unwrap();
+        calseg2.save("xcp-lite_calseg2.json").expect("could not write json");
     }
 
     // Create multiple tasks which have local or thread local measurement signals
@@ -406,10 +411,10 @@ fn main() {
 
     // Create measurment variables on heap and stack
     let mut mainloop_counter1: u64 = 0;
-    let mut mainloop_counter2 = Box::new(0u64);
     let mut mainloop_map = Box::new([[0u8; 16]; 16]);
+
     // Create associated event and register
-    let mut mainloop_event = daq_create_event!("mainloop", 64); // Capture buffer 64 bytes
+    let mainloop_event = daq_create_event!("mainloop");
     daq_register!(mainloop_counter1, mainloop_event);
 
     // Mutable static variables (borrowed from a StaticCell<StaticVars>)
@@ -432,19 +437,21 @@ fn main() {
         thread::sleep(Duration::from_millis(calseg.cycle_time_ms as u64));
 
         // Variables on stack and heap
-        if xcp.is_connected() {
-            mainloop_counter1 += 1;
-        }
-        *mainloop_counter2 += 1;
+        mainloop_counter1 += 1;
         mainloop_map[0][0] = mainloop_counter1 as u8;
-
-        // Capture variable from heap
-        daq_capture!(mainloop_counter2, mainloop_event);
 
         // Measure a 2D map variable directly from heap with an individual event "mainloop_array"
         daq_event_ref!(mainloop_map, RegistryDataType::AUint64, 16, 16, "2D map on heap");
 
         mainloop_event.trigger();
+
+        // Local variables on stack
+        let mainloop_local_var1 = mainloop_counter1 * 2;
+        let mainloop_local_var2 = mainloop_counter1 * 3;
+        let mainloop_local_event = daq_create_event!("mainloop_local");
+        daq_register!(mainloop_local_var1, mainloop_local_event);
+        daq_register!(mainloop_local_var2, mainloop_local_event);
+        mainloop_local_event.trigger();
 
         // Measure static variables
         static_vars.test_u32 += 1;
@@ -480,7 +487,7 @@ fn main() {
         // Without this, the A2L file will be automatically written on XCP connect, to be available for download by CANape
         if idle_time >= 2.0 {
             // Test A2L write
-            xcp.write_a2l().unwrap(); // @@@@ Remove: force A2L write
+            xcp.write_a2l().expect("could not write a2l"); // @@@@ Remove: force A2L write
 
             // Test init request
             // xcp.set_init_request();
@@ -496,13 +503,14 @@ fn main() {
     }
 
     info!("Main task finished");
-
     // Stop the other tasks
     RUN.store(false, Ordering::Relaxed);
 
     // Wait for the tasks to finish
-    t1.join().ok().unwrap();
-    t.into_iter().for_each(|t| t.join().ok().unwrap());
+    t1.join().ok();
+    t.into_iter().for_each(|t| {
+        t.join().ok();
+    });
     info!("All tasks finished");
 
     // Stop and shutdown the XCP server

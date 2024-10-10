@@ -2,7 +2,7 @@
 // Integration test for XCP in a single thread application
 // Uses the test XCP client in xcp_client
 
-// cargo test --features=json --features=#[derive(serde::Serialize, serde::Deserialize)] -- --test-threads=1 --nocapture  --test test_tokio_single_thread
+// cargo test -- --test-threads=1 --features=serde --nocapture  --test test_tokio_single_thread
 
 use xcp::*;
 use xcp_type_description::prelude::*;
@@ -148,7 +148,11 @@ fn task(cal_seg: CalSeg<CalPage1>) {
 #[ignore]
 #[tokio::test]
 async fn test_tokio_single_thread() {
-    env_logger::Builder::new().filter_level(OPTION_LOG_LEVEL.to_log_level_filter()).try_init().ok();
+    env_logger::Builder::new()
+        .target(env_logger::Target::Stdout)
+        .filter_level(OPTION_LOG_LEVEL.to_log_level_filter())
+        .try_init()
+        .ok();
 
     info!("Running test_tokio_single_thread");
 

@@ -121,14 +121,14 @@ struct CalPage<T: Sized + Send + Sync + Copy + Clone + 'static> {
 
 // Calibration pages must be Sized + Send + Sync + Copy + Clone + 'static
 
-#[cfg(feature = "calseg_freeze")]
+#[cfg(feature = "serde")]
 pub trait CalPageTrait
 where
     Self: Sized + Send + Sync + Copy + Clone + 'static + serde::Serialize + serde::de::DeserializeOwned,
 {
 }
 
-#[cfg(not(feature = "calseg_freeze"))]
+#[cfg(not(feature = "serde"))]
 pub trait CalPageTrait
 where
     Self: Sized + Send + Sync + Copy + Clone + 'static,
@@ -136,10 +136,10 @@ where
 }
 
 // Implement CalPageTrait for all types that may be a calibration page
-#[cfg(feature = "calseg_freeze")]
+#[cfg(feature = "serde")]
 impl<T> CalPageTrait for T where T: Sized + Send + Sync + Copy + Clone + 'static + serde::Serialize + serde::de::DeserializeOwned {}
 
-#[cfg(not(feature = "calseg_freeze"))]
+#[cfg(not(feature = "serde"))]
 impl<T> CalPageTrait for T where T: Sized + Send + Sync + Copy + Clone + 'static {}
 
 //----------------------------------------------------------------------------------------------
@@ -178,13 +178,15 @@ where
 }
 
 // Impl load and save for type which implement serde::Serialize and serde::de::DeserializeOwned
+#[cfg(feature = "serde")]
 impl<T> CalSeg<T>
 where
     T: Sized + Send + Sync + Copy + Clone + 'static + serde::Serialize + serde::de::DeserializeOwned,
 {
     /// Load a calibration segment from json file
     /// Requires the calibration page type to implement serde::Serialize + serde::de::DeserializeOwned
-    pub fn load<P: AsRef<std::path::Path>>(&mut self, filename: P) -> Result<(), std::io::Error> {
+
+    pub fn load<P: AsRef<std::path::Path>>(&self, filename: P) -> Result<(), std::io::Error> {
         let path = filename.as_ref();
         info!("Load {} from file {} ", self.get_name(), path.display());
         if let Ok(file) = std::fs::File::open(path) {
@@ -274,7 +276,7 @@ where
             field.offset as u64,
         );
 
-        Xcp::get().get_registry().lock().unwrap().add_characteristic(c);
+        Xcp::get().get_registry().lock().unwrap().add_characteristic(c).expect("Duplicate");
 
         self
     }
@@ -301,7 +303,7 @@ where
 
             // Freeze - save xcp page to json file
             // @@@@ don't panic, if the file can't be written
-            #[cfg(feature = "calseg_freeze")]
+            #[cfg(feature = "serde")]
             if xcp_page.freeze_request {
                 xcp_page.freeze_request = false;
                 info!("freeze: save {}.json)", self.get_name());
@@ -739,6 +741,7 @@ mod cal_tests {
     //-----------------------------------------------------------------------------
     // Test file read and write of a cal_seg
 
+    #[cfg(feature = "serde")]
     #[test]
     fn test_calibration_segment_persistence() {
         xcp_test::test_setup(log::LevelFilter::Info);
@@ -824,6 +827,7 @@ mod cal_tests {
     static FLASH_PAGE2: CalPage2 = CalPage2 { a: 2, b: 4, c: 6 };
     static FLASH_PAGE3: CalPage3 = CalPage3 { a: 2, b: 4, c: 6 };
 
+    #[cfg(feature = "serde")]
     macro_rules! test_is_mut {
         ( $s:ident ) => {
             if $s.a != 1 || $s.b != 3 || $s.c != 5 {
@@ -833,6 +837,7 @@ mod cal_tests {
         };
     }
 
+    #[cfg(feature = "serde")]
     macro_rules! test_is_default {
         ( $s:ident ) => {
             if $s.a != 2 || $s.b != 4 || $s.c != 6 {
@@ -842,6 +847,7 @@ mod cal_tests {
         };
     }
 
+    #[cfg(feature = "serde")]
     #[test]
     fn test_cal_page_switch() {
         xcp_test::test_setup(log::LevelFilter::Info);
@@ -880,9 +886,8 @@ mod cal_tests {
 
     //-----------------------------------------------------------------------------
     // Test cal page freeze
-    // @@@@ Bug: Test fails occasionally
 
-    #[cfg(feature = "calseg_freeze")]
+    #[cfg(feature = "serde")]
     #[test]
     fn test_cal_page_freeze() {
         let xcp = xcp_test::test_setup(log::LevelFilter::Warn);

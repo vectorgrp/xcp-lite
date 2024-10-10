@@ -76,7 +76,7 @@ extern void XcpDisconnect();
 
 /* Trigger a XCP data acquisition or stimulation event */
 extern void XcpEvent(uint16_t event);
-extern uint8_t XcpEventExt(uint16_t event, const uint8_t* base, uint32_t len);
+extern uint8_t XcpEventExt(uint16_t event, const uint8_t* base);
 extern void XcpEventAt(uint16_t event, uint64_t clock);
 
 /* Send an XCP event message */

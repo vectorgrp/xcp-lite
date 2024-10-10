@@ -1,5 +1,6 @@
 // xcp-lite - single_thread_demo
 
+use anyhow::Result;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use std::{
@@ -47,19 +48,18 @@ const CAL_PAGE: CalPage = CalPage {
 //-----------------------------------------------------------------------------
 // Demo application main
 
-fn main() {
+fn main() -> Result<()> {
     println!("XCPlite Single Thread Demo");
 
     // Logging
-    env_logger::Builder::new().filter_level(log::LevelFilter::Info).init();
+    env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(log::LevelFilter::Info).init();
 
     // Initialize XCP driver singleton, the XCP transport layer server and enable the A2L file creator
     // The A2L file will be finalized on XCP connection and can be uploaded by CANape
     let xcp = XcpBuilder::new("single_thread_demo")
         .set_log_level(XcpLogLevel::Info) // Set log level of the XCP server
         .set_epk("EPK_") // Set the EPK string for A2L version check, length must be %4
-        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1] /*[172, 19, 11, 24]*/, 5555)
-        .unwrap();
+        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1] /*[172, 19, 11, 24]*/, 5555)?;
 
     // Create a calibration parameter set "calseg"
     // This will define a MEMORY_SEGMENT named "calseg" in A2L
@@ -115,4 +115,6 @@ fn main() {
 
     // Stop the XCP server
     // Xcp::stop_server();
+
+    // Ok(())
 }

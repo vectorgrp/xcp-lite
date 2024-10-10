@@ -1,5 +1,6 @@
 // scoped_threads
 
+use anyhow::Result;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use std::{fmt::Debug, thread, time::Duration};
@@ -54,16 +55,15 @@ fn task1(calseg: CalSeg<CalPage>) {
 
 //-----------------------------------------------------------------------------
 
-fn main() {
+fn main() -> Result<()> {
     println!("XCP Demo");
 
-    env_logger::Builder::new().filter_level(log::LevelFilter::Info).init();
+    env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(log::LevelFilter::Info).init();
 
     let xcp = XcpBuilder::new("xcp_demo")
         .set_log_level(XcpLogLevel::Info)
         .set_epk("EPK_")
-        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
-        .unwrap();
+        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)?;
 
     let calseg = xcp.create_calseg("calseg", &CAL_PAGE);
     calseg.register_fields();
@@ -77,4 +77,5 @@ fn main() {
             // s.spawn(|| task1(&calseg));
         }
     });
+    Ok(())
 }

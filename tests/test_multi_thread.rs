@@ -2,7 +2,7 @@
 // Integration test for XCP in a multi threaded application
 // Uses the test XCP client in xcp_client
 
-// cargo test --features=json --features=#[derive(serde::Serialize, serde::Deserialize)] --features=a2l_reader -- --test-threads=1 --nocapture  --test test_multi_thread
+// cargo test --features=a2l_reader --features=serde -- --test-threads=1 --nocapture  --test test_multi_thread
 
 #![allow(unused_assignments)]
 
@@ -289,7 +289,10 @@ fn task(index: usize, cal_seg: CalSeg<CalPage1>) {
 
 #[tokio::test]
 async fn test_multi_thread() {
-    env_logger::Builder::new().filter_level(OPTION_LOG_LEVEL.to_log_level_filter()).init();
+    env_logger::Builder::new()
+        .target(env_logger::Target::Stdout)
+        .filter_level(OPTION_LOG_LEVEL.to_log_level_filter())
+        .init();
 
     // Initialize XCP driver singleton, the transport layer server and enable the A2L writer
     let xcp = match XcpBuilder::new("test_multi_thread")

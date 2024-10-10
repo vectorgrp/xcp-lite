@@ -250,7 +250,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
 
     let log_level = args.log_level.to_log_level_filter();
-    env_logger::Builder::new().filter_level(log_level).init();
+    env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(log_level).init();
 
     let dest_addr: std::net::SocketAddr = args.dest_addr.parse().map_err(|e| format!("{}", e))?;
     let local_addr: std::net::SocketAddr = args.bind_addr.parse().map_err(|e| format!("{}", e))?;

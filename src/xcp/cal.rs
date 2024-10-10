@@ -55,7 +55,7 @@ where
                 field.offset() as u64,
             );
 
-            Xcp::get().get_registry().lock().unwrap().add_characteristic(c);
+            Xcp::get().get_registry().lock().unwrap().add_characteristic(c).expect("Duplicate");
         }
         self
     }

@@ -115,7 +115,6 @@ The registration of objects has to be completed, before the A2L file is generate
 // Calibration parameter segment
 // Each calibration parameter struct defines a MEMORY_SEGMENT in A2L and CANape
 // The A2L serializer will create an A2L CHARACTERISTIC for each field. 
-#[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Debug, Clone, Copy, XcpTypeDescription)]
 struct CalPage {
 
@@ -175,11 +174,11 @@ fn task(calseg: CalSeg<CalPage>) {
 
 
 
-fn main() {
+fn main() -> Result<()> {
 
     // Initialize XCP driver singleton, the transport layer UDP and enable the automatic A2L writer and upload
     let xcp = XcpBuilder::new("my_module_name").set_log_level(XcpLogLevel::Warn).set_epk("MY_EPK")
-      .start_server(XcpTransportLayer::Udp,[127, 0, 0, 1],5555, 1400,).unwrap();
+      .start_server(XcpTransportLayer::Udp,[127, 0, 0, 1],5555, 1400,)?;
 
     // Create a calibration parameter set named "calsseg" (struct CalSeg, a MEMORY_SEGMENT in A2L and CANape)
     // Calibration segments have 2 pages, a constant default "FLASH" page (CAL_PAGE) and a mutable "RAM" page
@@ -216,7 +215,7 @@ Code in unsafe blocks exists in the following places:
 
 - The implementation of Sync for CalSeg
 - All calls to the C FFI of the XCPlite server (optional), transport layer and protocol layer
-- In particular the XCPlite bindings XcpEventExt and ApplXcpRead/WriteMemeory, which transfer a byte pointers to a calibration values. The provenance and length of these pointers are checked.
+- In particular the XCPlite bindings XcpEventExt and ApplXcpRead/WriteMemeory, which transfer a byte pointers to a calibration values. 
 
 A completely safe measurement and calibration concept is practically impossible to achieve, without massive consequences for the API, which would lead to much more additional boilerplate code to achive calibration. 
 XCP is a very common approach in the automotive industry and there are many tools, HIL systems and loggers supporting it.  
@@ -238,12 +237,12 @@ Build, Run, Test examples:
 ```
 
 Build:
-  cargo build --release --features=json --features=#[derive(serde::Serialize, serde::Deserialize)]
-  cargo b  --examples
+  cargo build 
+  cargo build --release 
 
 Run the main example:
   cargo run -- --bind 127.0.0.1 --log-level 4
-  cargo r -- --port 5555 --bind 172.19.11.24 --tcp --no-a2l --segment-size 7972 
+  cargo run -- --port 5555 --bind 172.19.11.24 --tcp 
  
 Run a specific example:
   cargo run --example point_cloud_demo
@@ -258,8 +257,8 @@ Feature a2l_reader enabled automatic check of generated A2L file with crate a2lf
 
 ```
 
-  cargo test --features=a2l_reader -- --test-threads=1 --nocapture
-  cargo test --features=a2l_reader -- --test-threads=1 --nocapture  --test test_tokio_multi_thread
+  cargo test --features=a2l_reader --features=serde -- --test-threads=1 --nocapture
+  cargo test --features=a2l_reader --features=serde -- --test-threads=1 --nocapture  --test test_tokio_multi_thread
  
 ```
 

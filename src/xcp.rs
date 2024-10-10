@@ -37,6 +37,23 @@ use cal::CalSegList;
 mod xcplib;
 
 //----------------------------------------------------------------------------------------------
+// XCP error
+
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum XcpError {
+    #[error("io error")]
+    Io(#[from] std::io::Error),
+
+    #[error("xcplib error: `{0}` ")]
+    XcpLib(&'static str),
+
+    #[error("unknown error")]
+    Unknown,
+}
+
+//----------------------------------------------------------------------------------------------
 // XCP log level
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
@@ -169,7 +186,7 @@ impl XcpEvent {
     /// The provenance of the pointer (len, lifetime) is is guaranteed , it refers to self
     /// The buffer must match its registry description, to avoid corrupt data given to the XCP tool
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
-    pub fn trigger_ext(self, base: *const u8, len: u32) -> u8 {
+    pub fn trigger_ext(self, base: *const u8) -> u8 {
         // trace!(
         //     "Trigger event {} channel={}, index={}, base=0x{:X}, len={}",
         //     self.get_name(),
@@ -182,7 +199,7 @@ impl XcpEvent {
         // @@@@ unsafe - Transfering a pointer and its valid memory range to XCPlite FFI
         unsafe {
             // Trigger event
-            xcplib::XcpEventExt(self.get_channel(), base, len)
+            xcplib::XcpEventExt(self.get_channel(), base)
         }
     }
 
@@ -334,8 +351,7 @@ impl From<u8> for XcpCalPage {
     fn from(item: u8) -> Self {
         match item {
             XCP_CAL_PAGE_RAM => XcpCalPage::Ram,
-            XCP_CAL_PAGE_FLASH => XcpCalPage::Flash,
-            _ => panic!("Invalid page value"),
+            _ => XcpCalPage::Flash,
         }
     }
 }
@@ -398,7 +414,7 @@ impl XcpBuilder {
     /// Start the XCP transport and protocol layer in external server mode
     /// The server must be started after this call
     /// Server example in tokio_demo::xcp_server::xcp_task
-    pub fn tl_start(self) -> Result<&'static Xcp, &'static str> {
+    pub fn tl_start(self) -> Result<&'static Xcp, XcpError> {
         let xcp = Xcp::get();
 
         info!("Start XCP protocol layer and transport layer");
@@ -416,7 +432,7 @@ impl XcpBuilder {
 
         unsafe {
             if xcplib::XcpTlInit() == 0 {
-                panic!("Error: XcpTlInit() failed");
+                return Err(XcpError::XcpLib("Error: XcpTlInit() failed"));
             }
             xcplib::XcpStart();
         }
@@ -427,7 +443,7 @@ impl XcpBuilder {
     /// Start the XCP on Ethernet Server
     /// Use the server rx and tx threads in xcplib
     #[cfg(feature = "xcp_server")]
-    pub fn start_server<A>(self, tl: XcpTransportLayer, addr: A, port: u16) -> Result<&'static Xcp, &'static str>
+    pub fn start_server<A>(self, tl: XcpTransportLayer, addr: A, port: u16) -> Result<&'static Xcp, XcpError>
     where
         A: Into<Ipv4Addr>,
     {
@@ -451,7 +467,7 @@ impl XcpBuilder {
             // Initialize the XCP Server and ETH transport layer
             let a: [u8; 4] = ipv4_addr.octets();
             if 0 == xcplib::XcpEthServerInit(&a as *const u8, port, if tl == XcpTransportLayer::Tcp { 1 } else { 0 }) {
-                return Err("Error: XcpEthServerInit() failed");
+                return Err(XcpError::XcpLib("Error: XcpEthServerInit() failed"));
             }
         }
 
@@ -725,7 +741,7 @@ impl Xcp {
     /// Write A2L  
     /// A2l is normally automatically written on connect of the XCP client tool  
     /// This function is used to force the A2L to be written immediately  
-    pub fn write_a2l(&self) -> Result<bool, std::io::Error> {
+    pub fn write_a2l(&self) -> Result<bool, XcpError> {
         // Do nothing, if the registry is already written, or does not exist
         if self.registry.lock().unwrap().is_frozen() {
             return Ok(false);
@@ -1006,7 +1022,7 @@ pub mod xcp_test {
     #[allow(dead_code)]
     pub fn test_setup(x: log::LevelFilter) -> &'static Xcp {
         TEST_INIT.call_once(|| {
-            env_logger::Builder::new().filter_level(x).init();
+            env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(x).init();
         });
 
         test_reinit()

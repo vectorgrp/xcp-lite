@@ -1,6 +1,17 @@
 # xcp_lite - hello_xcp
 
-Minimal demo
+Basic demo
+
+Run:
+'''
+cargo run --example hello_xcp
+'''
+
+Run the test XCP client in another terminal with the following command:
+'''
+cargo run --example xcp_client 
+'''
+
 
 
 

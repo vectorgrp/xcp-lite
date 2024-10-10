@@ -974,10 +974,7 @@ void XcpEvent(uint16_t event) {
 
 // Dyn addressing mode event
 // Base is given as parameter
-uint8_t XcpEventExt(uint16_t event, const uint8_t* base, uint32_t len) {
-
-    // @@@@ ToDo: use len to check memory boundaries
-    (void)len;
+uint8_t XcpEventExt(uint16_t event, const uint8_t* base) {
 
     // Cal
 #ifdef XCP_ENABLE_DYN_ADDRESSING

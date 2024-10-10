@@ -7,7 +7,7 @@
 
 //
 // Note that the tests can not be executed in parallel
-// Use cargo test -- --test-threads=1 --nocapture
+// Use cargo test -- --test-threads=1 --features=serde --nocapture
 
 //! A lightweight XCP on Ethernet implementation
 //! The 'xcp' crate provides an XCP on ETH implementation,a wrapper type for calibration variables and
@@ -44,7 +44,7 @@
 //! };
 //!
 //! // Initialize XCP
-//! let xcp = XcpBuilder::new("xcp_lite").start_server(XcpTransportLayer::Tcp, [127,0,0,1], 5555).unwrap();
+//! let xcp = XcpBuilder::new("xcp_lite").start_server(XcpTransportLayer::Tcp, [127,0,0,1], 5555)?;
 //!
 //! // Create a calibration segment and auto register its fields as calibration variables
 //! let cal_page = xcp.create_calseg("CalPage", &CAL_PAGE);
@@ -89,6 +89,7 @@ pub use xcp::daq::daq_event::DaqEvent;
 pub use xcp::Xcp;
 pub use xcp::XcpBuilder;
 pub use xcp::XcpCalPage;
+pub use xcp::XcpError;
 pub use xcp::XcpEvent;
 pub use xcp::XcpLogLevel;
 pub use xcp::XcpSessionStatus;
@@ -115,14 +116,14 @@ macro_rules! cal_register_static {
         let datatype = ($variable).get_type();
         let addr = unsafe { &($variable) as *const _ as u64 };
         let c = RegistryCharacteristic::new(None, name.to_string(), datatype, "", datatype.get_min(), datatype.get_max(), "", 1, 1, addr);
-        Xcp::get().get_registry().lock().unwrap().add_characteristic(c);
+        Xcp::get().get_registry().lock().unwrap().add_characteristic(c).expect("Duplicate");
     }};
     (   $variable:expr, $comment:expr ) => {{
         let name = stringify!($variable);
         let datatype = ($variable).get_type();
         let addr = unsafe { &($variable) as *const _ as u64 };
         let c = RegistryCharacteristic::new(None, name.to_string(), datatype, $comment, datatype.get_min(), datatype.get_max(), "", 1, 1, addr);
-        Xcp::get().get_registry().lock().unwrap().add_characteristic(c);
+        Xcp::get().get_registry().lock().unwrap().add_characteristic(c).expect("Duplicate");
     }};
 
     (   $variable:expr, $comment:expr, $unit:expr ) => {{
@@ -130,7 +131,7 @@ macro_rules! cal_register_static {
         let datatype = ($variable).get_type();
         let addr = unsafe { &($variable) as *const _ as u64 };
         let c = RegistryCharacteristic::new(None, name.to_string(), datatype, $comment, datatype.get_min(), datatype.get_max(), $unit, 1, 1, addr);
-        Xcp::get().get_registry().lock().unwrap().add_characteristic(c);
+        Xcp::get().get_registry().lock().unwrap().add_characteristic(c).expect("Duplicate");
     }};
 }
 
@@ -143,7 +144,7 @@ macro_rules! daq_register_static {
         let addr = unsafe { &($variable) as *const _ as u64 };
         let mut c = RegistryCharacteristic::new(None, name.to_string(), datatype, "", datatype.get_min(), datatype.get_max(), "", 1, 1, addr);
         c.set_event($event);
-        Xcp::get().get_registry().lock().unwrap().add_characteristic(c);
+        Xcp::get().get_registry().lock().unwrap().add_characteristic(c).expect("Duplicate");
     }};
     (   $variable:expr, $event:ident, $comment:expr ) => {{
         let name = stringify!($variable);
@@ -151,7 +152,7 @@ macro_rules! daq_register_static {
         let addr = unsafe { &($variable) as *const _ as u64 };
         let mut c = RegistryCharacteristic::new(None, name.to_string(), datatype, $comment, datatype.get_min(), datatype.get_max(), "", 1, 1, addr);
         c.set_event($event);
-        Xcp::get().get_registry().lock().unwrap().add_characteristic(c);
+        Xcp::get().get_registry().lock().unwrap().add_characteristic(c).expect("Duplicate");
     }};
 
     (   $variable:expr, $event:ident, $comment:expr, $unit:expr ) => {{
@@ -160,7 +161,7 @@ macro_rules! daq_register_static {
         let addr = unsafe { &($variable) as *const _ as u64 };
         let mut c = RegistryCharacteristic::new(None, name.to_string(), datatype, $comment, datatype.get_min(), datatype.get_max(), $unit, 1, 1, addr);
         c.set_event($event);
-        Xcp::get().get_registry().lock().unwrap().add_characteristic(c);
+        Xcp::get().get_registry().lock().unwrap().add_characteristic(c).expect("Duplicate");
     }};
 }
 

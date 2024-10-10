@@ -49,7 +49,8 @@ mod registry_tests {
             1,
             1,
             0,
-        ));
+        ))
+        .unwrap();
         reg.add_characteristic(RegistryCharacteristic::new(
             Some("test_cal_seg_1"),
             "test_characteristic_2".to_string(),
@@ -61,7 +62,8 @@ mod registry_tests {
             1,
             1,
             1,
-        ));
+        ))
+        .unwrap();
 
         reg.add_measurement(RegistryMeasurement::new(
             "test_measurement_1".to_string(),
@@ -76,7 +78,8 @@ mod registry_tests {
             "comment",
             "unit",
             None,
-        ));
+        ))
+        .unwrap();
 
         reg.add_measurement(RegistryMeasurement::new(
             "test_measurement_1".to_string(),
@@ -91,7 +94,8 @@ mod registry_tests {
             "comment",
             "unit",
             None,
-        ));
+        ))
+        .unwrap();
 
         reg.add_measurement(RegistryMeasurement::new(
             "test_measurement_2".to_string(),
@@ -106,7 +110,8 @@ mod registry_tests {
             "comment",
             "unit",
             None,
-        ));
+        ))
+        .unwrap();
 
         reg.write_a2l().unwrap();
 
@@ -187,7 +192,8 @@ mod registry_tests {
                 "comment",
                 "unit",
                 None,
-            ));
+            ))
+            .unwrap();
 
             reg.add_measurement(RegistryMeasurement::new(
                 "test_measurement_1".to_string(),
@@ -202,7 +208,8 @@ mod registry_tests {
                 "comment",
                 "unit",
                 None,
-            ));
+            ))
+            .unwrap();
 
             reg.add_measurement(RegistryMeasurement::new(
                 "test_measurement_2".to_string(),
@@ -217,7 +224,8 @@ mod registry_tests {
                 "comment",
                 "unit",
                 None,
-            ));
+            ))
+            .unwrap();
         }
 
         xcp.write_a2l().unwrap();

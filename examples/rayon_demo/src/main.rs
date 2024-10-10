@@ -5,6 +5,7 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
+use anyhow::Result;
 use image::{ImageBuffer, Rgb};
 use num::Complex;
 use rayon::prelude::*;
@@ -127,20 +128,19 @@ fn render(pixels: &mut [u8], row: usize, length: usize, upper_left: Complex<f64>
 
 //---------------------------------------------------------------------------------------
 
-fn main() {
+fn main() -> Result<()> {
     println!("xcp-lite rayon mandelbrot demo");
 
-    env_logger::Builder::new().filter_level(log::LevelFilter::Info).init();
+    env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(log::LevelFilter::Info).init();
 
-    const BIND_ADDR: [u8; 4] = [192, 168, 0, 83];
-    // const BIND_ADDR: [u8; 4] = [127, 0, 0, 1];
-    // const BIND_ADDR: [u8; 4] = [172, 19, 11, 24];
+    info!("Number of logical cores is {}", num_cpus::get());
+
+    const BIND_ADDR: [u8; 4] = [127, 0, 0, 1];
 
     let xcp = XcpBuilder::new("mandelbrot")
         .set_log_level(XcpLogLevel::Debug)
         .set_epk("EPK")
-        .start_server(XcpTransportLayer::Udp, BIND_ADDR, 5555)
-        .unwrap();
+        .start_server(XcpTransportLayer::Udp, BIND_ADDR, 5555)?;
 
     let mandelbrot = xcp.create_calseg("mandelbrot", &MANDELBROT);
     mandelbrot.register_fields();

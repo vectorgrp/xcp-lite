@@ -1,6 +1,7 @@
 // xcp-lite - point cloud demo
 // Visualize a dynamic list of 3D points in CANape
 
+use anyhow::Result;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use std::{
@@ -37,8 +38,7 @@ lazy_static::lazy_static! {
 //-----------------------------------------------------------------------------
 // Parameters
 
-#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
 struct Params {
     #[type_description(unit = "s")]
     #[type_description(min = "0.001")]
@@ -106,15 +106,12 @@ fn create_point_cloud() -> PointCloud {
 
 //---------------------------------------------------------------------------------------
 
-fn main() {
+fn main() -> Result<()> {
     println!("xcp-lite point cloud demo");
 
-    env_logger::Builder::new().filter_level(log::LevelFilter::Info).init();
+    env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(log::LevelFilter::Info).init();
 
-    let xcp = XcpBuilder::new("point_cloud")
-        .set_log_level(XcpLogLevel::Debug)
-        .start_server(XcpTransportLayer::Udp, BIND_ADDR, 5555)
-        .unwrap();
+    let xcp = XcpBuilder::new("point_cloud").set_log_level(XcpLogLevel::Debug).start_server(XcpTransportLayer::Udp, BIND_ADDR, 5555)?;
 
     let params = xcp.create_calseg("Params", &PARAMS);
 
@@ -163,4 +160,5 @@ fn main() {
         params.sync();
         xcp.write_a2l().unwrap(); // @@@@ Remove: force A2L write
     }
+    // Ok(())
 }

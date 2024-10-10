@@ -104,7 +104,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("xcp-lite tokio demo");
 
     // Initialize logger
-    env_logger::Builder::new().filter_level(log::LevelFilter::Info).init();
+    env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(log::LevelFilter::Info).init();
 
     // Start tokio XCP server
     // Initialize the xcplib transport and protocol layer only, not the server

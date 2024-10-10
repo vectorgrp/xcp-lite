@@ -447,10 +447,17 @@ impl<'a> A2lWriter<'a> {
                 // Ignore all but the first event instance
                 continue;
             }
-            if self.registry.measurement_list.iter().filter(|m| self.registry.event_list.get_name(m.xcp_event) == e.name).count() > 1 {
+            if self
+                .registry
+                .measurement_list
+                .iter()
+                .filter(|m| self.registry.event_list.get_name(m.xcp_event).unwrap() == e.name)
+                .count()
+                > 1
+            {
                 write!(self, "\n/begin GROUP {} \"\" ROOT /begin REF_MEASUREMENT", e.name)?;
                 for m in self.registry.measurement_list.iter() {
-                    if self.registry.event_list.get_name(m.xcp_event) == e.name {
+                    if self.registry.event_list.get_name(m.xcp_event).unwrap() == e.name {
                         write!(self, " {}", m.name)?;
                     }
                 }
