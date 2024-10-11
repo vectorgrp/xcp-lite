@@ -90,7 +90,8 @@ thiserror = "1.0.64"
 # Command line parser
 clap = { version = "4.5.9", features = ["derive"] }
 
-# Raw FFI bindings to platform libraries like libc
+# Raw FFI bindings to platform libraries
+# For XcpLite
 libc = "0.2.153"
 
 # A macro to generate structures which behave like bitflags
@@ -145,7 +146,7 @@ tokio = { version = "1.37.0", features = ["full"] }
 a2lfile = { version="2.2.0", optional = false}
 xcp_client = { path = "xcp_client" }
 
-# dependencies for rayon demo example
+# dependencies for point_cloud example
 cdr = "0.2.4"
 
 # dependencies for rayon demo example

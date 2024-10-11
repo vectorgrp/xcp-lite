@@ -28,7 +28,7 @@ use crate::a2l::a2l_reader::{a2l_find_characteristic, a2l_find_measurement, a2l_
 //--------------------------------------------------------------------------------------------------------------------------------------------------
 // XCP Parameters
 
-pub const CMD_TIMEOUT: Duration = Duration::from_secs(4);
+pub const CMD_TIMEOUT: Duration = Duration::from_secs(2);
 
 pub const XCPTL_MAX_SEGMENT_SIZE: usize = 2048 * 2;
 
@@ -401,13 +401,13 @@ pub trait XcpTextDecoder {
 
 pub trait XcpDaqDecoder {
     /// Handle incomming DAQ data from XCP server
-    fn decode(&mut self, lost: u32, daq: u16, odt: u8, timestamp: u32, data: &[u8]) {
-        trace!("DAQ: lost = {}, daq = {}, odt = {} timestamp = {} data={:?})", lost, daq, odt, timestamp, data);
-    }
+    fn decode(&mut self, lost: u32, daq: u16, odt: u8, timestamp_raw32: u32, data: &[u8]);
+
     /// Measurement start 64 bit time stamp
-    fn start(&mut self, start_time: u64) {
-        trace!("DAQ: start time = {}", start_time);
-    }
+    fn start(&mut self, timestamp_raw64: u64);
+
+    // /// Measurement timestamp resoution in ns per raw timestamp tick
+    fn set_timestamp_resolution(&mut self, timestamp_resolution: u64);
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------------------------
@@ -441,6 +441,7 @@ pub struct XcpClient {
     ctr: u16,
     max_cto_size: u8,
     max_dto_size: u16,
+    timestamp_resolution_ns: u64,
     a2l_file: Option<a2lfile::A2lFile>,
     calibration_objects: Vec<XcpCalibrationObject>,
     measurement_objects: Vec<XcpMeasurementObject>,
@@ -463,6 +464,7 @@ impl XcpClient {
             ctr: 0,
             max_cto_size: 0,
             max_dto_size: 0,
+            timestamp_resolution_ns: 1,
             a2l_file: None,
             calibration_objects: Vec::new(),
             measurement_objects: Vec::new(),
@@ -679,9 +681,6 @@ impl XcpClient {
         let socket = UdpSocket::bind(self.bind_addr).await?;
         self.socket = Some(Arc::new(socket));
 
-        // Keep a reference to the DAQ decoder for measurement start
-        self.daq_decoder = Some(daq_decoder.clone());
-
         // Spawn a rx task to handle incomming data
         // Hand over the DAQ decoder and the text decoder
         // Create channels for command responses and DAQ state control
@@ -691,8 +690,9 @@ impl XcpClient {
             self.rx_cmd_resp = Some(rx_resp); // rx XCP command response channel
             let (tx_daq, rx_daq) = mpsc::channel(3);
             self.tx_task_control = Some(tx_daq); // tx XCP DAQ control channel
+            let daq_decoder_clone = Arc::clone(&daq_decoder);
             tokio::spawn(async move {
-                let _res = XcpClient::receive_task(socket, tx_resp, rx_daq, text_decoder, daq_decoder).await;
+                let _res = XcpClient::receive_task(socket, tx_resp, rx_daq, text_decoder, daq_decoder_clone).await;
             });
             tokio::time::sleep(Duration::from_millis(100)).await; // wait for the receive task to start
         }
@@ -712,6 +712,14 @@ impl XcpClient {
         self.tx_task_control.as_ref().unwrap().send(self.task_control).await.unwrap();
 
         assert!(self.is_connected());
+
+        // Initilize DAQ clock
+        self.time_correlation_properties().await?; // Set 64 bit response format for GET_DAQ_CLOCK
+        self.timestamp_resolution_ns = self.get_daq_clock_resolution().await?;
+        daq_decoder.lock().unwrap().set_timestamp_resolution(self.timestamp_resolution_ns);
+
+        // Keep the the DAQ decoder for measurement start
+        self.daq_decoder = Some(daq_decoder);
 
         Ok(())
     }
@@ -918,6 +926,9 @@ impl XcpClient {
         Ok(())
     }
 
+    //-------------------------------------------------------------------------------------------------
+    // Clock
+
     // CC_TIME_CORRELATION_PROPERTIES
     async fn time_correlation_properties(&mut self) -> Result<(), Box<dyn Error>> {
         let request: u8 = 2; // set responce format to SERVER_CONFIG_RESPONSE_FMT_ADVANCED
@@ -933,12 +944,44 @@ impl XcpClient {
                     .build(),
             )
             .await?;
-        trace!("TIME_CORRELATION_PROPERIES set response format to SERVER_CONFIG_RESPONSE_FMT_ADVANCED");
+        info!("TIME_CORRELATION_PROPERIES set response format to SERVER_CONFIG_RESPONSE_FMT_ADVANCED");
         Ok(())
     }
 
-    // GET_DAQ_CLOCK
-    async fn get_daq_clock64(&mut self) -> Result<u64, Box<dyn Error>> {
+    /// Get DAQ clock timestamp resolution in ns
+    pub async fn get_daq_clock_resolution(&mut self) -> Result<u64, Box<dyn Error>> {
+        let data = self.send_command(XcpCommandBuilder::new(CC_GET_DAQ_RESOLUTION_INFO).build()).await?;
+        let mut c = Cursor::new(&data[1..]);
+
+        let granularity_daq = c.read_u8()?;
+        let max_size_daq = c.read_u8()?;
+        let _granularity_stim = c.read_u8()?;
+        let _max_size_stim = c.read_u8()?;
+        let timestamp_mode = c.read_u8()?;
+        let timestamp_ticks = c.read_u16::<LittleEndian>()?;
+
+        assert!(granularity_daq == 0x01, "support only 1 byte DAQ granularity");
+        assert!(timestamp_mode & 0x07 == 0x04, "support only 32 bit DAQ timestamps");
+        assert!(timestamp_mode & 0x08 == 0x08, "support only fixed DAQ timestamps");
+
+        // Calculate timestamp resolution in ns per tick
+        let mut timestamp_unit = timestamp_mode >> 4; // 1ns=0, 10ns=1, 100ns=2, 1us=3, 10us=4, 100us=5, 1ms=6, 10ms=7, 100ms=8, 1s=9
+        let mut timestamp_resolution_ns: u64 = timestamp_ticks as u64;
+        while timestamp_unit > 0 {
+            timestamp_resolution_ns *= 10;
+            timestamp_unit -= 1;
+        }
+        self.timestamp_resolution_ns = timestamp_resolution_ns;
+
+        info!(
+            "GET_DAQ_RESOLUTION_INFO granularity_daq={} max_size_daq={} timestamp_mode={} timestamp_resolution={}ns",
+            granularity_daq, max_size_daq, timestamp_mode, timestamp_resolution_ns
+        );
+        Ok(timestamp_resolution_ns)
+    }
+
+    // Get DAQ clock raw value in ticks of timestamp_resolution ns
+    async fn get_daq_clock_raw(&mut self) -> Result<u64, Box<dyn Error>> {
         let data = self.send_command(XcpCommandBuilder::new(CC_GET_DAQ_CLOCK).build()).await?;
         let mut c = Cursor::new(&data[2..]);
 
@@ -962,6 +1005,13 @@ impl XcpClient {
 
         trace!("GET_DAQ_CLOCK trigger_info=0x{:2X}, payload_fmt=0x{:2X} time={}", trigger_info, payload_fmt, timestamp64);
         Ok(timestamp64)
+    }
+
+    /// Get DAQ clock in ns
+    pub async fn get_daq_clock(&mut self) -> Result<u64, Box<dyn Error>> {
+        let timestamp64 = self.get_daq_clock_raw().await?;
+        let timestamp_ns = timestamp64 * self.timestamp_resolution_ns;
+        Ok(timestamp_ns)
     }
 
     //-------------------------------------------------------------------------------------------------
@@ -1109,9 +1159,15 @@ impl XcpClient {
     }
 
     //------------------------------------------------------------------------
-    // DAQ start, stop
+    // DAQ init, start, stop
     //
 
+    /// Get clock resolution in ns
+    pub fn get_timestamp_resolution(&self) -> u64 {
+        self.timestamp_resolution_ns
+    }
+
+    /// Start DAQ
     pub async fn start_measurement(&mut self) -> Result<(), Box<dyn Error>> {
         let n = self.measurement_objects.len();
 
@@ -1212,10 +1268,9 @@ impl XcpClient {
         }
 
         // Reset the DAQ decoder and set measurement start time
-        self.time_correlation_properties().await?; // Set 64 bit response format for GET_DAQ_CLOCK
-        let start_time = self.get_daq_clock64().await?;
+        let daq_clock = self.get_daq_clock_raw().await?;
         if let Some(daq_decoder) = self.daq_decoder.as_ref() {
-            daq_decoder.lock().unwrap().start(start_time);
+            daq_decoder.lock().unwrap().start(daq_clock);
         }
 
         // Send running=true throught the DAQ control channel to the receive task
@@ -1228,6 +1283,7 @@ impl XcpClient {
         Ok(())
     }
 
+    /// Stop DAQ
     pub async fn stop_measurement(&mut self) -> Result<(), Box<dyn Error>> {
         // Stop DAQ
         let res = self.start_stop_sync(XcpClient::XCP_STOP_ALL).await;

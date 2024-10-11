@@ -40,6 +40,7 @@ const MAX_EVENT: usize = 16;
 
 #[derive(Debug)]
 struct DaqDecoder {
+    timestamp_resolution: u64,
     event_count: usize,
     byte_count: usize,
     daq_timestamp: [u64; MAX_EVENT],
@@ -48,6 +49,7 @@ struct DaqDecoder {
 impl DaqDecoder {
     pub fn new() -> DaqDecoder {
         DaqDecoder {
+            timestamp_resolution: 0,
             event_count: 0,
             byte_count: 0,
             daq_timestamp: [0; MAX_EVENT],
@@ -66,6 +68,11 @@ impl XcpDaqDecoder for DaqDecoder {
         for t in self.daq_timestamp.iter_mut() {
             *t = timestamp;
         }
+    }
+
+    // Set timestamp resolution
+    fn set_timestamp_resolution(&mut self, timestamp_resolution: u64) {
+        self.timestamp_resolution = timestamp_resolution;
     }
 
     // Decode DAQ data
@@ -93,7 +100,8 @@ impl XcpDaqDecoder for DaqDecoder {
             assert!(data.len() >= 4);
             let counter = data[0] as u32 | (data[1] as u32) << 8 | (data[2] as u32) << 16 | (data[3] as u32) << 24;
             //trace!("DAQ: lost={}, daq={}, odt={}: timestamp={} counter={} data={:?}", lost, daq, odt, t, counter, data);
-            info!("DAQ: lost={}, daq={}, odt={}, t={}, counter={}", lost, daq, odt, t, counter);
+            let t = t * self.timestamp_resolution;
+            info!("DAQ: lost={}, daq={}, odt={}, t={}ns, counter={}", lost, daq, odt, t, counter);
         }
 
         self.byte_count += data.len(); // overall payload byte count

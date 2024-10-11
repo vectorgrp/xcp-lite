@@ -66,9 +66,11 @@ static uint64_t lockCount = 0;
 #error "Windows32 not implemented yet"
 #else
 
+// On Windows 64 we rely on the x86-64 strong memory model and assume atomic 64 bit load/store
+// and a mutex for thread safety when incrementing the tail
 #undef USE_SPINLOCK
 #define atomic_uint_fast64_t uint64_t
-#define atomic_store_explcit(a,b,c) (*(a))=(b)
+#define atomic_store_explicit(a,b,c) (*(a))=(b)
 #define atomic_load_explicit(a,b) (*(a))
 #define atomic_fetch_add_explicit(a,b,c) { mutexLock(&gXcpTlQueue.mutex); (*(a))+=(b); mutexUnlock(&gXcpTlQueue.mutex);}
 

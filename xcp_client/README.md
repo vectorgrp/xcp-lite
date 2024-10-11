@@ -33,9 +33,10 @@ Using tokio and a2lfile.
 
     // Measurement
     // Create a measurement for signal counter:u32
+    xcp_client.init_measurement().await?;
     xcp_client.create_measurement_object("counter").await?;
     xcp_client.start_measurement().await?;
-    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    sleep(Duration::from_secs(1)).await;
     xcp_client.stop_measurement().await?;
 
     // Disconnect

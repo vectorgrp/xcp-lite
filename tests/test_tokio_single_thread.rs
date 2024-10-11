@@ -145,7 +145,7 @@ fn task(cal_seg: CalSeg<CalPage1>) {
 //-----------------------------------------------------------------------------
 // Integration test single thread measurement and calibration
 
-#[ignore]
+//#[ignore]
 #[tokio::test]
 async fn test_tokio_single_thread() {
     env_logger::Builder::new()

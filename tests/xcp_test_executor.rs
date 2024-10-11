@@ -64,6 +64,7 @@ impl XcpTextDecoder for ServTextDecoder {
 
 #[derive(Debug, Clone, Copy)]
 struct DaqDecoder {
+    timestamp_resolution: u64,
     tot_events: u32,
     packets_lost: u32,
     counter_errors: u32,
@@ -78,6 +79,7 @@ struct DaqDecoder {
 impl DaqDecoder {
     pub fn new() -> DaqDecoder {
         DaqDecoder {
+            timestamp_resolution: 1,
             tot_events: 0,
             packets_lost: 0,
             counter_errors: 0,
@@ -107,6 +109,11 @@ impl XcpDaqDecoder for DaqDecoder {
         }
     }
 
+    // Set timestamp resolution
+    fn set_timestamp_resolution(&mut self, timestamp_resolution: u64) {
+        self.timestamp_resolution = timestamp_resolution;
+    }
+
     // Handle incomming DAQ DTOs from XCP server
     fn decode(&mut self, lost: u32, daq: u16, odt: u8, timestamp: u32, data: &[u8]) {
         assert!(daq < MULTI_THREAD_TASK_COUNT as u16);
@@ -120,7 +127,7 @@ impl XcpDaqDecoder for DaqDecoder {
             self.daq_max = daq;
         }
 
-        // Decode time as u64
+        // Decode raw timestamp as u64
         // Check declining timestamps
         if odt == 0 {
             let t_last = self.daq_timestamp[daq as usize];
@@ -325,7 +332,6 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
         // DAQ test single_thread or multi_thread
         if test_mode_daq == TestModeDaq::SingleThreadDAQ || test_mode_daq == TestModeDaq::MultiThreadDAQ {
             tokio::time::sleep(Duration::from_micros(10000)).await;
-            info!("Start data acquisition test");
 
             // Create a calibration object for CalPage1.counter_max
             // Set counter_max to 15
@@ -338,6 +344,21 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
 
             // Set cycle time
             xcp_client.set_value_u64(cycle_time_us, DAQ_TEST_TASK_SLEEP_TIME_US).await.unwrap();
+
+            // Check the DAQ clock
+            info!("Start clock test");
+            let t10 = Instant::now();
+            let t1 = xcp_client.get_daq_clock().await.unwrap();
+            tokio::time::sleep(Duration::from_micros(1000)).await;
+            let t20 = t10.elapsed();
+            let t2 = xcp_client.get_daq_clock().await.unwrap();
+            let dt12 = (t2 - t1) / 1000;
+            let dt120 = t20.as_micros() as u64;
+            info!("t1 = {}ns, t2 = {}ns, dt={}us / elapsed={}us", t1, t2, dt12, dt120);
+            assert!(dt12 > dt120 - 100, "DAQ clock too slow");
+            assert!(dt12 < dt120 + 100, "DAQ clock too fast");
+
+            info!("Start data acquisition test");
 
             // Measurement test loop
             // Create a measurement DAQ list with all instances MULTI_THREAD_TASK_COUNT of measurement counter and counter_max

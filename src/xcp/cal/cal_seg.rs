@@ -109,7 +109,7 @@ macro_rules! calseg_field {
 // Calibration parameter page wrapper for T with modification counter, init and freeze requests
 
 #[derive(Debug, Copy, Clone)]
-struct CalPage<T: Sized + Send + Sync + Copy + Clone + 'static> {
+struct CalPage<T: CalPageTrait> {
     ctr: u16,
     init_request: bool,
     freeze_request: bool,
@@ -155,7 +155,7 @@ impl<T> CalPageTrait for T where T: Sized + Send + Sync + Copy + Clone + 'static
 #[derive(Debug)]
 pub struct CalSeg<T>
 where
-    T: Sized + Send + Sync + Copy + Clone + 'static,
+    T: CalPageTrait,
 {
     index: usize,
     default_page: &'static T,
@@ -167,7 +167,7 @@ where
 // Impl register_fields for types which implement RegisterFieldsTrait
 impl<T> CalSeg<T>
 where
-    T: RegisterFieldsTrait,
+    T: CalPageTrait + RegisterFieldsTrait,
 {
     /// Register all fields of a calibration segment in the registry
     /// Requires the calibration page to implement XcpTypeDescription
@@ -181,7 +181,7 @@ where
 #[cfg(feature = "serde")]
 impl<T> CalSeg<T>
 where
-    T: Sized + Send + Sync + Copy + Clone + 'static + serde::Serialize + serde::de::DeserializeOwned,
+    T: CalPageTrait,
 {
     /// Load a calibration segment from json file
     /// Requires the calibration page type to implement serde::Serialize + serde::de::DeserializeOwned
@@ -313,7 +313,7 @@ where
 
                 let file = std::fs::File::create(path).unwrap();
                 let mut writer = std::io::BufWriter::new(file);
-                let s = serde_json::to_string(&self.xcp_page.lock().page)
+                let s = serde_json::to_string(&xcp_page.page)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("serde_json::to_string failed: {}", e)))
                     .unwrap();
                 std::io::Write::write_all(&mut writer, s.as_ref()).unwrap();
@@ -399,7 +399,7 @@ where
 
 impl<T> CalSegTrait for CalSeg<T>
 where
-    T: Sized + Send + Sync + Copy + Clone + 'static,
+    T: CalPageTrait,
 {
     fn get_name(&self) -> &'static str {
         Xcp::get().get_calseg_name(self.index)
@@ -463,7 +463,7 @@ where
 
 impl<T> Deref for CalSeg<T>
 where
-    T: Sized + Send + Sync + Copy + Clone + 'static,
+    T: CalPageTrait,
 {
     type Target = T;
 
@@ -484,7 +484,7 @@ where
 // This is undefined behaviour, because the reference to XCP data page will escape from its mutex
 impl<T> std::ops::DerefMut for CalSeg<T>
 where
-    T: Sized + Send + Sync + Copy + Clone + 'static,
+    T: CalPageTrait,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         warn!("Unsafe deref mut to XCP page of {}, this is undefined behaviour !!", self.get_name());
@@ -500,7 +500,7 @@ where
 
 impl<T> Clone for CalSeg<T>
 where
-    T: Sized + Send + Sync + Copy + Clone + 'static,
+    T: CalPageTrait,
 {
     fn clone(&self) -> Self {
         CalSeg {
@@ -519,7 +519,7 @@ where
 
 // impl<T> Drop for CalSeg<T>
 // where
-//     T: Sized + Send + Sync + Copy + Clone + 'static,
+//     T: CalPageTrait,
 // {
 //     fn drop(&mut self) {
 //         let clone_count = self.get_clone_count();
@@ -546,7 +546,7 @@ where
 /// Send is reimplemented here
 /// Sync stays disabled, because this would allow to call calseg.sync() from multiple threads with references to the same CalSeg
 // @@@@ unsafe - Implementation of Send marker for CalSeg
-unsafe impl<T> Send for CalSeg<T> where T: Sized + Send + Sync + Copy + Clone + 'static {}
+unsafe impl<T> Send for CalSeg<T> where T: CalPageTrait {}
 
 //----------------------------------------------------------------------------------------------
 // Test
@@ -592,11 +592,13 @@ mod cal_tests {
         Ok(())
     }
 
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     #[derive(Debug, Clone, Copy)]
     struct CalPage0 {
         stop: u8,
     }
 
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     #[derive(Debug, Clone, Copy, XcpTypeDescription)]
     struct CalPageTest {
         test: u8,
@@ -774,7 +776,7 @@ mod cal_tests {
         save(&mut_page, "test_cal_seg.json").unwrap();
 
         // Create a cal_seg with a mut_page from file test_cal_seg.json aka CAL_PAR_RAM, and a default page from CAL_PAR_FLASH
-        let mut cal_seg = xcp.create_calseg("test_cal_seg", &CAL_PAR_FLASH);
+        let cal_seg = xcp.create_calseg("test_cal_seg", &CAL_PAR_FLASH);
         cal_seg.load("test_cal_seg.json").unwrap();
 
         let cal_seg1 = cal_seg.clone();
@@ -855,7 +857,7 @@ mod cal_tests {
         let mut_page: CalPage2 = CalPage2 { a: 1, b: 3, c: 5 };
         save(&mut_page, "test1.json").unwrap();
         save(&mut_page, "test2.json").unwrap();
-        let mut cal_seg = xcp.create_calseg("test1", &FLASH_PAGE2);
+        let cal_seg = xcp.create_calseg("test1", &FLASH_PAGE2);
         cal_seg.load("test1.json").unwrap();
         cal_seg.sync();
         assert_eq!(xcp.get_ecu_cal_page(), XcpCalPage::Ram, "XCP should be on RAM page here, there is no independant page switching yet");
@@ -886,11 +888,10 @@ mod cal_tests {
 
     //-----------------------------------------------------------------------------
     // Test cal page freeze
-
     #[cfg(feature = "serde")]
     #[test]
     fn test_cal_page_freeze() {
-        let xcp = xcp_test::test_setup(log::LevelFilter::Warn);
+        let xcp = xcp_test::test_setup(log::LevelFilter::Info);
 
         assert!(std::mem::size_of::<CalPage1>() == 12);
         assert!(std::mem::size_of::<CalPage2>() == 12);
@@ -900,7 +901,7 @@ mod cal_tests {
         save(&mut_page1, "test1.json").unwrap();
 
         // Create calseg1 from def
-        let mut calseg1 = xcp.create_calseg("test1", &FLASH_PAGE1);
+        let calseg1 = xcp.create_calseg("test1", &FLASH_PAGE1);
         calseg1.load("test1.json").unwrap();
 
         test_is_mut!(calseg1);
@@ -912,7 +913,7 @@ mod cal_tests {
 
         // Create calseg2 from freeze file test1.json of calseg1
         std::fs::copy("test1.json", "test2.json").unwrap();
-        let mut calseg2 = xcp.create_calseg("test2", &FLASH_PAGE2);
+        let calseg2 = xcp.create_calseg("test2", &FLASH_PAGE2);
         calseg2.load("test2.json").unwrap();
 
         test_is_mut!(calseg2);

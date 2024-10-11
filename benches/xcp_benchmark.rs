@@ -131,6 +131,7 @@ async fn xcp_client(dest_addr: std::net::SocketAddr, local_addr: std::net::Socke
                     xcp_client.create_measurement_object("signal7").expect("measurement signal not found");
                     xcp_client.create_measurement_object("signal8").expect("measurement signal not found");
                     // Measure start
+                    xcp_client.init_measurement().await.unwrap();
                     xcp_client.start_measurement().await.expect("could not start measurement");
                 }
 
