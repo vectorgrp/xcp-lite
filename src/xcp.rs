@@ -185,7 +185,7 @@ impl XcpEvent {
     /// This is a C ffi call, which gets a pointer to a daq capture buffer
     /// The provenance of the pointer (len, lifetime) is is guaranteed , it refers to self
     /// The buffer must match its registry description, to avoid corrupt data given to the XCP tool
-    #[allow(clippy::not_unsafe_ptr_arg_deref)]
+    //#[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn trigger_ext(self, base: *const u8) -> u8 {
         // trace!(
         //     "Trigger event {} channel={}, index={}, base=0x{:X}, len={}",
@@ -195,8 +195,7 @@ impl XcpEvent {
         //     base as u64,
         //     len
         // );
-        // @@@@ unsafe - C library call
-        // @@@@ unsafe - Transfering a pointer and its valid memory range to XCPlite FFI
+        // @@@@ Unsafe - C library call and transfering a pointer and its valid memory range to XCPlite FFI
         unsafe {
             // Trigger event
             xcplib::XcpEventExt(self.get_channel(), base)
@@ -217,8 +216,7 @@ impl XcpEvent {
         //     self.get_channel(),
         //     self.get_index(),
         // );
-        // @@@@ unsafe - C library call
-        // @@@@ unsafe - Transfering a pointer and its valid memory range to XCPlite FFI
+        // @@@@ Unsafe - C library call and transfering a pointer and its valid memory range to XCPlite FFI
         unsafe {
             // Trigger event
             xcplib::XcpEvent(self.get_channel());
@@ -240,7 +238,7 @@ impl XcpEvent {
         //     self.get_index(),
         //     len
         // );
-        // @@@@ unsafe - C library call
+        // @@@@ Unsafe - C library call
         unsafe {
             // Trigger event
             xcplib::XcpEvent(self.get_channel());
@@ -430,6 +428,7 @@ impl XcpBuilder {
             r.set_epk(self.epk, Xcp::XCP_EPK_ADDR);
         }
 
+        // @@@@ Unsafe - C library call
         unsafe {
             if xcplib::XcpTlInit() == 0 {
                 return Err(XcpError::XcpLib("Error: XcpTlInit() failed"));
@@ -462,7 +461,7 @@ impl XcpBuilder {
             r.set_epk(self.epk, Xcp::XCP_EPK_ADDR); // EPK
         }
 
-        // @@@@ unsafe - C library call
+        // @@@@ Unsafe - C library call
         unsafe {
             // Initialize the XCP Server and ETH transport layer
             let a: [u8; 4] = ipv4_addr.octets();
@@ -508,6 +507,7 @@ impl Xcp {
     /// Used by A2L writer
     pub fn get_abs_ext_addr(addr: u64) -> (u8, u32) {
         let a2l_ext = Xcp::XCP_ADDR_EXT_ABS;
+        // @@@@ Unsafe - C library call
         let a2l_addr = unsafe { xcplib::ApplXcpGetAddr(addr as *const u8) };
         (a2l_ext, a2l_addr)
     }
@@ -515,7 +515,7 @@ impl Xcp {
     // new
     // Lazy static initialization of the Xcp singleton
     fn new() -> Xcp {
-        // @@@@ unsafe - C library call
+        // @@@@ Unsafe - C library call
         unsafe {
             // Initialize the XCP protocol layer
             xcplib::XcpInit();
@@ -555,7 +555,7 @@ impl Xcp {
 
     /// Get XCP session status flags
     pub fn get_session_status(&self) -> XcpSessionStatus {
-        // @@@@ unsafe - C library call
+        // @@@@ Unsafe - C library call
         let session_status: u16 = unsafe { xcplib::XcpGetSessionStatus() } & 0xE040;
         XcpSessionStatus::from_bits(session_status).unwrap()
     }
@@ -572,7 +572,7 @@ impl Xcp {
 
     /// Set the log level for XCP protocol layer
     pub fn set_log_level(&self, level: XcpLogLevel) {
-        // @@@@ unsafe - C library call
+        // @@@@ Unsafe - C library call
         unsafe {
             xcplib::ApplXcpSetLogLevel(level as u8);
         }
@@ -581,7 +581,7 @@ impl Xcp {
     /// Print a formated text message to the XCP client tool console
     pub fn print(&self, msg: &str) {
         let msg = std::ffi::CString::new(msg).unwrap();
-        // @@@@ unsafe - C library call
+        // @@@@ Unsafe - C library call
         unsafe {
             xcplib::XcpPrint(msg.as_ptr());
         }
@@ -593,6 +593,7 @@ impl Xcp {
     /// Execute a XCP command
     /// In transport layer mode
     pub fn tl_command(&self, buf: &[u8]) {
+        // @@@@ Unsafe - C library call
         unsafe {
             xcplib::XcpTlCommand(buf.len() as u16, &buf[0] as *const u8);
         }
@@ -601,6 +602,7 @@ impl Xcp {
     /// Get the next message in the transmit queue, do not advance the read pointer
     /// Data is ready to be sent over TCP or UDP socket
     pub fn tl_transmit_queue_peek(&self) -> Option<&'static [u8]> {
+        // @@@@ Unsafe - C library call
         unsafe {
             let mut buf_len: u16 = 0;
             let buf_ptr = xcplib::XcpTlTransmitQueuePeekMsg(&mut buf_len as *mut u16);
@@ -614,11 +616,13 @@ impl Xcp {
 
     /// Check if the transmit queue has a message ready to be sent
     pub fn tl_transmit_queue_has_msg(&self) -> bool {
+        // @@@@ Unsafe - C library call
         unsafe { xcplib::XcpTlTransmitQueueHasMsg() != 0 }
     }
 
     /// Advance the transmit queue read pointer
     pub fn tl_transmit_queue_next(&self) {
+        // @@@@ Unsafe - C library call
         unsafe {
             xcplib::XcpTlTransmitQueueNextMsg();
         }
@@ -626,7 +630,7 @@ impl Xcp {
 
     /// Shut down the XCP transport layer
     pub fn tl_shutdown(&self) {
-        // @@@@ unsafe - C library call
+        // @@@@ Unsafe - C library call
         unsafe {
             xcplib::XcpTlShutdown();
         }
@@ -638,7 +642,7 @@ impl Xcp {
     /// Check if the XCP server is ok and running
     #[cfg(feature = "xcp_server")]
     pub fn check_server(&self) -> bool {
-        // @@@@ unsafe - C library call
+        // @@@@ Unsafe - C library call
         unsafe {
             // Return server status
             0 != xcplib::XcpEthServerStatus()
@@ -648,7 +652,7 @@ impl Xcp {
     /// Stop the XCP server
     #[cfg(feature = "xcp_server")]
     pub fn stop_server(&self) {
-        // @@@@ unsafe - C library call
+        // @@@@ Unsafe - C library call
         unsafe {
             xcplib::XcpDisconnect();
             xcplib::XcpEthServerShutdown();
@@ -761,7 +765,7 @@ impl Xcp {
             // A2L exists and is up to date on disk
             // Set the name of the A2L file in the XCPlite server to enable upload via XCP
             let name = std::ffi::CString::new(r.get_name().unwrap()).unwrap();
-            // @@@@ unsafe - C library call
+            // @@@@ Unsafe - C library call
             unsafe {
                 xcplib::ApplXcpSetA2lName(name.as_ptr());
             }
@@ -932,8 +936,14 @@ extern "C" fn cb_freeze_cal() -> u8 {
     CRC_CMD_OK
 }
 
+// Direct calibration memory access, read and write memory
+// Here is the fundamental point of unsafety in XCP calibration
+// Read and write are called by XCP on UPLOAD and DNLOAD commands and XCP must assure the correctness of the parameters, which are usually taken from an A2L file
+// Writing with incorrect offset or len might lead to undefined behaviour or at least wrong field values in the calibration segment
+// Reading with incorrect offset or len will lead to incorrect data shown in the XCP tool
+// @@@@ Unsafe - direct memory access with pointer arithmetic
 #[no_mangle]
-extern "C" fn cb_read(addr: u32, len: u8, dst: *mut u8) -> u8 {
+unsafe extern "C" fn cb_read(addr: u32, len: u8, dst: *mut u8) -> u8 {
     trace!("cb_read: addr=0x{:08X}, len={}, dst={:?}", addr, len, dst);
     assert!((addr & 0x80000000) != 0, "cb_read: invalid address");
     assert!(len > 0, "cb_read: zero length");
@@ -959,16 +969,16 @@ extern "C" fn cb_read(addr: u32, len: u8, dst: *mut u8) -> u8 {
             epk_len
         );
 
-        // @@@@ unsafe - writing to a pointer from XCPlite FFI to get EPK, pointer arithmetic
-        unsafe {
-            let src = epk.as_ptr().add(offset as usize);
-            std::ptr::copy_nonoverlapping(src, dst, len as usize);
-        }
+        let src = epk.as_ptr().add(offset as usize);
+        std::ptr::copy_nonoverlapping(src, dst, len as usize);
+
         CRC_CMD_OK
     }
     // Calibration segment read
+    // read_from is Unsafe function
     else {
         let calseg_list = Xcp::get().calseg_list.lock().unwrap();
+
         if !calseg_list.read_from((index - 1) as usize, offset, len, dst) {
             CRC_ACCESS_DENIED
         } else {
@@ -977,8 +987,9 @@ extern "C" fn cb_read(addr: u32, len: u8, dst: *mut u8) -> u8 {
     }
 }
 
+// @@@@ Unsafe - direct memory access with pointer arithmetic
 #[no_mangle]
-extern "C" fn cb_write(addr: u32, len: u8, src: *const u8, delay: u8) -> u8 {
+unsafe extern "C" fn cb_write(addr: u32, len: u8, src: *const u8, delay: u8) -> u8 {
     trace!("cb_write: dst=0x{:08X}, len={}, src={:?}, delay={}", addr, len, src, delay);
     // @@@@ callbacks should not panic
     assert!(len > 0, "cb_write: zero length");
@@ -992,6 +1003,7 @@ extern "C" fn cb_write(addr: u32, len: u8, src: *const u8, delay: u8) -> u8 {
     let offset: u16 = (addr & 0xFFFF) as u16;
 
     // Write to calibration segment
+    // read_from is Unsafe function
     let calseg_list = Xcp::get().calseg_list.lock().unwrap();
     if !calseg_list.write_to((index - 1) as usize, offset, len, src, delay) {
         CRC_ACCESS_DENIED

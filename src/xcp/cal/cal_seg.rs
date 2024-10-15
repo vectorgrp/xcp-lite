@@ -322,7 +322,7 @@ where
             // Init - copy the default calibration page back to xcp page to reset it to default values
             if xcp_page.init_request {
                 xcp_page.init_request = false;
-                // @@@@ unsafe - Implementation of init cal page in sync() with non mut self
+                // @@@@ Unsafe - Implementation of init cal page in sync() with non mut self
                 unsafe {
                     info!("init: {}: default_page => xcp_page ({})", self.get_name(), xcp_page.ctr,);
 
@@ -344,7 +344,7 @@ where
                     xcp_page.ctr,
                     self.ecu_page.ctr
                 );
-                // @@@@ unsafe - Copy xcp_page to ecu_page
+                // @@@@ Unsafe - Copy xcp_page to ecu_page
                 unsafe {
                     let dst_ptr: *mut u8 = self.ecu_page.as_ref() as *const _ as *mut u8;
                     let src_ptr: *const u8 = &*xcp_page as *const _ as *const u8;
@@ -383,14 +383,14 @@ where
 
     // Read from xcp_page or default_page depending on the active XCP page
     // # Safety
-    // Memory access is unsafe, src checked to be inside a calibration segment
-    // src is a pointer to the destination data in XCPlite
-    unsafe fn read(&self, offset: u16, len: u8, src: *mut u8) -> bool;
+    // dst must be valid
+    // @@@@ Unsafe function
+    unsafe fn read(&self, offset: u16, len: u8, dst: *mut u8) -> bool;
 
-    // Write to xcp_page or default_page depending on the active XCP page
+    // Write to xcp_page
     // # Safety
-    // Memory access is unsafe, dst checked to be inside a calibration segment
-    // src is a pointer to the source data in XCPlite
+    // src must be valid
+    // @@@@ Unsafe function
     unsafe fn write(&self, offset: u16, len: u8, src: *const u8, delay: u8) -> bool;
 
     // Flush delayed modifications
@@ -422,6 +422,7 @@ where
         m.init_request = true;
     }
 
+    // @@@@ Unsafe
     unsafe fn read(&self, offset: u16, len: u8, dst: *mut u8) -> bool {
         assert!(offset as usize + len as usize <= std::mem::size_of::<T>());
         if Xcp::get().get_xcp_cal_page() == XcpCalPage::Ram {
@@ -436,6 +437,7 @@ where
         }
     }
 
+    // @@@@ Unsafe
     unsafe fn write(&self, offset: u16, len: u8, src: *const u8, delay: u8) -> bool {
         assert!(offset as usize + len as usize <= std::mem::size_of::<T>());
         if Xcp::get().get_xcp_cal_page() == XcpCalPage::Ram {
@@ -467,19 +469,25 @@ where
 {
     type Target = T;
 
+    // Deref to currently active page
+    #[inline]
     fn deref(&self) -> &Self::Target {
-        let xcp = Xcp::get();
-        // Deref to currently active page
-        match xcp.get_ecu_cal_page() {
-            XcpCalPage::Ram => &self.ecu_page.page,
-            _ => self.default_page,
+        if xcp::XCP_SINGLETON.ecu_cal_page.load(std::sync::atomic::Ordering::Relaxed) == XcpCalPage::Ram as u8 {
+            std::hint::black_box(&self.ecu_page.page)
+        } else {
+            self.default_page
         }
+
+        // let xcp = Xcp::get();
+        // match xcp.get_ecu_cal_page() {
+        //     XcpCalPage::Ram => std::hint::black_box(&self.ecu_page.page),
+        //     _ => self.default_page,
+        // }
     }
 }
 
 //----------------------------------------------------------------------------------------------
 // Implement DerefMut for CalSegSync
-// @@@@ For testing only
 // Deref to XCP page and increment the modification counter
 // This is undefined behaviour, because the reference to XCP data page will escape from its mutex
 impl<T> std::ops::DerefMut for CalSeg<T>
@@ -491,6 +499,7 @@ where
         let mut p = self.xcp_page.lock(); // .unwrap(); // std::sync::MutexGuard
         p.ctr = p.ctr.wrapping_add(1);
         let r: *mut T = &mut p.page;
+        // @@@@ Usafe - For testing only
         unsafe { &mut *r }
     }
 }
@@ -545,7 +554,7 @@ where
 /// This is safe, because CalSeg would be Send and Sync, but its disabled by PhantomData
 /// Send is reimplemented here
 /// Sync stays disabled, because this would allow to call calseg.sync() from multiple threads with references to the same CalSeg
-// @@@@ unsafe - Implementation of Send marker for CalSeg
+// @@@@ Unsafe - Implementation of Send marker for CalSeg
 unsafe impl<T> Send for CalSeg<T> where T: CalPageTrait {}
 
 //----------------------------------------------------------------------------------------------
@@ -643,8 +652,11 @@ mod cal_tests {
         assert_eq!(test, 0);
         let data: u8 = 1;
         let index = cal_page_test.get_index();
-        assert_eq!(index, 0); // Segment index
-        cb_write(0x80000000u32 + (((index + 1) as u32) << 16), 1, &data, 0);
+        assert_eq!(index, 0);
+        // @@@@ - unsafe - Test
+        unsafe {
+            cb_write(0x80000000u32 + (((index + 1) as u32) << 16), 1, &data, 0);
+        }
         cal_page_test.sync();
         test = cal_page_test.test;
         assert_eq!(cal_page_test.test, 1);
@@ -672,7 +684,10 @@ mod cal_tests {
             task_calseg(c2);
         });
         let data: u8 = 1;
-        cb_write(0x80000000u32 + (((index + 1) as u32) << 16), 1, &data, 0);
+        // @@@@ - unsafe - Test
+        unsafe {
+            cb_write(0x80000000u32 + (((index + 1) as u32) << 16), 1, &data, 0);
+        }
         t1.join().unwrap();
         t2.join().unwrap();
         cal_page0.sync();
@@ -961,12 +976,7 @@ mod cal_tests {
         is_send::<Box<dyn CalSegTrait + Send>>();
 
         #[allow(clippy::vec_init_then_push)]
-        let mut v: Vec<Box<dyn CalSegTrait>> = Vec::new();
-        v.push(Box::new(s1.clone()));
-        v.push(Box::new(s2.clone()));
-        v.push(Box::new(s3.clone()));
-        v.push(Box::new(s3.clone()));
-
+        let mut v: Vec<Box<dyn CalSegTrait>> = vec![Box::new(s1.clone()), Box::new(s2.clone()), Box::new(s3.clone()), Box::new(s3.clone())];
         for (i, s) in v.iter().enumerate() {
             info!(" {}: {}", i, s.get_name());
         }

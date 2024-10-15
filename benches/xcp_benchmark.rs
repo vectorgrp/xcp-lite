@@ -1,10 +1,4 @@
-// cargo bench -- --save-baseline parking_lot
-// cargo bench -- --baseline parking_lot
-// cargo bench -- --save-baseline parking_lot
-// cargo bench -- --load-baseline new --baseline parking_lot
-// --warm-up-time 0
-// --nresamples <nresamples>
-//
+// cargo bench
 //
 
 #![allow(unused_assignments)]
@@ -57,6 +51,13 @@ impl DaqDecoder {
 }
 
 impl XcpDaqDecoder for DaqDecoder {
+    fn start(&mut self, _timestamp: u64) {
+        self.event_count = 0;
+        self.event_lost_count = 0;
+    }
+
+    fn set_timestamp_resolution(&mut self, _timestamp_resolution: u64) {}
+
     fn decode(&mut self, lost: u32, _daq: u16, _odt: u8, _time: u32, _data: &[u8]) {
         self.event_count += 1;
         self.event_lost_count += lost as u64;
@@ -131,7 +132,6 @@ async fn xcp_client(dest_addr: std::net::SocketAddr, local_addr: std::net::Socke
                     xcp_client.create_measurement_object("signal7").expect("measurement signal not found");
                     xcp_client.create_measurement_object("signal8").expect("measurement signal not found");
                     // Measure start
-                    xcp_client.init_measurement().await.unwrap();
                     xcp_client.start_measurement().await.expect("could not start measurement");
                 }
 
@@ -219,10 +219,12 @@ fn xcp_benchmark(c: &mut Criterion) {
     let xcp = XcpBuilder::new("xcp_benchmark")
         .set_log_level(XcpLogLevel::Info)
         .set_epk("EPK_")
-        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)?;
+        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
+        .unwrap();
 
     // Create a calibration segment
     let cal_page = xcp.create_calseg("CalPage", &CAL_PAGE);
+    cal_page.register_fields();
 
     // Measurement signal
     let mut signal1: u32 = 0;
@@ -257,6 +259,14 @@ fn xcp_benchmark(c: &mut Criterion) {
 
     // Wait a moment
     thread::sleep(Duration::from_millis(100));
+
+    // Bench deref performance
+    info!("Start calibration segment deref bench");
+    c.bench_function("deref", |b| {
+        b.iter(|| {
+            let _x = cal_page.ampl;
+        })
+    });
 
     // Bench calibration segment sync
     // Bench calibration operations (in xcp_client_task)

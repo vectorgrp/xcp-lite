@@ -1141,6 +1141,7 @@ impl XcpClient {
         let obj = &self.calibration_objects[index.0];
         let v = obj.get_value_u64();
         #[allow(clippy::transmute_int_to_float)]
+        // @@@@ - unsafe - Test XCP client
         unsafe {
             std::mem::transmute(v)
         }

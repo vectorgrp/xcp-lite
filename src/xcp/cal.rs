@@ -188,22 +188,30 @@ impl CalSegList {
         self.0.iter_mut().for_each(|s| s.set_init_request());
     }
 
-    /// Read from xcp_page or default_page depending on the active XCP page
-    /// # Safety
-    /// Memory access is unsafe, src checked to be inside a calibration segment
-    pub fn read_from(&self, index: usize, offset: u16, len: u8, dst: *mut u8) -> bool {
+    // Read from xcp_page or default_page depending on the active XCP page
+    // # Safety
+    // Raw pointer dst must point to valid memory with len bytes size
+    // offset and len must match the size and position of the field
+    // #Panics
+    // Invalid calibration segment index
+    // offset out of calibration segment boundaries
+    // @@@@ Unsafe - direct memory access with pointer arithmetic
+    pub unsafe fn read_from(&self, index: usize, offset: u16, len: u8, dst: *mut u8) -> bool {
         let m = self.0[index].calseg.lock().unwrap();
-        // @@@@ unsafe - Call to unsafe method, read from xcp_page or default_page depending on the active XCP page
-        unsafe { m.read(offset, len, dst) }
+        m.read(offset, len, dst)
     }
 
-    /// Read from xcp_page or default_page depending on the active XCP page
-    /// # Safety
-    /// Memory access is unsafe, dst checked to be inside a calibration segment
-    pub fn write_to(&self, index: usize, offset: u16, len: u8, src: *const u8, delay: u8) -> bool {
+    // Write to xcp_page
+    // # Safety
+    // Raw pointer src must point to valid memory with len bytes size
+    // offset and len must match the size and position of the field
+    // #Panics
+    // Invalid calibration segment index
+    // offset out of calibration segment boundaries
+    // @@@@ Unsafe - direct memory access with pointer arithmetic
+    pub unsafe fn write_to(&self, index: usize, offset: u16, len: u8, src: *const u8, delay: u8) -> bool {
         let m = self.0[index].calseg.lock().unwrap();
-        // @@@@ unsafe - Call to unsafe method, read from xcp_page or default_page depending on the active XCP page
-        unsafe { m.write(offset, len, src, delay) }
+        m.write(offset, len, src, delay)
     }
 
     // Flush delayed modifications in all calibration segments

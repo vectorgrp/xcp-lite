@@ -27,6 +27,7 @@ impl GeneratorCollection {
         static mut INSTANCE: Option<GeneratorCollection> = None;
         static INIT: Once = Once::new();
 
+        // @@@@ - unsafe - Mutable static, todo
         unsafe {
             INIT.call_once(|| {
                 INSTANCE = Some(GeneratorCollection::new());

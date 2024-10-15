@@ -51,6 +51,7 @@ pub fn idl_generator_derive(input: TokenStream) -> TokenStream {
                     static mut STRUCT_INSTANCE: Option<Struct> = None;
                     static mut INITIALIZED: bool = false;
 
+                    // @@@@ - unsafe - Mutable static, todo
                     unsafe {
                         // Prevent the user from calling the register function multiple times
                         if INITIALIZED {

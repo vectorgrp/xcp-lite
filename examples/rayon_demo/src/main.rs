@@ -1,60 +1,89 @@
 // xcp-lite - rayon demo
 // Visualize start and stop of synchronous tasks in worker thread pool
-// Taken from the mandelbrot rayon example in the book "Programming Rust" by Jim Blandy and Jason Orendorff
+// Inspired by the mandelbrot rayon example in the book "Programming Rust" by Jim Blandy and Jason Orendorff
 
-#[allow(unused_imports)]
-use log::{debug, error, info, trace, warn};
+// cargo r --example rayon_demo
+// Creates madelbrot.a2l and mandelbrot.png in current directory
 
 use anyhow::Result;
 use image::{ImageBuffer, Rgb};
+#[allow(unused_imports)]
+use log::{debug, error, info, trace, warn};
 use num::Complex;
 use rayon::prelude::*;
 use std::{thread, time::Duration};
-
 use xcp::*;
 use xcp_type_description::prelude::*;
 
-// Arrays measured may not exeed 2^15
-const X_RES: usize = 1024 * 2;
-const Y_RES: usize = 768 * 2;
+//---------------------------------------------------------------------------------------
+// Calibratable parameters
+
+const IMAGE_FILE_NAME: &str = "mandelbrot.png";
+const IMAGE_SIZE: usize = 8;
+const X_RES: usize = 1024 * IMAGE_SIZE;
+const Y_RES: usize = 768 * IMAGE_SIZE;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, XcpTypeDescription)]
 struct Mandelbrot {
-    x: f64,
+    x: f64, // Center of the set area to render
     y: f64,
-    width: f64,
+    width: f64, // Width of the set area to render
 }
 
-// Complete set
-// const MANDELBROT: Mandelbrot = Mandelbrot {
-//     x: -0.5,
-//     y: 0.0,
-//     width: 3.0,
-// };
+// Defaults
+//const MANDELBROT: Mandelbrot = Mandelbrot { x: -0.5, y: 0.0, width: 3.0 }; // Complete set
+//const MANDELBROT: Mandelbrot = Mandelbrot { x: -1.4, y: 0.0, width: 0.015 };
+const MANDELBROT: Mandelbrot = Mandelbrot { x: -0.8015, y: 0.1561, width: 0.0055 };
 
-const MANDELBROT: Mandelbrot = Mandelbrot { x: -1.4, y: 0.0, width: 0.015 };
+//---------------------------------------------------------------------------------------
+// Coloring
+
+// Normalizes color intensity values within RGB range
+fn normalize(color: f32, factor: f32) -> u8 {
+    ((color * factor).powf(0.8) * 255.) as u8
+}
+
+// Function converting intensity values to RGB
+fn iterations_to_rgb(i: u32) -> Rgb<u8> {
+    let wave = i as f32;
+
+    let (r, g, b) = match i {
+        380..=439 => ((440. - wave) / (440. - 380.), 0.0, 1.0),
+        440..=489 => (0.0, (wave - 440.) / (490. - 440.), 1.0),
+        490..=509 => (0.0, 1.0, (510. - wave) / (510. - 490.)),
+        510..=579 => ((wave - 510.) / (580. - 510.), 1.0, 0.0),
+        580..=644 => (1.0, (645. - wave) / (645. - 580.), 0.0),
+        645..=780 => (1.0, 0.0, 0.0),
+        _ => (0.0, 0.0, 0.0),
+    };
+
+    let factor = match i {
+        380..=419 => 0.3 + 0.7 * (wave - 380.) / (420. - 380.),
+        701..=780 => 0.3 + 0.7 * (780. - wave) / (780. - 700.),
+        _ => 1.0,
+    };
+
+    let (r, g, b) = (normalize(r, factor), normalize(g, factor), normalize(b, factor));
+    Rgb::from([r, g, b])
+}
+
+fn get_color_mag() -> Vec<Rgb<u8>> {
+    // Map iterations to colors
+    let mut color_map = Vec::with_capacity(256);
+    for i in 0..256 {
+        let rgb = iterations_to_rgb(785 - i * (800 - 350) / 255);
+        //let rgb = iterations_to_rgb(i);
+        color_map.push(rgb);
+    }
+    color_map
+}
 
 //---------------------------------------------------------------------------------------
 // Image rendering
 
 // Write the buffer `pixels` to the file named `filename`.
 fn write_image(filename: &str, pixels: &[u8]) {
-    // Rainbox color map (credits to CoPilot)
-    let mut color_map = Vec::with_capacity(256);
-    for i in 0..256 {
-        let (r, g, b) = match i {
-            0 => (0, 0, 0),                                              // Black
-            1..=42 => (255, (i as f32 * 6.0) as u8, 0),                  // Red to Yellow
-            43..=85 => (255 - ((i - 43) as f32 * 6.0) as u8, 255, 0),    // Yellow to Green
-            86..=128 => (0, 255, ((i - 86) as f32 * 6.0) as u8),         // Green to Cyan
-            129..=171 => (0, 255 - ((i - 129) as f32 * 6.0) as u8, 255), // Cyan to Blue
-            172..=214 => (((i - 172) as f32 * 6.0) as u8, 0, 255),       // Blue to Magenta
-            215..=255 => (255, 0, 255 - ((i - 215) as f32 * 6.0) as u8), // Magenta to Red
-            _ => (0, 0, 0),                                              // Default case (should not be reached)
-        };
-        let rgb = Rgb::<u8>([r, g, b]);
-        color_map.push(rgb);
-    }
+    let color_map = get_color_mag();
 
     // Create rgb image buffer and write to file
     let mut imgbuf = ImageBuffer::new(X_RES as u32, Y_RES as u32);
@@ -75,7 +104,7 @@ fn write_image(filename: &str, pixels: &[u8]) {
 /// origin. If `c` seems to be a member (more precisely, if we reached the
 /// iteration limit without being able to prove that `c` is not a member),
 /// return `None`.
-fn escape_time(c: Complex<f64>, limit: usize) -> Option<usize> {
+fn mandelbrot(c: Complex<f64>, limit: usize) -> Option<usize> {
     let mut z = Complex { re: 0.0, im: 0.0 };
     for i in 0..limit {
         if z.norm_sqr() > 4.0 {
@@ -86,6 +115,8 @@ fn escape_time(c: Complex<f64>, limit: usize) -> Option<usize> {
 
     None
 }
+
+//---------------------------------------------------------------------------------------
 
 /// Given the row and column of a pixel in the output image, return the
 /// corresponding point on the complex plane.
@@ -115,7 +146,7 @@ fn render(pixels: &mut [u8], row: usize, length: usize, upper_left: Complex<f64>
     // @@@@
     for column in 0..length {
         let point = pixel_to_point((column, row), upper_left, lower_right);
-        pixels[column] = match escape_time(point, 255) {
+        pixels[column] = match mandelbrot(point, 255) {
             None => 0,
             Some(count) => 255 - count as u8,
         };
@@ -199,8 +230,15 @@ fn main() -> Result<()> {
             }
 
             // Write image to file
-            write_image("mandelbrot.png", &pixels);
-            println!("Image written to mandelbrot.png, frame {} {:.4}s", mainloop_counter, elapsed_time);
+            write_image(IMAGE_FILE_NAME, &pixels);
+            println!(
+                "Image written to {}, resolution {}x{} {:.1}MB, duration={:.4}s",
+                IMAGE_FILE_NAME,
+                X_RES,
+                Y_RES,
+                (X_RES * Y_RES * 3) as f64 / 1000000.0,
+                elapsed_time
+            );
             update_counter += 1;
             event_update.trigger();
         }

@@ -36,7 +36,7 @@ XCPlite (https://github.com/vectorgrp/XCPlite) is a simplified implementation of
 
 In C or C++ software, A2L data objects are usually created with global or static variables, which means they have a constant memory address. XCPlite for C++ introduced an additional code instrumentation concept to measure and calibrate instances of classes located on heap. It is still using direct memory access, but A2L addresses are relative and the lifetime of measurement variables is associated to events.
 
-An implementation of XCP in Rust, with direct memory access, will get into conflict with the memory and concurrency safety concepts of Rust. In Rust, mutating static variables by using pointers is considered unsafe code, which might create undefined behaviour in parallel access. Thread safety when accessing any data will be stricly enforced. 
+An implementation of XCP in Rust, with direct memory access, will get into conflict with the memory and concurrency safety concepts of Rust. In Rust, mutating static variables by using pointers is considered Unsafe code, which might create undefined behaviour in parallel access. Thread safety when accessing any data will be stricly enforced. 
 
 xcp-lite (https://github.com/vectorgrp/xcp-lite) is an implementation of XCP for Rust. It provides a user friendly concept to wrap structs with calibration parameters in a convienient and thread safe type, to make calibration parameters accessible and safely interiour mutable by the XCP client tool. 
 To achieve this, the generation of the A2L description is part of the solution. In XCPlite this was an option. 
@@ -211,15 +211,15 @@ The implementation restricts memory accesses to the inner calibration page of a 
 As usual, the invariants to consider this safe, include the correctness of the A2L file and of the XCP client tool. When the A2L file is uploaded by the XCP tool on changes, this is always garantueed. 
 The wrapper type is Send, not Sync and implements the Deref trait for convinience. This opens the possibility to get aliases to the inner calibration values, which should be avoided. But this will never cause undefined behaviour, as the values will just not get updated, when the XCP tool does a calibration page switch. 
 
-Code in unsafe blocks exists in the following places:
+Code in Unsafe blocks exists in the following places:
 
-- The implementation of Sync for CalSeg
-- All calls to the C FFI of the XCPlite server (optional), transport layer and protocol layer
-- In particular the XCPlite bindings XcpEventExt and ApplXcpRead/WriteMemeory, which transfer a byte pointers to a calibration values. 
+- The implementation of Sync for CalSeg  
+- In particular the XCPlite bindings XcpEventExt for measurment and cb_read/cb_write for calibration, which carry byte pointers and memory offsets of measurement and calibration objects  
+- And formally all calls to the C FFI of the XCPlite server (optional), transport layer and protocol layer  
 
 A completely safe measurement and calibration concept is practically impossible to achieve, without massive consequences for the API, which would lead to much more additional boilerplate code to achive calibration. 
-XCP is a very common approach in the automotive industry and there are many tools, HIL systems and loggers supporting it.  
-XCP is a development tool, it is not integrated in production code or it is savely disabled.
+The memory oriented measurment and calibration approach of XCP is very common in the automotive industry and there are many tools, HIL systems and loggers supporting it.  
+XCP is used during the development process only, it is never integrated in production code or it is disabled by save code.
 
 
 ## Build

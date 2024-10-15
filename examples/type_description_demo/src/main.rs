@@ -1,6 +1,4 @@
-//TODO: Remove
-#[allow(warnings)]
-use xcp::*;
+//use xcp::*;
 use xcp_type_description::prelude::*;
 
 #[derive(Clone, Copy, XcpTypeDescription, Debug)]

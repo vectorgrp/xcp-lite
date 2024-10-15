@@ -85,7 +85,7 @@ static STATIC_VARS: static_cell::StaticCell<StaticVars> = static_cell::StaticCel
 // Each variable or struct field has to be registered manually in the A2L registry
 // A2L addresses are absolute in the application process memory space (which means relative to the module load address)
 
-// This approach uses a OnceCell to initialize a static instance of calibration data, a mutable static instead would need unsafe, a static might be in write protected memory and a const has no memory address
+// This approach uses a OnceCell to initialize a static instance of calibration data, a mutable static instead would need unnsafe, a static might be in write protected memory and a const has no memory address
 // The inner UnsafeCell allows interiour mutability, but this could theoretically cause undefined behaviour or inconsistencies depending on the nature of the platform
 // Many C,C++ implementations of XCP do not care about this, but this approach is not recommended for rust projects
 

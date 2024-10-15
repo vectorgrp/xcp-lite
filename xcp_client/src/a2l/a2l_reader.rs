@@ -190,7 +190,7 @@ pub fn a2l_find_measurement(a2l_file: &A2lFile, name: &str) -> Option<(A2lAddr, 
 
     Some((
         A2lAddr {
-            ext: a2l_ext as u8,
+            ext: a2l_ext,
             addr: a2l_addr,
             event: a2l_event,
         },

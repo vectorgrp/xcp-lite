@@ -103,6 +103,7 @@ impl Generator for CdrGenerator {
         static mut MAPPING: Option<TypeMapping> = None;
         static INIT: Once = Once::new();
 
+        // @@@@ - unsafe - Mutable static, todo
         unsafe {
             INIT.call_once(|| {
                 let mut mapping = TypeMapping::new();
