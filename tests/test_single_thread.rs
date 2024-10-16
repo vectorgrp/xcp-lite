@@ -211,6 +211,6 @@ async fn test_single_thread() {
 
         xcp.stop_server();
 
-        std::fs::remove_file("test_single_thread.a2l").unwrap();
+        std::fs::remove_file("test_single_thread.a2l").ok();
     }
 }

@@ -130,7 +130,7 @@ mod registry_tests {
         let err = reg.write_a2l();
         assert!(err.is_err());
 
-        std::fs::remove_file("test_registry_2.a2l").unwrap();
+        std::fs::remove_file("test_registry_2.a2l").ok();
     }
 
     //-----------------------------------------------------------------------------
@@ -241,6 +241,6 @@ mod registry_tests {
             }
         }
 
-        std::fs::remove_file("test_registry_1.a2l").unwrap();
+        std::fs::remove_file("test_registry_1.a2l").ok();
     }
 }

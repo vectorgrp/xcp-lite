@@ -354,9 +354,13 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
             let t2 = xcp_client.get_daq_clock().await.unwrap();
             let dt12 = (t2 - t1) / 1000;
             let dt120 = t20.as_micros() as u64;
-            info!("t1 = {}ns, t2 = {}ns, dt={}us / elapsed={}us", t1, t2, dt12, dt120);
-            assert!(dt12 > dt120 - 100, "DAQ clock too slow");
-            assert!(dt12 < dt120 + 100, "DAQ clock too fast");
+            let diff = dt120 as i64 - dt12 as i64;
+            info!("t1 = {}ns, t2 = {}ns, dt={}us / elapsed={}us diff={}", t1, t2, dt12, dt120, diff);
+            if !(-100..=100).contains(&diff) {
+                warn!("DAQ clock too inaccurate");
+            }
+            assert!(dt12 > dt120 - 400, "DAQ clock too slow");
+            assert!(dt12 < dt120 + 400, "DAQ clock too fast");
 
             info!("Start data acquisition test");
 

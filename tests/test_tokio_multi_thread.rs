@@ -318,5 +318,5 @@ async fn test_tokio_multi_thread() {
         let _ = tokio::join!(t);
     }
 
-    std::fs::remove_file("test_tokio_multi_thread.a2l").unwrap();
+    std::fs::remove_file("test_tokio_multi_thread.a2l").ok();
 }

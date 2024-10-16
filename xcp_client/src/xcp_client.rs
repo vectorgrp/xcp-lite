@@ -1051,7 +1051,7 @@ impl XcpClient {
             }
             self.a2l_file = Some(a2l_file);
             if upload {
-                std::fs::remove_file(file_name)?;
+                std::fs::remove_file(file_name).ok();
             }
         } else {
             error!("Could not read A2L file {}", file_name.display());

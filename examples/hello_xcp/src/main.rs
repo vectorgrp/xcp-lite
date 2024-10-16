@@ -60,6 +60,7 @@ fn main() -> Result<()> {
     calseg.register_fields();
 
     // Load calibration parameter mutable page from a file if it exists, otherwise initially save the defaults
+    #[allow(unexpected_cfgs)]
     #[cfg(feature = "serde")]
     if calseg.load("hello_xcp.json").is_err() {
         calseg.save("hello_xcp.json").unwrap();

@@ -36,6 +36,6 @@ fn main() {
     let measurement = Measurement::new();
     let description = measurement.description();
 
-    let val = GeneratorCollection::generate(&IDL::CDR, &description).unwrap();
+    let val = GeneratorCollection::generate(&IDL::CDR, description).unwrap();
     write_string_to_file("./gen.txt", &val);
 }

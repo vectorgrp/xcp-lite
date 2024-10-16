@@ -1055,7 +1055,7 @@ pub mod xcp_test {
         {
             let mut r = xcp.registry.lock().unwrap();
             r.clear();
-            r.set_name("xcp_lite");
+            r.set_name("xcp_test");
             r.set_epk("TEST_EPK", Xcp::XCP_EPK_ADDR);
         }
         xcp.set_ecu_cal_page(XcpCalPage::Ram);

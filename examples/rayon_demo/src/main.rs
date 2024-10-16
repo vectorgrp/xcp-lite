@@ -44,7 +44,7 @@ fn normalize(color: f32, factor: f32) -> u8 {
 }
 
 // Function converting intensity values to RGB
-fn iterations_to_rgb(i: u32) -> Rgb<u8> {
+fn wavelength_to_rgb(i: u32) -> Rgb<u8> {
     let wave = i as f32;
 
     let (r, g, b) = match i {
@@ -71,8 +71,8 @@ fn get_color_mag() -> Vec<Rgb<u8>> {
     // Map iterations to colors
     let mut color_map = Vec::with_capacity(256);
     for i in 0..256 {
-        let rgb = iterations_to_rgb(785 - i * (800 - 350) / 255);
-        //let rgb = iterations_to_rgb(i);
+        let rgb = wavelength_to_rgb(379 + (i * (781 - 379)) / 255);
+
         color_map.push(rgb);
     }
     color_map
@@ -134,7 +134,7 @@ fn pixel_to_point(pixel: (usize, usize), upper_left: Complex<f64>, lower_right: 
 }
 
 /// Render a line of the Mandelbrot set into a buffer of pixels.
-fn render(pixels: &mut [u8], row: usize, length: usize, upper_left: Complex<f64>, lower_right: Complex<f64>) {
+fn render(pixels: &mut [u8], row: usize, upper_left: Complex<f64>, lower_right: Complex<f64>) {
     // Create event for this worker thread and register variable index, which is the upper left corner of the rectangle
     let event = daq_create_event_tli!("task");
 
@@ -143,18 +143,14 @@ fn render(pixels: &mut [u8], row: usize, length: usize, upper_left: Complex<f64>
     event.trigger(); // measure line and timestamp of calculation start
 
     // Render line
-    // @@@@
-    for column in 0..length {
+    for (column, pixel) in pixels.iter_mut().enumerate() {
         let point = pixel_to_point((column, row), upper_left, lower_right);
-        pixels[column] = match mandelbrot(point, 255) {
-            None => 0,
-            Some(count) => 255 - count as u8,
-        };
+        *pixel = mandelbrot(point, 254).unwrap_or(255) as u8;
     }
 
     line = 0; // set to 0 to mark calculation end and measure again to get a timestamp for the end of the calculation
     event.trigger();
-    _ = line; // prevent warning about unused variable
+    _ = line; // prevent warning about unused variable line
 }
 
 //---------------------------------------------------------------------------------------
@@ -214,7 +210,7 @@ fn main() -> Result<()> {
                 lines.into_par_iter().for_each(|(y, band)| {
                     let band_upper_left = pixel_to_point((0, y), upper_left, lower_right);
                     let band_lower_right = pixel_to_point((X_RES, y + 1), upper_left, lower_right);
-                    render(band, y, X_RES, band_upper_left, band_lower_right);
+                    render(band, y, band_upper_left, band_lower_right);
                 });
 
                 elapsed_time = start_time.elapsed().as_secs_f64();
