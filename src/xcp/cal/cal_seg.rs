@@ -976,7 +976,7 @@ mod cal_tests {
         is_send::<Box<dyn CalSegTrait + Send>>();
 
         #[allow(clippy::vec_init_then_push)]
-        let mut v: Vec<Box<dyn CalSegTrait>> = vec![Box::new(s1.clone()), Box::new(s2.clone()), Box::new(s3.clone()), Box::new(s3.clone())];
+        let v: Vec<Box<dyn CalSegTrait>> = vec![Box::new(s1.clone()), Box::new(s2.clone()), Box::new(s3.clone()), Box::new(s3.clone())];
         for (i, s) in v.iter().enumerate() {
             info!(" {}: {}", i, s.get_name());
         }

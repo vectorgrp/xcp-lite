@@ -12,6 +12,7 @@ pub trait Generator {
 pub struct TypeMapping(HashMap<&'static str, &'static str>);
 
 impl TypeMapping {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         TypeMapping(HashMap::new())
     }
@@ -20,7 +21,8 @@ impl TypeMapping {
         self.0.insert(key, value);
     }
 
-    pub fn iter<'a>(&'a self) -> impl Iterator<Item = (&'static str, &'static str)> + 'a {
+    pub fn iter(&self) -> impl Iterator<Item = (&'static str, &'static str)> + '_ {
+        //pub fn iter<'a>(&'a self) -> impl Iterator<Item = (&'static str, &'static str)> + 'a {
         self.0.iter().map(|(k, v)| (*k, *v))
     }
 

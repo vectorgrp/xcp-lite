@@ -54,7 +54,8 @@ macro_rules! daq_event_ref {
         lazy_static::lazy_static! {
             static ref XCP_EVENT__: XcpEvent = Xcp::get().create_measurement_object(stringify!($id), $data_type, $x_dim, $y_dim, $comment);
         }
-        XCP_EVENT__.trigger_ext(&(*$id) as *const _ as *const u8);
+        // @@@@ Unsafe - C library call which will dereference the raw pointer base
+        unsafe { XCP_EVENT__.trigger_ext(&(*$id) as *const _ as *const u8); }
     }};
 }
 
@@ -121,7 +122,10 @@ impl<const N: usize> DaqEvent<N> {
     /// Trigger for stack or capture buffer measurement with base pointer relative addressing
     pub fn trigger(&self) {
         let base: *const u8 = &self.buffer as *const u8;
-        self.event.trigger_ext(base);
+        // @@@@ Unsafe - C library call which will dereference the raw pointer base
+        unsafe {
+            self.event.trigger_ext(base);
+        }
     }
 
     /// Trigger for stack measurement with absolute addressing

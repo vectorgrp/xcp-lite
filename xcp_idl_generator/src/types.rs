@@ -7,7 +7,7 @@ impl Struct {
     }
 
     pub fn type_name(&self) -> &str {
-        &self.0
+        self.0
     }
 
     pub fn fields(&self) -> &FieldList {
@@ -19,6 +19,7 @@ impl Struct {
 pub struct FieldList(Vec<Field>);
 
 impl FieldList {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self(Vec::new())
     }
@@ -45,14 +46,14 @@ impl Field {
     }
 
     pub fn name(&self) -> &str {
-        &self.0
+        self.0
     }
 
     pub fn datatype(&self) -> &str {
-        &self.1
+        self.1
     }
 }
-
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Eq, Hash, PartialEq)]
 pub enum IDL {
     CDR,

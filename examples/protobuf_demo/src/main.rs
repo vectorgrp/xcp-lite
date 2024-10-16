@@ -1,4 +1,5 @@
 // protobuf_demo
+// @@@@ Work in progress
 
 use anyhow::Result;
 #[allow(unused_imports)]
@@ -215,7 +216,9 @@ fn main() -> Result<()> {
         buf.clear();
         test_data.encode(&mut buf).unwrap();
         println!("Capacity: {}, Data: {:?}", buf.capacity(), buf);
-        event.trigger_ext(buf.as_ptr());
+        unsafe {
+            event.trigger_ext(buf.as_ptr());
+        }
 
         thread::sleep(Duration::from_micros(1000000));
 

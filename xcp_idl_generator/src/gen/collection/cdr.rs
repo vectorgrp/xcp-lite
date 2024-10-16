@@ -15,6 +15,7 @@ fn extract_types(input: &str) -> Vec<&str> {
 pub struct CdrGenerator;
 
 impl CdrGenerator {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {}
     }
@@ -69,11 +70,11 @@ impl Generator for CdrGenerator {
             for datatype in extracted_type_tree.iter() {
                 match self.type_mapping().get(datatype) {
                     None => {
-                        if processed.contains(&datatype) {
+                        if processed.contains(datatype) {
                             continue;
                         }
 
-                        let s_slice: &str = &*datatype;
+                        let s_slice: &str = datatype;
                         let description = struct_collection.get(s_slice).unwrap();
 
                         let inner_type_name = description.type_name();
@@ -88,7 +89,7 @@ impl Generator for CdrGenerator {
                         let tag = format!("module {VECTOR_NAMESPACE} {{");
                         translation = translation.replace(&tag, &format!("module {VECTOR_NAMESPACE} {{\"\n{}", idl_str));
 
-                        processed.push(&datatype);
+                        processed.push(datatype);
                     }
                     Some(_) => { /* Rust primitive -> Ignored */ }
                 }
