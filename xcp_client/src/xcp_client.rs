@@ -11,19 +11,20 @@ use log::{debug, error, info, trace, warn};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use bytes::{BufMut, BytesMut};
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::error::Error;
 use std::io::Cursor;
 use std::io::Write;
 use std::net::SocketAddr;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use tokio::net::UdpSocket;
 use tokio::select;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::time::{timeout, Duration};
 
 #[allow(unused_imports)]
-use crate::a2l::a2l_reader::{a2l_find_characteristic, a2l_find_measurement, a2l_load, a2l_printf_info, A2lAddr, A2lLimits, A2lType};
+use crate::a2l::a2l_reader::{a2l_find_characteristic, a2l_find_measurement, a2l_get_characteristics, a2l_get_measurements, a2l_load, a2l_printf_info, A2lAddr, A2lLimits, A2lType};
 
 //--------------------------------------------------------------------------------------------------------------------------------------------------
 // XCP Parameters
@@ -306,6 +307,10 @@ impl XcpCalibrationObject {
         }
     }
 
+    pub fn get_type(&self) -> A2lType {
+        self.get_type
+    }
+
     pub fn set_value(&mut self, bytes: &[u8]) {
         self.value = bytes.to_vec();
     }
@@ -349,18 +354,18 @@ pub struct XcpMeasurementObjectHandle(usize);
 pub struct XcpMeasurementObject {
     name: String,
     pub a2l_addr: A2lAddr,
-    pub get_type: A2lType,
+    pub a2l_type: A2lType,
     pub daq: u16,
     pub odt: u8,
     pub offset: u16,
 }
 
 impl XcpMeasurementObject {
-    pub fn new(name: &str, a2l_addr: A2lAddr, get_type: A2lType) -> XcpMeasurementObject {
+    pub fn new(name: &str, a2l_addr: A2lAddr, a2l_type: A2lType) -> XcpMeasurementObject {
         XcpMeasurementObject {
             name: name.to_string(),
             a2l_addr,
-            get_type,
+            a2l_type,
             daq: 0,
             odt: 0,
             offset: 0,
@@ -374,7 +379,7 @@ impl XcpMeasurementObject {
         self.a2l_addr
     }
     pub fn get_type(&self) -> A2lType {
-        self.get_type
+        self.a2l_type
     }
 }
 
@@ -399,12 +404,24 @@ pub trait XcpTextDecoder {
 //--------------------------------------------------------------------------------------------------------------------------------------------------
 // DAQ decoder trait for XCP DAQ messages
 
+/// DAQ information
+/// Describes an ODT entry
+#[derive(Debug)]
+pub struct OdtEntry {
+    pub daq: u16,
+    pub odt: u8,
+    pub odt_entry: u8,
+    pub a2l_type: A2lType,
+    pub a2l_addr: A2lAddr,
+    pub offset: u16,
+}
+
 pub trait XcpDaqDecoder {
     /// Handle incomming DAQ data from XCP server
     fn decode(&mut self, lost: u32, daq: u16, odt: u8, timestamp_raw32: u32, data: &[u8]);
 
     /// Measurement start 64 bit time stamp
-    fn start(&mut self, timestamp_raw64: u64);
+    fn start(&mut self, odt_entries: Arc<Mutex<HashMap<String, OdtEntry>>>, timestamp_raw64: u64);
 
     // /// Measurement timestamp resoution in ns per raw timestamp tick
     fn set_timestamp_resolution(&mut self, timestamp_resolution: u64);
@@ -427,7 +444,7 @@ impl XcpTaskControl {
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------------------------
-// XcpClient type
+// XcpClient
 
 /// XCP client
 pub struct XcpClient {
@@ -445,6 +462,7 @@ pub struct XcpClient {
     a2l_file: Option<a2lfile::A2lFile>,
     calibration_objects: Vec<XcpCalibrationObject>,
     measurement_objects: Vec<XcpMeasurementObject>,
+    odt_entries: Arc<Mutex<HashMap<String, OdtEntry>>>,
 }
 
 impl XcpClient {
@@ -468,6 +486,7 @@ impl XcpClient {
             a2l_file: None,
             calibration_objects: Vec::new(),
             measurement_objects: Vec::new(),
+            odt_entries: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -594,7 +613,7 @@ impl XcpClient {
                                                 let daq: u16 = data[2] as u16 | (data[3] as u16) << 8;
                                                 let odt: u8 = data[0];
 
-                                                let mut m = decode_daq.lock().unwrap();
+                                                let mut m = decode_daq.lock();
                                                 if odt==0 {
                                                     assert!(len>=4);
                                                     // Note that a packet theoretically may be empty, when it is just an event
@@ -716,7 +735,7 @@ impl XcpClient {
         // Initilize DAQ clock
         self.time_correlation_properties().await?; // Set 64 bit response format for GET_DAQ_CLOCK
         self.timestamp_resolution_ns = self.get_daq_clock_resolution().await?;
-        daq_decoder.lock().unwrap().set_timestamp_resolution(self.timestamp_resolution_ns);
+        daq_decoder.lock().set_timestamp_resolution(self.timestamp_resolution_ns);
 
         // Keep the the DAQ decoder for measurement start
         self.daq_decoder = Some(daq_decoder);
@@ -1066,20 +1085,35 @@ impl XcpClient {
     }
 
     //------------------------------------------------------------------------
+    // A2l
+
+    pub fn get_characteristics(&self) -> Vec<String> {
+        a2l_get_characteristics(self.a2l_file.as_ref().unwrap())
+    }
+
+    pub fn get_measurements(&self) -> Vec<String> {
+        a2l_get_measurements(self.a2l_file.as_ref().unwrap())
+    }
+
+    //------------------------------------------------------------------------
     // XcpCalibrationObject, XcpCalibrationObjectHandle (index pointer to XcpCalibrationObject),
     // XcpXcpCalibrationObjectHandle is assumed immutable and the actual value is cached
+
+    pub fn get_calibration_object(&mut self, handle: XcpCalibrationObjectHandle) -> &XcpCalibrationObject {
+        &self.calibration_objects[handle.0]
+    }
 
     pub async fn create_calibration_object(&mut self, name: &str) -> Result<XcpCalibrationObjectHandle, Box<dyn Error>> {
         let res = a2l_find_characteristic(self.a2l_file.as_ref().unwrap(), name);
         if res.is_none() {
             Err(Box::new(XcpError::new(ERROR_A2L)) as Box<dyn Error>)
         } else {
-            let (a2l_addr, get_type, a2l_limits) = res.unwrap();
+            let (a2l_addr, a2l_type, a2l_limits) = res.unwrap();
 
-            let mut o = XcpCalibrationObject::new(name, a2l_addr, get_type, a2l_limits);
+            let mut o = XcpCalibrationObject::new(name, a2l_addr, a2l_type, a2l_limits);
             let resp = self.short_upload(o.a2l_addr.addr, o.a2l_addr.ext, o.get_type.size).await?;
             o.value = resp[1..=o.get_type.size as usize].to_vec();
-            trace!("upload {}: addr = {:?} type = {:?} limit={:?} value={:?}\n", name, a2l_addr, get_type, a2l_limits, o.value);
+            trace!("upload {}: addr = {:?} type = {:?} limit={:?} value={:?}\n", name, a2l_addr, a2l_type, a2l_limits, o.value);
             self.calibration_objects.push(o);
             Ok(XcpCalibrationObjectHandle(self.calibration_objects.len() - 1))
         }
@@ -1152,9 +1186,9 @@ impl XcpClient {
     //
 
     pub fn create_measurement_object(&mut self, name: &str) -> Option<XcpMeasurementObjectHandle> {
-        let (a2l_addr, get_type) = a2l_find_measurement(self.a2l_file.as_ref().unwrap(), name)?;
-        let o = XcpMeasurementObject::new(name, a2l_addr, get_type);
-        debug!("Create measurement object {}: addr = {:?} type = {:?}", name, a2l_addr, get_type,);
+        let (a2l_addr, a2l_type) = a2l_find_measurement(self.a2l_file.as_ref().unwrap(), name)?;
+        let o = XcpMeasurementObject::new(name, a2l_addr, a2l_type);
+        debug!("Create measurement object {}: addr = {:?} type = {:?}", name, a2l_addr, a2l_type,);
         self.measurement_objects.push(o);
         Some(XcpMeasurementObjectHandle(self.measurement_objects.len() - 1))
     }
@@ -1170,13 +1204,15 @@ impl XcpClient {
 
     /// Start DAQ
     pub async fn start_measurement(&mut self) -> Result<(), Box<dyn Error>> {
-        let n = self.measurement_objects.len();
+        // Init
+        let signal_count = self.measurement_objects.len();
+        self.odt_entries.lock().clear();
 
-        // Find all events and their number of signals
+        // Store all events in a hashmap (eventnumber, signalcount)
         let mut event_map: HashMap<u16, u16> = HashMap::new();
         let mut min_event: u16 = 0xFFFF;
         let mut max_event: u16 = 0;
-        for i in 0..n {
+        for i in 0..signal_count {
             let event = self.measurement_objects[i].get_addr().event;
             if event < min_event {
                 min_event = event;
@@ -1190,28 +1226,28 @@ impl XcpClient {
         let event_count: u16 = event_map.len() as u16;
         info!("event/daq count = {}", event_count);
 
-        // Transform to a sorted array
+        // Transform the event hashmap to a sorted array
         let mut event_list: Vec<(u16, u16)> = Vec::new();
         for (event, count) in event_map.into_iter() {
             event_list.push((event, count));
         }
         event_list.sort_by(|a, b| a.0.cmp(&b.0));
 
-        // Alloc DAQ lists
+        // Alloc a DAQ list for each event
         assert!(event_count <= 1024, "event_count > 1024");
         let daq_count: u16 = event_count;
         self.free_daq().await?;
         self.alloc_daq(daq_count).await?;
         debug!("alloc_daq count={}", daq_count);
 
-        // Alloc ODTs
+        // Alloc one ODT for each DAQ list (event)
         // @@@@ Restriction: Only one ODT per DAQ list supported yet
         for daq in 0..daq_count {
             self.alloc_odt(daq, 1).await?;
             debug!("Alloc daq={}, odt_count={}", daq, 1);
         }
 
-        // Alloc ODT entries
+        // Alloc ODT entries (signal count) for each ODT/DAQ list
         for daq in 0..daq_count {
             let odt_entry_count = event_list[daq as usize].1;
             assert!(odt_entry_count < 0x7C, "odt_entry_count >= 0x7C");
@@ -1219,7 +1255,7 @@ impl XcpClient {
             debug!("Alloc odt_entries: daq={}, odt={}, odt_entry_count={}", daq, 0, odt_entry_count);
         }
 
-        // Write ODT entries
+        // Write all ODT entries (address, size) and store information (hashmap(name,OdtEntry)) for the DAQ decoder
         for daq in 0..daq_count {
             let odt = 0;
             let event = event_list[daq as usize].0;
@@ -1227,28 +1263,44 @@ impl XcpClient {
             let n = self.measurement_objects.len();
             let mut odt_size: u16 = 0;
             for i in 0..n {
-                let a2l_addr = self.measurement_objects[i].a2l_addr;
+                let m = &mut self.measurement_objects[i];
+                let a2l_addr = m.a2l_addr;
                 if a2l_addr.event == event {
-                    self.set_daq_ptr(daq, odt, odt_entry).await?;
-                    let get_type = self.measurement_objects[i].get_type;
-                    self.write_daq(a2l_addr.ext, a2l_addr.addr, get_type.size).await?;
-                    self.measurement_objects[i].daq = daq;
-                    self.measurement_objects[i].odt = odt;
-                    self.measurement_objects[i].offset = odt_size + 6;
+                    let a2l_type: A2lType = m.a2l_type;
+                    m.daq = daq;
+                    m.odt = odt;
+                    m.offset = odt_size + 6;
 
-                    debug!(
-                        "Write daq={}, odt={}, odt_entry={}, ext={}, addr=0x{:08X}, size={}, offset={}",
+                    info!(
+                        "WRITE_DAQ {} daq={}, odt={}, odt_entry={}, type={:?}, size={}, ext={}, addr=0x{:08X}, offset={}",
+                        m.name,
                         daq,
                         odt,
                         odt_entry,
+                        a2l_type.encoding,
+                        a2l_type.size,
                         a2l_addr.ext,
                         a2l_addr.addr,
-                        get_type.size,
                         odt_size + 6
                     );
 
+                    self.odt_entries.lock().insert(
+                        m.name.clone(),
+                        OdtEntry {
+                            daq,
+                            odt,
+                            odt_entry,
+                            a2l_type,
+                            a2l_addr,
+                            offset: odt_size,
+                        },
+                    );
+
+                    self.set_daq_ptr(daq, odt, odt_entry).await?;
+                    self.write_daq(a2l_addr.ext, a2l_addr.addr, a2l_type.size).await?;
+
                     odt_entry += 1;
-                    odt_size += get_type.size as u16;
+                    odt_size += a2l_type.size as u16;
                     if odt_size > self.max_dto_size - 6 {
                         return Err(Box::new(XcpError::new(ERROR_ODT_SIZE)) as Box<dyn Error>);
                     }
@@ -1271,7 +1323,7 @@ impl XcpClient {
         // Reset the DAQ decoder and set measurement start time
         let daq_clock = self.get_daq_clock_raw().await?;
         if let Some(daq_decoder) = self.daq_decoder.as_ref() {
-            daq_decoder.lock().unwrap().start(daq_clock);
+            daq_decoder.lock().start(self.odt_entries.clone(), daq_clock);
         }
 
         // Send running=true throught the DAQ control channel to the receive task

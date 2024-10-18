@@ -13,6 +13,7 @@ use std::{
     f64::consts::PI,
     fmt::Debug,
     net::Ipv4Addr,
+    num::Wrapping,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex, RwLock,
@@ -273,11 +274,19 @@ fn task2(task_id: usize, calseg: CalSeg<CalPage>, calseg2: CalSeg<CalPage2>) {
 
 // A task with a single instance which calculates some counter signals of basic types and calibratable sawtooth counter
 fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
-    let mut counter: u32 = 0;
-    let mut counter_u8: u8 = 0;
-    let mut counter_u16: u16 = 0;
-    let mut counter_u32: u32 = 0;
-    let mut counter_u64: u64 = 0;
+    // Stack variables for measurement
+    let mut counter = 0u32;
+    let mut counter_u8 = Wrapping(0u8);
+    let mut counter_i8 = Wrapping(0i8);
+    let mut counter_u16 = Wrapping(0u16);
+    let mut counter_i16 = Wrapping(0i16);
+    let mut counter_u32 = Wrapping(0u32);
+    let mut counter_i32 = Wrapping(0i32);
+    let mut counter_u64 = Wrapping(0u64);
+    let mut counter_i64 = Wrapping(0i64);
+    let mut counter_usize = Wrapping(0usize);
+    let mut counter_isize = Wrapping(0isize);
+    let mut counter_option_u16: Option<u16> = None;
     let mut array1 = [0.0; 256];
     for (i, a) in array1.iter_mut().enumerate() {
         *a = i as f64;
@@ -291,10 +300,17 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
 
     // Register signals of bassic types or array to be captured directly from stack
     daq_register!(counter, event, "", "", 1.0, 0.0);
+    daq_register!(counter_i8, event, "wrapping counter: i8", "");
     daq_register!(counter_u8, event, "wrapping counter: u8", "");
     daq_register!(counter_u16, event, "wrapping counter: u16", "");
+    daq_register!(counter_i16, event, "wrapping counter: i16", "");
     daq_register!(counter_u32, event, "wrapping counter: u32", "");
+    daq_register!(counter_i32, event, "wrapping counter: i32", "");
     daq_register!(counter_u64, event, "wrapping counter: u64", "");
+    daq_register!(counter_i64, event, "wrapping counter: i64", "");
+    daq_register!(counter_usize, event, "wrapping counter: u64", "");
+    daq_register!(counter_isize, event, "wrapping counter: i64", "");
+    daq_register!(counter_option_u16, event, "wrapping counter optional: u8", "");
     daq_register_array!(array1, event);
 
     while RUN.load(Ordering::Relaxed) {
@@ -307,15 +323,26 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
         thread::sleep(Duration::from_micros(static_cal_page.task1_cycle_time_us as u64));
 
         // Basic types and array variables on stack
-        counter = counter.wrapping_add(1);
+        counter += 1;
         if counter > calseg1.counter_max {
             counter = 0
         }
-        counter_u8 = counter_u8.wrapping_add(1);
-        counter_u16 = counter_u16.wrapping_add(1);
-        counter_u32 = counter_u32.wrapping_add(1);
-        counter_u64 = counter_u64.wrapping_add(1);
-        array1[(counter_u16 % (array1.len() as u16)) as usize] = counter as f64;
+        counter_u8 += 1;
+        counter_i8 += 1;
+        counter_u16 += 1;
+        counter_i16 += 1;
+        counter_u32 += 1;
+        counter_i32 += 1;
+        counter_u64 += 1;
+        counter_i64 += 1;
+        counter_usize += 1;
+        counter_isize += 1;
+        if counter_option_u16.is_none() {
+            counter_option_u16 = Some(counter_u16.0)
+        } else {
+            counter_option_u16 = None;
+        }
+        array1[counter_usize.0 % array1.len()] = counter as f64;
 
         // Trigger single instance event "task1" for data acquisition
         // Capture variables from stack happens here

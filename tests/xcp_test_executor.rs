@@ -4,9 +4,11 @@
 
 #![allow(unused_imports)]
 
+use parking_lot::Mutex;
+use std::collections::HashMap;
+
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::sync::Mutex;
 
 use log::{debug, error, info, trace, warn};
 
@@ -95,7 +97,7 @@ impl DaqDecoder {
 
 impl XcpDaqDecoder for DaqDecoder {
     // Set start time and reset
-    fn start(&mut self, timestamp: u64) {
+    fn start(&mut self, _odt_entries: Arc<Mutex<HashMap<String, OdtEntry>>>, timestamp: u64) {
         self.tot_events = 0;
         self.packets_lost = 0;
         self.counter_errors = 0;
@@ -425,7 +427,7 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
 
             // Check results
             {
-                let d = daq_decoder.lock().unwrap();
+                let d = daq_decoder.lock();
                 info!("DAQ test cycle time = {}us", DAQ_TEST_TASK_SLEEP_TIME_US);
                 if test_mode_daq == TestModeDaq::MultiThreadDAQ {
                     info!("DAQ test thread count = {}", MULTI_THREAD_TASK_COUNT);

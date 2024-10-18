@@ -65,6 +65,14 @@ pub fn a2l_load<P: AsRef<std::path::Path>>(filename: P) -> Result<a2lfile::A2lFi
     }
 }
 
+pub fn a2l_get_characteristics(a2l_file: &A2lFile) -> Vec<String> {
+    let mut v = Vec::<String>::with_capacity(a2l_file.project.module[0].characteristic.len());
+    for c in a2l_file.project.module[0].characteristic.iter() {
+        v.push(c.name.clone());
+    }
+    v
+}
+
 pub fn a2l_find_characteristic(a2l_file: &A2lFile, name: &str) -> Option<(A2lAddr, A2lType, A2lLimits)> {
     let o = a2l_file.project.module[0].characteristic.iter().find(|m| m.name == name);
     if o.is_none() {
@@ -131,6 +139,14 @@ pub fn a2l_find_characteristic(a2l_file: &A2lFile, name: &str) -> Option<(A2lAdd
             },
         ))
     }
+}
+
+pub fn a2l_get_measurements(a2l_file: &A2lFile) -> Vec<String> {
+    let mut v = Vec::<String>::with_capacity(a2l_file.project.module[0].measurement.len());
+    for m in a2l_file.project.module[0].measurement.iter() {
+        v.push(m.name.clone());
+    }
+    v
 }
 
 pub fn a2l_find_measurement(a2l_file: &A2lFile, name: &str) -> Option<(A2lAddr, A2lType)> {

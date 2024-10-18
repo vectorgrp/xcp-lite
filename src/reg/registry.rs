@@ -203,6 +203,23 @@ pub trait RegistryDataTypeTrait {
     fn get_type(&self) -> RegistryDataType;
 }
 
+impl<T> RegistryDataTypeTrait for std::num::Wrapping<T>
+where
+    T: RegistryDataTypeTrait,
+{
+    fn get_type(&self) -> RegistryDataType {
+        self.0.get_type()
+    }
+}
+impl<T> RegistryDataTypeTrait for Option<T>
+where
+    T: RegistryDataTypeTrait + std::default::Default,
+{
+    fn get_type(&self) -> RegistryDataType {
+        let x: T = T::default();
+        x.get_type()
+    }
+}
 impl RegistryDataTypeTrait for bool {
     fn get_type(&self) -> RegistryDataType {
         RegistryDataType::Ubyte
@@ -228,6 +245,11 @@ impl RegistryDataTypeTrait for i64 {
         RegistryDataType::AInt64
     }
 }
+impl RegistryDataTypeTrait for isize {
+    fn get_type(&self) -> RegistryDataType {
+        RegistryDataType::AInt64
+    }
+}
 impl RegistryDataTypeTrait for u8 {
     fn get_type(&self) -> RegistryDataType {
         RegistryDataType::Ubyte
@@ -244,6 +266,11 @@ impl RegistryDataTypeTrait for u32 {
     }
 }
 impl RegistryDataTypeTrait for u64 {
+    fn get_type(&self) -> RegistryDataType {
+        RegistryDataType::AUint64
+    }
+}
+impl RegistryDataTypeTrait for usize {
     fn get_type(&self) -> RegistryDataType {
         RegistryDataType::AUint64
     }

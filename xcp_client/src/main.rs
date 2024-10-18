@@ -1,10 +1,10 @@
 //-----------------------------------------------------------------------------
 // xcp_client is a binary crate that uses the xcp_client library crate
 
-use std::error::Error;
-
-use std::sync::{Arc, Mutex};
-
+//use ::xcp_client::a2l::a2l_reader::A2lTypeEncoding;
+use a2l::a2l_reader::A2lTypeEncoding;
+use parking_lot::Mutex;
+use std::{collections::HashMap, error::Error, sync::Arc};
 mod xcp_client;
 use xcp_client::*;
 mod a2l;
@@ -40,6 +40,7 @@ const MAX_EVENT: usize = 16;
 
 #[derive(Debug)]
 struct DaqDecoder {
+    odt_entries: Option<Arc<Mutex<HashMap<String, OdtEntry>>>>,
     timestamp_resolution: u64,
     event_count: usize,
     byte_count: usize,
@@ -49,6 +50,7 @@ struct DaqDecoder {
 impl DaqDecoder {
     pub fn new() -> DaqDecoder {
         DaqDecoder {
+            odt_entries: None,
             timestamp_resolution: 0,
             event_count: 0,
             byte_count: 0,
@@ -62,7 +64,8 @@ impl DaqDecoder {
 // Assumes first signal is a 32 bit counter and there is only one ODT
 impl XcpDaqDecoder for DaqDecoder {
     // Set start time and reset
-    fn start(&mut self, timestamp: u64) {
+    fn start(&mut self, odt_entries: Arc<Mutex<HashMap<String, OdtEntry>>>, timestamp: u64) {
+        self.odt_entries = Some(odt_entries);
         self.event_count = 0;
         self.byte_count = 0;
         for t in self.daq_timestamp.iter_mut() {
@@ -93,16 +96,74 @@ impl XcpDaqDecoder for DaqDecoder {
         }
         self.daq_timestamp[daq as usize] = t;
 
+        // Decode all odt entries
+        trace!("DAQ: lost={}, daq={}, odt={}, t={}ns", lost, daq, odt, t);
+        if let Some(o) = self.odt_entries.as_ref() {
+            for e in o.lock().iter() {
+                let odt_entry = e.1;
+                if odt_entry.daq == daq && odt_entry.odt == odt {
+                    let value_size = odt_entry.a2l_type.size as usize;
+                    let mut value_offset = odt_entry.offset as usize + value_size - 1;
+                    let mut value: u64 = 0;
+                    loop {
+                        value |= data[value_offset] as u64;
+                        if value_offset == odt_entry.offset as usize {
+                            break;
+                        };
+                        value <<= 8;
+                        value_offset -= 1;
+                    }
+                    match odt_entry.a2l_type.encoding {
+                        A2lTypeEncoding::Signed => {
+                            match value_size {
+                                1 => {
+                                    let signed_value: i8 = value as u8 as i8;
+                                    info!("  {} = {}", e.0, signed_value);
+                                }
+                                2 => {
+                                    let signed_value: i16 = value as u16 as i16;
+                                    info!("  {} = {}", e.0, signed_value);
+                                }
+                                4 => {
+                                    let signed_value: i32 = value as u32 as i32;
+                                    info!("  {} = {}", e.0, signed_value);
+                                }
+                                8 => {
+                                    let signed_value: i64 = value as i64;
+                                    info!("  {} = {}", e.0, signed_value);
+                                }
+                                _ => {
+                                    warn!("Unsupported signed value size {}", value_size);
+                                }
+                            };
+                        }
+                        A2lTypeEncoding::Unsigned => {
+                            info!("  {} = {}", e.0, value);
+                        }
+                        A2lTypeEncoding::Float => {
+                            if odt_entry.a2l_type.size == 4 {
+                                let value: f32 = unsafe { std::mem::transmute(value as u32) };
+                                info!("  {} = {}", e.0, value);
+                            } else {
+                                let value: f64 = unsafe { std::mem::transmute(value) };
+                                info!("  {} = {}", e.0, value);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Hardcoded:
         // Decode data of daq list 0
         // A counter:u32 assumed to be first signal in daq list 0
-        if daq == 0 {
-            assert!(data.len() >= 4);
-            let counter = data[0] as u32 | (data[1] as u32) << 8 | (data[2] as u32) << 16 | (data[3] as u32) << 24;
-            //trace!("DAQ: lost={}, daq={}, odt={}: timestamp={} counter={} data={:?}", lost, daq, odt, t, counter, data);
-            let t = t * self.timestamp_resolution;
-            info!("DAQ: lost={}, daq={}, odt={}, t={}ns, counter={}", lost, daq, odt, t, counter);
-        }
+        // if daq == 0 {
+        //     assert!(data.len() >= 4);
+        //     let counter = data[0] as u32 | (data[1] as u32) << 8 | (data[2] as u32) << 16 | (data[3] as u32) << 24;
+        //     //trace!("DAQ: lost={}, daq={}, odt={}: timestamp={} counter={} data={:?}", lost, daq, odt, t, counter, data);
+        //     let t = t * self.timestamp_resolution;
+        //     info!("DAQ: lost={}, daq={}, odt={}, t={}ns, counter={}", lost, daq, odt, t, counter);
+        // }
 
         self.byte_count += data.len(); // overall payload byte count
         self.event_count += 1; // overall event count
@@ -156,10 +217,14 @@ struct Args {
     /// Bind address
     #[arg(short, long, default_value = "0.0.0.0:0")]
     bind_addr: String,
+
+    // Variable name string
+    #[arg(short, long)]
+    variable: Option<String>,
 }
 
 //------------------------------------------------------------------------
-async fn xcp_client(dest_addr: std::net::SocketAddr, local_addr: std::net::SocketAddr) -> Result<(), Box<dyn Error>> {
+async fn xcp_client(dest_addr: std::net::SocketAddr, local_addr: std::net::SocketAddr, variable_list: Vec<String>) -> Result<(), Box<dyn Error>> {
     println!("XCP client demo");
     println!("Calibrate and measure objects from xcp-lite main demo application");
 
@@ -175,9 +240,34 @@ async fn xcp_client(dest_addr: std::net::SocketAddr, local_addr: std::net::Socke
     info!("Load A2L file to file xcp_lite.a2l");
     xcp_client.load_a2l("xcp_lite.a2l", true, true).await?;
 
+    // Print all calibration objects with current value
+    info!("Calibration variables:");
+    let cal_objects = xcp_client.get_characteristics();
+    for name in cal_objects.iter() {
+        let h = xcp_client.create_calibration_object(name).await.unwrap();
+
+        let o = xcp_client.get_calibration_object(h);
+
+        match o.get_type().encoding {
+            A2lTypeEncoding::Signed => {
+                let v = xcp_client.get_value_i64(h);
+                info!(" {} = {}", name, v);
+            }
+            A2lTypeEncoding::Unsigned => {
+                let v = xcp_client.get_value_u64(h);
+                info!(" {} = {}", name, v);
+            }
+            A2lTypeEncoding::Float => {
+                let v = xcp_client.get_value_f64(h);
+                info!(" {} = {:.8}", name, v);
+            }
+        }
+    }
+    info!("");
+
     // Calibration
-    info!("XCP calibration");
-    // Create a calibration object for CalPage1.counter_max
+    // Change the value of CalPage1.counter_max to 255 (if exists - from main.rs, hello_xcp.rs, multi_thread_demo.rs)
+    // Measure how long this takes
     let start_time = tokio::time::Instant::now();
     if let Ok(counter_max) = xcp_client.create_calibration_object("CalPage1.counter_max").await {
         let v = xcp_client.get_value_u64(counter_max);
@@ -190,43 +280,27 @@ async fn xcp_client(dest_addr: std::net::SocketAddr, local_addr: std::net::Socke
         warn!("CalPage1.counter_max not found");
     }
 
-    info!("XCP Measurement");
+    // Set cycle time of main demo tasks 250ms/100us (if exists - from main.rs)
+    // counter_x task 1 cycle time
+    if let Ok(cycle_time) = xcp_client.create_calibration_object("static_cal_page.task1_cycle_time_us").await {
+        xcp_client.set_value_u64(cycle_time, 1000).await?;
+    }
+    // channel_x task 2 cycle time
+    if let Ok(cycle_time) = xcp_client.create_calibration_object("static_cal_page.task2_cycle_time_us").await {
+        xcp_client.set_value_u64(cycle_time, 100000).await?;
+    }
+    info!("");
 
-    // Set cycle time of main demo tasks 250ms/100us
-    if let Ok(cycle_time) = xcp_client.create_calibration_object("calpage00.task1_cycle_time_us").await {
-        xcp_client.set_value_u64(cycle_time, 250000).await?;
+    // Measure all existing measurement variables or the list of variables provided
+    // Multi dimensional objects not supported yet
+    info!("Measurement variables");
+    let mea_objects = if variable_list.len() > 0 { variable_list } else { xcp_client.get_measurements() };
+    for o in mea_objects.iter() {
+        if let Some(_m) = xcp_client.create_measurement_object(o) {
+            info!(r#"  Created measurement object {}"#, o);
+        }
     }
-    if let Ok(cycle_time) = xcp_client.create_calibration_object("calpage00.task2_cycle_time_us").await {
-        xcp_client.set_value_u64(cycle_time, 100).await?;
-    }
-
-    // Measurement signals
-    xcp_client.create_measurement_object("counter").unwrap();
-    info!(r#"Created measurement object "counter""#);
-    if let Some(_m) = xcp_client.create_measurement_object("counter_u8") {
-        info!(r#"Created measurement object counter_u8"#);
-    }
-    if let Some(_m) = xcp_client.create_measurement_object("counter_u16") {
-        info!(r#"Created measurement object counter_u16"#);
-    }
-    if let Some(_m) = xcp_client.create_measurement_object("counter_u32") {
-        info!(r#"Created measurement object counter_u32"#);
-    }
-    if let Some(_m) = xcp_client.create_measurement_object("counter_u64") {
-        info!(r#"Created measurement object counter_u64"#);
-    }
-
-    // Measurement of channel_x:f64, add all instances found in A2L file
-    let mut i = 0;
-    loop {
-        i += 1;
-        let name = format!("channel_{}", i);
-        if let Some(_m) = xcp_client.create_measurement_object(name.as_str()) {
-            info!(r#"Created measurement object "{}""#, name.as_str());
-        } else {
-            break;
-        };
-    }
+    info!("");
 
     // Measure for 6 seconds
     // 32 bit DAQ timestamp will overflow after 4.2s
@@ -237,8 +311,8 @@ async fn xcp_client(dest_addr: std::net::SocketAddr, local_addr: std::net::Socke
     let elapsed_time = start_time.elapsed().as_micros();
 
     // Print statistics
-    let event_count = daq_decoder.lock().unwrap().event_count;
-    let byte_count = daq_decoder.lock().unwrap().byte_count;
+    let event_count = daq_decoder.lock().event_count;
+    let byte_count = daq_decoder.lock().byte_count;
     info!(
         "Measurement done, {} events, {:.0} event/s, {:.3} Mbytes/s",
         event_count,
@@ -265,5 +339,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     info!("dest_addr: {}", dest_addr);
     info!("local_addr: {}", local_addr);
 
-    xcp_client(dest_addr, local_addr).await
+    let mut variable_list: Vec<String> = Vec::new();
+    if let Some(variable) = &args.variable {
+        info!("variable list: {}", variable);
+        variable_list.push(variable.clone());
+    }
+    xcp_client(dest_addr, local_addr, variable_list).await
 }
