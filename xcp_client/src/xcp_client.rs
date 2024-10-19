@@ -271,10 +271,10 @@ impl XcpCommandBuilder {
     }
 
     pub fn build(&mut self) -> &[u8] {
-        let mut len = self.data.len() as u16;
+        let mut len: u16 = self.data.len().try_into().unwrap();
         assert!(len >= 5);
         len -= 4;
-        self.data[0] = len as u8;
+        self.data[0] = (len & 0xFFu16) as u8;
         self.data[1] = (len >> 8) as u8;
         self.data.as_ref()
     }
@@ -840,7 +840,7 @@ impl XcpClient {
     // XCP memory access services (calibration and polling of measurememt vvalues)
 
     pub async fn short_download(&mut self, addr: u32, ext: u8, data_bytes: &[u8]) -> Result<(), Box<dyn Error>> {
-        let len = data_bytes.len() as u8;
+        let len: u8 = data_bytes.len().try_into().unwrap();
         trace!("short_download addr={}:{:08X},{} data={:?}", ext, addr, len, data_bytes);
         self.send_command(
             XcpCommandBuilder::new(CC_SHORT_DOWNLOAD)

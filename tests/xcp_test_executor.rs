@@ -513,7 +513,7 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
             tokio::time::sleep(Duration::from_micros(100000)).await;
             // Check if cal_seg.page marker is default
             cal_seg_page = xcp_client.create_calibration_object("CalPage1.page").await.expect("could not create calibration object CalPage1.page");
-            page = xcp_client.get_value_u64(cal_seg_page) as u8;
+            page = xcp_client.get_value_u64(cal_seg_page).try_into().unwrap();
             assert_eq!(page, 1);
             // Check if get cal page returns default
             page = xcp_client.get_xcp_page().await.unwrap();

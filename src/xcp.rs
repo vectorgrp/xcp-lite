@@ -293,7 +293,7 @@ impl EventList {
         // This is not a problem for the XCP client, but the A2L file might change unnessesarily on every start of the application
         let mut event_map: [u16; XcpEvent::XCP_MAX_EVENTS] = [0; XcpEvent::XCP_MAX_EVENTS];
         for (i, e) in self.0.iter().enumerate() {
-            event_map[e.event.channel as usize] = i as u16;
+            event_map[e.event.channel as usize] = i.try_into().unwrap();
         }
         XCP_EVENT_MAP.set(event_map).ok();
         trace!("Event map: {:?}", XCP_EVENT_MAP.get().unwrap());
@@ -305,19 +305,19 @@ impl EventList {
 
     fn create_event_ext(&mut self, name: &'static str, indexed: bool) -> XcpEvent {
         // Allocate a new, sequential event channel number
-        let channel = self.0.len();
+        let channel: u16 = self.0.len().try_into().unwrap();
 
         // In instance mode, check for other events in instance mode with duplicate name and create new instance index
         // otherwise check for unique event name
-        let index = if indexed {
-            self.0.iter().filter(|e| e.name == name && e.event.get_index() > 0).count() + 1
+        let index: u16 = if indexed {
+            (self.0.iter().filter(|e| e.name == name && e.event.get_index() > 0).count() + 1).try_into().unwrap()
         } else {
             assert!(self.0.iter().filter(|e| e.name == name).count() == 0, "Event name already exists");
             0
         };
 
         // Create XcpEvent
-        let event = XcpEvent::new(channel as u16, index as u16);
+        let event = XcpEvent::new(channel, index);
 
         debug!("Create event {} channel={}, index={}", name, event.get_channel(), event.get_index());
 
@@ -595,7 +595,7 @@ impl Xcp {
     pub fn tl_command(&self, buf: &[u8]) {
         // @@@@ Unsafe - C library call
         unsafe {
-            xcplib::XcpTlCommand(buf.len() as u16, &buf[0] as *const u8);
+            xcplib::XcpTlCommand(buf.len().try_into().unwrap(), &buf[0] as *const u8);
         }
     }
 

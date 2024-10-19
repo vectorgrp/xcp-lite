@@ -397,8 +397,7 @@ macro_rules! daq_register_array {
     ( $id:ident, $daq_event:expr ) => {{
         static ONCE: std::sync::Once = std::sync::Once::new();
         ONCE.call_once(|| {
-            //assert!($daq_event.get_capacity() == 0, "DAQ event with capture buffer");
-            let dim = (std::mem::size_of_val(&$id) / std::mem::size_of_val(&$id[0])) as u16;
+            let dim = (std::mem::size_of_val(&$id) / std::mem::size_of_val(&$id[0])).try_into().expect("dim too large");
             $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, ($id[0]).get_type(), dim, 1, 1.0, 0.0, "", "");
         });
     }};
@@ -438,8 +437,8 @@ macro_rules! daq_serialize {
                     stringify!($id),
                     std::mem::size_of_val(&$id),
                     RegistryDataType::Blob,
-                    $daq_event.buffer.len() as u16, // x_dim is buffer size in bytes
-                    1,                              // y_dim
+                    $daq_event.buffer.len().try_into().expect("buffer too large"), // x_dim is buffer size in bytes
+                    1,                                                             // y_dim
                     1.0,
                     0.0,
                     "",

@@ -125,7 +125,7 @@ pub fn a2l_find_characteristic(a2l_file: &A2lFile, name: &str) -> Option<(A2lAdd
 
         Some((
             A2lAddr {
-                ext: a2l_ext as u8,
+                ext: a2l_ext.try_into().expect("Address extension too large"),
                 addr: a2l_addr,
                 event: if a2l_ext == 0 { (a2l_addr >> 16) as u16 } else { 0 },
             },
@@ -152,7 +152,7 @@ pub fn a2l_get_measurements(a2l_file: &A2lFile) -> Vec<String> {
 pub fn a2l_find_measurement(a2l_file: &A2lFile, name: &str) -> Option<(A2lAddr, A2lType)> {
     let m = a2l_file.project.module[0].measurement.iter().find(|m| m.name == name)?;
     let a2l_addr: u32 = m.ecu_address.clone().expect("Measurement ecu_address not found!").address;
-    let a2l_ext = if let Some(e) = m.ecu_address_extension.clone() { e.extension } else { 0 } as u8;
+    let a2l_ext: u8 = if let Some(e) = m.ecu_address_extension.clone() { e.extension } else { 0 }.try_into().unwrap();
 
     let get_type = m.datatype;
     let a2l_size: u8 = match get_type {
@@ -219,29 +219,29 @@ pub fn a2l_find_measurement(a2l_file: &A2lFile, name: &str) -> Option<(A2lAddr, 
 
 pub fn a2l_printf_info(a2l_file: &A2lFile) {
     // MOD_PAR
-    info!("MOD_PAR:");
+    println!("MOD_PAR:");
     if let Some(mod_par) = &a2l_file.project.module[0].mod_par {
         if let Some(epk) = &mod_par.epk {
-            info!(" epk={}", epk.identifier);
+            println!(" epk = {}", epk.identifier);
         }
         for mem_seg in &mod_par.memory_segment {
-            info!(" mem_seg {} {:0X}:{}", mem_seg.name, mem_seg.address, mem_seg.size);
+            println!(" memory segment {} {:0X}:{}", mem_seg.name, mem_seg.address, mem_seg.size);
             //info!(" if_data: {:?}", mem_seg.if_data);
         }
     }
 
     // MEASUREMENT
-    info!("MEASUREMENT:");
+    println!("MEASUREMENTS:");
     for measurement in &a2l_file.project.module[0].measurement {
         let addr = measurement.ecu_address.clone().expect("ecu_address not found!").address;
-        let ext = if let Some(e) = measurement.ecu_address_extension.clone() { e.extension } else { 0 } as u8;
-        info!(" {} {} {}:0x{:X}", measurement.name, measurement.datatype, ext, addr);
+        let ext: u8 = if let Some(e) = measurement.ecu_address_extension.clone() { e.extension } else { 0 }.try_into().unwrap();
+        println!(" {} {} {}:0x{:X}", measurement.name, measurement.datatype, ext, addr);
     }
 
     // CHARACTERISTIC
-    info!("CHARACTERISTIC:");
+    println!("CHARACTERISTICS:");
     for characteristic in &a2l_file.project.module[0].characteristic {
-        info!(
+        println!(
             " {} {:?} {} 0x{:X} {:?} {:?} {} {}",
             characteristic.name,
             characteristic.long_identifier,

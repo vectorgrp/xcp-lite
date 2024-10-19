@@ -49,11 +49,11 @@ pub struct CalPageField {
 macro_rules! calseg_field {
     (   $name:ident.$field:ident ) => {{
         let offset = (&($name.$field) as *const _ as *const u8 as u64).wrapping_sub(&$name as *const _ as *const u8 as u64);
-        assert!(offset < 0x10000, "offset too large");
+
         CalPageField {
             name: stringify!($field),
             datatype: $name.$field.get_type(),
-            offset: offset as u16,
+            offset: offset.try_into().expect("offset too large"),
             dim: (1, 1),
             comment: None,
             min: None,
@@ -63,11 +63,10 @@ macro_rules! calseg_field {
     }};
     (   $name:ident.$field:ident, $comment:expr ) => {{
         let offset = (&($name.$field) as *const _ as *const u8 as u64).wrapping_sub(&$name as *const _ as *const u8 as u64);
-        assert!(offset < 0x10000, "offset too large");
         CalPageField {
             name: stringify!($field),
             datatype: $name.$field.get_type(),
-            offset: offset as u16,
+            offset: .try_into().expect("offset too large"),
             dim: (1, 1),
             comment: Some($comment),
             min: None,
@@ -77,11 +76,10 @@ macro_rules! calseg_field {
     }};
     (   $name:ident.$field:ident, $unit:expr, $comment:expr ) => {{
         let offset = (&($name.$field) as *const _ as *const u8 as u64).wrapping_sub(&$name as *const _ as *const u8 as u64);
-        assert!(offset < 0x10000, "offset too large");
         CalPageField {
             name: stringify!($field),
             datatype: $name.$field.get_type(),
-            offset: offset as u16,
+            offset: offset.try_into().expect("offset too large"),
             dim: (1, 1),
             comment: Some($comment),
             min: None,
@@ -91,11 +89,10 @@ macro_rules! calseg_field {
     }};
     (   $name:ident.$field:ident, $min:expr, $max:expr, $unit:expr ) => {{
         let offset = (&($name.$field) as *const _ as *const u8 as u64).wrapping_sub(&$name as *const _ as *const u8 as u64);
-        assert!(offset < 0x10000, "offset too large");
         CalPageField {
             name: stringify!($field),
             datatype: $name.$field.get_type(),
-            offset: offset as u16,
+            offset: offset.try_into().expect("offset too large"),
             dim: (1, 1),
             comment: None,
             min: Some($min as f64),
@@ -282,8 +279,8 @@ where
     }
 
     /// Get the calibration segment clone count
-    pub fn get_clone_count(&self) -> u16 {
-        Arc::strong_count(&self.xcp_page) as u16
+    pub fn get_clone_count(&self) -> usize {
+        Arc::strong_count(&self.xcp_page)
     }
 
     /// Sync the calibration segment  
@@ -337,13 +334,7 @@ where
 
             // Sync - Copy shared (ctr,xcp_page) to (ctr,ecu_page) in this clone of the calibration segment
             if xcp_page.ctr != self.ecu_page.ctr {
-                trace!(
-                    "sync: {}-{:04X}: xcp_page ({}) => ecu_page ({})",
-                    self.get_name(),
-                    self.ecu_page.as_ref() as *const _ as u16,
-                    xcp_page.ctr,
-                    self.ecu_page.ctr
-                );
+                trace!("sync: {}: xcp_page ({}) => ecu_page ({})", self.get_name(), xcp_page.ctr, self.ecu_page.ctr);
                 // @@@@ Unsafe - Copy xcp_page to ecu_page
                 unsafe {
                     let dst_ptr: *mut u8 = self.ecu_page.as_ref() as *const _ as *mut u8;

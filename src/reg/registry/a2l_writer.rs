@@ -209,11 +209,9 @@ impl GenerateA2l for RegistryCharacteristic {
 
         // Calculate the address extension and address of this Characteristic
         let (a2l_ext, a2l_addr) = if let Some(calseg_name) = self.calseg_name {
-            assert!(self.addr_offset <= 0xFFFF, "Address offset must be 16 bit");
-
             // Segment relative addressing
             let index = writer.registry.get_cal_seg_index(calseg_name).expect("unknown calseg");
-            Xcp::get_calseg_ext_addr(index, self.addr_offset as u16)
+            Xcp::get_calseg_ext_addr(index, self.addr_offset.try_into().expect("offset too large"))
         } else {
             // Absolute addressing
             Xcp::get_abs_ext_addr(self.addr_offset)
