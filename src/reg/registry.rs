@@ -60,40 +60,35 @@ pub enum RegistryDataType {
 impl RegistryDataType {
     /// Get minimum value for data type
     /// Used by the register macros
-    pub fn get_min(&self) -> f64 {
+    pub fn get_min(self) -> f64 {
         match self {
-            RegistryDataType::Sbyte => -128.0,
-            RegistryDataType::Sword => -32768.0,
-            RegistryDataType::Slong => -2147483648.0,
-            RegistryDataType::AInt64 => -1e12,
-            RegistryDataType::Float32Ieee => -1e12,
-            RegistryDataType::Float64Ieee => -1e12,
+            RegistryDataType::Sbyte => i8::MIN as f64,
+            RegistryDataType::Sword => i16::MIN as f64,
+            RegistryDataType::Slong => i32::MIN as f64,
+            RegistryDataType::AInt64 | RegistryDataType::Float32Ieee | RegistryDataType::Float64Ieee => f32::MIN as f64,
             _ => 0.0,
         }
     }
 
     /// Get maximum value for data type
     /// Used by the register macros
-    pub fn get_max(&self) -> f64 {
+    pub fn get_max(self) -> f64 {
         match self {
-            RegistryDataType::Ubyte => 255.0,
-            RegistryDataType::Uword => 65535.0,
-            RegistryDataType::Ulong => 4294967295.0,
-            RegistryDataType::AUint64 => 1e12,
-            RegistryDataType::Sbyte => 127.0,
-            RegistryDataType::Sword => 32767.0,
-            RegistryDataType::Slong => 2147483647.0,
-            RegistryDataType::AInt64 => 1e12,
-            RegistryDataType::Float32Ieee => 1e12,
-            RegistryDataType::Float64Ieee => 1e12,
+            RegistryDataType::Ubyte => u8::MAX as f64,
+            RegistryDataType::Sbyte => i8::MAX as f64,
+            RegistryDataType::Uword => u16::MAX as f64,
+            RegistryDataType::Sword => i16::MAX as f64,
+            RegistryDataType::Ulong => u32::MAX as f64,
+            RegistryDataType::Slong => i32::MAX as f64,
+            RegistryDataType::AUint64 | RegistryDataType::AInt64 | RegistryDataType::Float32Ieee | RegistryDataType::Float64Ieee => f32::MAX as f64,
             RegistryDataType::Blob => 0.0,
-            _ => panic!("get_max: Unsupported data type"),
+            RegistryDataType::Unknown => panic!("get_max: Unsupported data type"),
         }
     }
 
     // Get data type as str
     // Used by A2L writer
-    fn get_type_str(&self) -> &'static str {
+    fn get_type_str(self) -> &'static str {
         match self {
             RegistryDataType::Ubyte => "UBYTE",
             RegistryDataType::Uword => "UWORD",
@@ -106,13 +101,13 @@ impl RegistryDataType {
             RegistryDataType::Float32Ieee => "FLOAT32_IEEE",
             RegistryDataType::Float64Ieee => "FLOAT64_IEEE",
             RegistryDataType::Blob => "BLOB",
-            _ => panic!("get_type_str: Unsupported data type"),
+            RegistryDataType::Unknown => panic!("get_type_str: Unsupported data type"),
         }
     }
 
     // Get data type as str for A2L deposit
     // Used by A2L writer
-    fn get_deposit_str(&self) -> &'static str {
+    fn get_deposit_str(self) -> &'static str {
         match self {
             RegistryDataType::Ubyte => "U8",
             RegistryDataType::Uword => "U16",
@@ -125,26 +120,20 @@ impl RegistryDataType {
             RegistryDataType::Float32Ieee => "F32",
             RegistryDataType::Float64Ieee => "F64",
             RegistryDataType::Blob => "BLOB",
-            _ => panic!("get_deposit_str: Unsupported data type"),
+            RegistryDataType::Unknown => panic!("get_deposit_str: Unsupported data type"),
         }
     }
 
     /// Get data type size
     /// Used by the register macros
-    pub fn get_size(&self) -> usize {
+    pub fn get_size(self) -> usize {
         match self {
-            RegistryDataType::Ubyte => 1,
-            RegistryDataType::Uword => 2,
-            RegistryDataType::Ulong => 4,
-            RegistryDataType::AUint64 => 8,
-            RegistryDataType::Sbyte => 1,
-            RegistryDataType::Sword => 2,
-            RegistryDataType::Slong => 4,
-            RegistryDataType::AInt64 => 8,
-            RegistryDataType::Float32Ieee => 4,
-            RegistryDataType::Float64Ieee => 8,
+            RegistryDataType::Ubyte | RegistryDataType::Sbyte => 1,
+            RegistryDataType::Uword | RegistryDataType::Sword => 2,
+            RegistryDataType::Ulong | RegistryDataType::Slong | RegistryDataType::Float32Ieee => 4,
+            RegistryDataType::AUint64 | RegistryDataType::AInt64 | RegistryDataType::Float64Ieee => 8,
             RegistryDataType::Blob => 0,
-            _ => panic!("get_size: Unsupported data type"),
+            RegistryDataType::Unknown => panic!("get_size: Unsupported data type"),
         }
     }
 
@@ -152,17 +141,14 @@ impl RegistryDataType {
     /// Used by the register macros
     pub fn from_rust_basic_type(s: &str) -> RegistryDataType {
         match s {
-            "bool" => RegistryDataType::Ubyte,
-            "u8" => RegistryDataType::Ubyte,
-            "u16" => RegistryDataType::Uword,
-            "u32" => RegistryDataType::Ulong,
-            "u64" => RegistryDataType::AUint64,
-            "usize" => RegistryDataType::AUint64, // @@@@ Check if usize is correct
+            "bool" | "u8" => RegistryDataType::Ubyte,
             "i8" => RegistryDataType::Sbyte,
+            "u16" => RegistryDataType::Uword,
             "i16" => RegistryDataType::Sword,
+            "u32" => RegistryDataType::Ulong,
             "i32" => RegistryDataType::Slong,
-            "i64" => RegistryDataType::AInt64,
-            "isize" => RegistryDataType::AInt64, // @@@@ Check if isize is correct
+            "u64" | "usize" => RegistryDataType::AUint64, // @@@@ Check if usize is correct
+            "i64" | "isize" => RegistryDataType::AInt64,  // @@@@ Check if isize is correct
             "f32" => RegistryDataType::Float32Ieee,
             "f64" => RegistryDataType::Float64Ieee,
             _ => RegistryDataType::Unknown,
@@ -334,7 +320,7 @@ impl RegistryEventList {
         self.0.iter()
     }
     fn get_name(&self, xcp_event: XcpEvent) -> Option<&'static str> {
-        for event in self.0.iter() {
+        for event in &self.0 {
             if event.xcp_event == xcp_event {
                 return Some(event.name);
             }
@@ -727,7 +713,7 @@ impl Registry {
 
         // Append event index to name in case of a multi instance event (index>0)
         if m.xcp_event.get_index() > 0 {
-            m.name = format!("{}_{}", m.name, m.xcp_event.get_index())
+            m.name = format!("{}_{}", m.name, m.xcp_event.get_index());
         }
 
         // Panic if symbol_name with same name already exists

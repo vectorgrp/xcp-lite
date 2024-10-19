@@ -324,6 +324,7 @@ where
                     info!("init: {}: default_page => xcp_page ({})", self.get_name(), xcp_page.ctr,);
 
                     let src_ptr = self.default_page as *const T;
+                    #[allow(clippy::ptr_cast_constness)]
                     let dst_ptr = &xcp_page.page as *const _ as *mut T;
                     core::ptr::copy_nonoverlapping(src_ptr, dst_ptr, 1);
                 }
@@ -539,12 +540,12 @@ where
 // The Send marker trait indicates that ownership of the type can be transferred to a different thread.
 // The Sync marker trait would indicates that it is safe to share references to CalSeg between threads, which is not the case.
 
-/// Send marker for CalSeg
-/// CalSeg is not Sync, but Send
+/// Send marker for 'CalSeg'
+/// 'CalSeg' is not Sync, but Send
 /// # Safety
-/// This is safe, because CalSeg would be Send and Sync, but its disabled by PhantomData
+/// This is safe, because 'CalSeg' would be Send and Sync, but its disabled by PhantomData
 /// Send is reimplemented here
-/// Sync stays disabled, because this would allow to call calseg.sync() from multiple threads with references to the same CalSeg
+/// Sync stays disabled, because this would allow to call 'calseg.sync()' from multiple threads with references to the same 'CalSeg'
 // @@@@ Unsafe - Implementation of Send marker for CalSeg
 unsafe impl<T> Send for CalSeg<T> where T: CalPageTrait {}
 

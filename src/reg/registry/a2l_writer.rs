@@ -164,7 +164,7 @@ impl GenerateA2l for RegistryMeasurement {
  "#
             )?;
         } else {
-            if self.factor != 1.0 || self.offset != 0.0 || !self.unit.is_empty() {
+            if (self.factor - 1.0).abs() <= f64::EPSILON || self.offset != 0.0 || !self.unit.is_empty() {
                 writeln!(writer, r#"/begin COMPU_METHOD {name}.Conv "" LINEAR "%6.3" "{unit}" COEFFS_LINEAR {factor} {offset} /end COMPU_METHOD"#)?;
                 write!(
                     writer,
@@ -193,7 +193,7 @@ impl GenerateA2l for RegistryMeasurement {
         if self.datatype == RegistryDataType::Blob {
             writeln!(writer, r#" /end CHARACTERISTIC"#)?;
         } else {
-            writeln!(writer, r#" /end MEASUREMENT"#)?
+            writeln!(writer, r#" /end MEASUREMENT"#)?;
         };
 
         Ok(())
@@ -419,7 +419,7 @@ impl<'a> A2lWriter<'a> {
 
         // Eventlist
         for e in self.registry.event_list.iter() {
-            e.write_a2l(self)?
+            e.write_a2l(self)?;
         }
 
         write!(self, "\n\t\t\t/end DAQ\n")?;
@@ -501,10 +501,10 @@ impl<'a> A2lWriter<'a> {
 
     fn write_a2l_tail(&mut self) -> std::io::Result<()> {
         self.write_all(
-            r#"
+            "
     /end MODULE 
     /end PROJECT
-    "#
+    "
             .as_bytes(),
         )
     }

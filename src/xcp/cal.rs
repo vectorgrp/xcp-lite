@@ -101,15 +101,13 @@ impl CalSegList {
     /// Create a calibration segment  
     /// # Panics  
     /// Panics if the calibration segment name already exists  
-    /// Panics if the calibration page size exceeds 64k
+    /// Panics if the calibration page size exceeds 64k or is ZeroSized
     pub fn create_calseg<T>(&mut self, name: &'static str, default_page: &'static T) -> CalSeg<T>
     where
         T: CalPageTrait,
     {
         // Check size of calibration page
-        if std::mem::size_of::<T>() > 0x10000 || std::mem::size_of::<T>() == 0 {
-            panic!("CalPage size is 0 or exceeds 64k");
-        }
+        assert!(std::mem::size_of::<T>() <= 0x10000 && std::mem::size_of::<T>() != 0, "CalPage size is 0 or exceeds 64k");
 
         // Check for duplicate name
         self.0.iter().for_each(|s| {
@@ -183,11 +181,11 @@ impl CalSegList {
     }
 
     pub fn set_freeze_request(&mut self) {
-        self.0.iter_mut().for_each(|s| s.set_freeze_request());
+        self.0.iter_mut().for_each(CalSegDescriptor::set_freeze_request);
     }
 
     pub fn set_init_request(&mut self) {
-        self.0.iter_mut().for_each(|s| s.set_init_request());
+        self.0.iter_mut().for_each(CalSegDescriptor::set_init_request);
     }
 
     // Read from xcp_page or default_page depending on the active XCP page

@@ -1,6 +1,3 @@
-#![cfg(not(doctest))]
-//#![warn(missing_docs)]
-
 //-----------------------------------------------------------------------------
 // Crate xcp
 // Path: src/lib.rs
@@ -9,6 +6,31 @@
 // Note that the tests can not be executed in parallel
 // Use cargo test -- --test-threads=1 --features=serde --nocapture
 
+// This crate is a library
+#![crate_type = "lib"]
+// The library crate is named "xcp"
+#![crate_name = "xcp"]
+// Disabled clippy lints
+#![warn(clippy::pedantic)]
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::must_use_candidate)]
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::module_name_repetitions)]
+#![allow(clippy::struct_field_names)]
+#![allow(clippy::unreadable_literal)]
+#![allow(clippy::if_not_else)]
+#![allow(clippy::wildcard_imports)]
+#![allow(clippy::cast_lossless)]
+//
+#![allow(clippy::ref_as_ptr)]
+#![allow(clippy::ptr_as_ptr)]
+#![allow(clippy::cast_possible_wrap)]
+#![allow(clippy::trivially_copy_pass_by_ref)]
+//
+#![cfg(not(doctest))]
+/*
 //! A lightweight XCP on Ethernet implementation
 //! The 'xcp' crate provides an XCP on ETH implementation,a wrapper type for calibration variables and
 //! a registry to describe events, meaesurement and calibration objects for A2L generation.
@@ -73,12 +95,7 @@
 //!
 //!
 //!
-
-// This crate is a library
-#![crate_type = "lib"]
-// The library crate is named "xcp"
-#![crate_name = "xcp"]
-
+*/
 //-----------------------------------------------------------------------------
 
 // Submodule xcp

@@ -101,6 +101,7 @@ impl<const N: usize> DaqEvent<N> {
     }
 
     /// Get the capacity of the capture buffer
+    #[allow(clippy::unused_self)]
     pub fn get_capacity(&self) -> usize {
         N
     }
@@ -111,12 +112,13 @@ impl<const N: usize> DaqEvent<N> {
         let offset = self.buffer_len;
         assert!(offset + size <= self.buffer.len(), "DAQ buffer overflow");
         self.buffer_len += size;
-        offset as i16
+        offset.try_into().expect("offset out of range")
     }
 
     /// Copy to the capture buffer     
     pub fn capture(&mut self, data: &[u8], offset: i16) {
-        self.buffer[offset as usize..offset as usize + data.len()].copy_from_slice(data);
+        let offset = offset.try_into().expect("offset negative");
+        self.buffer[offset..offset + data.len()].copy_from_slice(data);
     }
 
     /// Trigger for stack or capture buffer measurement with base pointer relative addressing
@@ -182,8 +184,7 @@ impl<const N: usize> DaqEvent<N> {
         let p = ptr as usize; // variable address
         let b = &self.buffer as *const _ as usize; // base address
         let o: i64 = p as i64 - b as i64; // variable - base address
-        assert!((-0x8000..=0x7FFF).contains(&o), "memory offset out of range");
-        let event_offset: i16 = o as i16;
+        let event_offset: i16 = o.try_into().expect("memory offset out of rang");
         trace!("add_stack: {} {:?} ptr={:p} base={:p} event_offset={}", name, datatype, ptr, &self.buffer as *const _, event_offset);
         if Xcp::get()
             .get_registry()

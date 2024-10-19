@@ -73,7 +73,7 @@ impl From<u8> for XcpLogLevel {
         match item {
             0 => XcpLogLevel::Off,
             1 => XcpLogLevel::Error,
-            2 => XcpLogLevel::Warn,
+            //2 => XcpLogLevel::Warn,
             3 => XcpLogLevel::Info,
             4 => XcpLogLevel::Debug,
             5 => XcpLogLevel::Trace,
@@ -85,7 +85,7 @@ impl From<u8> for XcpLogLevel {
 use log::{debug, error, info, trace, warn};
 
 impl XcpLogLevel {
-    /// Convert XcpLogLevel to log::LevelFilter
+    /// Convert XcpLogLevel to 'log::LevelFilter'
     pub fn to_log_level_filter(self) -> log::LevelFilter {
         match self {
             XcpLogLevel::Off => log::LevelFilter::Off,
@@ -174,6 +174,7 @@ impl XcpEvent {
     /// Used by A2L writer
     pub fn get_dyn_ext_addr(self, offset: i16) -> (u8, u32) {
         let a2l_ext = Xcp::XCP_ADDR_EXT_DYN;
+        #[allow(clippy::cast_sign_loss)]
         let a2l_addr: u32 = (self.get_channel() as u32) << 16 | (offset as u16 as u32);
         (a2l_ext, a2l_addr)
     }
@@ -368,7 +369,7 @@ pub enum XcpTransportLayer {
 
 impl XcpTransportLayer {
     /// Get the protocol name of the transport layer
-    pub fn protocol_name(&self) -> &'static str {
+    pub fn protocol_name(self) -> &'static str {
         match self {
             XcpTransportLayer::Tcp => "TCP",
             XcpTransportLayer::Udp => "UDP",
@@ -398,12 +399,14 @@ impl XcpBuilder {
     }
 
     /// Set log level
+    #[must_use]
     pub fn set_log_level(mut self, log_level: XcpLogLevel) -> Self {
         self.log_level = log_level;
         self
     }
 
     /// Set the EPK to enable the XCP tool to check the A2L file fits the code
+    #[must_use]
     pub fn set_epk(mut self, epk: &'static str) -> Self {
         self.epk = epk;
         self
@@ -465,7 +468,7 @@ impl XcpBuilder {
         unsafe {
             // Initialize the XCP Server and ETH transport layer
             let a: [u8; 4] = ipv4_addr.octets();
-            if 0 == xcplib::XcpEthServerInit(&a as *const u8, port, if tl == XcpTransportLayer::Tcp { 1 } else { 0 }) {
+            if 0 == xcplib::XcpEthServerInit(&a as *const u8, port, (tl == XcpTransportLayer::Tcp) as u8) {
                 return Err(XcpError::XcpLib("Error: XcpEthServerInit() failed"));
             }
         }
@@ -547,13 +550,15 @@ impl Xcp {
     }
 
     /// Get the Xcp singleton instance
-    #[inline(always)]
+    #[inline]
+    #[must_use]
     pub fn get() -> &'static Xcp {
         // XCP_SINGLETON will be initialized by lazy_static
         &XCP_SINGLETON
     }
 
     /// Get XCP session status flags
+    #[allow(clippy::unused_self)]
     pub fn get_session_status(&self) -> XcpSessionStatus {
         // @@@@ Unsafe - C library call
         let session_status: u16 = unsafe { xcplib::XcpGetSessionStatus() } & 0xE040;
@@ -571,6 +576,7 @@ impl Xcp {
     }
 
     /// Set the log level for XCP protocol layer
+    #[allow(clippy::unused_self)]
     pub fn set_log_level(&self, level: XcpLogLevel) {
         // @@@@ Unsafe - C library call
         unsafe {
@@ -579,6 +585,7 @@ impl Xcp {
     }
 
     /// Print a formated text message to the XCP client tool console
+    #[allow(clippy::unused_self)]
     pub fn print(&self, msg: &str) {
         let msg = std::ffi::CString::new(msg).unwrap();
         // @@@@ Unsafe - C library call
@@ -592,6 +599,7 @@ impl Xcp {
 
     /// Execute a XCP command
     /// In transport layer mode
+    #[allow(clippy::unused_self)]
     pub fn tl_command(&self, buf: &[u8]) {
         // @@@@ Unsafe - C library call
         unsafe {
@@ -601,6 +609,7 @@ impl Xcp {
 
     /// Get the next message in the transmit queue, do not advance the read pointer
     /// Data is ready to be sent over TCP or UDP socket
+    #[allow(clippy::unused_self)]
     pub fn tl_transmit_queue_peek(&self) -> Option<&'static [u8]> {
         // @@@@ Unsafe - C library call
         unsafe {
@@ -615,12 +624,14 @@ impl Xcp {
     }
 
     /// Check if the transmit queue has a message ready to be sent
+    #[allow(clippy::unused_self)]
     pub fn tl_transmit_queue_has_msg(&self) -> bool {
         // @@@@ Unsafe - C library call
         unsafe { xcplib::XcpTlTransmitQueueHasMsg() != 0 }
     }
 
     /// Advance the transmit queue read pointer
+    #[allow(clippy::unused_self)]
     pub fn tl_transmit_queue_next(&self) {
         // @@@@ Unsafe - C library call
         unsafe {
@@ -629,6 +640,7 @@ impl Xcp {
     }
 
     /// Shut down the XCP transport layer
+    #[allow(clippy::unused_self)]
     pub fn tl_shutdown(&self) {
         // @@@@ Unsafe - C library call
         unsafe {
@@ -641,6 +653,7 @@ impl Xcp {
 
     /// Check if the XCP server is ok and running
     #[cfg(feature = "xcp_server")]
+    #[allow(clippy::unused_self)]
     pub fn check_server(&self) -> bool {
         // @@@@ Unsafe - C library call
         unsafe {
@@ -651,6 +664,7 @@ impl Xcp {
 
     /// Stop the XCP server
     #[cfg(feature = "xcp_server")]
+    #[allow(clippy::unused_self)]
     pub fn stop_server(&self) {
         // @@@@ Unsafe - C library call
         unsafe {
@@ -799,7 +813,7 @@ impl Xcp {
     }
 
     /// Get the active calibration page for the ECU access
-    #[inline(always)]
+    #[inline]
     fn get_ecu_cal_page(&self) -> XcpCalPage {
         if self.ecu_cal_page.load(Ordering::Relaxed) == XcpCalPage::Ram as u8 {
             XcpCalPage::Ram
