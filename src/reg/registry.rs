@@ -65,8 +65,18 @@ impl RegistryDataType {
             RegistryDataType::Sbyte => i8::MIN as f64,
             RegistryDataType::Sword => i16::MIN as f64,
             RegistryDataType::Slong => i32::MIN as f64,
-            RegistryDataType::AInt64 | RegistryDataType::Float32Ieee | RegistryDataType::Float64Ieee => f32::MIN as f64,
+            RegistryDataType::AInt64 | RegistryDataType::Float32Ieee | RegistryDataType::Float64Ieee => -1E12,
             _ => 0.0,
+        }
+    }
+
+    fn get_min_str(self) -> &'static str {
+        match self {
+            RegistryDataType::Sbyte => "-128",
+            RegistryDataType::Sword => "-32768",
+            RegistryDataType::Slong => "-2147483648",
+            RegistryDataType::AInt64 | RegistryDataType::Float32Ieee | RegistryDataType::Float64Ieee => "-1E15",
+            _ => "0",
         }
     }
 
@@ -80,8 +90,22 @@ impl RegistryDataType {
             RegistryDataType::Sword => i16::MAX as f64,
             RegistryDataType::Ulong => u32::MAX as f64,
             RegistryDataType::Slong => i32::MAX as f64,
-            RegistryDataType::AUint64 | RegistryDataType::AInt64 | RegistryDataType::Float32Ieee | RegistryDataType::Float64Ieee => f32::MAX as f64,
+            RegistryDataType::AUint64 | RegistryDataType::AInt64 | RegistryDataType::Float32Ieee | RegistryDataType::Float64Ieee => 1E12,
             RegistryDataType::Blob => 0.0,
+            RegistryDataType::Unknown => panic!("get_max: Unsupported data type"),
+        }
+    }
+
+    pub fn get_max_str(self) -> &'static str {
+        match self {
+            RegistryDataType::Ubyte => "255",
+            RegistryDataType::Sbyte => "127",
+            RegistryDataType::Uword => "65535",
+            RegistryDataType::Sword => "32767",
+            RegistryDataType::Ulong => "4294967295",
+            RegistryDataType::Slong => "2147483647",
+            RegistryDataType::AUint64 | RegistryDataType::AInt64 | RegistryDataType::Float32Ieee | RegistryDataType::Float64Ieee => "1E15",
+            RegistryDataType::Blob => "0",
             RegistryDataType::Unknown => panic!("get_max: Unsupported data type"),
         }
     }

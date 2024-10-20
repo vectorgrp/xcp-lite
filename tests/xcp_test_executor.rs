@@ -112,19 +112,35 @@ impl XcpDaqDecoder for DaqDecoder {
     }
 
     // Set timestamp resolution
-    fn set_timestamp_resolution(&mut self, timestamp_resolution: u64) {
+    fn set_daq_properties(&mut self, timestamp_resolution: u64, daq_header_size: u8) {
         self.timestamp_resolution = timestamp_resolution;
+        assert_eq!(daq_header_size, 4);
     }
 
     // Handle incomming DAQ DTOs from XCP server
-    fn decode(&mut self, lost: u32, daq: u16, odt: u8, timestamp: u32, data: &[u8]) {
-        assert!(daq < MULTI_THREAD_TASK_COUNT as u16);
-
+    fn decode(&mut self, lost: u32, buf: &[u8]) {
         if lost > 0 {
             self.packets_lost += lost;
             warn!("packet loss = {}, total = {}", lost, self.packets_lost);
         }
 
+        let daq: u16;
+        let odt: u8;
+        let mut timestamp_raw: u32 = 0;
+        let data: &[u8];
+
+        // Decode header and raw timestamp
+        daq = buf[2] as u16 | (buf[3] as u16) << 8;
+        odt = buf[0];
+        if odt == 0 {
+            timestamp_raw = buf[4] as u32 | (buf[4 + 1] as u32) << 8 | (buf[4 + 2] as u32) << 16 | (buf[4 + 3] as u32) << 24;
+            data = &buf[8..];
+        } else {
+            data = &buf[4..];
+        }
+
+        assert!(daq < MULTI_THREAD_TASK_COUNT as u16);
+        assert!(odt == 0);
         if daq > self.daq_max {
             self.daq_max = daq;
         }
@@ -135,10 +151,10 @@ impl XcpDaqDecoder for DaqDecoder {
             let t_last = self.daq_timestamp[daq as usize];
             let tl = (t_last & 0xFFFFFFFF) as u32;
             let mut th = (t_last >> 32) as u32;
-            if timestamp < tl {
+            if timestamp_raw < tl {
                 th += 1;
             }
-            let t = timestamp as u64 | (th as u64) << 32;
+            let t = timestamp_raw as u64 | (th as u64) << 32;
             if t < t_last {
                 warn!("Timestamp of daq {} declining {} -> {}", daq, t_last, t);
             }
@@ -185,7 +201,7 @@ impl XcpDaqDecoder for DaqDecoder {
                 "DAQ: daq = {}, odt = {} timestamp = {} counter={}, counter_max={} (rest={:?})",
                 daq,
                 odt,
-                timestamp,
+                timestamp_raw,
                 counter,
                 counter_max,
                 &data[6..]
@@ -285,19 +301,28 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
             panic!("Empty string");
         }
     };
-    let a2l_file_name = format!("{}.a2l", asam_name);
-    info!("A2l file name = {}", a2l_file_name);
-    assert_eq!(a2l_file, a2l_file_name.as_str());
+    let a2l_filename = format!("{}.a2l", asam_name);
+    info!("A2l file name = {}", a2l_filename);
+    assert_eq!(a2l_file, a2l_filename.as_str());
+
     // Check A2l file exists
-    let info = std::fs::metadata(&a2l_file_name).unwrap();
+    let info = std::fs::metadata(&a2l_filename).unwrap();
     trace!("A2l file info: {:#?}", info);
     assert!(info.len() > 0);
 
     if test_mode_cal != TestModeCal::None || test_mode_daq != TestModeDaq::None {
+        // Cal or Daq test
+
         //-------------------------------------------------------------------------------------------------------------------------------------
         // Upload or just load A2L file
-        info!("Read A2l {}, upload={}", a2l_file_name, a2l_upload);
-        xcp_client.load_a2l(&a2l_file_name, a2l_upload, false).await.unwrap();
+        if a2l_upload {
+            info!("Upload A2l");
+            xcp_client.upload_a2l(false).await.unwrap();
+        } else {
+            info!("Read A2l {}", a2l_filename);
+            xcp_client.read_a2l(a2l_filename, false).await.unwrap();
+        };
+
         tokio::time::sleep(Duration::from_micros(10000)).await;
 
         //-------------------------------------------------------------------------------------------------------------------------------------

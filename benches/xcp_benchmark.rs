@@ -6,12 +6,8 @@
 
 use log::{debug, error, info, trace, warn};
 
-use std::{
-    fmt::Debug,
-    sync::{Arc, Mutex},
-    thread,
-    time::Duration,
-};
+use parking_lot::Mutex;
+use std::{collections::HashMap, fmt::Debug, sync::Arc, thread, time::Duration};
 
 use xcp::*;
 use xcp_client::xcp_client::*;
@@ -51,14 +47,14 @@ impl DaqDecoder {
 }
 
 impl XcpDaqDecoder for DaqDecoder {
-    fn start(&mut self, _timestamp: u64) {
+    fn start(&mut self, _odt_entries: Arc<Mutex<HashMap<String, OdtEntry>>>, _timestamp: u64) {
         self.event_count = 0;
         self.event_lost_count = 0;
     }
 
-    fn set_timestamp_resolution(&mut self, _timestamp_resolution: u64) {}
+    fn set_daq_properties(&mut self, _timestamp_resolution: u64, _daq_header_size: u8) {}
 
-    fn decode(&mut self, lost: u32, _daq: u16, _odt: u8, _time: u32, _data: &[u8]) {
+    fn decode(&mut self, lost: u32, _data: &[u8]) {
         self.event_count += 1;
         self.event_lost_count += lost as u64;
     }
@@ -100,8 +96,8 @@ async fn xcp_client(dest_addr: std::net::SocketAddr, local_addr: std::net::Socke
     xcp_client.connect(Arc::clone(&daq_decoder), ServTextDecoder::new()).await?;
 
     // Upload A2L file
-    info!("Load A2L file to file xcp_lite.a2l");
-    xcp_client.load_a2l("xcp_lite.a2l", true, true).await?;
+    info!("Upload A2L file");
+    xcp_client.upload_a2l(true).await?;
 
     // Create a calibration object for CalPage.ampl
     info!("Create calibration object CalPage.ampl");
@@ -183,8 +179,8 @@ async fn xcp_client(dest_addr: std::net::SocketAddr, local_addr: std::net::Socke
 
     // Stop measurement
     xcp_client.stop_measurement().await?;
-    let event_count = daq_decoder.lock().unwrap().event_count;
-    let event_lost_count = daq_decoder.lock().unwrap().event_lost_count;
+    let event_count = daq_decoder.lock().event_count;
+    let event_lost_count = daq_decoder.lock().event_lost_count;
     info!(
         "Measurement stopped, event count = {}, lost event count = {} - {:.1}%",
         event_count,

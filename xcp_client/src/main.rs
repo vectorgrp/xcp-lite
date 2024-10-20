@@ -3,7 +3,6 @@
 
 //use ::xcp_client::a2l::a2l_reader::A2lTypeEncoding;
 use a2l::a2l_reader::A2lTypeEncoding;
-
 use parking_lot::Mutex;
 use std::{collections::HashMap, error::Error, sync::Arc};
 mod xcp_client;
@@ -43,6 +42,7 @@ const MAX_EVENT: usize = 16;
 struct DaqDecoder {
     odt_entries: Option<Arc<Mutex<HashMap<String, OdtEntry>>>>,
     timestamp_resolution: u64,
+    daq_header_size: u8,
     event_count: usize,
     byte_count: usize,
     daq_timestamp: [u64; MAX_EVENT],
@@ -53,6 +53,7 @@ impl DaqDecoder {
         DaqDecoder {
             odt_entries: None,
             timestamp_resolution: 0,
+            daq_header_size: 0,
             event_count: 0,
             byte_count: 0,
             daq_timestamp: [0; MAX_EVENT],
@@ -75,33 +76,65 @@ impl XcpDaqDecoder for DaqDecoder {
     }
 
     // Set timestamp resolution
-    fn set_timestamp_resolution(&mut self, timestamp_resolution: u64) {
+    fn set_daq_properties(&mut self, timestamp_resolution: u64, daq_header_size: u8) {
+        self.daq_header_size = daq_header_size;
         self.timestamp_resolution = timestamp_resolution;
     }
 
     // Decode DAQ data
-    fn decode(&mut self, lost: u32, daq: u16, odt: u8, timestamp: u32, data: &[u8]) {
+    fn decode(&mut self, lost: u32, buf: &[u8]) {
+        let daq: u16;
+        let odt: u8;
+        let mut timestamp_raw: u32 = 0;
+        let data: &[u8];
+
+        // Decode header and raw timestamp
+        if self.daq_header_size == 4 {
+            daq = buf[2] as u16 | (buf[3] as u16) << 8;
+            odt = buf[0];
+            if odt == 0 {
+                timestamp_raw = buf[4] as u32 | (buf[4 + 1] as u32) << 8 | (buf[4 + 2] as u32) << 16 | (buf[4 + 3] as u32) << 24;
+                data = &buf[8..];
+            } else {
+                data = &buf[4..];
+            }
+        } else {
+            daq = buf[1] as u16;
+            odt = buf[0];
+            if odt == 0 {
+                timestamp_raw = buf[2] as u32 | (buf[2 + 1] as u32) << 8 | (buf[2 + 2] as u32) << 16 | (buf[2 + 3] as u32) << 24;
+                data = &buf[6..];
+            } else {
+                data = &buf[2..];
+            }
+        }
+
         assert!(daq < MAX_EVENT as u16);
         assert!(odt == 0);
 
-        // Decode full 64 bit timestamp
+        // Decode full 64 bit daq timestamp
         let t_last = self.daq_timestamp[daq as usize];
-        let tl = (t_last & 0xFFFFFFFF) as u32;
-        let mut th = (t_last >> 32) as u32;
-        if timestamp < tl {
-            th += 1;
-        }
-        let t = timestamp as u64 | (th as u64) << 32;
-        if t < t_last {
-            warn!("Timestamp of daq {} declining {} -> {}", daq, t_last, t);
-        }
-        self.daq_timestamp[daq as usize] = t;
+        let t: u64 = if odt == 0 {
+            let tl = (t_last & 0xFFFFFFFF) as u32;
+            let mut th = (t_last >> 32) as u32;
+            if timestamp_raw < tl {
+                th += 1;
+            }
+            let t = timestamp_raw as u64 | (th as u64) << 32;
+            if t < t_last {
+                warn!("Timestamp of daq {} declining {} -> {}", daq, t_last, t);
+            }
+            self.daq_timestamp[daq as usize] = t;
+            t
+        } else {
+            t_last
+        };
 
         // Decode all odt entries
-        trace!("DAQ: lost={}, daq={}, odt={}, t={}ns", lost, daq, odt, t);
+        println!("DAQ: lost={}, daq={}, odt={}, t={}ns", lost, daq, odt, t);
         if let Some(o) = self.odt_entries.as_ref() {
             for e in o.lock().iter() {
-                let odt_entry = e.1;
+                let odt_entry: &OdtEntry = e.1;
                 if odt_entry.daq == daq && odt_entry.odt == odt {
                     let value_size = odt_entry.a2l_type.size as usize;
                     let mut value_offset = odt_entry.offset as usize + value_size - 1;
@@ -143,9 +176,11 @@ impl XcpDaqDecoder for DaqDecoder {
                         }
                         A2lTypeEncoding::Float => {
                             if odt_entry.a2l_type.size == 4 {
+                                #[allow(clippy::transmute_int_to_float)]
                                 let value: f32 = unsafe { std::mem::transmute(value as u32) };
                                 println!("{}:  {} = {}", t, e.0, value);
                             } else {
+                                #[allow(clippy::transmute_int_to_float)]
                                 let value: f64 = unsafe { std::mem::transmute(value) };
                                 println!("{}:  {} = {}", t, e.0, value);
                             }
@@ -215,8 +250,8 @@ struct Args {
     #[arg(short, long, default_value_t = 5555)]
     port: u16,
 
-    /// Bind address
-    #[arg(short, long, default_value = "0.0.0.0:0")]
+    /// Bind address, master port number
+    #[arg(short, long, default_value = "0.0.0.0:9999")]
     bind_addr: String,
 
     /// Print detailled A2L infos
@@ -234,10 +269,22 @@ struct Args {
     /// Specifies the variables names for DAQ measurement, 'all' or a list of names separated by space
     #[arg(short, long, value_delimiter = ' ', num_args = 1..)]
     measurement_list: Vec<String>,
+
+    /// A2L filename, default is upload A2L file
+    #[arg(short, long)]
+    a2l_filename: Option<String>,
 }
 
 //------------------------------------------------------------------------
-async fn xcp_client(dest_addr: std::net::SocketAddr, local_addr: std::net::SocketAddr, print_a2l: bool, list_cal: bool, list_mea: bool, measurement_list: Vec<String>) -> Result<(), Box<dyn Error>> {
+async fn xcp_client(
+    dest_addr: std::net::SocketAddr,
+    local_addr: std::net::SocketAddr,
+    a2l_filename: Option<String>,
+    print_a2l: bool,
+    list_cal: bool,
+    list_mea: bool,
+    measurement_list: Vec<String>,
+) -> Result<(), Box<dyn Error>> {
     // Create xcp_client
     let mut xcp_client = XcpClient::new(dest_addr, local_addr);
 
@@ -247,8 +294,8 @@ async fn xcp_client(dest_addr: std::net::SocketAddr, local_addr: std::net::Socke
     xcp_client.connect(Arc::clone(&daq_decoder), ServTextDecoder::new()).await?;
 
     // Upload A2L file
-    info!("Load A2L file to file xcp_lite.a2l");
-    xcp_client.load_a2l("xcp_lite.a2l", true, print_a2l).await?;
+    info!("Load A2L file");
+    xcp_client.a2l_loader(a2l_filename, print_a2l).await?;
 
     // Print all calibration objects with current value
     if list_cal {
@@ -256,8 +303,7 @@ async fn xcp_client(dest_addr: std::net::SocketAddr, local_addr: std::net::Socke
         println!("Calibration variables:");
         let cal_objects = xcp_client.get_characteristics();
         for name in cal_objects.iter() {
-            let h = xcp_client.create_calibration_object(name).await.unwrap();
-
+            let h = xcp_client.create_calibration_object(name).await?;
             let o = xcp_client.get_calibration_object(h);
 
             match o.get_type().encoding {
@@ -300,8 +346,17 @@ async fn xcp_client(dest_addr: std::net::SocketAddr, local_addr: std::net::Socke
         let elapsed_time_2 = start_time.elapsed().as_micros();
         info!("Get CalPage1.counter_max = {} (duration = {}us)", v, elapsed_time_1);
         info!("Set CalPage1.counter_max to {} (duration = {}us)", 255, elapsed_time_2);
-    } else {
-        warn!("CalPage1.counter_max not found");
+    }
+    // Change the value of ampl to 100.0 (if exists - from XCPlite)
+    // Measure how long this takes
+    let start_time = tokio::time::Instant::now();
+    if let Ok(counter_max) = xcp_client.create_calibration_object("ampl").await {
+        let v = xcp_client.get_value_f64(counter_max);
+        let elapsed_time_1 = start_time.elapsed().as_micros();
+        xcp_client.set_value_f64(counter_max, 123.0).await.unwrap();
+        let elapsed_time_2 = start_time.elapsed().as_micros();
+        info!("Get ampl = {} (duration = {}us)", v, elapsed_time_1);
+        info!("Set ampl to {} (duration = {}us)", 123.0, elapsed_time_2);
     }
 
     // Measure
@@ -368,12 +423,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     info!("dest_addr: {}", dest_addr);
     info!("local_addr: {}", local_addr);
 
-    // let mut variable_list: Vec<String> = Vec::new();
-    // if let Some(variable) = &args.measure {
-    //     info!("variable list: {}", variable);
-    //     variable_list.push(variable.clone());
-    // }
     let measurement_list = args.measurement_list;
-    info!("measurement_list: {:?}", measurement_list);
-    xcp_client(dest_addr, local_addr, args.print_a2l, args.list_cal, args.list_mea, measurement_list).await
+    if measurement_list.len() > 0 {
+        info!("measurement_list: {:?}", measurement_list);
+    }
+
+    if args.a2l_filename.is_some() {
+        info!("a2l_filename: {}", args.a2l_filename.as_ref().unwrap());
+    }
+
+    xcp_client(dest_addr, local_addr, args.a2l_filename, args.print_a2l, args.list_cal, args.list_mea, measurement_list).await
 }

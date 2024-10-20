@@ -17,6 +17,7 @@ use std::error::Error;
 use std::io::Cursor;
 use std::io::Write;
 use std::net::SocketAddr;
+use std::path::Path;
 use std::sync::Arc;
 use tokio::net::UdpSocket;
 use tokio::select;
@@ -29,7 +30,7 @@ use crate::a2l::a2l_reader::{a2l_find_characteristic, a2l_find_measurement, a2l_
 //--------------------------------------------------------------------------------------------------------------------------------------------------
 // XCP Parameters
 
-pub const CMD_TIMEOUT: Duration = Duration::from_secs(2);
+pub const CMD_TIMEOUT: Duration = Duration::from_secs(3);
 
 pub const XCPTL_MAX_SEGMENT_SIZE: usize = 2048 * 2;
 
@@ -195,31 +196,31 @@ pub const CC_SHORT_UPLOAD: u8 = 0xF4;
 pub const CC_SYNC: u8 = 0xFC;
 pub const CC_NOP: u8 = 0xC1;
 pub const CC_GET_ID: u8 = 0xFA;
-pub const CC_GET_CAL_PAGE: u8 = 0xEA;
 pub const CC_SET_CAL_PAGE: u8 = 0xEB;
-pub const CC_GET_DAQ_PROCESSOR_INFO: u8 = 0xE9;
+pub const CC_GET_CAL_PAGE: u8 = 0xEA;
 pub const CC_GET_SEGMENT_INFO: u8 = 0xE8;
 pub const CC_GET_PAGE_INFO: u8 = 0xE7;
 pub const CC_SET_SEGMENT_MODE: u8 = 0xE6;
 pub const CC_GET_SEGMENT_MODE: u8 = 0xE5;
 pub const CC_COPY_CAL_PAGE: u8 = 0xE4;
-pub const CC_ALLOC_ODT: u8 = 0xD4;
-pub const CC_ALLOC_ODT_ENTRY: u8 = 0xD3;
-pub const CC_SET_DAQ_LIST_MODE: u8 = 0xE0;
-pub const CC_READ_DAQ: u8 = 0xDB;
 pub const CC_CLEAR_DAQ_LIST: u8 = 0xE3;
 pub const CC_SET_DAQ_PTR: u8 = 0xE2;
 pub const CC_WRITE_DAQ: u8 = 0xE1;
+pub const CC_SET_DAQ_LIST_MODE: u8 = 0xE0;
 pub const CC_GET_DAQ_LIST_MODE: u8 = 0xDF;
 pub const CC_START_STOP_DAQ_LIST: u8 = 0xDE;
 pub const CC_START_STOP_SYNCH: u8 = 0xDD;
-pub const CC_TIME_CORRELATION_PROPERTIES: u8 = 0xC6;
 pub const CC_GET_DAQ_CLOCK: u8 = 0xDC;
+pub const CC_READ_DAQ: u8 = 0xDB;
+pub const CC_GET_DAQ_PROCESSOR_INFO: u8 = 0xDA;
 pub const CC_GET_DAQ_RESOLUTION_INFO: u8 = 0xD9;
 pub const CC_GET_DAQ_LIST_INFO: u8 = 0xD8;
 pub const CC_GET_DAQ_EVENT_INFO: u8 = 0xD7;
 pub const CC_FREE_DAQ: u8 = 0xD6;
 pub const CC_ALLOC_DAQ: u8 = 0xD5;
+pub const CC_ALLOC_ODT: u8 = 0xD4;
+pub const CC_ALLOC_ODT_ENTRY: u8 = 0xD3;
+pub const CC_TIME_CORRELATION_PROPERTIES: u8 = 0xC6;
 
 // XCP id types
 pub const XCP_IDT_ASCII: u8 = 0;
@@ -418,13 +419,13 @@ pub struct OdtEntry {
 
 pub trait XcpDaqDecoder {
     /// Handle incomming DAQ data from XCP server
-    fn decode(&mut self, lost: u32, daq: u16, odt: u8, timestamp_raw32: u32, data: &[u8]);
+    fn decode(&mut self, lost: u32, data: &[u8]);
 
     /// Measurement start 64 bit time stamp
     fn start(&mut self, odt_entries: Arc<Mutex<HashMap<String, OdtEntry>>>, timestamp_raw64: u64);
 
     // /// Measurement timestamp resoution in ns per raw timestamp tick
-    fn set_timestamp_resolution(&mut self, timestamp_resolution: u64);
+    fn set_daq_properties(&mut self, timestamp_resolution: u64, daq_header_size: u8);
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------------------------
@@ -459,6 +460,7 @@ pub struct XcpClient {
     max_cto_size: u8,
     max_dto_size: u16,
     timestamp_resolution_ns: u64,
+    daq_header_size: u8,
     a2l_file: Option<a2lfile::A2lFile>,
     calibration_objects: Vec<XcpCalibrationObject>,
     measurement_objects: Vec<XcpMeasurementObject>,
@@ -483,6 +485,7 @@ impl XcpClient {
             max_cto_size: 0,
             max_dto_size: 0,
             timestamp_resolution_ns: 1,
+            daq_header_size: 4,
             a2l_file: None,
             calibration_objects: Vec::new(),
             measurement_objects: Vec::new(),
@@ -607,24 +610,10 @@ impl XcpClient {
 
                                             // Handle DAQ data if DAQ running
                                             if c.running {
-
-                                                let data = &buf[i + 4..i + 4 + len];
-                                                assert_eq!(data[1], 0xAA); // @@@@ remove, xcp-lite specific
-                                                let daq: u16 = data[2] as u16 | (data[3] as u16) << 8;
-                                                let odt: u8 = data[0];
-
                                                 let mut m = decode_daq.lock();
-                                                if odt==0 {
-                                                    assert!(len>=4);
-                                                    // Note that a packet theoretically may be empty, when it is just an event
-                                                    let timestamp: u32 =  data[4] as u32 | (data[4 + 1] as u32) << 8 | (data[4 + 2] as u32) << 16 | (data[4 + 3] as u32) << 24;
-                                                    m.decode(ctr_lost, daq, odt, timestamp, &buf[i + 12..i + 4 + len]);
-                                                } else {
-                                                    m.decode(ctr_lost, daq, odt, 0, &buf[i + 8..i + 4 + len]);
-
-                                                }
+                                                m.decode(ctr_lost, &buf[i + 4..i + 4 + len]);
                                                 ctr_lost = 0;
-                                            }
+                                            } // running
                                         }
                                     }
                                 } // match pid
@@ -710,6 +699,7 @@ impl XcpClient {
             let (tx_daq, rx_daq) = mpsc::channel(3);
             self.tx_task_control = Some(tx_daq); // tx XCP DAQ control channel
             let daq_decoder_clone = Arc::clone(&daq_decoder);
+
             tokio::spawn(async move {
                 let _res = XcpClient::receive_task(socket, tx_resp, rx_daq, text_decoder, daq_decoder_clone).await;
             });
@@ -732,10 +722,15 @@ impl XcpClient {
 
         assert!(self.is_connected());
 
-        // Initilize DAQ clock
+        // Get DAQ properties
+        self.get_daq_processor_info().await?;
+
+        // Initialize DAQ clock
         self.time_correlation_properties().await?; // Set 64 bit response format for GET_DAQ_CLOCK
-        self.timestamp_resolution_ns = self.get_daq_clock_resolution().await?;
-        daq_decoder.lock().set_timestamp_resolution(self.timestamp_resolution_ns);
+        self.timestamp_resolution_ns = self.get_daq_resolution_info().await?;
+
+        // Set the DAQ decoder
+        daq_decoder.lock().set_daq_properties(self.timestamp_resolution_ns, self.daq_header_size);
 
         // Keep the the DAQ decoder for measurement start
         self.daq_decoder = Some(daq_decoder);
@@ -870,6 +865,27 @@ impl XcpClient {
     //------------------------------------------------------------------------
     // XCP DAQ services
 
+    /// Get DAQ clock timestamp resolution in ns
+    pub async fn get_daq_processor_info(&mut self) -> Result<(), Box<dyn Error>> {
+        let data = self.send_command(XcpCommandBuilder::new(CC_GET_DAQ_PROCESSOR_INFO).build()).await?;
+        let mut c = Cursor::new(&data[1..]);
+
+        let daq_properties = c.read_u8()?;
+        assert!((daq_properties & 0x10) == 0x10, "DAQ timestamps must be available");
+        let max_daq = c.read_u16::<LittleEndian>()?;
+        let max_event = c.read_u16::<LittleEndian>()?;
+        let min_daq = c.read_u8()?;
+        let daq_key_byte = c.read_u8()?;
+        self.daq_header_size = (daq_key_byte >> 6) + 1;
+        assert!(self.daq_header_size == 4 || self.daq_header_size == 2, "DAQ header type must be ODT_FIL_DAQW or ODT_DAQB");
+
+        info!(
+            "GET_DAQ_PROPERTIES daq_properties = 0x{:0X}, max_daq = {}, max_event = {}, min_daq = {}, daq_key_byte = 0x{:0X} (header_size={})",
+            daq_properties, max_daq, max_event, min_daq, daq_key_byte, self.daq_header_size
+        );
+        Ok(())
+    }
+
     async fn free_daq(&mut self) -> Result<(), Box<dyn Error>> {
         self.send_command(XcpCommandBuilder::new(CC_FREE_DAQ).build()).await?;
         Ok(())
@@ -968,7 +984,7 @@ impl XcpClient {
     }
 
     /// Get DAQ clock timestamp resolution in ns
-    pub async fn get_daq_clock_resolution(&mut self) -> Result<u64, Box<dyn Error>> {
+    pub async fn get_daq_resolution_info(&mut self) -> Result<u64, Box<dyn Error>> {
         let data = self.send_command(XcpCommandBuilder::new(CC_GET_DAQ_RESOLUTION_INFO).build()).await?;
         let mut c = Cursor::new(&data[1..]);
 
@@ -1034,17 +1050,28 @@ impl XcpClient {
     }
 
     //-------------------------------------------------------------------------------------------------
-    // A2L upload
+    // A2L upload and load
 
-    // Upload the A2L via XCP and load it
-    pub async fn load_a2l<P: AsRef<std::path::Path>>(&mut self, file_name: P, upload: bool, print_info: bool) -> Result<(), Box<dyn Error>> {
-        let mut file_name = file_name.as_ref();
+    /// Upload A2l
+    pub async fn upload_a2l(&mut self, print_info: bool) -> Result<(), Box<dyn Error>> {
+        self.a2l_loader::<&str>(None, print_info).await
+    }
+
+    /// Load A2L
+    pub async fn read_a2l<P: AsRef<Path>>(&mut self, filename: P, print_info: bool) -> Result<(), Box<dyn Error>> {
+        self.a2l_loader(Some(filename), print_info).await
+    }
+
+    // Get the A2L via XCP or from file and read it
+    pub async fn a2l_loader<P: AsRef<Path>>(&mut self, filename: Option<P>, print_info: bool) -> Result<(), Box<dyn Error>> {
+        let a2l_filename = filename.as_ref().map(|p| p.as_ref()).unwrap_or(Path::new("xcp_client_autodetect.a2l"));
+
         // Upload the A2L via XCP
         // Be aware the file name may be the original A2L file written by registry
-        if upload {
-            info!("Upload A2L to {}", file_name.display());
+        if filename.is_none() {
+            info!("Upload A2L to {}", a2l_filename.display());
             {
-                let file = std::fs::File::create("tmp.a2l")?;
+                let file = std::fs::File::create(a2l_filename)?;
                 let mut writer = std::io::BufWriter::new(file);
                 let (file_size, _) = self.get_id(XCP_IDT_ASAM_UPLOAD).await?;
                 assert!(file_size > 0);
@@ -1058,22 +1085,18 @@ impl XcpClient {
                 }
                 writer.flush()?;
                 info!("  Upload complete, {} bytes loaded", file_size);
-                file_name = std::path::Path::new("tmp.a2l");
             }
         }
 
         // Read the A2L file
-        info!("Read A2L {}", file_name.display());
-        if let Ok(a2l_file) = a2l_load(file_name) {
+        //info!("Read A2L {}", a2l_filename.display());
+        if let Ok(a2l_file) = a2l_load(a2l_filename) {
             if print_info {
                 a2l_printf_info(&a2l_file);
             }
             self.a2l_file = Some(a2l_file);
-            if upload {
-                std::fs::remove_file(file_name).ok();
-            }
         } else {
-            error!("Could not read A2L file {}", file_name.display());
+            error!("Could not read A2L file {}", a2l_filename.display());
             return Err(Box::new(XcpError::new(ERROR_A2L)) as Box<dyn Error>);
         }
 
@@ -1106,6 +1129,7 @@ impl XcpClient {
     pub async fn create_calibration_object(&mut self, name: &str) -> Result<XcpCalibrationObjectHandle, Box<dyn Error>> {
         let res = a2l_find_characteristic(self.a2l_file.as_ref().unwrap(), name);
         if res.is_none() {
+            debug!("create_calibration_object: characteristic {} not found", name);
             Err(Box::new(XcpError::new(ERROR_A2L)) as Box<dyn Error>)
         } else {
             let (a2l_addr, a2l_type, a2l_limits) = res.unwrap();
@@ -1271,7 +1295,7 @@ impl XcpClient {
                     m.odt = odt;
                     m.offset = odt_size + 6;
 
-                    info!(
+                    debug!(
                         "WRITE_DAQ {} daq={}, odt={}, odt_entry={}, type={:?}, size={}, ext={}, addr=0x{:08X}, offset={}",
                         m.name,
                         daq,

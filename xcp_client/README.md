@@ -15,8 +15,9 @@ Using tokio and a2lfile.
     // Connect to the XCP server
     let res = xcp_client.connect(DaqDecoder::new(), ServTextDecoder::new()).await?;
     
-    // Upload A2L file
-    xcp_client.upload_a2l().await?;
+    // Upload A2L file or read A2L file
+    xcp_client.upload_a2l(false).await?;
+    xcp_client.read_a2l("test.a2l",false)?;
 
     // Calibration
     // Create a calibration object for CalPage1.counter_max

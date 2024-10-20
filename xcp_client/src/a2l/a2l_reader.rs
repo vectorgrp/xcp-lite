@@ -76,51 +76,70 @@ pub fn a2l_get_characteristics(a2l_file: &A2lFile) -> Vec<String> {
 pub fn a2l_find_characteristic(a2l_file: &A2lFile, name: &str) -> Option<(A2lAddr, A2lType, A2lLimits)> {
     let o = a2l_file.project.module[0].characteristic.iter().find(|m| m.name == name);
     if o.is_none() {
+        debug!("Characteristic {} not found", name);
         None
     } else {
         let c = o.unwrap();
-        debug!("Found characteristic {}", c.name);
         let a2l_addr = c.address;
         let a2l_ext = c.ecu_address_extension.clone().map(|e| e.extension).unwrap_or_default();
         let characteristic_type = c.characteristic_type; //Ascii,Curve,Map,Cuboid,Cube4,Cube5,ValBlk,Value
-        let deposit = c.deposit.clone(); // record layout name
-
         let conversion = c.conversion.clone();
         let a2l_lower_limit = c.lower_limit;
         let a2l_upper_limit = c.upper_limit;
         debug!(
-            "addr: {}:{:08X} type: {:?} deposit :{:?} conversion: {:?} lower: {} upper: {}",
-            a2l_ext, a2l_addr, characteristic_type, deposit, conversion, a2l_lower_limit, a2l_upper_limit
+            "Characteristic {}: addr: {}:{:08X} type: {:?} deposit :{:?} conversion: {:?} lower: {} upper: {}",
+            c.name, a2l_ext, a2l_addr, characteristic_type, c.deposit, conversion, a2l_lower_limit, a2l_upper_limit
         );
 
+        // Record layout
+        // Hardcode xcp-lite and XCPlite names
         let a2l_size: u8;
         let a2l_encoding: A2lTypeEncoding;
-        if deposit == "U8" || deposit == "S8" {
-            a2l_size = 1;
-            a2l_encoding = if deposit == "U8" { A2lTypeEncoding::Unsigned } else { A2lTypeEncoding::Signed };
-        } else if deposit == "U16" || deposit == "S16" {
-            a2l_size = 2;
-            a2l_encoding = if deposit == "U16" { A2lTypeEncoding::Unsigned } else { A2lTypeEncoding::Signed };
-        } else if deposit == "U32" || deposit == "S32" || deposit == "F32" {
-            a2l_size = 4;
-            a2l_encoding = if deposit == "U32" {
-                A2lTypeEncoding::Unsigned
-            } else if deposit == "S32" {
-                A2lTypeEncoding::Signed
-            } else {
-                A2lTypeEncoding::Float
-            };
-        } else if deposit == "U64" || deposit == "S64" || deposit == "F64" {
-            a2l_size = 8;
-            a2l_encoding = if deposit == "U64" {
-                A2lTypeEncoding::Unsigned
-            } else if deposit == "S64" {
-                A2lTypeEncoding::Signed
-            } else {
-                A2lTypeEncoding::Float
-            };
-        } else {
-            return None;
+        match c.deposit.as_str() {
+            "U8" | "R_UBYTE" => {
+                a2l_size = 1;
+                a2l_encoding = A2lTypeEncoding::Unsigned;
+            }
+            "S8" | "R_SBYTE" => {
+                a2l_size = 1;
+                a2l_encoding = A2lTypeEncoding::Signed;
+            }
+            "U16" | "R_UWORD" => {
+                a2l_size = 2;
+                a2l_encoding = A2lTypeEncoding::Unsigned;
+            }
+            "S16" | "R_SWORD" => {
+                a2l_size = 2;
+                a2l_encoding = A2lTypeEncoding::Signed;
+            }
+            "U32" | "R_ULONG" => {
+                a2l_size = 4;
+                a2l_encoding = A2lTypeEncoding::Unsigned;
+            }
+            "S32" | "R_SLONG" => {
+                a2l_size = 4;
+                a2l_encoding = A2lTypeEncoding::Signed;
+            }
+            "U64" | "R_A_UINT64" | "R_ULONGLONG" => {
+                a2l_size = 8;
+                a2l_encoding = A2lTypeEncoding::Unsigned;
+            }
+            "S64" | "R_A_INT64" | "R_SLONGLONG" => {
+                a2l_size = 8;
+                a2l_encoding = A2lTypeEncoding::Signed;
+            }
+            "F32" | "R_FLOAT32_IEEE" => {
+                a2l_size = 4;
+                a2l_encoding = A2lTypeEncoding::Float;
+            }
+            "F64" | "R_FLOAT64_IEEE" => {
+                a2l_size = 8;
+                a2l_encoding = A2lTypeEncoding::Float;
+            }
+            _ => {
+                warn!("Unknown deposit type {}", c.deposit);
+                return None;
+            }
         }
 
         Some((

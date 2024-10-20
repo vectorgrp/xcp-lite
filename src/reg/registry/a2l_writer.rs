@@ -129,12 +129,12 @@ impl GenerateA2l for RegistryMeasurement {
         let comment = self.comment;
         let unit = self.unit;
         let factor = self.factor;
-        let max = self.datatype.get_max();
+        let min = self.datatype.get_min_str();
+        let max = self.datatype.get_max_str();
         let offset = self.offset;
         let type_str = self.datatype.get_type_str();
         let x_dim = self.x_dim;
         let y_dim = self.y_dim;
-        let min = self.datatype.get_min();
         let event = self.xcp_event.get_channel();
 
         // Dynamic object as CHARACTERISTIC ASCII string with IDL annotation
@@ -164,7 +164,7 @@ impl GenerateA2l for RegistryMeasurement {
  "#
             )?;
         } else {
-            if (self.factor - 1.0).abs() <= f64::EPSILON || self.offset != 0.0 || !self.unit.is_empty() {
+            if (self.factor - 1.0).abs() > f64::EPSILON || self.offset != 0.0 || !self.unit.is_empty() {
                 writeln!(writer, r#"/begin COMPU_METHOD {name}.Conv "" LINEAR "%6.3" "{unit}" COEFFS_LINEAR {factor} {offset} /end COMPU_METHOD"#)?;
                 write!(
                     writer,
