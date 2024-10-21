@@ -4,10 +4,11 @@
 //use ::xcp_client::a2l::a2l_reader::A2lTypeEncoding;
 use a2l::a2l_reader::A2lTypeEncoding;
 use parking_lot::Mutex;
-use std::{collections::HashMap, error::Error, sync::Arc};
+use std::{error::Error, sync::Arc};
 mod xcp_client;
 use xcp_client::*;
 mod a2l;
+mod mdflib;
 
 //----------------------------------------------------------------------------------------------
 // Logging
@@ -40,7 +41,7 @@ const MAX_EVENT: usize = 16;
 
 #[derive(Debug)]
 struct DaqDecoder {
-    odt_entries: Option<Arc<Mutex<HashMap<String, OdtEntry>>>>,
+    daq_odt_entries: Option<Arc<Mutex<Vec<Vec<OdtEntry>>>>>,
     timestamp_resolution: u64,
     daq_header_size: u8,
     event_count: usize,
@@ -51,7 +52,7 @@ struct DaqDecoder {
 impl DaqDecoder {
     pub fn new() -> DaqDecoder {
         DaqDecoder {
-            odt_entries: None,
+            daq_odt_entries: None,
             timestamp_resolution: 0,
             daq_header_size: 0,
             event_count: 0,
@@ -65,13 +66,53 @@ impl DaqDecoder {
 // This is a simple example, a real application would need to decode the data according to the actual measurement setup
 // Assumes first signal is a 32 bit counter and there is only one ODT
 impl XcpDaqDecoder for DaqDecoder {
-    // Set start time and reset
-    fn start(&mut self, odt_entries: Arc<Mutex<HashMap<String, OdtEntry>>>, timestamp: u64) {
-        self.odt_entries = Some(odt_entries);
+    // Set start time and init
+    fn start(&mut self, daq_odt_entries: Arc<Mutex<Vec<Vec<OdtEntry>>>>, timestamp: u64) {
+        // Init
+        self.daq_odt_entries = Some(daq_odt_entries.clone());
         self.event_count = 0;
         self.byte_count = 0;
         for t in self.daq_timestamp.iter_mut() {
             *t = timestamp;
+        }
+
+        // Init MDF file
+        /*
+        let daq_odt_entries = odt_entries.lock();
+        let mut record_len = 0;
+        for odt_entry in &daq_odt_entries{
+
+            record_len = odt_entries.iter().iter().map(|o| o.a2l_type.size as u32).sum();
+        }
+
+        unsafe {
+            let file_name = std::ffi::CString::new("test.mdf").unwrap();
+            mdflib::mdfOpen(file_name.as_ptr());
+
+            mdflib::mdfCreateChannelGroup(0, record_len, 8, 0.000000001);
+            for odt_entry in odt_entries.iter() {
+                let channel_name = std::ffi::CString::new(odt_entry.name.as_str()).unwrap();
+                let unit_name = std::ffi::CString::new("channel1_unit").unwrap();
+                mdflib::mdfCreateChannel(
+                    channel_name.as_ptr(),
+                    odt_entry.a2l_type.size,
+                    odt_entry.a2l_type.encoding as i8,
+                    1,
+                    odt_entry.offset as u32,
+                    1.0,
+                    0.0,
+                    unit_name.as_ptr(),
+                );
+            }
+            mdflib::mdfWriteHeader();
+            //mdflib::mdfWriteRecord(record, recordLen);
+        }
+        */
+    }
+
+    fn stop(&mut self) {
+        unsafe {
+            mdflib::mdfClose();
         }
     }
 
@@ -130,61 +171,60 @@ impl XcpDaqDecoder for DaqDecoder {
             t_last
         };
 
-        // Decode all odt entries
         println!("DAQ: lost={}, daq={}, odt={}, t={}ns", lost, daq, odt, t);
-        if let Some(o) = self.odt_entries.as_ref() {
-            for e in o.lock().iter() {
-                let odt_entry: &OdtEntry = e.1;
-                if odt_entry.daq == daq && odt_entry.odt == odt {
-                    let value_size = odt_entry.a2l_type.size as usize;
-                    let mut value_offset = odt_entry.offset as usize + value_size - 1;
-                    let mut value: u64 = 0;
-                    loop {
-                        value |= data[value_offset] as u64;
-                        if value_offset == odt_entry.offset as usize {
-                            break;
-                        };
-                        value <<= 8;
-                        value_offset -= 1;
-                    }
-                    match odt_entry.a2l_type.encoding {
-                        A2lTypeEncoding::Signed => {
-                            match value_size {
-                                1 => {
-                                    let signed_value: i8 = value as u8 as i8;
-                                    println!("{}:  {} = {}", t, e.0, signed_value);
-                                }
-                                2 => {
-                                    let signed_value: i16 = value as u16 as i16;
-                                    println!("{}:  {} = {}", t, e.0, signed_value);
-                                }
-                                4 => {
-                                    let signed_value: i32 = value as u32 as i32;
-                                    println!("{}:  {} = {}", t, e.0, signed_value);
-                                }
-                                8 => {
-                                    let signed_value: i64 = value as i64;
-                                    println!("{}:  {} = {}", t, e.0, signed_value);
-                                }
-                                _ => {
-                                    warn!("Unsupported signed value size {}", value_size);
-                                }
-                            };
+
+        // Get daq list
+        let daq_list = &self.daq_odt_entries.as_ref().unwrap().lock()[daq as usize];
+
+        // Decode all odt entries
+        for odt_entry in daq_list.iter() {
+            let value_size = odt_entry.a2l_type.size as usize;
+            let mut value_offset = odt_entry.offset as usize + value_size - 1;
+            let mut value: u64 = 0;
+            loop {
+                value |= data[value_offset] as u64;
+                if value_offset == odt_entry.offset as usize {
+                    break;
+                };
+                value <<= 8;
+                value_offset -= 1;
+            }
+            match odt_entry.a2l_type.encoding {
+                A2lTypeEncoding::Signed => {
+                    match value_size {
+                        1 => {
+                            let signed_value: i8 = value as u8 as i8;
+                            println!(" {} = {}", odt_entry.name, signed_value);
                         }
-                        A2lTypeEncoding::Unsigned => {
-                            println!("{}:  {} = {}", t, e.0, value);
+                        2 => {
+                            let signed_value: i16 = value as u16 as i16;
+                            println!(" {} = {}", odt_entry.name, signed_value);
                         }
-                        A2lTypeEncoding::Float => {
-                            if odt_entry.a2l_type.size == 4 {
-                                #[allow(clippy::transmute_int_to_float)]
-                                let value: f32 = unsafe { std::mem::transmute(value as u32) };
-                                println!("{}:  {} = {}", t, e.0, value);
-                            } else {
-                                #[allow(clippy::transmute_int_to_float)]
-                                let value: f64 = unsafe { std::mem::transmute(value) };
-                                println!("{}:  {} = {}", t, e.0, value);
-                            }
+                        4 => {
+                            let signed_value: i32 = value as u32 as i32;
+                            println!(" {} = {}", odt_entry.name, signed_value);
                         }
+                        8 => {
+                            let signed_value: i64 = value as i64;
+                            println!(" {} = {}", odt_entry.name, signed_value);
+                        }
+                        _ => {
+                            warn!("Unsupported signed value size {}", value_size);
+                        }
+                    };
+                }
+                A2lTypeEncoding::Unsigned => {
+                    println!(" {} = {}", odt_entry.name, value);
+                }
+                A2lTypeEncoding::Float => {
+                    if odt_entry.a2l_type.size == 4 {
+                        #[allow(clippy::transmute_int_to_float)]
+                        let value: f32 = unsafe { std::mem::transmute(value as u32) };
+                        println!(" {} = {}", odt_entry.name, value);
+                    } else {
+                        #[allow(clippy::transmute_int_to_float)]
+                        let value: f64 = unsafe { std::mem::transmute(value) };
+                        println!(" {} = {}", odt_entry.name, value);
                     }
                 }
             }
@@ -302,7 +342,7 @@ async fn xcp_client(
         println!();
         println!("Calibration variables:");
         let cal_objects = xcp_client.get_characteristics();
-        for name in cal_objects.iter() {
+        for name in &cal_objects {
             let h = xcp_client.create_calibration_object(name).await?;
             let o = xcp_client.get_calibration_object(h);
 
@@ -329,7 +369,7 @@ async fn xcp_client(
         println!();
         println!("Measurement variables:");
         let mea_objects = xcp_client.get_measurements();
-        for name in mea_objects.iter() {
+        for name in &mea_objects {
             println!(" {}", name);
         }
         println!();
@@ -378,8 +418,8 @@ async fn xcp_client(
         // Multi dimensional objects not supported yet
         info!("Measurement variables");
         let mea_objects = if !measure_all { measurement_list } else { xcp_client.get_measurements() };
-        for o in mea_objects.iter() {
-            if let Some(_m) = xcp_client.create_measurement_object(o) {
+        for o in &mea_objects {
+            if xcp_client.create_measurement_object(o).is_some() {
                 info!(r#"  Created measurement object {}"#, o);
             }
         }

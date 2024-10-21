@@ -4,14 +4,10 @@
 
 #![allow(unused_imports)]
 
+use log::{debug, error, info, trace, warn};
 use parking_lot::Mutex;
-use std::collections::HashMap;
-
 use std::net::SocketAddr;
 use std::sync::Arc;
-
-use log::{debug, error, info, trace, warn};
-
 use tokio::time::{Duration, Instant};
 
 use xcp::Xcp;
@@ -97,7 +93,7 @@ impl DaqDecoder {
 
 impl XcpDaqDecoder for DaqDecoder {
     // Set start time and reset
-    fn start(&mut self, _odt_entries: Arc<Mutex<HashMap<String, OdtEntry>>>, timestamp: u64) {
+    fn start(&mut self, _odt_entries: Arc<Mutex<Vec<Vec<OdtEntry>>>>, timestamp: u64) {
         self.tot_events = 0;
         self.packets_lost = 0;
         self.counter_errors = 0;

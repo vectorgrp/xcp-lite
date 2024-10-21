@@ -47,7 +47,7 @@ impl DaqDecoder {
 }
 
 impl XcpDaqDecoder for DaqDecoder {
-    fn start(&mut self, _odt_entries: Arc<Mutex<HashMap<String, OdtEntry>>>, _timestamp: u64) {
+    fn start(&mut self, _odt_entries: Arc<Mutex<Vec<Vec<OdtEntry>>>>, _timestamp: u64) {
         self.event_count = 0;
         self.event_lost_count = 0;
     }

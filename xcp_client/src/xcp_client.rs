@@ -409,9 +409,10 @@ pub trait XcpTextDecoder {
 /// Describes an ODT entry
 #[derive(Debug)]
 pub struct OdtEntry {
-    pub daq: u16,
-    pub odt: u8,
-    pub odt_entry: u8,
+    pub name: String,
+    // pub daq: u16,
+    // pub odt: u8,
+    // pub odt_entry: u8,
     pub a2l_type: A2lType,
     pub a2l_addr: A2lAddr,
     pub offset: u16,
@@ -422,7 +423,10 @@ pub trait XcpDaqDecoder {
     fn decode(&mut self, lost: u32, data: &[u8]);
 
     /// Measurement start 64 bit time stamp
-    fn start(&mut self, odt_entries: Arc<Mutex<HashMap<String, OdtEntry>>>, timestamp_raw64: u64);
+    fn start(&mut self, odt_entries: Arc<Mutex<Vec<Vec<OdtEntry>>>>, timestamp_raw64: u64);
+
+    // Measurement stop
+    fn stop(&mut self) {}
 
     // /// Measurement timestamp resoution in ns per raw timestamp tick
     fn set_daq_properties(&mut self, timestamp_resolution: u64, daq_header_size: u8);
@@ -464,7 +468,8 @@ pub struct XcpClient {
     a2l_file: Option<a2lfile::A2lFile>,
     calibration_objects: Vec<XcpCalibrationObject>,
     measurement_objects: Vec<XcpMeasurementObject>,
-    odt_entries: Arc<Mutex<HashMap<String, OdtEntry>>>,
+    //odt_entries: Arc<Mutex<Vec<OdtEntry>>>,
+    daq_odt_entries: Arc<Mutex<Vec<Vec<OdtEntry>>>>,
 }
 
 impl XcpClient {
@@ -489,7 +494,8 @@ impl XcpClient {
             a2l_file: None,
             calibration_objects: Vec::new(),
             measurement_objects: Vec::new(),
-            odt_entries: Arc::new(Mutex::new(HashMap::new())),
+            //odt_entries: Arc::new(Mutex::new(Vec::with_capacity(8))),
+            daq_odt_entries: Arc::new(Mutex::new(Vec::with_capacity(8))),
         }
     }
 
@@ -1230,7 +1236,8 @@ impl XcpClient {
     pub async fn start_measurement(&mut self) -> Result<(), Box<dyn Error>> {
         // Init
         let signal_count = self.measurement_objects.len();
-        self.odt_entries.lock().clear();
+        //self.odt_entries.lock().clear();
+        self.daq_odt_entries.lock().clear();
 
         // Store all events in a hashmap (eventnumber, signalcount)
         let mut event_map: HashMap<u16, u16> = HashMap::new();
@@ -1279,28 +1286,32 @@ impl XcpClient {
             debug!("Alloc odt_entries: daq={}, odt={}, odt_entry_count={}", daq, 0, odt_entry_count);
         }
 
-        // Write all ODT entries (address, size) and store information (hashmap(name,OdtEntry)) for the DAQ decoder
+        // Create all ODT entries for each daq/event list and store information for the DAQ decoder
         for daq in 0..daq_count {
-            let odt = 0;
+            //
             let event = event_list[daq as usize].0;
-            let mut odt_entry: u8 = 0;
-            let n = self.measurement_objects.len();
+            let odt = 0; // Only one odt per daq list supported yet
+            let odt_entry_count = self.measurement_objects.len();
+
+            // Create ODT entries for this daq list
+            let mut odt_entries = Vec::new();
             let mut odt_size: u16 = 0;
-            for i in 0..n {
-                let m = &mut self.measurement_objects[i];
+            self.set_daq_ptr(daq, odt, 0).await?;
+            for odt_entry in 0..odt_entry_count {
+                let m = &mut self.measurement_objects[odt_entry];
                 let a2l_addr = m.a2l_addr;
                 if a2l_addr.event == event {
+                    // Only add signals for the daq list event
                     let a2l_type: A2lType = m.a2l_type;
                     m.daq = daq;
                     m.odt = odt;
                     m.offset = odt_size + 6;
 
                     debug!(
-                        "WRITE_DAQ {} daq={}, odt={}, odt_entry={}, type={:?}, size={}, ext={}, addr=0x{:08X}, offset={}",
+                        "WRITE_DAQ {} daq={}, odt={},  type={:?}, size={}, ext={}, addr=0x{:08X}, offset={}",
                         m.name,
                         daq,
                         odt,
-                        odt_entry,
                         a2l_type.encoding,
                         a2l_type.size,
                         a2l_addr.ext,
@@ -1308,28 +1319,23 @@ impl XcpClient {
                         odt_size + 6
                     );
 
-                    self.odt_entries.lock().insert(
-                        m.name.clone(),
-                        OdtEntry {
-                            daq,
-                            odt,
-                            odt_entry,
-                            a2l_type,
-                            a2l_addr,
-                            offset: odt_size,
-                        },
-                    );
+                    odt_entries.push(OdtEntry {
+                        name: m.name.clone(),
+                        a2l_type,
+                        a2l_addr,
+                        offset: odt_size,
+                    });
 
-                    self.set_daq_ptr(daq, odt, odt_entry).await?;
                     self.write_daq(a2l_addr.ext, a2l_addr.addr, a2l_type.size).await?;
 
-                    odt_entry += 1;
                     odt_size += a2l_type.size as u16;
                     if odt_size > self.max_dto_size - 6 {
                         return Err(Box::new(XcpError::new(ERROR_ODT_SIZE)) as Box<dyn Error>);
                     }
                 }
-            }
+            } // odt_entries
+
+            self.daq_odt_entries.lock().push(odt_entries);
         }
 
         // Set DAQ list events
@@ -1346,9 +1352,7 @@ impl XcpClient {
 
         // Reset the DAQ decoder and set measurement start time
         let daq_clock = self.get_daq_clock_raw().await?;
-        if let Some(daq_decoder) = self.daq_decoder.as_ref() {
-            daq_decoder.lock().start(self.odt_entries.clone(), daq_clock);
-        }
+        self.daq_decoder.as_ref().unwrap().lock().start(self.daq_odt_entries.clone(), daq_clock);
 
         // Send running=true throught the DAQ control channel to the receive task
         self.task_control.running = true;
@@ -1368,6 +1372,9 @@ impl XcpClient {
         // Send running=false throught the DAQ control channel to the receive task
         self.task_control.running = false;
         self.tx_task_control.as_ref().unwrap().send(self.task_control).await?;
+
+        // Stop the DAQ decoder (to finalize the eventual file output)
+        self.daq_decoder.as_ref().unwrap().lock().stop();
 
         res
     }

@@ -22,9 +22,9 @@ pub struct A2lAddr {
 
 #[derive(Debug, Clone, Copy)]
 pub enum A2lTypeEncoding {
-    Signed,
-    Unsigned,
-    Float,
+    Signed = -1,
+    Unsigned = 1,
+    Float = 0,
 }
 
 #[derive(Debug, Clone, Copy)]
