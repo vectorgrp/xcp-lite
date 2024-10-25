@@ -4,7 +4,7 @@
 |
 | Description:
 |   XCP transport layer queue
-|   Multi producer single consumer queue (using atomic 64 bit operations)
+|   Multi producer single consumer queue
 |
 | Copyright (c) Vector Informatik GmbH. All rights reserved.
 | See LICENSE file in the project root for details.
@@ -18,42 +18,110 @@
 
 // Experimental
 // Use spinlock/mutex instead of mutex for producer lock
-// This naiv approach is usually not faster compared to a mutex and can produce higher latencies and hard to predict impact on other threads
+// This naiv approach is usually faster compared to a mutex, but can produce higher worst case latencies and hard to predict impact on other threads
 // It might be a better solution for non preemptive tasks
 //#define USE_SPINLOCK
 //#define USE_YIELD
 //#define TEST_LOCK_TIMING
 
-/* 
-Test results from test_multi_thread with 32 tasks and 200us sleep time:   
-maxLock and avgLock time in ns
+/*
+Test results from test_multi_thread with 32 tasks and 200us sleep time 
 
-SPINLOCK+YIELD
-    lockCount=501170, maxLock=296000, avgLock=768
-    lockCount=501019, maxLock=195000, avgLock=744
-    lockCount=500966, maxLock=210000, avgLock=724
+Mutex:
+lockCount=742121, maxLockTime=113000ns,  avgLockTime=1332ns
+0us: 707175
+10us: 18274
+20us: 10192
+30us: 4295
+40us: 1471
+50us: 451
+60us: 152
+70us: 63
+80us: 25
+90us: 16
+100us: 4
+110us: 3
 
-SPINLOCK without cache friendly lock check
-    lockCount=492952, maxLock=10115000, avgLock=1541
+Spinlock
+lockCount=741715, maxLockTime=10058000ns,  avgLockTime=343ns
+0us: 739766
+10us: 1633
+20us: 249
+30us: 37
+40us: 12
+50us: 3
+60us: 3
+>: 12
 
-SPINLOCK
-    lockCount=497254, maxLock=9935000, avgLock=512
-    lockCount=494866, maxLock=11935000, avgLock=1322
-    lockCount=490923, maxLock=10019000, avgLock=2073
-    lockCount=489831, maxLock=10024000, avgLock=1980
+Spinlock+Yield
+lockCount=746574, maxLockTime=241000ns,  avgLockTime=517ns
+0us: 734499
+10us: 6553
+20us: 3037
+30us: 1561
+40us: 398
+50us: 153
+60us: 61
+70us: 105
+80us: 128
+90us: 41
+100us: 29
+110us: 7
+140us: 1
+>: 1
 
-MUTEX
-    lockCount=499798, maxLock=114000, avgLock=840
-    lockCount=500202, maxLock=135000, avgLock=806
-    lockCount=499972, maxLock=130000, avgLock=790
-    lockCount=500703, maxLock=124000, avgLock=755
-    lockCount=500773, maxLock=126000, avgLock=669
+%32
+lockCount=742068, maxLockTime=99000ns,  avgLockTime=549ns
+0us: 728545
+10us: 7615
+20us: 3728
+30us: 1596
+40us: 394
+50us: 123
+60us: 45
+70us: 13
+80us: 6
+90us: 3
+
+%64
+lockCount=741891, maxLockTime=215000ns,  avgLockTime=488ns
+0us: 730379
+10us: 6460
+20us: 3108
+30us: 1444
+40us: 359
+50us: 100
+60us: 30
+70us: 8
+80us: 1
+180us: 1
+>: 1
+
+%64 release
+lockCount=741987, maxLockTime=171000ns,  avgLockTime=488ns
+0us: 730705
+10us: 6154
+20us: 2969
+30us: 1596
+40us: 396
+50us: 112
+60us: 34
+70us: 13
+80us: 6
+140us: 1
+170us: 1
+
+
 */
+
 
 #ifdef TEST_LOCK_TIMING
 static uint64_t lockTimeMax = 0;
 static uint64_t lockTimeSum = 0;
 static uint64_t lockCount = 0;
+#define HISTOGRAM_SIZE 20 // 200us in 10us steps
+#define HISTOGRAM_STEP 10
+static uint64_t lockTimeHistogram[HISTOGRAM_SIZE] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 #endif
 
 #ifndef _WIN
@@ -97,9 +165,7 @@ static struct {
     uint16_t ctr;   // Next DTO data transmit message packet counter
     uint16_t overruns; // Overrun counter
     BOOL flush;     // There is a packet in the queue which has priority
-#ifndef USE_SPINLOCK
     MUTEX mutex;    // Mutex for queue producers
-#endif
 } gXcpTlQueue;
 
 #ifdef USE_SPINLOCK
@@ -113,9 +179,7 @@ void XcpTlInitTransmitQueue() {
     gXcpTlQueue.overruns = 0;
     gXcpTlQueue.ctr = 0;
     gXcpTlQueue.flush = FALSE;
-#ifndef USE_SPINLOCK
     mutexInit(&gXcpTlQueue.mutex, FALSE, 1000);
-#endif
     atomic_store_explicit(&gXcpTlQueue.head, 0, memory_order_relaxed);
     atomic_store_explicit(&gXcpTlQueue.tail, 0, memory_order_relaxed);
     gXcpTlQueue.tail_len = 0;
@@ -134,12 +198,14 @@ void XcpTlResetTransmitQueue() {
 
 void XcpTlFreeTransmitQueue() {
     XcpTlResetTransmitQueue();
-#ifndef USE_SPINLOCK
     mutexDestroy(&gXcpTlQueue.mutex);
-#endif
     
 #ifdef TEST_LOCK_TIMING
-    DBG_PRINTF3("XcpTlFreeTransmitQueue: overruns=%u, lockCount=%llu, maxLock=%llu, avgLock=%llu\n", gXcpTlQueue.overruns, lockCount, lockTimeMax, lockTimeSum/lockCount);
+    printf("XcpTlFreeTransmitQueue: overruns=%u, lockCount=%llu, maxLockTime=%lluns,  avgLockTime=%lluns\n", gXcpTlQueue.overruns, lockCount, lockTimeMax, lockTimeSum/lockCount);
+    for (int i=0; i<HISTOGRAM_SIZE-1; i++) {
+        if (lockTimeHistogram[i]) printf("%dus: %llu\n", i*10, lockTimeHistogram[i]);
+    }
+    if (lockTimeHistogram[HISTOGRAM_SIZE-1]) printf(">: %llu\n", lockTimeHistogram[HISTOGRAM_SIZE-1]);
 #endif
 }
 
@@ -167,27 +233,24 @@ uint8_t* XcpTlGetTransmitBuffer(void** handle, uint16_t packet_len) {
 
     DBG_PRINTF5("XcpTlGetTransmitBuffer: len=%d\n", packet_len);
 
-    // Producer lock
 #ifdef TEST_LOCK_TIMING
     uint64_t c = clockGet();
 #endif
+
+    // Producer lock
 #ifdef USE_SPINLOCK
-    for (uint32_t n = 1;1;n++) {
+    #ifdef USE_YIELD
+    uint32_t n = 1;
+    #endif
+    for (;;) {
         BOOL locked = atomic_load_explicit(&lock._Value, memory_order_relaxed);
         if (!locked  && !atomic_flag_test_and_set_explicit(&lock, memory_order_acquire)) break;
-        //if ( !atomic_flag_test_and_set_explicit(&lock, memory_order_acquire)) break;
     #ifdef USE_YIELD
-        if (n%16==0) yield_thread();
+        if (++n%64==0) yield_thread();
     #endif
     }
 #else
     mutexLock(&gXcpTlQueue.mutex);
-#endif
-#ifdef TEST_LOCK_TIMING
-    uint64_t d = clockGet() - c;
-    if (d>lockTimeMax) lockTimeMax = d;
-    lockTimeSum += d;
-    lockCount++;
 #endif
 
     uint64_t head = atomic_load_explicit(&gXcpTlQueue.head,memory_order_relaxed);
@@ -208,6 +271,18 @@ uint8_t* XcpTlGetTransmitBuffer(void** handle, uint16_t packet_len) {
 #else
     mutexUnlock(&gXcpTlQueue.mutex);
 #endif
+
+#ifdef TEST_LOCK_TIMING
+    uint64_t d = clockGet() - c;
+    mutexLock(&gXcpTlQueue.mutex);
+    if (d>lockTimeMax) lockTimeMax = d;
+    int i = (d/1000)/10;
+    if (i<HISTOGRAM_SIZE) lockTimeHistogram[i]++; else lockTimeHistogram[HISTOGRAM_SIZE-1]++;
+    lockTimeSum += d;
+    lockCount++;
+    mutexUnlock(&gXcpTlQueue.mutex);
+#endif
+
     if (entry==NULL) {
         gXcpTlQueue.overruns++;
         return NULL;

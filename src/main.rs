@@ -230,7 +230,9 @@ lazy_static::lazy_static! {
 
 // A task which calculates some measurement signals depending on calibration parameters in a shared calibration segment
 // This task is instantiated multiple times
-fn task2(task_id: usize, calseg: CalSeg<CalPage>, calseg2: CalSeg<CalPage2>) {
+fn task2(instance_num: usize, calseg: CalSeg<CalPage>, calseg2: CalSeg<CalPage2>) {
+    info!("{} ({:?}) started", std::thread::current().name().unwrap(), std::thread::current().id());
+
     // Static calibration parameters
     let static_cal_page = STATIC_CAL_PAGE.get().unwrap();
 
@@ -251,7 +253,7 @@ fn task2(task_id: usize, calseg: CalSeg<CalPage>, calseg2: CalSeg<CalPage2>) {
 
         // Calculate demo measurement variable depending on calibration parameters (sine signal with ampl and period)
         let time = START_TIME.elapsed().as_micros() as f64 * 0.000001; // s
-        let offset = task_id as f64 * 10.0;
+        let offset = instance_num as f64 * 10.0;
         let channel = offset + calseg2.ampl * (PI * time / calseg2.period).sin(); // Use active page in calibration segment
 
         // Measurement of local variables by capturing their value and association to the given XCP event
@@ -269,11 +271,13 @@ fn task2(task_id: usize, calseg: CalSeg<CalPage>, calseg2: CalSeg<CalPage2>) {
         calseg.sync();
         calseg2.sync();
     }
-    info!("Task2 instance {} finished", task_id);
+    info!("{} stopped", std::thread::current().name().unwrap());
 }
 
 // A task with a single instance which calculates some counter signals of basic types and calibratable sawtooth counter
 fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
+    info!("task1 ({:?}) started", std::thread::current().id());
+
     // Stack variables for measurement
     let mut counter = 0u32;
     let mut counter_u8 = Wrapping(0u8);
@@ -352,7 +356,7 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
         calseg1.sync();
         calseg.sync();
     }
-    info!("Task1 finished");
+    info!("task1 stopped");
 }
 
 //-----------------------------------------------------------------------------
@@ -420,13 +424,19 @@ fn main() {
 
     // Task2 - 9 instances
     // To demonstrate the difference between single instance and multi instance events and measurement values
-    let mut t = Vec::with_capacity(TASK2_INSTANCE_COUNT);
-    for i in 0..TASK2_INSTANCE_COUNT {
-        let c1 = CalSeg::clone(&calseg);
-        let c2 = CalSeg::clone(&calseg2);
-        t.push(thread::spawn(move || {
-            task2(i, c1, c2);
-        }));
+    let mut t2 = Vec::with_capacity(TASK2_INSTANCE_COUNT);
+    for instance_num in 0..TASK2_INSTANCE_COUNT {
+        let calseg1 = CalSeg::clone(&calseg);
+        let calseg2 = CalSeg::clone(&calseg2);
+        let name = format!("task2_{}", instance_num);
+        let t = std::thread::Builder::new()
+            .stack_size(32 * 1024)
+            .name(name)
+            .spawn(move || {
+                task2(instance_num, calseg1, calseg2);
+            })
+            .unwrap();
+        t2.push(t);
     }
 
     // Task1 - single instance
@@ -534,9 +544,9 @@ fn main() {
     RUN.store(false, Ordering::Relaxed);
 
     // Wait for the tasks to finish
-    t1.join().ok();
-    t.into_iter().for_each(|t| {
-        t.join().ok();
+    t1.join().unwrap();
+    t2.into_iter().for_each(|t| {
+        t.join().unwrap();
     });
     info!("All tasks finished");
 

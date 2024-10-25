@@ -21,12 +21,6 @@ use log::{debug, error, info, trace, warn};
 use std::fmt::Debug;
 
 //-----------------------------------------------------------------------------
-// Logging
-
-// const OPTION_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Info;
-// const OPTION_XCP_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Info;
-
-//-----------------------------------------------------------------------------
 // Calibration Segment
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]

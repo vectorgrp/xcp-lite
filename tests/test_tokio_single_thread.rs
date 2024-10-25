@@ -20,19 +20,6 @@ use std::{fmt::Debug, thread};
 use tokio::time::Duration;
 
 //-----------------------------------------------------------------------------
-// XCP
-
-// const OPTION_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Info;
-// const OPTION_XCP_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Info;
-
-//-----------------------------------------------------------------------------
-// static calibration parameters
-
-// const CONST_PAR: u8 = 0xAA;
-// static STATIC_PAR: u8 = 0xAA;
-// static mut STATIC_MUT_PAR: u8 = 0xAA;
-
-//-----------------------------------------------------------------------------
 // Calibration Segment
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
