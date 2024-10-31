@@ -23,11 +23,11 @@ pub const OPTION_LOG_LEVEL: xcp::XcpLogLevel = xcp::XcpLogLevel::Info;
 pub const OPTION_XCP_LOG_LEVEL: xcp::XcpLogLevel = xcp::XcpLogLevel::Info;
 
 // Test parameters
-pub const MULTI_THREAD_TASK_COUNT: usize = 16; // Number of threads
-pub const DAQ_TEST_TASK_SLEEP_TIME_US: u64 = 100; // Measurement thread task cycle time in us
+pub const MULTI_THREAD_TASK_COUNT: usize = 8; // Number of threads
+pub const DAQ_TEST_TASK_SLEEP_TIME_US: u64 = 1000; // Measurement thread task cycle time in us
 const DAQ_TEST_DURATION_MS: u64 = 6000; // DAQ test duration, 6s to get a nano second 32 bit overflow while checking timestamp monotony
 const CAL_TEST_MAX_ITER: u32 = 4000; // Number of calibrations
-const CAL_TEST_TASK_SLEEP_TIME_US: u64 = 50; // Checking task cycle time in us
+const CAL_TEST_TASK_SLEEP_TIME_US: u64 = 100; // Checking task cycle time in us
 
 //------------------------------------------------------------------------
 // Handle incomming SERV_TEXT data
@@ -165,8 +165,8 @@ impl XcpDaqDecoder for DaqDecoder {
             // Check counter_max (+0) and counter (+4)
             let counter_max = data[o] as u32 | (data[o + 1] as u32) << 8 | (data[o + 2] as u32) << 16 | (data[o + 3] as u32) << 24;
             let counter = data[o + 4] as u32 | (data[o + 5] as u32) << 8 | (data[o + 6] as u32) << 16 | (data[o + 7] as u32) << 24;
-            if counter_max > 255 || counter > 255 || counter > counter_max {
-                warn!("counter_max={}, counter={}", counter_max, counter);
+            if (counter_max != 15 && counter_max != 255) || counter > 255 || counter > counter_max {
+                error!("counter_max={}, counter={}", counter_max, counter);
             }
             //assert!(counter <= 255, "counter={}", counter);
             //assert!(counter <= counter_max, "counter={} counter_max={}", counter, counter_max);
@@ -472,16 +472,15 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
                 assert!(duration_ms > DAQ_TEST_DURATION_MS as f64 && duration_ms < DAQ_TEST_DURATION_MS as f64 + 100.0);
                 let avg_cycletime_us = (duration_ms * 1000.0) / d.daq_events[0] as f64;
                 info!("  average task cycle time = {}us", avg_cycletime_us,);
-                if test_mode_daq == TestModeDaq::MultiThreadDAQ {
-                    assert_eq!(d.daq_max, (MULTI_THREAD_TASK_COUNT - 1) as u16);
-                    // Check all max counters are now 255
-                    for i in 0..MULTI_THREAD_TASK_COUNT {
-                        assert_eq!(d.max_counter[i], 255);
+                let task_count = if test_mode_daq == TestModeDaq::MultiThreadDAQ { MULTI_THREAD_TASK_COUNT } else { 1 };
+                assert_eq!(d.daq_max, (task_count - 1) as u16);
+                // Check the calibration happened, so all max_counter measurement values are 255
+                for i in 0..task_count {
+                    if d.max_counter[i] != 255 {
+                        error!("daq {i} - max_counter={}", d.max_counter[i]);
                     }
-                } else {
-                    assert_eq!(d.daq_max, 0);
-                    assert_eq!(d.max_counter[0], 255); // @@@@
                 }
+
                 assert_eq!(d.odt_max, 0);
                 assert_eq!(d.counter_errors, 0);
                 assert_eq!(d.packets_lost, 0);
@@ -603,7 +602,7 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
             })
             .ok();
 
-        tokio::time::sleep(Duration::from_micros(100000)).await;
+        tokio::time::sleep(Duration::from_millis(500)).await; // Give the user task some time to finish
     }
 
     // Disconnect

@@ -326,7 +326,7 @@ async fn test_multi_thread() {
 
     info!("Test done. Waiting for tasks to terminate");
     for t in v {
-        t.join().ok();
+        t.join().unwrap();
     }
 
     info!("Stop XCP server");

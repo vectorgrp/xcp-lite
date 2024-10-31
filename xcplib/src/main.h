@@ -1,13 +1,12 @@
 #pragma once
 #define __MAIN_CFG_H__
 
-
 /* main.h */
 /*
 | Code released into public domain, no attribution required
 */
 
-// Windows or Linux ?
+// Windows or Linux/macOS ?
 #if defined(_WIN32) || defined(_WIN64)
   #define _WIN
   #if defined(_WIN32) && defined(_WIN64)
@@ -20,13 +19,21 @@
   #define _LINUX
   #if defined (_ix64_) || defined (__x86_64__) || defined (__aarch64__)
     #define _LINUX64
+    #ifdef __APPLE__
+      #define _MACOS64
+    #endif
   #else
+    #error "32 Bit OS not supported"
     #define _LINUX32
+    #ifdef __APPLE__
+      #define _MACOS32
+    #endif
   #endif
   #if defined(_WIN) || defined(_WIN64)|| defined(_WIN32)
     #error
   #endif
 #endif
+
 
 
 #ifdef _WIN

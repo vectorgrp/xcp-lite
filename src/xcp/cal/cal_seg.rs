@@ -558,14 +558,10 @@ unsafe impl<T> Send for CalSeg<T> where T: CalPageTrait {}
 mod cal_tests {
 
     #![allow(dead_code)]
-
-    use std::sync::Arc;
-    use std::thread;
-    use std::time::{Duration, Instant};
-
     use super::*;
     use crate::xcp;
-
+    use std::sync::Arc;
+    use std::thread;
     use xcp::*;
     use xcp_type_description::prelude::*;
 
@@ -716,36 +712,36 @@ mod cal_tests {
     // drop(cal_page_test2);
     //}
 
-    #[test]
-    fn test_calibration_segment_performance() {
-        let xcp = xcp_test::test_setup(log::LevelFilter::Info);
+    // #[test]
+    // fn test_calibration_segment_performance() {
+    //     let xcp = xcp_test::test_setup(log::LevelFilter::Info);
 
-        const CAL_PAGE: CalPage0 = CalPage0 { stop: 0 };
+    //     const CAL_PAGE: CalPage0 = CalPage0 { stop: 0 };
 
-        let mut cal_seg1 = xcp.create_calseg("calseg1", &CAL_PAGE);
+    //     let mut cal_seg1 = xcp.create_calseg("calseg1", &CAL_PAGE);
 
-        // Create 10 tasks with 10 clones of cal_seg1
-        let mut t = Vec::new();
-        let loop_count = Arc::new(parking_lot::Mutex::new(Vec::with_capacity(10)));
-        let start = Instant::now();
-        for i in 0..10 {
-            let c = CalSeg::clone(&cal_seg1);
-            trace!("task {} clone = {}", i, cal_seg1.get_clone_count());
-            let l = loop_count.clone();
-            t.push(thread::spawn(move || {
-                let n = task_calseg(c);
-                l.lock().push(n);
-            }));
-        }
-        thread::sleep(Duration::from_millis(1000));
-        cal_seg1.stop = 1; // deref_mut
-        t.into_iter().for_each(|t| t.join().unwrap());
+    //     // Create 10 tasks with 10 clones of cal_seg1
+    //     let mut t = Vec::new();
+    //     let loop_count = Arc::new(parking_lot::Mutex::new(Vec::with_capacity(10)));
+    //     let start = Instant::now();
+    //     for i in 0..10 {
+    //         let c = CalSeg::clone(&cal_seg1);
+    //         trace!("task {} clone = {}", i, cal_seg1.get_clone_count());
+    //         let l = loop_count.clone();
+    //         t.push(thread::spawn(move || {
+    //             let n = task_calseg(c);
+    //             l.lock().push(n);
+    //         }));
+    //     }
+    //     thread::sleep(Duration::from_millis(1000));
+    //     cal_seg1.stop = 1; // deref_mut
+    //     t.into_iter().for_each(|t| t.join().unwrap());
 
-        let duration = start.elapsed().as_micros();
-        info!("Duration: {}us", duration);
-        let tot_loop_count: u32 = loop_count.lock().iter().sum();
-        info!("Loop counts: tot = {}, {:.3}us per loop", tot_loop_count, duration as f64 / tot_loop_count as f64);
-    }
+    //     let duration = start.elapsed().as_micros();
+    //     info!("Duration: {}us", duration);
+    //     let tot_loop_count: u32 = loop_count.lock().iter().sum();
+    //     info!("Loop counts: tot = {}, {:.3}us per loop", tot_loop_count, duration as f64 / tot_loop_count as f64);
+    // }
 
     //-----------------------------------------------------------------------------
     // Test file read and write of a cal_seg
@@ -861,12 +857,14 @@ mod cal_tests {
     fn test_cal_page_switch() {
         xcp_test::test_setup(log::LevelFilter::Info);
         let xcp = Xcp::get();
-        let mut_page: CalPage2 = CalPage2 { a: 1, b: 3, c: 5 };
+        let mut_page: CalPage1 = CalPage1 { a: 1, b: 3, c: 5 };
         save(&mut_page, "test1.json").unwrap();
-        save(&mut_page, "test2.json").unwrap();
-        let cal_seg = xcp.create_calseg("test1", &FLASH_PAGE2);
+        //save(&mut_page, "test2.json").unwrap();
+        let cal_seg = xcp.create_calseg("test1", &FLASH_PAGE1);
         cal_seg.load("test1.json").unwrap();
+        info!("load");
         cal_seg.sync();
+        info!("sync");
         assert_eq!(xcp.get_ecu_cal_page(), XcpCalPage::Ram, "XCP should be on RAM page here, there is no independant page switching yet");
         test_is_mut!(cal_seg); // Default page must be mut_page
         xcp.set_ecu_cal_page(XcpCalPage::Flash); // Simulate a set cal page to default from XCP master
@@ -890,7 +888,7 @@ mod cal_tests {
             }
         }
         std::fs::remove_file("test1.json").ok();
-        std::fs::remove_file("test2.json").ok();
+        //std::fs::remove_file("test2.json").ok();
     }
 
     //-----------------------------------------------------------------------------

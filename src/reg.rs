@@ -28,8 +28,8 @@ mod registry_tests {
         reg.set_epk("TEST_EPK", 0x80000000);
         reg.set_tl_params("UDP", Ipv4Addr::new(127, 0, 0, 1), 5555);
 
-        reg.add_cal_seg("test_cal_seg_1", 0, 2);
-        reg.add_cal_seg("test_cal_seg_2", 1, 2);
+        reg.add_cal_seg("test_cal_seg_1", 0, 4);
+        reg.add_cal_seg("test_cal_seg_2", 1, 4);
 
         let event1_1 = crate::XcpEvent::new(0, 1);
         reg.add_event("event1", event1_1);
@@ -148,11 +148,13 @@ mod registry_tests {
         #[type_description(min = "-128.0")]
         #[type_description(max = "127.0")]
         test_characteristic_2: i8,
+        test_characteristic_3: i16,
     }
 
     const CAL_PAGE: CalPage = CalPage {
         test_characteristic_1: 0,
         test_characteristic_2: 0,
+        test_characteristic_3: 0,
     };
 
     #[test]

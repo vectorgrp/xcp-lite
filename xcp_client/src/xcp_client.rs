@@ -678,6 +678,7 @@ impl XcpClient {
             }
             Err(_) => {
                 // Timeout, return with XcpError
+                warn!("xcp_command: timeout - no responce to {:?}", cmd_bytes);
                 Err(Box::new(XcpError::new(ERROR_CMD_TIMEOUT)) as Box<dyn Error>)
             }
         }
@@ -948,22 +949,23 @@ impl XcpClient {
         Ok(())
     }
 
-    // START_STOP mode
-    const XCP_STOP: u8 = 0;
-    const XCP_START: u8 = 1;
-    const XCP_SELECT: u8 = 2;
-    async fn start_stop_daq_list(&mut self, mode: u8, daq: u16) -> Result<(), Box<dyn Error>> {
-        self.send_command(XcpCommandBuilder::new(CC_START_STOP_DAQ_LIST).add_u8(mode).add_u16(daq).build()).await?;
+    // Select DAQ list
+    async fn select_daq_list(&mut self, daq: u16) -> Result<(), Box<dyn Error>> {
+        self.send_command(XcpCommandBuilder::new(CC_START_STOP_DAQ_LIST).add_u8(2).add_u16(daq).build()).await?;
         Ok(())
     }
 
-    // START_STOP_SYNC mode
-    const XCP_STOP_ALL: u8 = 0;
-    const XCP_START_SELECTED: u8 = 1;
-    const XCP_STOP_SELECTED: u8 = 2;
-    const XCP_PREPARE_START_SELECTED: u8 = 3;
-    async fn start_stop_sync(&mut self, mode: u8) -> Result<(), Box<dyn Error>> {
-        self.send_command(XcpCommandBuilder::new(CC_START_STOP_SYNCH).add_u8(mode).build()).await?;
+    // Prepare, start selected, stop all
+    async fn prepare_selected_daq_lists(&mut self) -> Result<(), Box<dyn Error>> {
+        self.send_command(XcpCommandBuilder::new(CC_START_STOP_SYNCH).add_u8(3 /* prepare selected */).build()).await?;
+        Ok(())
+    }
+    async fn start_selected_daq_lists(&mut self) -> Result<(), Box<dyn Error>> {
+        self.send_command(XcpCommandBuilder::new(CC_START_STOP_SYNCH).add_u8(1 /* start selected */).build()).await?;
+        Ok(())
+    }
+    async fn stop_all_daq_lists(&mut self) -> Result<(), Box<dyn Error>> {
+        self.send_command(XcpCommandBuilder::new(CC_START_STOP_SYNCH).add_u8(0).build()).await?;
         Ok(())
     }
 
@@ -1345,10 +1347,11 @@ impl XcpClient {
             debug!("Set event: daq={}, event={}", daq, event);
         }
 
-        // Select all DAQ lists
+        // Select and prepare all DAQ lists
         for daq in 0..daq_count {
-            self.start_stop_daq_list(XcpClient::XCP_SELECT, daq).await?;
+            self.select_daq_list(daq).await?;
         }
+        self.prepare_selected_daq_lists().await?;
 
         // Reset the DAQ decoder and set measurement start time
         let daq_clock = self.get_daq_clock_raw().await?;
@@ -1359,7 +1362,7 @@ impl XcpClient {
         self.tx_task_control.as_ref().unwrap().send(self.task_control).await.unwrap();
 
         // Start DAQ
-        self.start_stop_sync(XcpClient::XCP_START_SELECTED).await?;
+        self.start_selected_daq_lists().await?;
 
         Ok(())
     }
@@ -1367,13 +1370,13 @@ impl XcpClient {
     /// Stop DAQ
     pub async fn stop_measurement(&mut self) -> Result<(), Box<dyn Error>> {
         // Stop DAQ
-        let res = self.start_stop_sync(XcpClient::XCP_STOP_ALL).await;
+        let res = self.stop_all_daq_lists().await;
 
         // Send running=false throught the DAQ control channel to the receive task
         self.task_control.running = false;
         self.tx_task_control.as_ref().unwrap().send(self.task_control).await?;
 
-        // Stop the DAQ decoder (to finalize the eventual file output)
+        // Stop the DAQ decoder
         self.daq_decoder.as_ref().unwrap().lock().stop();
 
         res

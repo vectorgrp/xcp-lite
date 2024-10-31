@@ -3,7 +3,7 @@
 |   xcpAppl.c
 |
 | Description:
-|   Platform specific functions and callbacks for XCP driver
+|   Platform specific functions and callbacks for XCP
 |
 | Copyright (c) Vector Informatik GmbH. All rights reserved.
 | Licensed under the MIT license. See LICENSE file in the project root for details.
@@ -16,23 +16,30 @@
 #include "xcpLite.h"
 #include "xcpAppl.h"
 
-#ifdef XCP_ENABLE_DBG_PRINTS
-uint8_t gDebugLevel = XCP_DEFAULT_DEBUG_LEVEL;
-#endif
 
+
+// @@@@ improve
 #ifdef XCP_ENABLE_USER_COMMAND
 static BOOL write_delay = FALSE;
 #endif
 
 
 /**************************************************************************/
-// Log level
+// Logging
 /**************************************************************************/
+
+#ifdef OPTION_ENABLE_DBG_PRINTS
+uint8_t gDebugLevel = OPTION_DEFAULT_DBG_LEVEL;
+#endif
 
 // This is used by the Rust ffi to set the log level
 void ApplXcpSetLogLevel(uint8_t level) {
+#ifdef OPTION_ENABLE_DBG_PRINTS
     if (level>3) DBG_PRINTF_WARNING("Set log level %u -> %u\n", gDebugLevel, level);
     gDebugLevel = level;
+#else
+    (void)level;
+#endif
 }
 
 /**************************************************************************/
@@ -204,7 +211,7 @@ uint32_t ApplXcpGetAddr(const uint8_t* p) {
 
 #endif
 
-#if defined(_LINUX64) && !defined(__APPLE__)
+#if defined(_LINUX64) && !defined(_MACOS64)
 
 #ifndef __USE_GNU
 #define __USE_GNU
@@ -251,7 +258,7 @@ uint32_t ApplXcpGetAddr(const uint8_t* p)
 #endif
 
 
-#ifdef __APPLE__
+#ifdef _MACOS64
 
 #include <mach-o/dyld.h>
 

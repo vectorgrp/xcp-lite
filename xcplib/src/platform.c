@@ -193,7 +193,7 @@ void mutexDestroy(MUTEX* m) {
 // Sockets
 /**************************************************************************/
 
-#if defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)
+#if defined(OPTION_ENABLE_TCP) || defined(OPTION_ENABLE_TCP)
 
 #ifdef _LINUX
 
@@ -265,7 +265,7 @@ BOOL socketClose(SOCKET *sp) {
 
 #ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
 
-#ifndef __APPLE__
+#ifndef _MACOS64
 #include <linux/if_packet.h>
 #else
 #include <ifaddrs.h>
@@ -277,7 +277,7 @@ static BOOL GetMAC(char* ifname, uint8_t* mac) {
     if (getifaddrs(&ifaddrs) == 0) {
         for (ifa = ifaddrs; ifa != NULL; ifa = ifa->ifa_next) {
             if (!strcmp(ifa->ifa_name, ifname)) {
-#ifdef __APPLE__
+#ifdef _MACOS64
                 if (ifa->ifa_addr->sa_family == AF_LINK) {
                     memcpy(mac, (uint8_t *)LLADDR((struct sockaddr_dl *)ifa->ifa_addr), 6);
                     DBG_PRINTF4("  %s: MAC = %02X-%02X-%02X-%02X-%02X-%02X\n", ifa->ifa_name, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
@@ -668,37 +668,79 @@ int16_t socketSend(SOCKET sock, const uint8_t* buffer, uint16_t size) {
 static uint64_t sClock = 0;
 
 // Get the last known clock value
-// Save CPU load, clockGet may take up to 2us run time, depending on platform
+// Save CPU load, clockGet may take resonable run time, depending on platform
 // For slow timeouts and timers, it is sufficient to rely on the relatively high call frequency of clockGet() by other parts of the application
 uint64_t clockGetLast() {
   return sClock;
 }
 
-#if defined(_LINUX) // Linux
+// Not used, might be faster on macOS
+// #ifdef _MACOS64
+// #include <mach/mach_time.h>
+// uint64_t getMachineTime() {
+//     uint64_t tm = mach_absolute_time();
+//     mach_timebase_info_data_t timebase;
+//     mach_timebase_info(&timebase);
+//     return tm * timebase.numer / timebase.denom;
+// }
+// #endif
+
+
+#if defined(_LINUX) // Linux or macOS
+
+#if !defined(OPTION_CLOCK_EPOCH_PTP) && !defined(OPTION_CLOCK_EPOCH_ARB)
+    #error "Please define OPTION_CLOCK_EPOCH_ARB or OPTION_CLOCK_EPOCH_PTP
+#endif
 
 /*
-Linux clock type
-  CLOCK_REALTIME  This clock is affected by incremental adjustments performed by NTP
-  CLOCK_TAI       This clock does not experience discontinuities and backwards jumps caused by NTP inserting leap seconds as CLOCK_REALTIME does.
-                  Not available on WSL
-*/
-#define CLOCK_TYPE CLOCK_REALTIME
-// #define CLOCK_TYPE CLOCK_TAI
 
-static struct timespec gtr;
-#ifndef CLOCK_USE_UTC_TIME_NS
-static struct timespec gts0;
+Clock options
+
+    OPTION_CLOCK_EPOCH_ARB      arbitrary epoch 
+    OPTION_CLOCK_EPOCH_PTP      since 1.1.1970
+    OPTION_CLOCK_TICKS_1NS      resolution 1ns or 1us, granularity depends on platform
+    OPTION_CLOCK_TICKS_1US
+
+Clock types used
+    CLOCK_REALTIME      This clock may be affected by incremental adjustments performed by NTP
+                        Epoch ns since 1.1.1970
+                        Works on all platforms
+                        1us granularity on MacOS
+                        
+    CLOCK_TAI           This clock does not experience discontinuities and backwards jumps caused by NTP or inserting leap seconds as CLOCK_REALTIME does.
+                        Epoch ns since 1.1.1970
+                        Not available on Linux and MacOS
+    
+    CLOCK_MONOTONIC_RAW Provides a monotonic clock without time drift adjustments by NTP, giving higher stability and resolution 
+                        Epoch ns since OS or process start
+                        Works on all platforms
+                        <1us granularity on MACOS,
+*/
+
+
+#ifdef OPTION_CLOCK_EPOCH_ARB
+    #define CLOCK_TYPE CLOCK_MONOTONIC_RAW // Works on all OS
+    //static struct timespec gts0;
+#else
+    #ifdef _WIN
+        #define CLOCK_TYPE CLOCK_TAI
+    #else 
+        #define CLOCK_TYPE CLOCK_REALTIME
+    #endif
 #endif
 
 char* clockGetString(char* s, uint32_t l, uint64_t c) {
 
-#ifndef CLOCK_USE_UTC_TIME_NS
+#ifdef OPTION_CLOCK_EPOCH_ARB
     SNPRINTF(s,l, "%gs", (double)c / CLOCK_TICKS_PER_S);
 #else
     time_t t = (time_t)(c / CLOCK_TICKS_PER_S); // s since 1.1.1970
     struct tm tm;
     gmtime_r(&t, &tm);
     uint64_t fns = c % CLOCK_TICKS_PER_S;
+#ifdef OPTION_CLOCK_TICKS_1US
+    fns *= 1000;
+#endif
     SNPRINTF(s,l, "%u.%u.%u %02u:%02u:%02u +%" PRIu64 "ns", 
         tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, 
         tm.tm_hour % 24, tm.tm_min, tm.tm_sec, 
@@ -711,43 +753,41 @@ char* clockGetString(char* s, uint32_t l, uint64_t c) {
 BOOL clockInit()
 {    
     DBG_PRINT3("\nInit clock\n  (");
-#ifdef CLOCK_USE_UTC_TIME_NS
-    DBG_PRINT3("CLOCK_USE_UTC_TIME_NS,");
+#ifdef OPTION_CLOCK_EPOCH_PTP
+    DBG_PRINT3("OPTION_CLOCK_EPOCH_PTP,");
 #endif
-#ifdef CLOCK_USE_APP_TIME_US
-    DBG_PRINT3("CLOCK_USE_APP_TIME_US,");
+#ifdef OPTION_CLOCK_EPOCH_ARB
+    DBG_PRINT3("OPTION_CLOCK_EPOCH_ARB,");
 #endif
-#if CLOCK_TYPE == CLOCK_TAI
-    DBG_PRINT3("CLOCK_TYPE_TAI,");
+#ifdef OPTION_CLOCK_TICKS_1US
+    DBG_PRINT3("OPTION_CLOCK_TICKS_1US)\n");
 #endif
-#if CLOCK_TYPE == CLOCK_REALTIME
-    DBG_PRINT3("CLOCK_TYPE_REALTIME,");
+#ifdef OPTION_CLOCK_TICKS_1NS
+    DBG_PRINT3("OPTION_CLOCK_TICKS_1NS)\n");
 #endif
-    DBG_PRINT3(")\n");
-
+    
     sClock = 0;
 
-    clock_getres(CLOCK_TYPE, &gtr);
-    DBG_PRINTF4("Clock resolution is %lds,%ldns!\n", gtr.tv_sec, gtr.tv_nsec);
-
-#ifndef CLOCK_USE_UTC_TIME_NS
-    clock_gettime(CLOCK_TYPE, &gts0);
+#ifdef DBG_LEVEL
+    if (DBG_LEVEL >= 3) { // Test
+        struct timespec gtr;
+        clock_getres(CLOCK_TYPE, &gtr);
+        DBG_PRINTF3("  Clock resolution is %ldns!\n", gtr.tv_nsec);
+    }
 #endif
-    clockGet();
+
+    clockGet(); // Initialize ClockGetLast()
 
 #ifdef DBG_LEVEL
-    if (DBG_LEVEL >= 4) {
+    if (DBG_LEVEL >= 3) { // Test
         uint64_t t1, t2;
         char s[128];
-        struct timespec gts;
-        struct timeval ptm;
-        time_t now = time(NULL);
-        gettimeofday(&ptm, NULL);
-        clock_gettime(CLOCK_TYPE, &gts);
-        DBG_PRINTF4("  CLOCK_REALTIME=%lus time=%lu timeofday=%lu\n", gts.tv_sec, now, ptm.tv_sec);
-        t1 = clockGet(); sleepNs(100000); t2 = clockGet();
-        DBG_PRINTF4("  +0us:   %llu %s\n", t1, clockGetString(s, sizeof(s), t1));
-        DBG_PRINTF4("  +100us: %llu %s (dt=%u)\n", t2, clockGetString(s, sizeof(s), t2), (uint32_t)(t2 - t1));
+        t1 = clockGet(); sleepMs(100); t2 = clockGet();
+        DBG_PRINTF4("  now      : %" PRIu64 " %s\n", t1, clockGetString(s, sizeof(s), t1));
+        DBG_PRINTF4("  now+100ms: %" PRIu64 " %s (dt=%u)\n", t2, clockGetString(s, sizeof(s), t2), (uint32_t)(t2 - t1));
+        // t1 = clockGet(); sleepMs(100); t2 = clockGet();
+        // DBG_PRINTF4("  +0us:   %" PRIu64 " %s\n", t1, clockGetString(s, sizeof(s), t1));
+        // DBG_PRINTF4("  +100ms: %" PRIu64 " %s (dt=%u)\n", t2, clockGetString(s, sizeof(s), t2), (uint32_t)(t2 - t1));
         DBG_PRINT4("\n");
     }
 #endif
@@ -756,15 +796,16 @@ BOOL clockInit()
 }
 
 
-// Free running clock with 1us tick
+// Free running 64 bit clock
 uint64_t clockGet() {
 
     struct timespec ts;
     clock_gettime(CLOCK_TYPE, &ts);
-#ifdef CLOCK_USE_UTC_TIME_NS // ns since 1.1.1970
+#ifdef OPTION_CLOCK_TICKS_1NS // ns 
     return sClock = (((uint64_t)(ts.tv_sec) * 1000000000ULL) + (uint64_t)(ts.tv_nsec)); // ns
-#else // us since init
-    return sClock = (((uint64_t)(ts.tv_sec - gts0.tv_sec) * 1000000ULL) + (uint64_t)(ts.tv_nsec / 1000)); // us
+#else // OPTION_CLOCK_TICKS_1US us
+    return sClock = (((uint64_t)(ts.tv_sec) * 1000000ULL) + (uint64_t)(ts.tv_nsec / 1000)); // us
+    // return sClock = (((uint64_t)(ts.tv_sec - gts0.tv_sec) * 1000000ULL) + (uint64_t)(ts.tv_nsec / 1000)); // us ARB
 #endif
 }
 
@@ -772,14 +813,14 @@ uint64_t clockGet() {
 
 // Performance counter to clock conversion
 static uint64_t sFactor = 0; // ticks per us
-#ifdef CLOCK_USE_UTC_TIME_NS
+#ifndef OPTION_CLOCK_EPOCH_ARB
 static uint8_t sDivide = 0; // divide or multiply
 #endif
 static uint64_t sOffset = 0; // offset
 
 char* clockGetString(char* str, uint32_t l, uint64_t c) {
 
-#ifndef CLOCK_USE_UTC_TIME_NS
+#ifdef OPTION_CLOCK_EPOCH_ARB
     SNPRINTF(str, l, "%gs", (double)c / CLOCK_TICKS_PER_S);
 #else
     uint64_t s = c / CLOCK_TICKS_PER_S;
@@ -799,7 +840,7 @@ char* clockGetString(char* str, uint32_t l, uint64_t c) {
 
 char* clockGetTimeString(char* str, uint32_t l, int64_t t) {
 
-#ifndef CLOCK_USE_UTC_TIME_NS
+#ifdef OPTION_CLOCK_EPOCH_ARB
     SNPRINTF(str, l, "%gs", (double)t/CLOCK_TICKS_PER_S);
 #else
     char sign = '+';    if (t < 0) { sign = '-'; t = -t; }
@@ -814,11 +855,18 @@ char* clockGetTimeString(char* str, uint32_t l, int64_t t) {
 
 BOOL clockInit() {
 
-    DBG_PRINT3("\nInit clock\n");
-#ifdef CLOCK_USE_UTC_TIME_NS
-    DBG_PRINT3("  CLOCK_USE_UTC_TIME_NS\n");
-#else
-    DBG_PRINT3("  CLOCK_USE_APP_TIME_US\n");
+    DBG_PRINT3("\nInit clock\n  (");
+#ifdef OPTION_CLOCK_EPOCH_PTP
+    DBG_PRINT3("OPTION_CLOCK_EPOCH_PTP,");
+#endif
+#ifdef OPTION_CLOCK_EPOCH_ARB
+    DBG_PRINT3("OPTION_CLOCK_EPOCH_ARB,");
+#endif
+#ifdef OPTION_CLOCK_TICKS_1US
+    DBG_PRINT3("OPTION_CLOCK_TICKS_1US)\n");
+#endif
+#ifdef OPTION_CLOCK_TICKS_1NS
+    DBG_PRINT3("OPTION_CLOCK_TICKS_1NS)\n");
 #endif
     
     sClock = 0;
@@ -835,7 +883,7 @@ BOOL clockInit() {
         DBG_PRINT_ERROR("ERROR: Unexpected performance counter frequency!\n");
         return FALSE;
     }
-#ifdef CLOCK_USE_UTC_TIME_NS
+#ifndef OPTION_CLOCK_EPOCH_ARB
     if (CLOCK_TICKS_PER_S > tF.u.LowPart) {
       sFactor = CLOCK_TICKS_PER_S / tF.u.LowPart;
       sDivide = 0;
@@ -849,7 +897,7 @@ BOOL clockInit() {
 #endif
 
     // Get current performance counter to absolute time relation
-#ifdef CLOCK_USE_UTC_TIME_NS
+#ifndef OPTION_CLOCK_EPOCH_ARB
 
     // Set time zone from TZ environment variable. If TZ is not set, the operating system is queried
     _tzset();
@@ -867,8 +915,8 @@ BOOL clockInit() {
     // Calculate factor and offset
     QueryPerformanceCounter(&tC);
     tp = (((int64_t)tC.u.HighPart) << 32) | (int64_t)tC.u.LowPart;
-#ifdef CLOCK_USE_UTC_TIME_NS
-    // set  offset from local clock UTC value t
+#ifndef OPTION_CLOCK_EPOCH_ARB
+    // set offset from local clock UTC value t
     // this is inaccurate up to 1 s, but irrelevant because system clock UTC offset is also not accurate
     sOffset = time_s * CLOCK_TICKS_PER_S + (uint64_t)time_ms * CLOCK_TICKS_PER_MS - tp * sFactor;
 #else
@@ -880,7 +928,7 @@ BOOL clockInit() {
 
 #ifdef DBG_LEVEL
     if (DBG_LEVEL >= 5) {
-#ifdef CLOCK_USE_UTC_TIME_NS
+#ifndef OPTION_CLOCK_EPOCH_ARB
         if (DBG_LEVEL >= 6) {
             struct tm tm;
             _gmtime64_s(&tm, (const __time64_t*)&time_s);
@@ -915,7 +963,7 @@ uint64_t clockGet() {
 
     QueryPerformanceCounter(&tp);
     t = (((uint64_t)tp.u.HighPart) << 32) | (uint64_t)tp.u.LowPart;
-#ifdef CLOCK_USE_UTC_TIME_NS
+#ifndef OPTION_CLOCK_EPOCH_ARB
     if (sDivide) {
         t = t / sFactor + sOffset;
     }

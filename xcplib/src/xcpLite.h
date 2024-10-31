@@ -99,7 +99,7 @@ extern uint32_t XcpGetDaqOverflowCount();
 /* Time synchronisation */
 #ifdef XCP_ENABLE_DAQ_CLOCK_MULTICAST
   #if XCP_PROTOCOL_LAYER_VERSION < 0x0103
-    #error "Protocol layer version must be >=0x0103
+    #error "Protocol layer version must be >=0x0103"
   #endif
 extern uint16_t XcpGetClusterId();
 #endif

@@ -1,12 +1,16 @@
 #pragma once
 #define __XCP_CFG_H__
 
+#ifndef __MAIN_CFG_H__
+#error "Include dependency error! options not set"
+#endif
+
 /*----------------------------------------------------------------------------
 | File:
 |   xcp_cfg.h
 |
 | Description:
-|   User configuration file for XCP protocol layer parameters
+|   Parameter configuration for XCP protocol layer parameters
  ----------------------------------------------------------------------------*/
 
 
@@ -112,7 +116,12 @@
 // #define XCP_ENABLE_PACKED_MODE 
 
 // Static allocated memory for DAQ tables
-#define XCP_DAQ_MEM_SIZE (10000*5) // Amount of memory for DAQ tables, each ODT entry (e.g. measurement variable) needs 5 bytes
+// Amount of memory for DAQ tables, each ODT entry (e.g. measurement variable) needs 5 bytes
+#ifdef OPTION_DAQ_MEM_SIZE
+#define XCP_DAQ_MEM_SIZE OPTION_DAQ_MEM_SIZE 
+#else
+#define XCP_DAQ_MEM_SIZE (1024*4) // Amount of memory for DAQ tables, each ODT entry (e.g. measurement variable or memory block) needs 5 bytes
+#endif
 
 // Maximum number of DAQ lists
 // Numbers smaller than 256 will switch to 2 byte transport layer header DAQ_HDR_ODT_DAQB
@@ -122,20 +131,16 @@
 // Clock resolution
 //#define XCP_DAQ_CLOCK_32BIT  // Use 32 Bit time stamps
 #define XCP_DAQ_CLOCK_64BIT // Use 64 Bit time stamps
-#if CLOCK_TICKS_PER_S == 1000000  // Settings for 32 bit us since application start (CLOCK_USE_APP_TIME_US)
-
-  #define XCP_TIMESTAMP_UNIT DAQ_TIMESTAMP_UNIT_1US // unit DAQ_TIMESTAMP_UNIT_xxx
+#if CLOCK_TICKS_PER_S == 1000000  //  us 
+  #define XCP_TIMESTAMP_UNIT DAQ_TIMESTAMP_UNIT_1US // unit
   #define XCP_TIMESTAMP_TICKS 1  // ticks per unit
-
 #endif
-#if CLOCK_TICKS_PER_S == 1000000000  // Settings for 32 bit ns since application start (CLOCK_USE_UTC_TIME_NS)
-
-  #define XCP_TIMESTAMP_UNIT DAQ_TIMESTAMP_UNIT_1NS // unit DAQ_TIMESTAMP_UNIT_xxx
+#if CLOCK_TICKS_PER_S == 1000000000  // ns
+  #define XCP_TIMESTAMP_UNIT DAQ_TIMESTAMP_UNIT_1NS // unit
   #define XCP_TIMESTAMP_TICKS 1  // ticks per unit
-
 #endif
 
-// Enable GET_DAQ_CLOCK_MULTICAST - not supported by xcp-lite
+// Enable GET_DAQ_CLOCK_MULTICAST 
 // #define XCP_ENABLE_DAQ_CLOCK_MULTICAST 
 #ifdef XCP_ENABLE_DAQ_CLOCK_MULTICAST
   // XCP default cluster id (multicast addr 239,255,0,1, group 127,0,1 (mac 01-00-5E-7F-00-01)

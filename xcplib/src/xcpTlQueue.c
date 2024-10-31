@@ -201,11 +201,11 @@ void XcpTlFreeTransmitQueue() {
     mutexDestroy(&gXcpTlQueue.mutex);
     
 #ifdef TEST_LOCK_TIMING
-    printf("XcpTlFreeTransmitQueue: overruns=%u, lockCount=%llu, maxLockTime=%lluns,  avgLockTime=%lluns\n", gXcpTlQueue.overruns, lockCount, lockTimeMax, lockTimeSum/lockCount);
+    printf("XcpTlFreeTransmitQueue: overruns=%u, lockCount=%" PRIu64 ", maxLockTime=%" PRIu64 "ns,  avgLockTime=%" PRIu64 "ns\n", gXcpTlQueue.overruns, lockCount, lockTimeMax, lockTimeSum/lockCount);
     for (int i=0; i<HISTOGRAM_SIZE-1; i++) {
-        if (lockTimeHistogram[i]) printf("%dus: %llu\n", i*10, lockTimeHistogram[i]);
+        if (lockTimeHistogram[i]) printf("%dus: %" PRIu64 "\n", i*10, lockTimeHistogram[i]);
     }
-    if (lockTimeHistogram[HISTOGRAM_SIZE-1]) printf(">: %llu\n", lockTimeHistogram[HISTOGRAM_SIZE-1]);
+    if (lockTimeHistogram[HISTOGRAM_SIZE-1]) printf(">: %" PRIu64 "\n", lockTimeHistogram[HISTOGRAM_SIZE-1]);
 #endif
 }
 
@@ -335,8 +335,11 @@ void XcpTlWaitForTransmitQueueEmpty() {
     uint16_t timeout = 0;
     do {
         sleepMs(20);
-        timeout++;
-    } while (XcpTlGetTransmitQueueLevel()!=0 && timeout<=50); // Wait max 1s until the transmit queue is empty
+        if (++timeout>50) { // Wait max 1s until the transmit queue is empty
+            DBG_PRINT_ERROR("XcpTlWaitForTransmitQueueEmpty: timeout\n");
+            break;
+        };
+    } while (XcpTlGetTransmitQueueLevel()!=0 ); 
 
 }
 

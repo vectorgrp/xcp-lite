@@ -11,12 +11,12 @@
 //-------------------------------------------------------------------------------
 // Debug print
 
-#if !defined(OPTION_ENABLE_DBG_PRINTS) || !defined(OPTION_DEBUG_LEVEL)
-  #error "Please define OPTION_ENABLE_DBG_PRINTS and OPTION_DEBUG_LEVEL in main_cfg.h to ON or OFF"
+#if defined(OPTION_ENABLE_DBG_PRINTS) && !defined(OPTION_DEFAULT_DBG_LEVEL)
+  #error "Please define OPTION_DEFAULT_DBG_LEVEL"
 #endif
 
 
-#if OPTION_ENABLE_DBG_PRINTS
+#ifdef OPTION_ENABLE_DBG_PRINTS
 
 /*
 1 - Error

@@ -5,7 +5,7 @@
 */
 
 #ifndef __MAIN_CFG_H__
-#error "Include dependency error!"
+#error "Include dependency error! options not set"
 #endif
 
 //-------------------------------------------------------------------------------
@@ -92,7 +92,7 @@ typedef pthread_t tXcpThread;
 //-------------------------------------------------------------------------------
 // Platform independant socket functions
 
-#if defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)
+#if defined(OPTION_ENABLE_TCP) || defined(OPTION_ENABLE_TCP)
 
 #ifdef _LINUX // Linux sockets
 
@@ -159,28 +159,25 @@ extern BOOL socketGetLocalAddr(uint8_t* mac, uint8_t* addr);
 #endif
 
 //-------------------------------------------------------------------------------
-// Clock
+// High resolution clock
 
-// Clock resolution and epoch
-#if !defined(CLOCK_USE_UTC_TIME_NS) && !defined(CLOCK_USE_APP_TIME_US)
-  // Default
-  #define CLOCK_USE_UTC_TIME_NS // Use ns timestamps relative to 1.1.1970 (TAI monotonic - no backward jumps)
-  //#define CLOCK_USE_APP_TIME_US // Use arbitrary us timestamps relative to application start
-#endif
+#ifdef OPTION_CLOCK_TICKS_1NS
 
-#ifdef CLOCK_USE_UTC_TIME_NS
-
-#define CLOCK_TICKS_PER_M  (1000000000ULL*60)
-#define CLOCK_TICKS_PER_S  1000000000
-#define CLOCK_TICKS_PER_MS 1000000
-#define CLOCK_TICKS_PER_US 1000
-#define CLOCK_TICKS_PER_NS 1
+  #define CLOCK_TICKS_PER_M  (1000000000ULL*60)
+  #define CLOCK_TICKS_PER_S  1000000000
+  #define CLOCK_TICKS_PER_MS 1000000
+  #define CLOCK_TICKS_PER_US 1000
+  #define CLOCK_TICKS_PER_NS 1
 
 #else
 
-#define CLOCK_TICKS_PER_S  1000000
-#define CLOCK_TICKS_PER_MS 1000
-#define CLOCK_TICKS_PER_US 1
+  #ifndef OPTION_CLOCK_TICKS_1US 
+    #error "Please define OPTION_CLOCK_TICKS_1NS or OPTION_CLOCK_TICKS_1US"
+  #endif
+
+  #define CLOCK_TICKS_PER_S  1000000
+  #define CLOCK_TICKS_PER_MS 1000
+  #define CLOCK_TICKS_PER_US 1
 
 #endif
 

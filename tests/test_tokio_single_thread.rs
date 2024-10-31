@@ -171,7 +171,7 @@ async fn test_tokio_single_thread() {
     )
     .await; // Start the test executor XCP client
 
-    t1.join().ok();
+    t1.join().unwrap();
 
     std::fs::remove_file("test_tokio_single_thread.a2l").unwrap();
 }

@@ -192,11 +192,10 @@ typedef struct {
 
 
 /****************************************************************************/
-/* XCP Packet                                                */
+/* XCP Packet                                                               */
 /****************************************************************************/
 
 typedef union {
-    /* There might be a loss of up to 3 bytes. */
     uint8_t  b[((XCPTL_MAX_CTO_SIZE + 3) & 0xFFC)];
     uint16_t w[((XCPTL_MAX_CTO_SIZE + 3) & 0xFFC) / 2];
     uint32_t dw[((XCPTL_MAX_CTO_SIZE + 3) & 0xFFC) / 4];
@@ -1029,7 +1028,7 @@ void XcpDisconnect()
     if (isDaqRunning()) {
       ApplXcpStopDaq();
       XcpStopAllDaq();
-      XcpTlWaitForTransmitQueueEmpty(); // Wait until transmit queue empty
+      XcpTlWaitForTransmitQueueEmpty();
     }
     
     gXcp.SessionStatus &= ~SS_CONNECTED;
@@ -1102,7 +1101,7 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint8_t cmdL
   uint8_t err = 0;
 
   if (!isStarted()) return CRC_GENERIC;
-  if (CRO_LEN > sizeof(tXcpCto)) return CRC_CMD_SYNTAX;
+  if (CRO_LEN > XCPTL_MAX_CTO_SIZE) return CRC_CMD_SYNTAX;
 
   // Prepare the default response
   CRM_CMD = PID_RES; /* Response, no error */
@@ -1598,29 +1597,27 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint8_t cmdL
           }
           break;
 
-        case CC_START_STOP_DAQ_LIST:
+        case CC_START_STOP_DAQ_LIST: // start, stop, select individual daq list
           {
             check_len(CRO_START_STOP_DAQ_LIST_LEN);
             uint16_t daq = CRO_START_STOP_DAQ_LIST_DAQ;
             if (daq >= gXcp.Daq.DaqCount) error(CRC_OUT_OF_RANGE);
             if ( (CRO_START_STOP_DAQ_LIST_MODE==1 ) || (CRO_START_STOP_DAQ_LIST_MODE==2) )  { // start or select
               DaqListState(daq) |= DAQ_STATE_SELECTED;
-              if (CRO_START_STOP_DAQ_LIST_MODE == 1) { // start individual daq list
+              if (CRO_START_STOP_DAQ_LIST_MODE == 1) { 
                   XcpStartDaq(daq);
               }
               CRM_LEN = CRM_START_STOP_DAQ_LIST_LEN;
               CRM_START_STOP_DAQ_LIST_FIRST_PID = 0; // Absolute DAQ, Relative ODT - DaqListFirstPid(daq);
             }
             else {
-              if (XcpStopDaq(daq)) {
-                  XcpTlWaitForTransmitQueueEmpty(); // Event processing stopped - wait until transmit queue empty before sending command response
-              }
+              XcpStopDaq(daq);  // stop individual daq list
             }
 
           }
           break;
 
-        case CC_START_STOP_SYNCH:
+        case CC_START_STOP_SYNCH: // prepare, start, stop selected daq lists or stop all
           {
             if ((0 == gXcp.Daq.DaqCount) || (0 == gXcp.Daq.OdtCount) || (0 == gXcp.Daq.OdtEntryCount)) error(CRC_DAQ_CONFIG);
             check_len(CRO_START_STOP_SYNCH_LEN);
@@ -2433,7 +2430,7 @@ static void XcpPrintRes(const tXcpCto* crm) {
             break;
 
         default:
-            if (DBG_LEVEL >= 4) {
+            if (DBG_LEVEL >= 5) {
                 printf("<- OK\n");
             }
             break;
@@ -2449,7 +2446,7 @@ static void XcpPrintDaqList( uint16_t daq )
 
   if (daq>=gXcp.Daq.DaqCount) return;
 
-  printf("DAQ %u:\n",daq);
+  printf("DAQ %u:",daq);
   printf(" eventchannel=%04Xh,",DaqListEventChannel(daq));
   printf(" ext=%02Xh,",DaqListAddrExt(daq));
   printf(" firstOdt=%u,",DaqListFirstOdt(daq));
@@ -2462,8 +2459,10 @@ static void XcpPrintDaqList( uint16_t daq )
   for (i=DaqListFirstOdt(daq);i<=DaqListLastOdt(daq);i++) {
     printf("  ODT %u (%u):",i-DaqListFirstOdt(daq),i);
     printf(" firstOdtEntry=%u, lastOdtEntry=%u, size=%u:\n", DaqListOdtFirstEntry(i), DaqListOdtLastEntry(i),DaqListOdtSize(i));
-    for (e=DaqListOdtFirstEntry(i);e<=DaqListOdtLastEntry(i);e++) {
-      printf("   %08X,%u\n",OdtEntryAddr(e), OdtEntrySize(e));
+    if (DBG_LEVEL >= 5) {
+      for (e=DaqListOdtFirstEntry(i);e<=DaqListOdtLastEntry(i);e++) {
+        printf("   %08X,%u\n",OdtEntryAddr(e), OdtEntrySize(e));
+      }
     }
   } /* j */
 }

@@ -185,7 +185,7 @@ async fn test_single_thread() {
         )
         .await; // Start the test executor XCP client
 
-        t1.join().ok();
+        t1.join().unwrap();
         xcp.stop_server();
     }
 

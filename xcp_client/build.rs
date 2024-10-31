@@ -3,22 +3,24 @@ fn main() {
 
     // Generate XCPlite C code bindings
     // Uncomment this to regenerate the bindings
-    let bindings = bindgen::Builder::default()
-        .header("../mdflib/wrapper.h")
-        .clang_arg("-I../mdflib/src")
-        .clang_arg("-I../mdflib")
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
-        //
-        .allowlist_function("mdfOpen")
-        .allowlist_function("mdfCreateChannelGroup")
-        .allowlist_function("mdfCreateChannel")
-        .allowlist_function("mdfWriteHeader")
-        .allowlist_function("mdfWriteRecord")
-        .allowlist_function("mdfClose")
-        //
-        .generate()
-        .expect("Unable to generate bindings");
-    bindings.write_to_file("src/mdflib.rs").expect("Couldn't write bindings!");
+    /*
+        let bindings = bindgen::Builder::default()
+            .header("../mdflib/wrapper.h")
+            .clang_arg("-I../mdflib/src")
+            .clang_arg("-I../mdflib")
+            .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
+            //
+            .allowlist_function("mdfOpen")
+            .allowlist_function("mdfCreateChannelGroup")
+            .allowlist_function("mdfCreateChannel")
+            .allowlist_function("mdfWriteHeader")
+            .allowlist_function("mdfWriteRecord")
+            .allowlist_function("mdfClose")
+            //
+            .generate()
+            .expect("Unable to generate bindings");
+        bindings.write_to_file("src/mdflib.rs").expect("Couldn't write bindings!");
+    */
 
     // Build a XCP on ETH version of XCPlite as a library
     cc::Build::new()
