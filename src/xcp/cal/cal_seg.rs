@@ -158,7 +158,8 @@ where
     default_page: &'static T,
     ecu_page: Box<CalPage<T>>,
     xcp_page: Arc<Mutex<CalPage<T>>>,
-    _not_send_sync_marker: PhantomData<*mut ()>,
+    //_not_send_sync_marker: PhantomData<*mut ()>,
+    _not_sync_marker: PhantomData<std::cell::Cell<()>>,
 }
 
 // Impl register_fields for types which implement RegisterFieldsTrait
@@ -243,7 +244,8 @@ where
                 freeze_request: false,
                 page: init_page,
             })),
-            _not_send_sync_marker: PhantomData,
+            //_not_send_sync_marker: PhantomData,
+            _not_sync_marker: PhantomData,
         }
     }
 
@@ -509,7 +511,8 @@ where
             default_page: self.default_page,      // &T
             ecu_page: self.ecu_page.clone(),      // Clone for each thread
             xcp_page: Arc::clone(&self.xcp_page), // Share Arc<Mutex<T>>
-            _not_send_sync_marker: PhantomData,
+            //_not_send_sync_marker: PhantomData,
+            _not_sync_marker: PhantomData,
         }
     }
 }
@@ -547,7 +550,7 @@ where
 /// Send is reimplemented here
 /// Sync stays disabled, because this would allow to call 'calseg.sync()' from multiple threads with references to the same 'CalSeg'
 // @@@@ Unsafe - Implementation of Send marker for CalSeg
-unsafe impl<T> Send for CalSeg<T> where T: CalPageTrait {}
+//unsafe impl<T> Send for CalSeg<T> where T: CalPageTrait {}
 
 //----------------------------------------------------------------------------------------------
 // Test
@@ -628,9 +631,9 @@ mod cal_tests {
         is_send::<CalPage1>();
         //is_sync::<CalPage>();
         is_send::<CalSeg<CalPage1>>();
-        //is_sync::<CalSeg<CalPage>>(); // CalSeg is not sync !
+        //is_sync::<CalSeg<CalPage1>>(); // CalSeg is not sync !
         is_clone::<CalSeg<CalPage1>>();
-        //is_copy::<CalSeg<CalPage0>>(); // CalSeg is not copy
+        //is_copy::<CalSeg<CalPage1>>(); // CalSeg is not copy
 
         // Interiour mutability, page switch and unwanted compiler optimizations
         const CAL_PAGE_TEST: CalPageTest = CalPageTest { test: 0 };
