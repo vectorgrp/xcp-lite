@@ -171,9 +171,11 @@ async fn test_single_thread() {
         };
 
         // Create a test task
-        let c = cal_seg.clone();
-        let t1 = thread::spawn(move || {
-            task(c);
+        let t1 = thread::spawn({
+            let cal_seg = cal_seg.clone();
+            move || {
+                task(cal_seg);
+            }
         });
 
         xcp_test_executor(

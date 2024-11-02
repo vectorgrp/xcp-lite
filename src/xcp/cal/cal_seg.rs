@@ -662,14 +662,18 @@ mod cal_tests {
         assert_eq!(index, 1); // Segment index
         cal_page0.sync();
         assert!(cal_page0.stop == 0);
-        let c1 = CalSeg::clone(&cal_page0);
-        let c2 = CalSeg::clone(&cal_page0);
         assert!(cal_page0.get_clone_count() == 4); // 2 explicit clones, 1 for Xcp calseg_list and the original
-        let t1 = thread::spawn(move || {
-            task_calseg(c1);
+        let t1 = thread::spawn({
+            let c = CalSeg::clone(&cal_page0);
+            move || {
+                task_calseg(c);
+            }
         });
-        let t2 = thread::spawn(move || {
-            task_calseg(c2);
+        let t2 = thread::spawn({
+            let c = CalSeg::clone(&cal_page0);
+            move || {
+                task_calseg(c);
+            }
         });
         let data: u8 = 1;
         // @@@@ - unsafe - Test

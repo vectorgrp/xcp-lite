@@ -1047,6 +1047,7 @@ pub mod xcp_test {
     // Setup the test environment
     #[allow(dead_code)]
     pub fn test_setup(x: log::LevelFilter) -> &'static Xcp {
+        info!("test_setup");
         TEST_INIT.call_once(|| {
             env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(x).init();
         });
@@ -1074,6 +1075,7 @@ pub mod xcp_test {
         }
         xcp.set_ecu_cal_page(XcpCalPage::Ram);
         xcp.set_xcp_cal_page(XcpCalPage::Ram);
+        info!("Test reinit done");
         xcp
     }
 }

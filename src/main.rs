@@ -426,14 +426,14 @@ fn main() {
     // To demonstrate the difference between single instance and multi instance events and measurement values
     let mut t2 = Vec::with_capacity(TASK2_INSTANCE_COUNT);
     for instance_num in 0..TASK2_INSTANCE_COUNT {
-        let calseg1 = CalSeg::clone(&calseg);
+        let calseg = CalSeg::clone(&calseg);
         let calseg2 = CalSeg::clone(&calseg2);
         let name = format!("task2_{}", instance_num);
         let t = std::thread::Builder::new()
             .stack_size(32 * 1024)
             .name(name)
             .spawn(move || {
-                task2(instance_num, calseg1, calseg2);
+                task2(instance_num, calseg, calseg2);
             })
             .unwrap();
         t2.push(t);
@@ -441,9 +441,11 @@ fn main() {
 
     // Task1 - single instance
     // calseg1 moved, calseg cloned
-    let c = CalSeg::clone(&calseg);
-    let t1 = thread::spawn(move || {
-        task1(c, calseg1);
+    let t1 = thread::spawn({
+        let calseg = CalSeg::clone(&calseg);
+        move || {
+            task1(calseg, calseg1);
+        }
     });
 
     // Create measurment variables on heap and stack

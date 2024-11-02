@@ -190,10 +190,13 @@ fn main() -> Result<()> {
 
     // Use CalSeg::Clone() to share the calibration segments between threads
     // No locks, calseg.sync() must be called in each thread
-    let c = CalSeg::clone(&calseg)
-    thread::spawn(move || {
-        task1(c);
-    }
+    thread::spawn({
+        let calseg = CalSeg::clone(&calseg);
+        move || {
+            task1(calseg, calseg1);
+        }
+    });
+
 
     loop { ... }
 

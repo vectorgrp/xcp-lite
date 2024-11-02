@@ -248,9 +248,11 @@ fn xcp_benchmark(c: &mut Criterion) {
 
     // Start XCP client task
     let mode = Arc::new(parking_lot::Mutex::new(ClientMode::Wait));
-    let mode_cloned = mode.clone();
-    let xcp_client_task = thread::spawn(move || {
-        xcp_client_task(mode_cloned);
+    let xcp_client_task = thread::spawn({
+        move || {
+            let mode = mode.clone();
+            xcp_client_task(mode);
+        }
     });
 
     // Wait a moment
