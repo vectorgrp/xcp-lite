@@ -69,13 +69,15 @@ pub const ERROR_A2L: u8 = 0xF2;
 pub const ERROR_LIMIT: u8 = 0xF3;
 pub const ERROR_ODT_SIZE: u8 = 0xF4;
 
+#[derive(Default)]
 pub struct XcpError {
     code: u8,
+    cmd: u8,
 }
 
 impl XcpError {
-    pub fn new(code: u8) -> XcpError {
-        XcpError { code }
+    pub fn new(code: u8, cmd: u8) -> XcpError {
+        XcpError { code, cmd }
     }
     pub fn get_error_code(&self) -> u8 {
         self.code
@@ -84,9 +86,10 @@ impl XcpError {
 
 impl std::fmt::Display for XcpError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let cmd: XcpCommand = From::from(self.cmd);
         match self.code {
             ERROR_CMD_TIMEOUT => {
-                write!(f, "Command response timeout")
+                write!(f, "{cmd:?}: Command response timeout")
             }
             ERROR_TL_HEADER => {
                 write!(f, "Transport layer header error")
@@ -107,70 +110,70 @@ impl std::fmt::Display for XcpError {
                 write!(f, "XCP command PENDING")
             }
             CRC_CMD_IGNORED => {
-                write!(f, "XCP command IGNORED")
+                write!(f, "{cmd:?}: XCP command IGNORED")
             }
             CRC_CMD_BUSY => {
-                write!(f, "XCP command BUSY")
+                write!(f, "{cmd:?}: XCP command BUSY")
             }
             CRC_DAQ_ACTIVE => {
-                write!(f, "XCP DAQ ACTIVE")
+                write!(f, "{cmd:?}: XCP DAQ ACTIVE")
             }
             CRC_PRM_ACTIVE => {
-                write!(f, "XCP PRM ACTIVE")
+                write!(f, "{cmd:?}: XCP PRM ACTIVE")
             }
             CRC_CMD_UNKNOWN => {
-                write!(f, "XCP command UNKNOWN")
+                write!(f, "XCP command ({} UNKNOWN", self.cmd)
             }
             CRC_CMD_SYNTAX => {
-                write!(f, "XCP command SYNTAX")
+                write!(f, "{cmd:?}: XCP command SYNTAX")
             }
             CRC_OUT_OF_RANGE => {
-                write!(f, "Parameter out of range")
+                write!(f, "{cmd:?}: Parameter out of range")
             }
             CRC_WRITE_PROTECTED => {
-                write!(f, "Write protected")
+                write!(f, "{cmd:?}: Write protected")
             }
             CRC_ACCESS_DENIED => {
-                write!(f, "Access denied")
+                write!(f, "{cmd:?}: Access denied")
             }
             CRC_ACCESS_LOCKED => {
-                write!(f, "Access locked")
+                write!(f, "{cmd:?}: Access locked")
             }
             CRC_PAGE_NOT_VALID => {
-                write!(f, "Invalid page")
+                write!(f, "{cmd:?}: Invalid page")
             }
             CRC_PAGE_MODE_NOT_VALID => {
-                write!(f, "XInvalide page mode")
+                write!(f, "{cmd:?}: Invalide page mode")
             }
             CRC_SEGMENT_NOT_VALID => {
-                write!(f, "Invalid segment")
+                write!(f, "{cmd:?}: Invalid segment")
             }
             CRC_SEQUENCE => {
-                write!(f, "Wrong sequence")
+                write!(f, "{cmd:?}: Wrong sequence")
             }
             CRC_DAQ_CONFIG => {
-                write!(f, "DAQ configuration error")
+                write!(f, "{cmd:?}: DAQ configuration error")
             }
             CRC_MEMORY_OVERFLOW => {
-                write!(f, "Memory overflow")
+                write!(f, "{cmd:?}: Memory overflow")
             }
             CRC_GENERIC => {
-                write!(f, "XCP generic error")
+                write!(f, "{cmd:?}: XCP generic error")
             }
             CRC_VERIFY => {
-                write!(f, "Verify failed")
+                write!(f, "{cmd:?}: Verify failed")
             }
             CRC_RESOURCE_TEMPORARY_NOT_ACCESSIBLE => {
-                write!(f, "Resource temporary not accessible")
+                write!(f, "{cmd:?}: Resource temporary not accessible")
             }
             CRC_SUBCMD_UNKNOWN => {
-                write!(f, "Unknown sub command")
+                write!(f, "{cmd:?}: Unknown sub command")
             }
             CRC_TIMECORR_STATE_CHANGE => {
-                write!(f, "Time correlation state change")
+                write!(f, "{cmd:?}: Time correlation state change")
             }
             _ => {
-                write!(f, "XCP error code = 0x{:0X}", self.code)
+                write!(f, "{cmd:?}: XCP error code = 0x{:0X}", self.code)
             }
         }
     }
@@ -185,7 +188,7 @@ impl std::fmt::Debug for XcpError {
 impl std::error::Error for XcpError {}
 
 //--------------------------------------------------------------------------------------------------------------------------------------------------
-// XCP protocol definitions
+// XCP commands
 
 // XCP command codes
 pub const CC_CONNECT: u8 = 0xFF;
@@ -221,6 +224,87 @@ pub const CC_ALLOC_DAQ: u8 = 0xD5;
 pub const CC_ALLOC_ODT: u8 = 0xD4;
 pub const CC_ALLOC_ODT_ENTRY: u8 = 0xD3;
 pub const CC_TIME_CORRELATION_PROPERTIES: u8 = 0xC6;
+
+#[derive(Debug)]
+enum XcpCommand {
+    Connect = CC_CONNECT as isize,
+    Disconnect = CC_DISCONNECT as isize,
+    ShortDownload = CC_SHORT_DOWNLOAD as isize,
+    Upload = CC_UPLOAD as isize,
+    ShortUpload = CC_SHORT_UPLOAD as isize,
+    Sync = CC_SYNC as isize,
+    Nop = CC_NOP as isize,
+    GetId = CC_GET_ID as isize,
+    SetCalPage = CC_SET_CAL_PAGE as isize,
+    GetCalPage = CC_GET_CAL_PAGE as isize,
+    GetSegmentInfo = CC_GET_SEGMENT_INFO as isize,
+    GetPageInfo = CC_GET_PAGE_INFO as isize,
+    SetSegmentMode = CC_SET_SEGMENT_MODE as isize,
+    GetSegmentMode = CC_GET_SEGMENT_MODE as isize,
+    CopyCalPage = CC_COPY_CAL_PAGE as isize,
+    ClearDaqList = CC_CLEAR_DAQ_LIST as isize,
+    SetDaqPtr = CC_SET_DAQ_PTR as isize,
+    WriteDaq = CC_WRITE_DAQ as isize,
+    SetDaqListMode = CC_SET_DAQ_LIST_MODE as isize,
+    GetDaqListMode = CC_GET_DAQ_LIST_MODE as isize,
+    StartStopDaqList = CC_START_STOP_DAQ_LIST as isize,
+    StartStopSynch = CC_START_STOP_SYNCH as isize,
+    GetDaqClock = CC_GET_DAQ_CLOCK as isize,
+    ReadDaq = CC_READ_DAQ as isize,
+    GetDaqProcessorInfo = CC_GET_DAQ_PROCESSOR_INFO as isize,
+    GetDaqResolutionInfo = CC_GET_DAQ_RESOLUTION_INFO as isize,
+    GetDaqListInfo = CC_GET_DAQ_LIST_INFO as isize,
+    GetDaqEventInfo = CC_GET_DAQ_EVENT_INFO as isize,
+    FreeDaq = CC_FREE_DAQ as isize,
+    AllocDaq = CC_ALLOC_DAQ as isize,
+    AllocOdt = CC_ALLOC_ODT as isize,
+    AllocOdtEntry = CC_ALLOC_ODT_ENTRY as isize,
+    TimeCorrelationProperties = CC_TIME_CORRELATION_PROPERTIES as isize,
+}
+
+impl From<u8> for XcpCommand {
+    fn from(code: u8) -> Self {
+        match code {
+            CC_CONNECT => XcpCommand::Connect,
+            CC_DISCONNECT => XcpCommand::Disconnect,
+            CC_SHORT_DOWNLOAD => XcpCommand::ShortDownload,
+            CC_UPLOAD => XcpCommand::Upload,
+            CC_SHORT_UPLOAD => XcpCommand::ShortUpload,
+            CC_SYNC => XcpCommand::Sync,
+            CC_NOP => XcpCommand::Nop,
+            CC_GET_ID => XcpCommand::GetId,
+            CC_SET_CAL_PAGE => XcpCommand::SetCalPage,
+            CC_GET_CAL_PAGE => XcpCommand::GetCalPage,
+            CC_GET_SEGMENT_INFO => XcpCommand::GetSegmentInfo,
+            CC_GET_PAGE_INFO => XcpCommand::GetPageInfo,
+            CC_SET_SEGMENT_MODE => XcpCommand::SetSegmentMode,
+            CC_GET_SEGMENT_MODE => XcpCommand::GetSegmentMode,
+            CC_COPY_CAL_PAGE => XcpCommand::CopyCalPage,
+            CC_CLEAR_DAQ_LIST => XcpCommand::ClearDaqList,
+            CC_SET_DAQ_PTR => XcpCommand::SetDaqPtr,
+            CC_WRITE_DAQ => XcpCommand::WriteDaq,
+            CC_SET_DAQ_LIST_MODE => XcpCommand::SetDaqListMode,
+            CC_GET_DAQ_LIST_MODE => XcpCommand::GetDaqListMode,
+            CC_START_STOP_DAQ_LIST => XcpCommand::StartStopDaqList,
+            CC_START_STOP_SYNCH => XcpCommand::StartStopSynch,
+            CC_GET_DAQ_CLOCK => XcpCommand::GetDaqClock,
+            CC_READ_DAQ => XcpCommand::ReadDaq,
+            CC_GET_DAQ_PROCESSOR_INFO => XcpCommand::GetDaqProcessorInfo,
+            CC_GET_DAQ_RESOLUTION_INFO => XcpCommand::GetDaqResolutionInfo,
+            CC_GET_DAQ_LIST_INFO => XcpCommand::GetDaqListInfo,
+            CC_GET_DAQ_EVENT_INFO => XcpCommand::GetDaqEventInfo,
+            CC_FREE_DAQ => XcpCommand::FreeDaq,
+            CC_ALLOC_DAQ => XcpCommand::AllocDaq,
+            CC_ALLOC_ODT => XcpCommand::AllocOdt,
+            CC_ALLOC_ODT_ENTRY => XcpCommand::AllocOdtEntry,
+            CC_TIME_CORRELATION_PROPERTIES => XcpCommand::TimeCorrelationProperties,
+            _ => panic!("Unknown command code: 0x{:02X}", code),
+        }
+    }
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------
+// XCP protocol definitions
 
 // XCP id types
 pub const XCP_IDT_ASCII: u8 = 0;
@@ -563,11 +647,11 @@ impl XcpClient {
                             while i < size {
                                 // Decode the next transport layer message header in the packet
                                 if size < 5 {
-                                    return Err(Box::new(XcpError::new(ERROR_TL_HEADER)) as Box<dyn Error>);
+                                    return Err(Box::new(XcpError::new(ERROR_TL_HEADER,0)) as Box<dyn Error>);
                                 }
                                 let len = buf[i] as usize + ((buf[i + 1] as usize) << 8);
                                 if len > size - 4 || len == 0 { // Corrupt packet received, not enough data received or no content
-                                    return Err(Box::new(XcpError::new(ERROR_TL_HEADER)) as Box<dyn Error>);
+                                    return Err(Box::new(XcpError::new(ERROR_TL_HEADER,0)) as Box<dyn Error>);
                                 }
                                 let ctr = buf[i + 2] as u16 + ((buf[i + 3] as u16) << 8);
                                 if ctr_first {
@@ -589,7 +673,7 @@ impl XcpClient {
                                     0xFE => {
                                         // Command error response
                                         let response = &buf[(i + 4)..(i + 6)];
-                                        debug!("xcp_receive: XCP errorcode = {}", XcpError::new(response[1]));
+                                        trace!("xcp_receive: XCP error response = {:?}", response);
                                         tx_resp.send(response.to_vec()).await?;
                                     }
                                     0xFD => {
@@ -605,7 +689,7 @@ impl XcpClient {
                                         } else {
                                             // Unknown PID
                                             warn!(
-                                                "xcp_receive: unknown service request code = 0x{:0X} ignored",
+                                                "xcp_receive: ignored unknown service request code = 0x{:0X}",
                                                 service_code
                                             );
                                         }
@@ -631,7 +715,7 @@ impl XcpClient {
                         Err(e) => {
                             // Handle the error from recv_from
                             error!("xcp_receive: socket error {}",e);
-                            return Err(Box::new(XcpError::new(ERROR_TL_HEADER)) as Box<dyn Error>);
+                            return Err(Box::new(XcpError::new(ERROR_TL_HEADER,0)) as Box<dyn Error>);
                         }
                     }
                 } // socket.recv_from
@@ -662,7 +746,7 @@ impl XcpClient {
                             }
                             0xFE => {
                                 // XCP negative response, return error code with XcpError
-                                Err(Box::new(XcpError::new(data[1])) as Box<dyn Error>)
+                                Err(Box::new(XcpError::new(data[1], cmd_bytes[4])) as Box<dyn Error>)
                             }
                             _ => {
                                 panic!("xcp_command: bug in receive_task");
@@ -672,14 +756,13 @@ impl XcpClient {
                     None => {
                         // @@@@ Empty response, channel has been closed, return with XcpError Timeout
                         error!("xcp_command: receive_task channel closed");
-                        Err(Box::new(XcpError::new(ERROR_CMD_TIMEOUT)) as Box<dyn Error>)
+                        Err(Box::new(XcpError::new(ERROR_CMD_TIMEOUT, 0)) as Box<dyn Error>)
                     }
                 }
             }
             Err(_) => {
                 // Timeout, return with XcpError
-                warn!("xcp_command: timeout - no responce to {:?}", cmd_bytes);
-                Err(Box::new(XcpError::new(ERROR_CMD_TIMEOUT)) as Box<dyn Error>)
+                Err(Box::new(XcpError::new(ERROR_CMD_TIMEOUT, cmd_bytes[4])) as Box<dyn Error>)
             }
         }
     }
@@ -793,7 +876,7 @@ impl XcpClient {
                 }
                 Err(_) => {
                     error!("GET_ID mode={} -> invalid string {:?}", id_type, data);
-                    Err(Box::new(XcpError::new(CRC_CMD_SYNTAX)) as Box<dyn Error>)
+                    Err(Box::new(XcpError::new(CRC_CMD_SYNTAX, CC_GET_ID)) as Box<dyn Error>)
                 }
             }
         }
@@ -1043,7 +1126,7 @@ impl XcpClient {
             // 64 bit slave clock
             c.read_u64::<LittleEndian>()?
         } else {
-            return Err(Box::new(XcpError::new(CRC_OUT_OF_RANGE)) as Box<dyn Error>);
+            return Err(Box::new(XcpError::new(CRC_OUT_OF_RANGE, CC_GET_DAQ_CLOCK)) as Box<dyn Error>);
         };
 
         trace!("GET_DAQ_CLOCK trigger_info=0x{:2X}, payload_fmt=0x{:2X} time={}", trigger_info, payload_fmt, timestamp64);
@@ -1105,7 +1188,7 @@ impl XcpClient {
             self.a2l_file = Some(a2l_file);
         } else {
             error!("Could not read A2L file {}", a2l_filename.display());
-            return Err(Box::new(XcpError::new(ERROR_A2L)) as Box<dyn Error>);
+            return Err(Box::new(XcpError::new(ERROR_A2L, 0)) as Box<dyn Error>);
         }
 
         Ok(())
@@ -1138,7 +1221,7 @@ impl XcpClient {
         let res = a2l_find_characteristic(self.a2l_file.as_ref().unwrap(), name);
         if res.is_none() {
             debug!("create_calibration_object: characteristic {} not found", name);
-            Err(Box::new(XcpError::new(ERROR_A2L)) as Box<dyn Error>)
+            Err(Box::new(XcpError::new(ERROR_A2L, 0)) as Box<dyn Error>)
         } else {
             let (a2l_addr, a2l_type, a2l_limits) = res.unwrap();
 
@@ -1154,7 +1237,7 @@ impl XcpClient {
     pub async fn set_value_u64(&mut self, handle: XcpCalibrationObjectHandle, value: u64) -> Result<(), Box<dyn Error>> {
         let obj = &self.calibration_objects[handle.0];
         if (value as f64) > obj.a2l_limits.upper || (value as f64) < obj.a2l_limits.lower {
-            return Err(Box::new(XcpError::new(ERROR_LIMIT)) as Box<dyn Error>);
+            return Err(Box::new(XcpError::new(ERROR_LIMIT, 0)) as Box<dyn Error>);
         }
         let size: usize = obj.get_type.size as usize;
         let slice = &value.to_le_bytes()[0..size];
@@ -1165,7 +1248,7 @@ impl XcpClient {
     pub async fn set_value_i64(&mut self, handle: XcpCalibrationObjectHandle, value: i64) -> Result<(), Box<dyn Error>> {
         let obj = &self.calibration_objects[handle.0];
         if (value as f64) > obj.a2l_limits.upper || (value as f64) < obj.a2l_limits.lower {
-            return Err(Box::new(XcpError::new(ERROR_LIMIT)) as Box<dyn Error>);
+            return Err(Box::new(XcpError::new(ERROR_LIMIT, 0)) as Box<dyn Error>);
         }
         let size: usize = obj.get_type.size as usize;
         let slice = &value.to_le_bytes()[0..size];
@@ -1176,7 +1259,7 @@ impl XcpClient {
     pub async fn set_value_f64(&mut self, handle: XcpCalibrationObjectHandle, value: f64) -> Result<(), Box<dyn Error>> {
         let obj = &self.calibration_objects[handle.0];
         if value > obj.a2l_limits.upper || value < obj.a2l_limits.lower {
-            return Err(Box::new(XcpError::new(ERROR_LIMIT)) as Box<dyn Error>);
+            return Err(Box::new(XcpError::new(ERROR_LIMIT, 0)) as Box<dyn Error>);
         }
         let size: usize = obj.get_type.size as usize;
         let slice = &value.to_le_bytes()[0..size];
@@ -1236,6 +1319,8 @@ impl XcpClient {
 
     /// Start DAQ
     pub async fn start_measurement(&mut self) -> Result<(), Box<dyn Error>> {
+        info!("Start measurement");
+
         // Init
         let signal_count = self.measurement_objects.len();
         //self.odt_entries.lock().clear();
@@ -1332,7 +1417,7 @@ impl XcpClient {
 
                     odt_size += a2l_type.size as u16;
                     if odt_size > self.max_dto_size - 6 {
-                        return Err(Box::new(XcpError::new(ERROR_ODT_SIZE)) as Box<dyn Error>);
+                        return Err(Box::new(XcpError::new(ERROR_ODT_SIZE, 0)) as Box<dyn Error>);
                     }
                 }
             } // odt_entries
@@ -1369,6 +1454,8 @@ impl XcpClient {
 
     /// Stop DAQ
     pub async fn stop_measurement(&mut self) -> Result<(), Box<dyn Error>> {
+        info!("Stop measurement");
+
         // Stop DAQ
         let res = self.stop_all_daq_lists().await;
 

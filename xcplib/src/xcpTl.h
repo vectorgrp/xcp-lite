@@ -41,7 +41,7 @@ extern void XcpTlSendCrm(const uint8_t* data, uint16_t n); // Queue a command re
 extern uint8_t* XcpTlGetTransmitBuffer(void** handle, uint16_t size); // Get a buffer for a message with size
 extern void XcpTlCommitTransmitBuffer(void* handle, BOOL flush); // Commit a buffer (by handle returned from XcpTlGetTransmitBuffer)
 extern void XcpTlFlushTransmitBuffer(); // Finalize the current transmit packet (ETH only)
-extern void XcpTlWaitForTransmitQueueEmpty(); // Wait (sleep) until transmit queue is empty 
+extern BOOL XcpTlWaitForTransmitQueueEmpty(uint16_t timeout_ms); // Wait (sleep) until transmit queue is empty, timeout after 1s return FALSE 
 
 // Transport layer functions called by the transport layer queue (provider -> consumer event)
 extern BOOL XcpTlNotifyTransmitQueueHandler();

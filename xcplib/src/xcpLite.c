@@ -1028,7 +1028,7 @@ void XcpDisconnect()
     if (isDaqRunning()) {
       ApplXcpStopDaq();
       XcpStopAllDaq();
-      XcpTlWaitForTransmitQueueEmpty();
+      XcpTlWaitForTransmitQueueEmpty(200);
     }
     
     gXcp.SessionStatus &= ~SS_CONNECTED;
@@ -1638,7 +1638,9 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint8_t cmdL
             case 0: /* stop all */
                 ApplXcpStopDaq();
                 XcpStopAllDaq();
-                XcpTlWaitForTransmitQueueEmpty(); // Wait until transmit queue empty before sending command response
+                if (!XcpTlWaitForTransmitQueueEmpty(1000 /* timeout_ms */)) { // Wait until transmit queue empty before sending command response
+                  DBG_PRINT_WARNING("Queue flush timeout!\n");
+                }
                 break;
             default:
                 error(CRC_OUT_OF_RANGE);

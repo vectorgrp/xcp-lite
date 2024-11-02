@@ -66,7 +66,7 @@ macro_rules! calseg_field {
         CalPageField {
             name: stringify!($field),
             datatype: $name.$field.get_type(),
-            offset: .try_into().expect("offset too large"),
+            offset: offset.try_into().expect("offset too large"),
             dim: (1, 1),
             comment: Some($comment),
             min: None,
@@ -662,15 +662,16 @@ mod cal_tests {
         assert_eq!(index, 1); // Segment index
         cal_page0.sync();
         assert!(cal_page0.stop == 0);
-        assert!(cal_page0.get_clone_count() == 4); // 2 explicit clones, 1 for Xcp calseg_list and the original
         let t1 = thread::spawn({
             let c = CalSeg::clone(&cal_page0);
+            assert_eq!(c.get_clone_count(), 3); // 1 explicit clones, 1 for Xcp calseg_list and the original
             move || {
                 task_calseg(c);
             }
         });
         let t2 = thread::spawn({
             let c = CalSeg::clone(&cal_page0);
+            assert_eq!(c.get_clone_count(), 4); // 2 explicit clones, 1 for Xcp calseg_list and the original
             move || {
                 task_calseg(c);
             }

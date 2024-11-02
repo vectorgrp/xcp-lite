@@ -402,7 +402,7 @@ async fn xcp_client(
     // Measure
     let measure_all: bool = measurement_list.len() == 1 && measurement_list[0] == "all";
 
-    if measurement_list.len() > 0 || measure_all {
+    if !measurement_list.is_empty() || measure_all {
         // Set cycle time of main demo tasks 250ms/100us (if exists - from main.rs)
         // counter_x task 1 cycle time
         if let Ok(cycle_time) = xcp_client.create_calibration_object("static_cal_page.task1_cycle_time_us").await {

@@ -49,7 +49,7 @@ void ApplXcpSetLogLevel(uint8_t level) {
 static uint8_t (*callback_connect)() = NULL;
 static uint8_t (*callback_prepare_daq)() = NULL;
 static uint8_t (*callback_start_daq)() = NULL;
-static void (*callback_stop_daq)() = NULL;
+static void    (*callback_stop_daq)() = NULL;
 static uint8_t (*callback_get_cal_page)(uint8_t segment, uint8_t mode) = NULL;
 static uint8_t (*callback_set_cal_page)(uint8_t segment, uint8_t page, uint8_t mode) = NULL;
 static uint8_t (*callback_init_cal)(uint8_t src_page,uint8_t dst_page) = NULL;

@@ -243,20 +243,18 @@ fn xcp_benchmark(c: &mut Criterion) {
     daq_register!(signal7, event);
     daq_register!(signal8, event);
 
-    // Wait a moment
-    thread::sleep(Duration::from_millis(100));
+    thread::sleep(Duration::from_millis(200));
 
     // Start XCP client task
     let mode = Arc::new(parking_lot::Mutex::new(ClientMode::Wait));
     let xcp_client_task = thread::spawn({
+        let mode = mode.clone();
         move || {
-            let mode = mode.clone();
             xcp_client_task(mode);
         }
     });
 
-    // Wait a moment
-    thread::sleep(Duration::from_millis(100));
+    thread::sleep(Duration::from_millis(200));
 
     // Bench deref performance
     info!("Start calibration segment deref bench");
@@ -281,8 +279,7 @@ fn xcp_benchmark(c: &mut Criterion) {
     *mode.lock() = ClientMode::Wait;
     info!("Calibration bench done, changes observed: {}", count);
 
-    // Wait a moment
-    thread::sleep(Duration::from_millis(100));
+    thread::sleep(Duration::from_millis(200));
 
     // Bench measurement trigger
     signal1 += 1;
@@ -303,14 +300,12 @@ fn xcp_benchmark(c: &mut Criterion) {
         })
     });
     *mode.lock() = ClientMode::Wait;
-    thread::sleep(Duration::from_millis(100));
+    thread::sleep(Duration::from_millis(200));
     info!("Measurement bench done, count = {}", count);
-
-    // Wait a moment
-    thread::sleep(Duration::from_millis(100));
 
     // Wait for stop of XCP client
     *mode.lock() = ClientMode::Stop;
+    thread::sleep(Duration::from_millis(200));
     xcp_client_task.join().unwrap();
     info!("Client stopped");
 

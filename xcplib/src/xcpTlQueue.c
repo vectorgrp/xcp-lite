@@ -156,6 +156,9 @@ static uint64_t lockTimeHistogram[HISTOGRAM_SIZE] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0
 #define MPSC_BUFFER_SIZE ((XCPTL_QUEUE_SIZE+1)*(XCPTL_MAX_DTO_SIZE+XCPTL_TRANSPORT_LAYER_HEADER_SIZE))  
 #define MPSC_QUEUE_SIZE ((XCPTL_QUEUE_SIZE)*(XCPTL_MAX_DTO_SIZE+XCPTL_TRANSPORT_LAYER_HEADER_SIZE))  
 
+#define MPSC_QUEUE_TRANSMIT_THRESHOLD ((XCPTL_MAX_SEGMENT_SIZE*100)/80) // Enough data for transmit, if queue level is 80% of a message
+    
+
 
 static struct {
     char buffer[MPSC_BUFFER_SIZE];   // Preallocated buffer
@@ -331,16 +334,18 @@ static uint32_t XcpTlGetTransmitQueueLevel() {
 
 // Wait (sleep) until transmit queue is empty 
 // This function is thread safe, any thread can wait for transmit queue empty
-void XcpTlWaitForTransmitQueueEmpty() {
-    uint16_t timeout = 0;
+// Timeout after 1s
+BOOL XcpTlWaitForTransmitQueueEmpty( uint16_t timeout_ms ) {
     do {
+        XcpTlFlushTransmitBuffer(); // Flush the current message
         sleepMs(20);
-        if (++timeout>50) { // Wait max 1s until the transmit queue is empty
-            DBG_PRINT_ERROR("XcpTlWaitForTransmitQueueEmpty: timeout\n");
-            break;
+        if (timeout_ms < 20) { // Wait max timeout_ms until the transmit queue is empty
+            DBG_PRINTF_ERROR("XcpTlWaitForTransmitQueueEmpty: timeout! (level=%u)\n",XcpTlGetTransmitQueueLevel());
+            return FALSE;
         };
+        timeout_ms -= 20;
     } while (XcpTlGetTransmitQueueLevel()!=0 ); 
-
+    return TRUE;
 }
 
 // Check if the queu has enough packets to consider transmitting a message
@@ -351,14 +356,12 @@ BOOL XcpTlTransmitQueueHasMsg() {
 
     DBG_PRINTF5("XcpTlTransmitHasMsg: level=%u, flush=%u\n", n, gXcpTlQueue.flush);
 
-    if (gXcpTlQueue.flush) {
-        return TRUE; // High priority data in the queue
-    }
-    if (n > ((XCPTL_MAX_SEGMENT_SIZE*100)/80)) return TRUE; // Enough data if queue level is 80% of a message
+    if (gXcpTlQueue.flush) return TRUE; // Flush or high priority data in the queue
+    if (n > MPSC_QUEUE_TRANSMIT_THRESHOLD) return TRUE; // Enough data for a efficient message 
     return FALSE;
 }
 
-// Check if there is message segment in the transmit queue with at least one committed packet
+// Check if there is a message segment in the transmit queue with at least one committed packet
 // Return the message length and a pointer to the message
 const uint8_t * XcpTlTransmitQueuePeekMsg( uint16_t* msg_len ) {
 
