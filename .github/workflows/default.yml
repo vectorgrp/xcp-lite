@@ -52,5 +52,5 @@ jobs:
           with:
             bins: cargo-make, cargo-nextest
         - name: Run tests
-          run: cargo test --verbose -- --test-threads=1
+          run: cargo test --features=a2l_reader --features=serde -- --test-threads=1 --nocapture
     
