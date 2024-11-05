@@ -173,5 +173,5 @@ async fn test_tokio_single_thread() {
 
     t1.join().unwrap();
 
-    std::fs::remove_file("test_tokio_single_thread.a2l").unwrap();
+    let _ = std::fs::remove_file("test_tokio_single_thread.a2l");
 }

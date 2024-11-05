@@ -4,19 +4,14 @@
 // Module cal_seg
 // Calibration Segment
 
-use std::{marker::PhantomData, ops::Deref, sync::Arc};
-
-// Mutex used by CalSeg
-// parking_lot is about 2 times faster in this use case
-//use std::sync::Mutex;
-use parking_lot::Mutex;
-
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
 use super::RegisterFieldsTrait;
 use crate::reg;
 use crate::xcp;
+use parking_lot::Mutex;
+use std::{marker::PhantomData, ops::Deref, sync::Arc};
 use xcp::Xcp;
 use xcp::XcpCalPage;
 
@@ -275,7 +270,7 @@ where
             field.offset as u64,
         );
 
-        Xcp::get().get_registry().lock().unwrap().add_characteristic(c).expect("Duplicate");
+        Xcp::get().get_registry().lock().add_characteristic(c).expect("Duplicate");
 
         self
     }
@@ -298,7 +293,7 @@ where
         // if xcp.get_xcp_cal_page() == XcpCalPage::Ram
         {
             // @@@@ ToDo: Avoid the lock, when there is no pending modification for the XCP page
-            let mut xcp_page = self.xcp_page.lock(); // .unwrap(); // std::sync::MutexGuard
+            let mut xcp_page = self.xcp_page.lock();
 
             // Freeze - save xcp page to json file
             // @@@@ don't panic, if the file can't be written
@@ -407,20 +402,18 @@ where
         self.index
     }
     fn set_freeze_request(&self) {
-        let mut m = self.xcp_page.lock(); // .unwrap(); // std::sync::MutexGuard
-        m.freeze_request = true;
+        self.xcp_page.lock().freeze_request = true;
     }
 
     fn set_init_request(&self) {
-        let mut m = self.xcp_page.lock(); // .unwrap(); // std::sync::MutexGuard
-        m.init_request = true;
+        self.xcp_page.lock().init_request = true;
     }
 
     // @@@@ Unsafe
     unsafe fn read(&self, offset: u16, len: u8, dst: *mut u8) -> bool {
         assert!(offset as usize + len as usize <= std::mem::size_of::<T>());
         if Xcp::get().get_xcp_cal_page() == XcpCalPage::Ram {
-            let xcp_page = self.xcp_page.lock(); // .unwrap(); // std::sync::MutexGuard
+            let xcp_page = self.xcp_page.lock();
             let src: *const u8 = (&xcp_page.page as *const _ as *const u8).add(offset as usize);
             core::ptr::copy_nonoverlapping(src, dst, len as usize);
             true
@@ -449,7 +442,7 @@ where
     }
 
     fn flush(&self) {
-        let mut xcp_page = self.xcp_page.lock(); // .unwrap(); // std::sync::MutexGuard
+        let mut xcp_page = self.xcp_page.lock();
         xcp_page.ctr = xcp_page.ctr.wrapping_add(1); // Increment modification counter
     }
 }
@@ -490,7 +483,7 @@ where
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         warn!("Unsafe deref mut to XCP page of {}, this is undefined behaviour !!", self.get_name());
-        let mut p = self.xcp_page.lock(); // .unwrap(); // std::sync::MutexGuard
+        let mut p = self.xcp_page.lock();
         p.ctr = p.ctr.wrapping_add(1);
         let r: *mut T = &mut p.page;
         // @@@@ Usafe - For testing only
@@ -593,24 +586,30 @@ mod cal_tests {
     }
 
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-    #[derive(Debug, Clone, Copy)]
-    struct CalPage0 {
-        stop: u8,
+    #[derive(Debug, Clone, Copy, XcpTypeDescription)]
+    struct CalPageTest1 {
+        byte1: u8,
+        byte2: u8,
+        byte3: u8,
+        byte4: u8,
     }
 
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     #[derive(Debug, Clone, Copy, XcpTypeDescription)]
-    struct CalPageTest {
-        test: u8,
+    struct CalPageTest2 {
+        byte1: u8,
+        byte2: u8,
+        byte3: u8,
+        byte4: u8,
     }
 
-    fn task_calseg(cal_seg: CalSeg<CalPage0>) -> u32 {
+    fn task_calseg(cal_seg: CalSeg<CalPageTest2>) -> u32 {
         trace!("task_calseg start");
         let mut i: u32 = 0;
         loop {
             i += 1;
             thread::yield_now();
-            if cal_seg.stop != 0 {
+            if cal_seg.byte1 != 0 {
                 break;
             }
             cal_seg.sync();
@@ -621,6 +620,21 @@ mod cal_tests {
 
     #[test]
     fn test_calibration_segment_basics() {
+        //
+        const CAL_PAGE_TEST1: CalPageTest1 = CalPageTest1 {
+            byte1: 0,
+            byte2: 0,
+            byte3: 0,
+            byte4: 0,
+        };
+        //
+        const CAL_PAGE_TEST2: CalPageTest2 = CalPageTest2 {
+            byte1: 0,
+            byte2: 0,
+            byte3: 0,
+            byte4: 0,
+        };
+
         let xcp = xcp_test::test_setup(log::LevelFilter::Info);
 
         // Check markers
@@ -636,66 +650,77 @@ mod cal_tests {
         //is_copy::<CalSeg<CalPage1>>(); // CalSeg is not copy
 
         // Interiour mutability, page switch and unwanted compiler optimizations
-        const CAL_PAGE_TEST: CalPageTest = CalPageTest { test: 0 };
-        let cal_page_test = xcp.create_calseg("CalPageTest", &CAL_PAGE_TEST);
-        cal_page_test.register_fields();
-        let mut test = cal_page_test.test;
+        let cal_page_test1 = xcp.create_calseg("CalPageTest1", &CAL_PAGE_TEST1);
+        cal_page_test1.register_fields();
+        let mut test = cal_page_test1.byte1;
         assert_eq!(test, 0);
-        let data: u8 = 1;
-        let index = cal_page_test.get_index();
+        let index = cal_page_test1.get_index();
         assert_eq!(index, 0);
         // @@@@ - unsafe - Test
         unsafe {
+            let data: u8 = 1;
+            let offset = &CAL_PAGE_TEST1.byte1 as *const u8 as usize - &CAL_PAGE_TEST1 as *const _ as *const u8 as usize;
+            assert!(offset == 0);
             cb_write(0x80000000u32 + (((index + 1) as u32) << 16), 1, &data, 0);
         }
-        cal_page_test.sync();
-        test = cal_page_test.test;
-        assert_eq!(cal_page_test.test, 1);
+        cal_page_test1.sync();
+        test = cal_page_test1.byte1;
+        assert_eq!(cal_page_test1.byte1, 1);
         assert_eq!(test, 1);
         cb_set_cal_page((index + 1) as u8, XCP_CAL_PAGE_FLASH, CAL_PAGE_MODE_ECU | CAL_PAGE_MODE_ALL);
-        test = cal_page_test.test;
-        assert_eq!(cal_page_test.test, 0);
+        test = cal_page_test1.byte1;
+        assert_eq!(cal_page_test1.byte1, 0);
         assert_eq!(test, 0);
         cb_set_cal_page((index + 1) as u8, XCP_CAL_PAGE_RAM, CAL_PAGE_MODE_ECU | CAL_PAGE_MODE_ALL);
 
         // Move to threads
-        const CAL_PAGE0: CalPage0 = CalPage0 { stop: 0 };
-        let cal_page0 = xcp.create_calseg("calseg1", &CAL_PAGE0);
-        let index = cal_page0.get_index();
+        let cal_page_test2 = xcp.create_calseg("CalPageTest2", &CAL_PAGE_TEST2);
+        cal_page_test2.register_fields();
+        let index = cal_page_test2.get_index();
         assert_eq!(index, 1); // Segment index
-        cal_page0.sync();
-        assert!(cal_page0.stop == 0);
+        cal_page_test2.sync();
+        assert!(cal_page_test2.byte1 == 0);
         let t1 = thread::spawn({
-            let c = CalSeg::clone(&cal_page0);
+            let c = CalSeg::clone(&cal_page_test2);
             assert_eq!(c.get_clone_count(), 3); // 1 explicit clones, 1 for Xcp calseg_list and the original
             move || {
                 task_calseg(c);
             }
         });
         let t2 = thread::spawn({
-            let c = CalSeg::clone(&cal_page0);
+            let c = CalSeg::clone(&cal_page_test2);
             assert_eq!(c.get_clone_count(), 4); // 2 explicit clones, 1 for Xcp calseg_list and the original
             move || {
                 task_calseg(c);
             }
         });
-        let data: u8 = 1;
         // @@@@ - unsafe - Test
         unsafe {
+            let offset = &CAL_PAGE_TEST2.byte1 as *const u8 as usize - &CAL_PAGE_TEST2 as *const _ as *const u8 as usize;
+            assert!(offset == 0);
+            let data: u8 = 1;
             cb_write(0x80000000u32 + (((index + 1) as u32) << 16), 1, &data, 0);
+            let data: u8 = 2;
+            cb_write(0x80000001u32 + (((index + 1) as u32) << 16), 1, &data, 0);
+            let data: u8 = 3;
+            cb_write(0x80000002u32 + (((index + 1) as u32) << 16), 1, &data, 0);
+            let data: u8 = 4;
+            cb_write(0x80000003u32 + (((index + 1) as u32) << 16), 1, &data, 0);
         }
         t1.join().unwrap();
         t2.join().unwrap();
-        cal_page0.sync();
-        assert!(cal_page0.stop == 1);
+        cal_page_test2.sync();
+        assert!(cal_page_test2.byte1 == 1);
+        assert!(cal_page_test2.byte2 == 2);
+        assert!(cal_page_test2.byte3 == 3);
+        assert!(cal_page_test2.byte4 == 4);
 
         // Test drop and expected size
-        let size = std::mem::size_of::<CalSeg<CalPage1>>();
-        let clones = cal_page0.get_clone_count();
-        info!("CalSeg: {} size = {} bytes, clone_count = {}", cal_page0.get_name(), size, clones);
+        let size = std::mem::size_of::<CalSeg<CalPageTest2>>();
+        let clones = cal_page_test2.get_clone_count();
+        info!("CalSeg: {} size = {} bytes, clone_count = {}", cal_page_test2.get_name(), size, clones);
         assert_eq!(size, 32);
         assert!(clones == 2); // 2 clones move to threads and dropped
-        drop(cal_page0);
     }
 
     // #[test]
@@ -895,8 +920,7 @@ mod cal_tests {
                 cal_seg.sync();
             }
         }
-        std::fs::remove_file("test1.json").ok();
-        //std::fs::remove_file("test2.json").ok();
+        let _ = std::fs::remove_file("test1.json");
     }
 
     //-----------------------------------------------------------------------------
@@ -920,7 +944,7 @@ mod cal_tests {
         test_is_mut!(calseg1);
 
         // Freeze calseg1 to new test1.json
-        std::fs::remove_file("test1.json").ok();
+        let _ = std::fs::remove_file("test1.json");
         cb_freeze_cal(); // Save mut_page to file "test1.json"
         calseg1.sync();
 
@@ -931,8 +955,8 @@ mod cal_tests {
 
         test_is_mut!(calseg2);
 
-        std::fs::remove_file("test1.json").ok();
-        std::fs::remove_file("test2.json").ok();
+        let _ = std::fs::remove_file("test1.json");
+        let _ = std::fs::remove_file("test2.json");
     }
 
     //-----------------------------------------------------------------------------
@@ -979,9 +1003,9 @@ mod cal_tests {
             info!(" {}: {}", i, s.get_name());
         }
 
-        let a: Arc<std::sync::Mutex<Vec<Box<dyn CalSegTrait>>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let a: Arc<Mutex<Vec<Box<dyn CalSegTrait>>>> = Arc::new(Mutex::new(Vec::new()));
         {
-            let mut v = a.lock().unwrap();
+            let mut v = a.lock();
             v.push(Box::new(s1.clone()));
             v.push(Box::new(s2.clone()));
             v.push(Box::new(s3.clone()));
@@ -990,7 +1014,7 @@ mod cal_tests {
 
         let c = a.clone();
         let t = thread::spawn(move || {
-            let v = c.lock().unwrap();
+            let v = c.lock();
             for (i, s) in v.iter().enumerate() {
                 info!("thread {}: {}", i, s.get_name());
             }

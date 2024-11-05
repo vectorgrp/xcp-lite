@@ -14,14 +14,13 @@ use cal_seg::CalSegTrait;
 
 //-----------------------------------------------------------------------------
 
-use std::default;
-use std::sync::{Arc, Mutex};
-
-#[allow(unused_imports)]
-use log::{debug, error, info, trace, warn};
-
 use crate::reg;
 use crate::xcp;
+#[allow(unused_imports)]
+use log::{debug, error, info, trace, warn};
+use parking_lot::Mutex;
+use std::default;
+use std::sync::Arc;
 use xcp::Xcp;
 
 //-----------------------------------------------------------------------------
@@ -55,7 +54,7 @@ where
                 field.offset() as u64,
             );
 
-            Xcp::get().get_registry().lock().unwrap().add_characteristic(c).expect("Duplicate");
+            Xcp::get().get_registry().lock().add_characteristic(c).expect("Duplicate");
         }
         self
     }
@@ -81,11 +80,11 @@ impl CalSegDescriptor {
         self.size
     }
     pub fn set_init_request(&mut self) {
-        self.calseg.lock().unwrap().set_init_request();
+        self.calseg.lock().set_init_request();
     }
 
     pub fn set_freeze_request(&mut self) {
-        self.calseg.lock().unwrap().set_freeze_request();
+        self.calseg.lock().set_freeze_request();
     }
 }
 
@@ -154,8 +153,7 @@ impl CalSegList {
     pub fn sort_by_name(&mut self) {
         self.0.sort_by(|a, b| a.get_name().cmp(b.get_name()));
         self.0.iter_mut().enumerate().for_each(|(i, s)| {
-            let mut m = s.calseg.lock().unwrap();
-            m.set_index(i);
+            s.calseg.lock().set_index(i);
         });
     }
 
@@ -167,12 +165,8 @@ impl CalSegList {
         // Address is index<<16, addr_ext is 0
         for (i, d) in self.0.iter().enumerate() {
             trace!("Register CalSeg {}, size={}", d.get_name(), d.get_size());
-            assert!(i == d.calseg.lock().unwrap().get_index());
-            Xcp::get()
-                .get_registry()
-                .lock()
-                .unwrap()
-                .add_cal_seg(d.get_name(), i.try_into().unwrap(), d.get_size().try_into().unwrap());
+            assert!(i == d.calseg.lock().get_index());
+            Xcp::get().get_registry().lock().add_cal_seg(d.get_name(), i.try_into().unwrap(), d.get_size().try_into().unwrap());
         }
     }
 
@@ -197,8 +191,7 @@ impl CalSegList {
     // offset out of calibration segment boundaries
     // @@@@ Unsafe - direct memory access with pointer arithmetic
     pub unsafe fn read_from(&self, index: usize, offset: u16, len: u8, dst: *mut u8) -> bool {
-        let m = self.0[index].calseg.lock().unwrap();
-        m.read(offset, len, dst)
+        self.0[index].calseg.lock().read(offset, len, dst)
     }
 
     // Write to xcp_page
@@ -210,15 +203,13 @@ impl CalSegList {
     // offset out of calibration segment boundaries
     // @@@@ Unsafe - direct memory access with pointer arithmetic
     pub unsafe fn write_to(&self, index: usize, offset: u16, len: u8, src: *const u8, delay: u8) -> bool {
-        let m = self.0[index].calseg.lock().unwrap();
-        m.write(offset, len, src, delay)
+        self.0[index].calseg.lock().write(offset, len, src, delay)
     }
 
     // Flush delayed modifications in all calibration segments
     pub fn flush(&self) {
         self.0.iter().for_each(|s| {
-            let m = s.calseg.lock().unwrap();
-            m.flush();
+            s.calseg.lock().flush();
         });
     }
 

@@ -190,7 +190,6 @@ fn main() -> Result<()> {
     let event = xcp.create_event("test_data");
     xcp.get_registry()
         .lock()
-        .unwrap()
         .add_measurement(RegistryMeasurement::new(
             "test_data".to_string(),
             RegistryDataType::Blob,

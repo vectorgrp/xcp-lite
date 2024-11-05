@@ -155,7 +155,7 @@ async fn test_single_thread() {
     // Test calibration and measurement in a single thread
     {
         info!("XCP server initialization 1");
-        std::fs::remove_file("test_single_thread.a2h").ok();
+        let _ = std::fs::remove_file("test_single_thread.a2h");
 
         // Initialize the XCPserver, transport layer and protocoll layer
         let xcp = match XcpBuilder::new("test_single_thread")
@@ -194,7 +194,7 @@ async fn test_single_thread() {
     // Reinitialize the XCP server a second time, to check correct shutdown behaviour
     {
         info!("XCP server initialization 2");
-        std::fs::remove_file("test_single_thread.a2h").ok();
+        let _ = std::fs::remove_file("test_single_thread.a2h");
 
         // Initialize the XCPserver, transport layer and protocoll layer a second time
         let xcp = match XcpBuilder::new("test_single_thread")
@@ -213,6 +213,6 @@ async fn test_single_thread() {
 
         xcp.stop_server();
 
-        std::fs::remove_file("test_single_thread.a2l").ok();
+        let _ = std::fs::remove_file("test_single_thread.a2l");
     }
 }

@@ -43,6 +43,11 @@
 #define OPTION_QUEUE_SIZE 200     
 #define OPTION_DAQ_MEM_SIZE (3000*5)  
 
+#if defined(_LINUX) && !defined(_MACOS)
+  #define XCP_SERVER_FORCEFULL_TERMINATION // @@@@
+#endif
+
+
 // Platform options
 #define OPTION_CLOCK_EPOCH_ARB
 #define OPTION_CLOCK_TICKS_1NS

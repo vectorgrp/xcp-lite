@@ -130,7 +130,7 @@ mod registry_tests {
         let err = reg.write_a2l();
         assert!(err.is_err());
 
-        std::fs::remove_file("test_registry_2.a2l").ok();
+        let _ = std::fs::remove_file("test_registry_2.a2l");
     }
 
     //-----------------------------------------------------------------------------
@@ -165,7 +165,7 @@ mod registry_tests {
         let reg_ref = xcp.get_registry();
 
         {
-            let mut reg = reg_ref.lock().unwrap();
+            let mut reg = reg_ref.lock();
 
             reg.set_name("test_registry_1");
             reg.set_epk("TEST_EPK", 0x80000000);
@@ -179,7 +179,7 @@ mod registry_tests {
         let event2 = xcp.create_event_ext("event2", false);
 
         {
-            let mut reg = reg_ref.lock().unwrap();
+            let mut reg = reg_ref.lock();
 
             reg.add_measurement(RegistryMeasurement::new(
                 "test_measurement_1".to_string(),
@@ -234,7 +234,7 @@ mod registry_tests {
 
         #[cfg(feature = "a2l_reader")]
         {
-            let mut reg = reg_ref.lock().unwrap();
+            let mut reg = reg_ref.lock();
 
             if let Err(e) = reg.a2l_load("test_registry_1.a2l") {
                 log::error!("A2l file check error: {}", e);
@@ -243,6 +243,6 @@ mod registry_tests {
             }
         }
 
-        std::fs::remove_file("test_registry_1.a2l").ok();
+        let _ = std::fs::remove_file("test_registry_1.a2l");
     }
 }

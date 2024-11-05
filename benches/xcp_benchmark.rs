@@ -179,8 +179,15 @@ async fn xcp_client(dest_addr: std::net::SocketAddr, local_addr: std::net::Socke
 
     // Stop measurement
     xcp_client.stop_measurement().await?;
-    let event_count = daq_decoder.lock().event_count;
-    let event_lost_count = daq_decoder.lock().event_lost_count;
+
+    // Print measurement statistics
+    let event_count: u64;
+    let event_lost_count: u64;
+    {
+        let daq_decoder = daq_decoder.lock();
+        event_count = daq_decoder.event_count;
+        event_lost_count = daq_decoder.event_lost_count;
+    }
     info!(
         "Measurement stopped, event count = {}, lost event count = {} - {:.1}%",
         event_count,
@@ -309,7 +316,8 @@ fn xcp_benchmark(c: &mut Criterion) {
     xcp_client_task.join().unwrap();
     info!("Client stopped");
 
-    // Stop XCP server
+    // Stop and shutdown the XCP server
+    info!("Stop XCP server");
     xcp.stop_server();
     info!("Server stopped");
 }

@@ -329,8 +329,10 @@ async fn test_multi_thread() {
         t.join().unwrap();
     }
 
+    // Stop and shutdown the XCP server
     info!("Stop XCP server");
     xcp.stop_server();
+    info!("Server stopped");
 
-    std::fs::remove_file("test_multi_thread.a2l").ok();
+    let _ = std::fs::remove_file("test_multi_thread.a2l");
 }

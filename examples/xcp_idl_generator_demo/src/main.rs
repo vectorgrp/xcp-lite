@@ -1,4 +1,4 @@
-use std::fs::{remove_file, File};
+use std::fs::File;
 use std::io::Write;
 use xcp_idl_generator::prelude::*;
 
@@ -27,7 +27,7 @@ impl Measurement {
 }
 
 fn write_string_to_file(filename: &str, content: &str) {
-    let _ = remove_file(filename);
+    let _ = std::fs::remove_file(filename);
     let mut file = File::create(filename).unwrap();
     file.write_all(content.as_bytes()).unwrap();
 }

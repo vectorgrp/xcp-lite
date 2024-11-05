@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<GfxStorageModel Hash="C6-8E-5A-F0-C5-12-7D-23-07-03-0F-52-29-25-A5-BD" HashVersion="2.0.0.0">
+<GfxStorageModel Hash="07-33-D2-6E-D3-4C-2F-5B-6A-24-47-F7-CE-0F-2F-18" HashVersion="2.0.0.0">
   <BindingIdToViewId>
     <Item XmlSingularArray="true">
       <Key>9660f25f-d435-4740-b40d-16e2f6935681</Key>
@@ -330,6 +330,114 @@ Z-Position eines Punktes mit kartesischen Koordinaten</Description>
                 </Properties>
                 <ColorFunctionName>ConstantColor_2</ColorFunctionName>
                 <MultiColoredObject>false</MultiColoredObject>
+              </PropertyCollection>
+              <PropertyCollection Key="HistoryParameters">
+                <Name>HistoryParameters</Name>
+                <TypeName>Vector.DA.Gfx.HistoryParameters, Vector.DA.Gfx</TypeName>
+                <Settings>
+                  <DisplayName>Historie</DisplayName>
+                  <Category>Anzeige</Category>
+                  <Description>Parameter zum Definieren der Verlaufseinstellungen. Die Verlaufsfunktion ist nur in der Szenenansicht verfügbar. Die Einstellung kleiner minimaler Zeitdifferenzen oder langer Verlaufszeitspannen kann zu Leistungseinbußen führen.</Description>
+                  <Browsable>true</Browsable>
+                  <ReadOnly>false</ReadOnly>
+                  <TypeConverter>System.ComponentModel.ExpandableObjectConverter, System</TypeConverter>
+                  <CustomAttributes />
+                </Settings>
+                <TypeDisplayName>HistoryParameters</TypeDisplayName>
+                <Entity>Struct</Entity>
+                <IsSimpleCollection>false</IsSimpleCollection>
+                <Properties>
+                  <Property IsGfx="true" Key="HistoryMode">
+                    <Name>HistoryMode</Name>
+                    <TypeName>Vector.DA.Gfx.HistoryMode, Vector.DA.Gfx</TypeName>
+                    <Settings>
+                      <DisplayName>Historie anzeigen</DisplayName>
+                      <EditorId>EnumEditor</EditorId>
+                      <Description>Datentyp: HistoryMode
+Legt fest, ob zurückliegende Werte dieses Objekts gezeichnet werden sollen.</Description>
+                      <Browsable>true</Browsable>
+                      <ReadOnly>false</ReadOnly>
+                      <CustomAttributes />
+                    </Settings>
+                    <TypeDisplayName>HistoryMode</TypeDisplayName>
+                    <IsConstant>true</IsConstant>
+                    <IsAssignable>true</IsAssignable>
+                    <Value>Off</Value>
+                    <PhysicalQuantity />
+                    <PhysicalQuantityConversion>
+                      <Factor>1</Factor>
+                      <Offset>0</Offset>
+                    </PhysicalQuantityConversion>
+                  </Property>
+                  <Property IsGfx="true" Key="HistoryTimeSpan">
+                    <Name>HistoryTimeSpan</Name>
+                    <TypeName>System.Double, mscorlib</TypeName>
+                    <Settings>
+                      <DisplayName>Zeitspanne</DisplayName>
+                      <EditorId>NumericDecimalEditor</EditorId>
+                      <Description>Datentyp: Double
+Zeitspanne in Sekunden, die die Länge der zu zeichnenden zurückliegender Objekte bestimmt.</Description>
+                      <Browsable>true</Browsable>
+                      <ReadOnly>false</ReadOnly>
+                      <CustomAttributes />
+                    </Settings>
+                    <TypeDisplayName>Double</TypeDisplayName>
+                    <IsConstant>true</IsConstant>
+                    <IsAssignable>true</IsAssignable>
+                    <Value>6</Value>
+                    <PhysicalQuantity>Time</PhysicalQuantity>
+                    <PhysicalQuantityConversion>
+                      <Unit>Second</Unit>
+                      <Factor>1</Factor>
+                      <Offset>0</Offset>
+                    </PhysicalQuantityConversion>
+                  </Property>
+                  <Property IsGfx="true" Key="MinimalTimeDifference">
+                    <Name>MinimalTimeDifference</Name>
+                    <TypeName>System.Double, mscorlib</TypeName>
+                    <Settings>
+                      <DisplayName>Minimale Zeitdifferenz</DisplayName>
+                      <EditorId>NumericDecimalEditor</EditorId>
+                      <Description>Datentyp: Double
+Mindestzeit in Sekunden, die zwischen zwei aufeinanderfolgenden Objekten im Verlauf vergehen muss.</Description>
+                      <Browsable>true</Browsable>
+                      <ReadOnly>false</ReadOnly>
+                      <CustomAttributes />
+                    </Settings>
+                    <TypeDisplayName>Double</TypeDisplayName>
+                    <IsConstant>true</IsConstant>
+                    <IsAssignable>true</IsAssignable>
+                    <Value>0.5</Value>
+                    <PhysicalQuantity>Time</PhysicalQuantity>
+                    <PhysicalQuantityConversion>
+                      <Unit>Second</Unit>
+                      <Factor>1</Factor>
+                      <Offset>0</Offset>
+                    </PhysicalQuantityConversion>
+                  </Property>
+                  <Property IsGfx="true" Key="FadeOut">
+                    <Name>FadeOut</Name>
+                    <TypeName>Vector.DA.Gfx.FadeOut, Vector.DA.Gfx</TypeName>
+                    <Settings>
+                      <DisplayName>Ausblenden</DisplayName>
+                      <EditorId>EnumEditor</EditorId>
+                      <Description>Datentyp: FadeOut
+Legt fest, ob zurückliegende Werte dieses Objekts ausgeblendet werden sollen, je weiter sie in der Vergangenheit liegen.</Description>
+                      <Browsable>true</Browsable>
+                      <ReadOnly>false</ReadOnly>
+                      <CustomAttributes />
+                    </Settings>
+                    <TypeDisplayName>FadeOut</TypeDisplayName>
+                    <IsConstant>true</IsConstant>
+                    <IsAssignable>true</IsAssignable>
+                    <Value>On</Value>
+                    <PhysicalQuantity />
+                    <PhysicalQuantityConversion>
+                      <Factor>1</Factor>
+                      <Offset>0</Offset>
+                    </PhysicalQuantityConversion>
+                  </Property>
+                </Properties>
               </PropertyCollection>
               <PropertyCollection Key="Identification">
                 <Name>Identification</Name>
@@ -1140,6 +1248,28 @@ Wertformat wie "{0:F2} m". '0' innerhalb der geschweiften Klammern ist der Platz
                   </Property>
                 </Properties>
               </PropertyCollection>
+              <Property IsGfx="true" Key="Perspective">
+                <Name>Perspective</Name>
+                <TypeName>Vector.DA.Gfx.Perspective, Vector.DA.Gfx</TypeName>
+                <Settings>
+                  <DisplayName>Perspektivisch</DisplayName>
+                  <EditorId>EnumEditor</EditorId>
+                  <Category>Typabhängig</Category>
+                  <Description>Wenn die Perspektive "Relativ zur Quelle" ist, werden die Abmessungen und andere Parameter in Bezug auf die Position der Eingabedatenquelle betrachtet. Wenn "Lokal" ausgewählt ist, wird das lokale Koordinatensystem des zu zeichnenden Objekts verwendet - dies entspricht dem nativen GFX-Koordinatensystem.</Description>
+                  <Browsable>true</Browsable>
+                  <ReadOnly>false</ReadOnly>
+                  <CustomAttributes />
+                </Settings>
+                <TypeDisplayName>Perspective</TypeDisplayName>
+                <IsConstant>true</IsConstant>
+                <IsAssignable>true</IsAssignable>
+                <Value>Local</Value>
+                <PhysicalQuantity />
+                <PhysicalQuantityConversion>
+                  <Factor>1</Factor>
+                  <Offset>0</Offset>
+                </PhysicalQuantityConversion>
+              </Property>
               <Property IsGfx="true" Key="Priority">
                 <Name>Priority</Name>
                 <TypeName>System.UInt32, mscorlib</TypeName>

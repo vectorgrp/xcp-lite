@@ -16,7 +16,6 @@ impl Xcp {
         if self
             .get_registry()
             .lock()
-            .unwrap()
             .add_measurement(RegistryMeasurement::new(
                 name.to_string(),
                 data_type,
@@ -156,7 +155,6 @@ impl<const N: usize> DaqEvent<N> {
         if Xcp::get()
             .get_registry()
             .lock()
-            .unwrap()
             .add_measurement(RegistryMeasurement::new(
                 name.to_string(),
                 datatype,
@@ -189,7 +187,6 @@ impl<const N: usize> DaqEvent<N> {
         if Xcp::get()
             .get_registry()
             .lock()
-            .unwrap()
             .add_measurement(RegistryMeasurement::new(
                 name.to_string(),
                 datatype,
@@ -218,7 +215,6 @@ impl<const N: usize> DaqEvent<N> {
         if Xcp::get()
             .get_registry()
             .lock()
-            .unwrap()
             .add_measurement(RegistryMeasurement::new(
                 name.to_string(),
                 datatype,

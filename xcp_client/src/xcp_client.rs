@@ -490,29 +490,28 @@ pub trait XcpTextDecoder {
 // DAQ decoder trait for XCP DAQ messages
 
 /// DAQ information
-/// Describes an ODT entry
+/// Describes a single ODT entry
 #[derive(Debug)]
 pub struct OdtEntry {
     pub name: String,
-    // pub daq: u16,
-    // pub odt: u8,
-    // pub odt_entry: u8,
     pub a2l_type: A2lType,
     pub a2l_addr: A2lAddr,
-    pub offset: u16,
+    pub offset: u16, // offset from data start, not including daq header and timestamp
 }
 
 pub trait XcpDaqDecoder {
-    /// Handle incomming DAQ data from XCP server
+    /// Handle incomming DAQ packet from XCP server
+    /// Transport layer header has been stripped
     fn decode(&mut self, lost: u32, data: &[u8]);
 
-    /// Measurement start 64 bit time stamp
-    fn start(&mut self, odt_entries: Arc<Mutex<Vec<Vec<OdtEntry>>>>, timestamp_raw64: u64);
+    /// Measurement start
+    /// Decoding information: ODT entry table and 64 bit start timestamp
+    fn start(&mut self, odt_entries: Vec<Vec<OdtEntry>>, timestamp_raw64: u64);
 
     // Measurement stop
     fn stop(&mut self) {}
 
-    // /// Measurement timestamp resoution in ns per raw timestamp tick
+    /// Set measurement timestamp resolution in ns per raw timestamp tick and DAQ header size (2 (ODTB/DAQB or 4 (ODTB,_,DAQW))
     fn set_daq_properties(&mut self, timestamp_resolution: u64, daq_header_size: u8);
 }
 
@@ -552,8 +551,6 @@ pub struct XcpClient {
     a2l_file: Option<a2lfile::A2lFile>,
     calibration_objects: Vec<XcpCalibrationObject>,
     measurement_objects: Vec<XcpMeasurementObject>,
-    //odt_entries: Arc<Mutex<Vec<OdtEntry>>>,
-    daq_odt_entries: Arc<Mutex<Vec<Vec<OdtEntry>>>>,
 }
 
 impl XcpClient {
@@ -578,8 +575,6 @@ impl XcpClient {
             a2l_file: None,
             calibration_objects: Vec::new(),
             measurement_objects: Vec::new(),
-            //odt_entries: Arc::new(Mutex::new(Vec::with_capacity(8))),
-            daq_odt_entries: Arc::new(Mutex::new(Vec::with_capacity(8))),
         }
     }
 
@@ -700,7 +695,7 @@ impl XcpClient {
 
                                             // Handle DAQ data if DAQ running
                                             if c.running {
-                                                let mut m = decode_daq.lock();
+                                                let mut m = decode_daq.lock(); // @@@@ Unnessesary mutex ?????
                                                 m.decode(ctr_lost, &buf[i + 4..i + 4 + len]);
                                                 ctr_lost = 0;
                                             } // running
@@ -1323,8 +1318,7 @@ impl XcpClient {
 
         // Init
         let signal_count = self.measurement_objects.len();
-        //self.odt_entries.lock().clear();
-        self.daq_odt_entries.lock().clear();
+        let mut daq_odt_entries: Vec<Vec<OdtEntry>> = Vec::with_capacity(8);
 
         // Store all events in a hashmap (eventnumber, signalcount)
         let mut event_map: HashMap<u16, u16> = HashMap::new();
@@ -1422,7 +1416,7 @@ impl XcpClient {
                 }
             } // odt_entries
 
-            self.daq_odt_entries.lock().push(odt_entries);
+            daq_odt_entries.push(odt_entries);
         }
 
         // Set DAQ list events
@@ -1440,7 +1434,7 @@ impl XcpClient {
 
         // Reset the DAQ decoder and set measurement start time
         let daq_clock = self.get_daq_clock_raw().await?;
-        self.daq_decoder.as_ref().unwrap().lock().start(self.daq_odt_entries.clone(), daq_clock);
+        self.daq_decoder.as_ref().unwrap().lock().start(daq_odt_entries, daq_clock);
 
         // Send running=true throught the DAQ control channel to the receive task
         self.task_control.running = true;

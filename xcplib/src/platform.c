@@ -796,7 +796,7 @@ BOOL clockInit()
 }
 
 
-// Free running 64 bit clock
+// Get 64 bit clock
 uint64_t clockGet() {
 
     struct timespec ts;
@@ -813,9 +813,7 @@ uint64_t clockGet() {
 
 // Performance counter to clock conversion
 static uint64_t sFactor = 0; // ticks per us
-#ifndef OPTION_CLOCK_EPOCH_ARB
 static uint8_t sDivide = 0; // divide or multiply
-#endif
 static uint64_t sOffset = 0; // offset
 
 char* clockGetString(char* str, uint32_t l, uint64_t c) {
@@ -868,6 +866,7 @@ BOOL clockInit() {
 #ifdef OPTION_CLOCK_TICKS_1NS
     DBG_PRINT3("OPTION_CLOCK_TICKS_1NS)\n");
 #endif
+    DBG_PRINTF3("%u\n",CLOCK_TICKS_PER_S);
     
     sClock = 0;
 
@@ -883,18 +882,15 @@ BOOL clockInit() {
         DBG_PRINT_ERROR("ERROR: Unexpected performance counter frequency!\n");
         return FALSE;
     }
-#ifndef OPTION_CLOCK_EPOCH_ARB
+
     if (CLOCK_TICKS_PER_S > tF.u.LowPart) {
-      sFactor = CLOCK_TICKS_PER_S / tF.u.LowPart;
+      sFactor = (uint64_t)CLOCK_TICKS_PER_S / tF.u.LowPart;
       sDivide = 0;
 }
     else {
       sFactor = tF.u.LowPart / CLOCK_TICKS_PER_S;
       sDivide = 1;
     }
-#else
-    sFactor = tF.u.LowPart / CLOCK_TICKS_PER_S;
-#endif
 
     // Get current performance counter to absolute time relation
 #ifndef OPTION_CLOCK_EPOCH_ARB
@@ -927,9 +923,9 @@ BOOL clockInit() {
     clockGet();
 
 #ifdef DBG_LEVEL
-    if (DBG_LEVEL >= 5) {
+    if (DBG_LEVEL >= 3) {
 #ifndef OPTION_CLOCK_EPOCH_ARB
-        if (DBG_LEVEL >= 6) {
+        if (DBG_LEVEL >= 3) {
             struct tm tm;
             _gmtime64_s(&tm, (const __time64_t*)&time_s);
             printf("    Current time = %I64uus + %ums\n", time_s, time_ms);
@@ -955,7 +951,7 @@ BOOL clockInit() {
 }
 
 
-// Clock 64 Bit (UTC or ARB) 
+// Get 64 bit clock
 uint64_t clockGet() {
 
     LARGE_INTEGER tp;
@@ -963,17 +959,12 @@ uint64_t clockGet() {
 
     QueryPerformanceCounter(&tp);
     t = (((uint64_t)tp.u.HighPart) << 32) | (uint64_t)tp.u.LowPart;
-#ifndef OPTION_CLOCK_EPOCH_ARB
     if (sDivide) {
         t = t / sFactor + sOffset;
     }
     else {
         t = t * sFactor + sOffset;
     }
-
-#else
-    t = (t - sOffset) / sFactor;
-#endif
     sClock = t;
     return t;
 }

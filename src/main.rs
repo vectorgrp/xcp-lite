@@ -16,7 +16,7 @@ use std::{
     num::Wrapping,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc, Mutex, RwLock,
+        Arc,
     },
     thread,
     time::{Duration, Instant},
@@ -555,4 +555,5 @@ fn main() {
     // Stop and shutdown the XCP server
     info!("Stop XCP server");
     xcp.stop_server();
+    info!("Server stopped");
 }

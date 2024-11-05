@@ -3,13 +3,11 @@
 // Runs various tests agains a XCP server on local host UDP port 5555
 
 #![allow(unused_imports)]
-
 use log::{debug, error, info, trace, warn};
 use parking_lot::Mutex;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::time::{Duration, Instant};
-
 use xcp::Xcp;
 use xcp_client::a2l::*;
 use xcp_client::xcp_client::*;
@@ -93,7 +91,7 @@ impl DaqDecoder {
 
 impl XcpDaqDecoder for DaqDecoder {
     // Set start time and reset
-    fn start(&mut self, _odt_entries: Arc<Mutex<Vec<Vec<OdtEntry>>>>, timestamp: u64) {
+    fn start(&mut self, _odt_entries: Vec<Vec<OdtEntry>>, timestamp: u64) {
         self.tot_events = 0;
         self.packets_lost = 0;
         self.counter_errors = 0;

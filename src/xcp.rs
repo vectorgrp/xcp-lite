@@ -1,12 +1,12 @@
 //----------------------------------------------------------------------------------------------
 // Module xcp
 
-#[allow(unused_imports)]
+use parking_lot::Mutex;
 use std::{
     net::Ipv4Addr,
     sync::{
         atomic::{AtomicU8, Ordering},
-        Arc, Mutex,
+        Arc,
     },
 };
 
@@ -150,7 +150,7 @@ impl XcpEvent {
 
     /// Get the event name
     pub fn get_name(self) -> &'static str {
-        Xcp::get().event_list.lock().unwrap().get_name(self).unwrap()
+        Xcp::get().event_list.lock().get_name(self).unwrap()
     }
 
     /// Get the event number as u16
@@ -301,7 +301,10 @@ impl EventList {
 
         // Register all events
         let r = Xcp::get().get_registry();
-        self.0.iter().for_each(|e| r.lock().unwrap().add_event(e.name, e.event));
+        {
+            let mut l = r.lock();
+            self.0.iter().for_each(|e| l.add_event(e.name, e.event));
+        }
     }
 
     fn create_event_ext(&mut self, name: &'static str, indexed: bool) -> XcpEvent {
@@ -426,7 +429,7 @@ impl XcpBuilder {
 
         // Registry parameters from XcpBuiler
         {
-            let mut r = xcp.registry.lock().unwrap();
+            let mut r = xcp.registry.lock();
             r.set_name(self.name);
             r.set_epk(self.epk, Xcp::XCP_EPK_ADDR);
         }
@@ -458,7 +461,7 @@ impl XcpBuilder {
 
         // Registry parameters from XcpBuiler
         {
-            let mut r = xcp.registry.lock().unwrap();
+            let mut r = xcp.registry.lock();
             r.set_name(self.name);
             r.set_tl_params(tl.protocol_name(), ipv4_addr, port); // Transport layer parameters
             r.set_epk(self.epk, Xcp::XCP_EPK_ADDR); // EPK
@@ -684,8 +687,7 @@ impl Xcp {
     where
         T: CalPageTrait,
     {
-        let mut m = self.calseg_list.lock().unwrap();
-        m.create_calseg(name, default_page)
+        self.calseg_list.lock().create_calseg(name, default_page)
     }
 
     /// Create a calibration segment, don't register fields and don't load json  
@@ -696,20 +698,17 @@ impl Xcp {
     where
         T: CalPageTrait,
     {
-        let mut m = self.calseg_list.lock().unwrap();
-        m.create_calseg(name, default_page)
+        self.calseg_list.lock().create_calseg(name, default_page)
     }
 
     /// Get calibration segment index by name
     pub fn get_calseg_index(&self, name: &str) -> Option<usize> {
-        let m = self.calseg_list.lock().unwrap();
-        m.get_index(name)
+        self.calseg_list.lock().get_index(name)
     }
 
     /// Get calibration segment name by index
     pub fn get_calseg_name(&self, index: usize) -> &'static str {
-        let m = self.calseg_list.lock().unwrap();
-        m.get_name(index)
+        self.calseg_list.lock().get_name(index)
     }
 
     /// Get A2L addr (ext,addr) of a CalSeg
@@ -733,8 +732,7 @@ impl Xcp {
 
     // Set EPK
     fn set_epk(&self, epk: &'static str) {
-        let mut m = self.epk.lock().unwrap();
-        *m = epk;
+        *self.epk.lock() = epk;
     }
 
     //------------------------------------------------------------------------------------------
@@ -744,13 +742,13 @@ impl Xcp {
     /// index==0 single instance  
     /// index>0 multi instance (instance number is attached to name)  
     pub fn create_event_ext(&self, name: &'static str, indexed: bool) -> XcpEvent {
-        self.event_list.lock().unwrap().create_event_ext(name, indexed)
+        self.event_list.lock().create_event_ext(name, indexed)
     }
 
     /// Create XCP event  
     /// Single instance  
     pub fn create_event(&self, name: &'static str) -> XcpEvent {
-        self.event_list.lock().unwrap().create_event_ext(name, false)
+        self.event_list.lock().create_event_ext(name, false)
     }
 
     //------------------------------------------------------------------------------------------
@@ -761,24 +759,23 @@ impl Xcp {
     /// This function is used to force the A2L to be written immediately  
     pub fn write_a2l(&self) -> Result<bool, XcpError> {
         // Do nothing, if the registry is already written, or does not exist
-        if self.registry.lock().unwrap().is_frozen() {
+        if self.registry.lock().is_frozen() {
             return Ok(false);
         }
 
         // Register all calibration segments
-        self.calseg_list.lock().unwrap().register();
+        self.calseg_list.lock().register();
 
         // Register all events
-        self.event_list.lock().unwrap().register();
+        self.event_list.lock().register();
 
         {
             // Write A2L file from registry
-            let mut r = self.registry.lock().unwrap();
-            r.write_a2l()?;
+            self.registry.lock().write_a2l()?;
 
             // A2L exists and is up to date on disk
             // Set the name of the A2L file in the XCPlite server to enable upload via XCP
-            let name = std::ffi::CString::new(r.get_name().unwrap()).unwrap();
+            let name = std::ffi::CString::new(self.registry.lock().get_name().unwrap()).unwrap();
             // @@@@ Unsafe - C library call
             unsafe {
                 xcplib::ApplXcpSetA2lName(name.as_ptr());
@@ -788,7 +785,7 @@ impl Xcp {
             // A2l is no longer needed yet, free memory
             // Another call to a2l_write will do nothing
             // All registrations from now on, will cause panic
-            r.freeze();
+            self.registry.lock().freeze();
         }
 
         Ok(true)
@@ -837,15 +834,13 @@ impl Xcp {
     /// Set calibration segment init request  
     /// Called on init cal from XCP server  
     fn set_init_request(&self) {
-        let mut m = self.calseg_list.lock().unwrap();
-        m.set_init_request();
+        self.calseg_list.lock().set_init_request();
     }
 
     /// Set calibration segment freeze request  
     /// Called on freeze cal from XCP server  
     fn set_freeze_request(&self) {
-        let mut m = self.calseg_list.lock().unwrap();
-        m.set_freeze_request();
+        self.calseg_list.lock().set_freeze_request();
     }
 }
 
@@ -970,7 +965,7 @@ unsafe extern "C" fn cb_read(addr: u32, len: u8, dst: *mut u8) -> u8 {
     // This might be more elegantlty solved with a EPK segment in the registry, but this is a simple solution
     // Otherwise we would have to introduce a read only CalSeg
     if index == 0 {
-        let m = Xcp::get().epk.lock().unwrap();
+        let m = Xcp::get().epk.lock();
         let epk = *m;
         let epk_len = epk.len();
 
@@ -990,14 +985,10 @@ unsafe extern "C" fn cb_read(addr: u32, len: u8, dst: *mut u8) -> u8 {
     }
     // Calibration segment read
     // read_from is Unsafe function
-    else {
-        let calseg_list = Xcp::get().calseg_list.lock().unwrap();
-
-        if !calseg_list.read_from((index - 1) as usize, offset, len, dst) {
-            CRC_ACCESS_DENIED
-        } else {
-            CRC_CMD_OK
-        }
+    else if !Xcp::get().calseg_list.lock().read_from((index - 1) as usize, offset, len, dst) {
+        CRC_ACCESS_DENIED
+    } else {
+        CRC_CMD_OK
     }
 }
 
@@ -1018,8 +1009,7 @@ unsafe extern "C" fn cb_write(addr: u32, len: u8, src: *const u8, delay: u8) -> 
 
     // Write to calibration segment
     // read_from is Unsafe function
-    let calseg_list = Xcp::get().calseg_list.lock().unwrap();
-    if !calseg_list.write_to((index - 1) as usize, offset, len, src, delay) {
+    if !Xcp::get().calseg_list.lock().write_to((index - 1) as usize, offset, len, src, delay) {
         CRC_ACCESS_DENIED
     } else {
         CRC_CMD_OK
@@ -1029,7 +1019,7 @@ unsafe extern "C" fn cb_write(addr: u32, len: u8, src: *const u8, delay: u8) -> 
 #[no_mangle]
 extern "C" fn cb_flush() -> u8 {
     trace!("cb_flush");
-    Xcp::get().calseg_list.lock().unwrap().flush();
+    Xcp::get().calseg_list.lock().flush();
     CRC_CMD_OK
 }
 
@@ -1060,15 +1050,15 @@ pub mod xcp_test {
         let xcp = Xcp::get();
         xcp.set_log_level(XcpLogLevel::Warn);
         {
-            let mut l = xcp.event_list.lock().unwrap();
+            let mut l = xcp.event_list.lock();
             l.clear();
         }
         {
-            let mut s = xcp.calseg_list.lock().unwrap();
+            let mut s = xcp.calseg_list.lock();
             s.clear();
         }
         {
-            let mut r = xcp.registry.lock().unwrap();
+            let mut r = xcp.registry.lock();
             r.clear();
             r.set_name("xcp_test");
             r.set_epk("TEST_EPK", Xcp::XCP_EPK_ADDR);

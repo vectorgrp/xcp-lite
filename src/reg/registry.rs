@@ -911,7 +911,7 @@ mod registry_tests {
 
         let calseg = xcp.create_calseg("calseg", &CAL_PAGE);
         calseg.register_fields();
-        let c: RegistryCharacteristic = Xcp::get().get_registry().lock().unwrap().find_characteristic("CalPage.a").unwrap().clone();
+        let c: RegistryCharacteristic = Xcp::get().get_registry().lock().find_characteristic("CalPage.a").unwrap().clone();
 
         assert_eq!(calseg.get_name(), "calseg");
         assert_eq!(c.comment, "Comment");
@@ -923,15 +923,15 @@ mod registry_tests {
         assert_eq!(c.addr_offset, 200);
         assert_eq!(c.datatype, RegistryDataType::Ulong);
 
-        let c: RegistryCharacteristic = Xcp::get().get_registry().lock().unwrap().find_characteristic("CalPage.b").unwrap().clone();
+        let c: RegistryCharacteristic = Xcp::get().get_registry().lock().find_characteristic("CalPage.b").unwrap().clone();
         assert_eq!(c.addr_offset, 204);
 
-        let c: RegistryCharacteristic = Xcp::get().get_registry().lock().unwrap().find_characteristic("CalPage.curve").unwrap().clone();
+        let c: RegistryCharacteristic = Xcp::get().get_registry().lock().find_characteristic("CalPage.curve").unwrap().clone();
         assert_eq!(c.addr_offset, 0);
         assert_eq!(c.x_dim, 16);
         assert_eq!(c.y_dim, 1);
 
-        let c: RegistryCharacteristic = Xcp::get().get_registry().lock().unwrap().find_characteristic("CalPage.map").unwrap().clone();
+        let c: RegistryCharacteristic = Xcp::get().get_registry().lock().find_characteristic("CalPage.map").unwrap().clone();
         assert_eq!(c.addr_offset, 128);
         assert_eq!(c.x_dim, 8);
         assert_eq!(c.y_dim, 9);

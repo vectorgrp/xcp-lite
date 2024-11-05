@@ -1,7 +1,6 @@
 //-----------------------------------------------------------------------------
 // xcp_client is a binary crate that uses the xcp_client library crate
 
-//use ::xcp_client::a2l::a2l_reader::A2lTypeEncoding;
 use a2l::a2l_reader::A2lTypeEncoding;
 use parking_lot::Mutex;
 use std::{error::Error, sync::Arc};
@@ -41,7 +40,7 @@ const MAX_EVENT: usize = 16;
 
 #[derive(Debug)]
 struct DaqDecoder {
-    daq_odt_entries: Option<Arc<Mutex<Vec<Vec<OdtEntry>>>>>,
+    daq_odt_entries: Option<Vec<Vec<OdtEntry>>>,
     timestamp_resolution: u64,
     daq_header_size: u8,
     event_count: usize,
@@ -67,9 +66,9 @@ impl DaqDecoder {
 // Assumes first signal is a 32 bit counter and there is only one ODT
 impl XcpDaqDecoder for DaqDecoder {
     // Set start time and init
-    fn start(&mut self, daq_odt_entries: Arc<Mutex<Vec<Vec<OdtEntry>>>>, timestamp: u64) {
+    fn start(&mut self, daq_odt_entries: Vec<Vec<OdtEntry>>, timestamp: u64) {
         // Init
-        self.daq_odt_entries = Some(daq_odt_entries.clone());
+        self.daq_odt_entries = Some(daq_odt_entries);
         self.event_count = 0;
         self.byte_count = 0;
         for t in self.daq_timestamp.iter_mut() {
@@ -111,9 +110,9 @@ impl XcpDaqDecoder for DaqDecoder {
     }
 
     fn stop(&mut self) {
-        unsafe {
-            mdflib::mdfClose();
-        }
+        //unsafe {
+        //    mdflib::mdfClose();
+        //}
     }
 
     // Set timestamp resolution
@@ -174,7 +173,7 @@ impl XcpDaqDecoder for DaqDecoder {
         println!("DAQ: lost={}, daq={}, odt={}, t={}ns", lost, daq, odt, t);
 
         // Get daq list
-        let daq_list = &self.daq_odt_entries.as_ref().unwrap().lock()[daq as usize];
+        let daq_list = &self.daq_odt_entries.as_ref().unwrap()[daq as usize];
 
         // Decode all odt entries
         for odt_entry in daq_list.iter() {
@@ -229,17 +228,6 @@ impl XcpDaqDecoder for DaqDecoder {
                 }
             }
         }
-
-        // Hardcoded:
-        // Decode data of daq list 0
-        // A counter:u32 assumed to be first signal in daq list 0
-        // if daq == 0 {
-        //     assert!(data.len() >= 4);
-        //     let counter = data[0] as u32 | (data[1] as u32) << 8 | (data[2] as u32) << 16 | (data[3] as u32) << 24;
-        //     //trace!("DAQ: lost={}, daq={}, odt={}: timestamp={} counter={} data={:?}", lost, daq, odt, t, counter, data);
-        //     let t = t * self.timestamp_resolution;
-        //     info!("DAQ: lost={}, daq={}, odt={}, t={}ns, counter={}", lost, daq, odt, t, counter);
-        // }
 
         self.byte_count += data.len(); // overall payload byte count
         self.event_count += 1; // overall event count
@@ -403,7 +391,7 @@ async fn xcp_client(
     let measure_all: bool = measurement_list.len() == 1 && measurement_list[0] == "all";
 
     if !measurement_list.is_empty() || measure_all {
-        // Set cycle time of main demo tasks 250ms/100us (if exists - from main.rs)
+        // Set cycle time of main demo tasks (if exists - from main.rs)
         // counter_x task 1 cycle time
         if let Ok(cycle_time) = xcp_client.create_calibration_object("static_cal_page.task1_cycle_time_us").await {
             xcp_client.set_value_u64(cycle_time, 1000).await?;
