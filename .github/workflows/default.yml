@@ -52,5 +52,17 @@ jobs:
           with:
             bins: cargo-make, cargo-nextest
         - name: Run tests
-          run: cargo test --features=a2l_reader --features=serde -- --test-threads=1 --nocapture
-    
+          run: |
+            cargo test --features=a2l_reader --features=serde -- --test-threads=1 --nocapture --test test_single_thread
+            cargo test --features=a2l_reader --features=serde -- --test-threads=1 --nocapture --test test_multi_thread
+            cargo test --features=a2l_reader --features=serde -- --test-threads=1 --nocapture --test test_registry_2
+            cargo test --features=a2l_reader --features=serde -- --test-threads=1 --nocapture --test test_registry_1
+            cargo test --features=a2l_reader --features=serde -- --test-threads=1 --nocapture --test test_attribute_macros
+            cargo test --features=a2l_reader --features=serde -- --test-threads=1 --nocapture --test test_calibration_segment_basics
+            cargo test --features=a2l_reader --features=serde -- --test-threads=1 --nocapture --test test_calibration_segment_persistence
+            cargo test --features=a2l_reader --features=serde -- --test-threads=1 --nocapture --test test_cal_page_switch
+            cargo test --features=a2l_reader --features=serde -- --test-threads=1 --nocapture --test test_cal_page_freeze
+            cargo test --features=a2l_reader --features=serde -- --test-threads=1 --nocapture --test test_cal_page_trait
+            cargo test --features=a2l_reader --features=serde -- --test-threads=1 --nocapture --test test_daq_register
+            cargo test --features=a2l_reader --features=serde -- --test-threads=1 --nocapture --test test_daq_capture
+            cargo test --features=a2l_reader --features=serde -- --test-threads=1 --nocapture --test test_a2l_local_variables_capture
