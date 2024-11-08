@@ -1,8 +1,8 @@
 [FILE_INFO]
 Identification=CANape-Configuration-File
 FileName=xcp_demo.cna
-FileNameAbsolute=Y:\xcp-lite\examples\hello_xcp\CANape\xcp_demo.cna
-WorkingDirectory=Y:\xcp-lite\examples\hello_xcp\CANape
+FileNameAbsolute=../..\hello_xcp\CANape\xcp_demo.cna
+WorkingDirectory=../..\hello_xcp\CANape
 ProjectId=07e8-0007-0007-0015-0002-0030-0000
 FileVersion=2200
 PrgVersion=Version 22.0.10.964
@@ -431,11 +431,11 @@ FocusID=2004
 ActiveTab=0
 FilterNodeID=Alle
 TreeExpand_0=@Alle
-TreeExpand_1=Alle\Geräte
-TreeExpand_2=Alle\Geräte\xcp_demo
-TreeExpand_3=Alle\Geräte\xcp_demo\xcp_demo.a2l
-TreeExpand_4=$Alle\Geräte
-TreeExpand_5=#Alle\Geräte\xcp_demo\xcp_demo.a2l\counter
+TreeExpand_1=Alle\Gerï¿½te
+TreeExpand_2=Alle\Gerï¿½te\xcp_demo
+TreeExpand_3=Alle\Gerï¿½te\xcp_demo\xcp_demo.a2l
+TreeExpand_4=$Alle\Gerï¿½te
+TreeExpand_5=#Alle\Gerï¿½te\xcp_demo\xcp_demo.a2l\counter
 TextSearchCaseSensitive=0
 TextSearchUseMode=1
 TextSearchSearchFullText=1

@@ -114,6 +114,7 @@ fn main() -> Result<()> {
     let xcp = XcpBuilder::new("point_cloud").set_log_level(XcpLogLevel::Debug).start_server(XcpTransportLayer::Udp, BIND_ADDR, 5555)?;
 
     let params = xcp.create_calseg("Params", &PARAMS);
+    params.register_fields();
 
     let mut point_cloud = create_point_cloud();
     let mut event_point_cloud = daq_create_event!("point_cloud", POINT_COUNT * 12 + 8);

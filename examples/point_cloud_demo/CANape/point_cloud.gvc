@@ -1,8 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<GfxStorageModel Hash="4C-1B-04-FE-7A-CD-36-AF-2B-FC-BE-BA-59-FF-B7-68" HashVersion="2.0.0.0">
+<GfxStorageModel Hash="73-5B-99-32-0A-94-97-D6-CB-D8-43-F6-D1-8C-9B-1F" HashVersion="2.0.0.0">
   <BindingIdToViewId>
     <Item XmlSingularArray="true">
-      <Key>e51c7e4e-7dc6-4d7b-ac24-46a58d0f7cd0</Key>
+      <Key>a6c8870e-287e-4185-bb13-db8d17e33d55</Key>
       <Values>
         <Value XmlSingularArray="true">7d875669-2751-4051-9b26-103be1b7d5a5</Value>
       </Values>
@@ -10,17 +10,17 @@
   </BindingIdToViewId>
   <Bindings>
     <GfxBinding XmlSingularArray="true">
-      <BindingId>e51c7e4e-7dc6-4d7b-ac24-46a58d0f7cd0</BindingId>
+      <BindingId>a6c8870e-287e-4185-bb13-db8d17e33d55</BindingId>
       <SourceIdentifier>
         <Version>2</Version>
         <ObjectName>point_cloud</ObjectName>
         <SourceName>xcp_lite</SourceName>
-        <TypeIdentifier>MjgyRTJENDdEMEFEODRGMUY3MjAwNkVBQTg3RjcwRDQtNEZCQTM3RjE0M0Q3N0Y0QjU5NzI5MTQ5RTNBRUNBOTY=</TypeIdentifier>
+        <TypeIdentifier>MjgyRTJENDdEMEFEODRGMUY3MjAwNkVBQTg3RjcwRDQtNEZCQTM3RjE0M0Q3N0Y0QjU5NzI5MTQ5RTNBRUNBOTYtMTI4NjBDQjBGQjdCRDlEQUNGRDA5NzJFNkM5Qzc4N0E=</TypeIdentifier>
       </SourceIdentifier>
       <Model>
-        <UniqueName>point_cloud</UniqueName>
+        <UniqueName>point_cloud_1</UniqueName>
         <DataSource>
-          <SourceIdentifier>{"ObjectName":"point_cloud","SourceName":"xcp_lite","TypeIdentifier":"MjgyRTJENDdEMEFEODRGMUY3MjAwNkVBQTg3RjcwRDQtNEZCQTM3RjE0M0Q3N0Y0QjU5NzI5MTQ5RTNBRUNBOTY="}</SourceIdentifier>
+          <SourceIdentifier>{"ObjectName":"point_cloud","SourceName":"xcp_lite","TypeIdentifier":"MjgyRTJENDdEMEFEODRGMUY3MjAwNkVBQTg3RjcwRDQtNEZCQTM3RjE0M0Q3N0Y0QjU5NzI5MTQ5RTNBRUNBOTYtMTI4NjBDQjBGQjdCRDlEQUNGRDA5NzJFNkM5Qzc4N0E="}</SourceIdentifier>
           <TemplateSourceName>point_cloud</TemplateSourceName>
           <NativeTemplateSourceName>point_cloud</NativeTemplateSourceName>
           <DisplayedSourceName>point_cloud</DisplayedSourceName>
@@ -30,13 +30,13 @@
             <DataDimensions />
           </DataDimensions>
           <CompositionType>0</CompositionType>
-          <ObjectType>Vector.PointCloud, Vector.DA.DynamicObject.C4-AD-76-6C-C7-81-8D-58-2B-F1-81-0A-D4-B9-59-BF, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null</ObjectType>
+          <ObjectType>Vector.PointCloud, Vector.DA.DynamicObject.21-BC-51-19-F0-37-DD-06-FB-56-C4-D7-C9-5B-97-CE, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null</ObjectType>
           <Properties>
             <Property XmlSingularArray="true">
               <Name>points</Name>
               <TemplateName>points</TemplateName>
               <HasChildren>true</HasChildren>
-              <TypeName>Vector.Point, Vector.DA.DynamicObject.C4-AD-76-6C-C7-81-8D-58-2B-F1-81-0A-D4-B9-59-BF</TypeName>
+              <TypeName>Vector.Point, Vector.DA.DynamicObject.21-BC-51-19-F0-37-DD-06-FB-56-C4-D7-C9-5B-97-CE</TypeName>
               <DataDimensions>
                 <IsTemplate>true</IsTemplate>
                 <DataDimensions>
@@ -247,8 +247,116 @@ Z-Position eines Punktes mit kartesischen Koordinaten</Description>
                     </PhysicalQuantityConversion>
                   </Property>
                 </Properties>
-                <ColorFunctionName>ConstantColor_0</ColorFunctionName>
+                <ColorFunctionName>ConstantColor_1</ColorFunctionName>
                 <MultiColoredObject>true</MultiColoredObject>
+              </PropertyCollection>
+              <PropertyCollection Key="HistoryParameters">
+                <Name>HistoryParameters</Name>
+                <TypeName>Vector.DA.Gfx.HistoryParameters, Vector.DA.Gfx</TypeName>
+                <Settings>
+                  <DisplayName>Historie</DisplayName>
+                  <Category>Anzeige</Category>
+                  <Description>Parameter zum Definieren der Verlaufseinstellungen. Die Verlaufsfunktion ist nur in der Szenenansicht verfügbar. Die Einstellung kleiner minimaler Zeitdifferenzen oder langer Verlaufszeitspannen kann zu Leistungseinbußen führen.</Description>
+                  <Browsable>true</Browsable>
+                  <ReadOnly>false</ReadOnly>
+                  <TypeConverter>System.ComponentModel.ExpandableObjectConverter, System</TypeConverter>
+                  <CustomAttributes />
+                </Settings>
+                <TypeDisplayName>HistoryParameters</TypeDisplayName>
+                <Entity>Struct</Entity>
+                <IsSimpleCollection>false</IsSimpleCollection>
+                <Properties>
+                  <Property IsGfx="true" Key="HistoryMode">
+                    <Name>HistoryMode</Name>
+                    <TypeName>Vector.DA.Gfx.HistoryMode, Vector.DA.Gfx</TypeName>
+                    <Settings>
+                      <DisplayName>Historie anzeigen</DisplayName>
+                      <EditorId>EnumEditor</EditorId>
+                      <Description>Datentyp: HistoryMode
+Legt fest, ob zurückliegende Werte dieses Objekts gezeichnet werden sollen.</Description>
+                      <Browsable>true</Browsable>
+                      <ReadOnly>false</ReadOnly>
+                      <CustomAttributes />
+                    </Settings>
+                    <TypeDisplayName>HistoryMode</TypeDisplayName>
+                    <IsConstant>true</IsConstant>
+                    <IsAssignable>true</IsAssignable>
+                    <Value>Off</Value>
+                    <PhysicalQuantity />
+                    <PhysicalQuantityConversion>
+                      <Factor>1</Factor>
+                      <Offset>0</Offset>
+                    </PhysicalQuantityConversion>
+                  </Property>
+                  <Property IsGfx="true" Key="HistoryTimeSpan">
+                    <Name>HistoryTimeSpan</Name>
+                    <TypeName>System.Double, mscorlib</TypeName>
+                    <Settings>
+                      <DisplayName>Zeitspanne</DisplayName>
+                      <EditorId>NumericDecimalEditor</EditorId>
+                      <Description>Datentyp: Double
+Zeitspanne in Sekunden, die die Länge der zu zeichnenden zurückliegender Objekte bestimmt.</Description>
+                      <Browsable>true</Browsable>
+                      <ReadOnly>false</ReadOnly>
+                      <CustomAttributes />
+                    </Settings>
+                    <TypeDisplayName>Double</TypeDisplayName>
+                    <IsConstant>true</IsConstant>
+                    <IsAssignable>true</IsAssignable>
+                    <Value>6</Value>
+                    <PhysicalQuantity>Time</PhysicalQuantity>
+                    <PhysicalQuantityConversion>
+                      <Unit>Second</Unit>
+                      <Factor>1</Factor>
+                      <Offset>0</Offset>
+                    </PhysicalQuantityConversion>
+                  </Property>
+                  <Property IsGfx="true" Key="MinimalTimeDifference">
+                    <Name>MinimalTimeDifference</Name>
+                    <TypeName>System.Double, mscorlib</TypeName>
+                    <Settings>
+                      <DisplayName>Minimale Zeitdifferenz</DisplayName>
+                      <EditorId>NumericDecimalEditor</EditorId>
+                      <Description>Datentyp: Double
+Mindestzeit in Sekunden, die zwischen zwei aufeinanderfolgenden Objekten im Verlauf vergehen muss.</Description>
+                      <Browsable>true</Browsable>
+                      <ReadOnly>false</ReadOnly>
+                      <CustomAttributes />
+                    </Settings>
+                    <TypeDisplayName>Double</TypeDisplayName>
+                    <IsConstant>true</IsConstant>
+                    <IsAssignable>true</IsAssignable>
+                    <Value>0.5</Value>
+                    <PhysicalQuantity>Time</PhysicalQuantity>
+                    <PhysicalQuantityConversion>
+                      <Unit>Second</Unit>
+                      <Factor>1</Factor>
+                      <Offset>0</Offset>
+                    </PhysicalQuantityConversion>
+                  </Property>
+                  <Property IsGfx="true" Key="FadeOut">
+                    <Name>FadeOut</Name>
+                    <TypeName>Vector.DA.Gfx.FadeOut, Vector.DA.Gfx</TypeName>
+                    <Settings>
+                      <DisplayName>Ausblenden</DisplayName>
+                      <EditorId>EnumEditor</EditorId>
+                      <Description>Datentyp: FadeOut
+Legt fest, ob zurückliegende Werte dieses Objekts ausgeblendet werden sollen, je weiter sie in der Vergangenheit liegen.</Description>
+                      <Browsable>true</Browsable>
+                      <ReadOnly>false</ReadOnly>
+                      <CustomAttributes />
+                    </Settings>
+                    <TypeDisplayName>FadeOut</TypeDisplayName>
+                    <IsConstant>true</IsConstant>
+                    <IsAssignable>true</IsAssignable>
+                    <Value>On</Value>
+                    <PhysicalQuantity />
+                    <PhysicalQuantityConversion>
+                      <Factor>1</Factor>
+                      <Offset>0</Offset>
+                    </PhysicalQuantityConversion>
+                  </Property>
+                </Properties>
               </PropertyCollection>
               <PropertyCollection Key="Identification">
                 <Name>Identification</Name>
@@ -333,7 +441,7 @@ X-Position eines Punktes mit kartesischen Koordinaten</Description>
                       <Parent>
                         <Name>points</Name>
                         <TemplateName>points</TemplateName>
-                        <TypeName>Vector.Point, Vector.DA.DynamicObject.C4-AD-76-6C-C7-81-8D-58-2B-F1-81-0A-D4-B9-59-BF</TypeName>
+                        <TypeName>Vector.Point, Vector.DA.DynamicObject.21-BC-51-19-F0-37-DD-06-FB-56-C4-D7-C9-5B-97-CE</TypeName>
                         <DataDimensions>
                           <IsTemplate>true</IsTemplate>
                           <DataDimensions>
@@ -349,6 +457,12 @@ X-Position eines Punktes mit kartesischen Koordinaten</Description>
                       </Parent>
                     </Assignment>
                     <PhysicalQuantity>Length</PhysicalQuantity>
+                    <DataDimension>
+                      <DimensionSize>-1</DimensionSize>
+                      <SelectedIndex>0</SelectedIndex>
+                      <SelectedAmount>0</SelectedAmount>
+                      <IsAssigned>true</IsAssigned>
+                    </DataDimension>
                     <PhysicalQuantityConversion>
                       <Unit>Meter</Unit>
                       <Factor>1</Factor>
@@ -382,7 +496,7 @@ Y-Position eines Punktes mit kartesischen Koordinaten</Description>
                       <Parent>
                         <Name>points</Name>
                         <TemplateName>points</TemplateName>
-                        <TypeName>Vector.Point, Vector.DA.DynamicObject.C4-AD-76-6C-C7-81-8D-58-2B-F1-81-0A-D4-B9-59-BF</TypeName>
+                        <TypeName>Vector.Point, Vector.DA.DynamicObject.21-BC-51-19-F0-37-DD-06-FB-56-C4-D7-C9-5B-97-CE</TypeName>
                         <DataDimensions>
                           <IsTemplate>true</IsTemplate>
                           <DataDimensions>
@@ -398,6 +512,12 @@ Y-Position eines Punktes mit kartesischen Koordinaten</Description>
                       </Parent>
                     </Assignment>
                     <PhysicalQuantity>Length</PhysicalQuantity>
+                    <DataDimension>
+                      <DimensionSize>-1</DimensionSize>
+                      <SelectedIndex>0</SelectedIndex>
+                      <SelectedAmount>0</SelectedAmount>
+                      <IsAssigned>true</IsAssigned>
+                    </DataDimension>
                     <PhysicalQuantityConversion>
                       <Unit>Meter</Unit>
                       <Factor>1</Factor>
@@ -431,7 +551,7 @@ Z-Position eines Punktes mit kartesischen Koordinaten</Description>
                       <Parent>
                         <Name>points</Name>
                         <TemplateName>points</TemplateName>
-                        <TypeName>Vector.Point, Vector.DA.DynamicObject.C4-AD-76-6C-C7-81-8D-58-2B-F1-81-0A-D4-B9-59-BF</TypeName>
+                        <TypeName>Vector.Point, Vector.DA.DynamicObject.21-BC-51-19-F0-37-DD-06-FB-56-C4-D7-C9-5B-97-CE</TypeName>
                         <DataDimensions>
                           <IsTemplate>true</IsTemplate>
                           <DataDimensions>
@@ -447,6 +567,12 @@ Z-Position eines Punktes mit kartesischen Koordinaten</Description>
                       </Parent>
                     </Assignment>
                     <PhysicalQuantity>Length</PhysicalQuantity>
+                    <DataDimension>
+                      <DimensionSize>-1</DimensionSize>
+                      <SelectedIndex>0</SelectedIndex>
+                      <SelectedAmount>0</SelectedAmount>
+                      <IsAssigned>true</IsAssigned>
+                    </DataDimension>
                     <PhysicalQuantityConversion>
                       <Unit>Meter</Unit>
                       <Factor>1</Factor>
@@ -482,10 +608,10 @@ Z-Position eines Punktes mit kartesischen Koordinaten</Description>
                       <TypeConverter>System.ComponentModel.ExpandableObjectConverter, System</TypeConverter>
                       <CustomAttributes />
                     </Settings>
-                    <TypeDisplayName>1387, Culture=neutral, PublicKeyToken=null]]</TypeDisplayName>
+                    <TypeDisplayName>0, Culture=neutral, PublicKeyToken=null]]</TypeDisplayName>
                     <Entity>Collection</Entity>
                     <IsSimpleCollection>false</IsSimpleCollection>
-                    <ItemType>Vector.DA.Gfx.QuickInformation.QuickInfoData, Vector.DA.Gfx, Version=8.0.20.1387, Culture=neutral, PublicKeyToken=null</ItemType>
+                    <ItemType>Vector.DA.Gfx.QuickInformation.QuickInfoData, Vector.DA.Gfx, Version=9.0.1613.0, Culture=neutral, PublicKeyToken=null</ItemType>
                     <Properties>
                       <PropertyCollection Key="Values" XmlSingularArray="true">
                         <Name>Values</Name>
@@ -1026,7 +1152,7 @@ Größe der Punkte in Pixeln.</Description>
                 <TypeDisplayName>Double</TypeDisplayName>
                 <IsConstant>true</IsConstant>
                 <IsAssignable>true</IsAssignable>
-                <Value>10</Value>
+                <Value>5</Value>
                 <PhysicalQuantity />
                 <PhysicalQuantityConversion>
                   <Factor>1</Factor>
@@ -1082,7 +1208,7 @@ Priorität (Reihenfolge des Zeichnens) des Objekts. 1 = höchste Priorität -&gt
           </Properties>
         </GfxModel>
         <IsAssigned>true</IsAssigned>
-        <BindingId>e51c7e4e-7dc6-4d7b-ac24-46a58d0f7cd0</BindingId>
+        <BindingId>a6c8870e-287e-4185-bb13-db8d17e33d55</BindingId>
       </Model>
     </GfxBinding>
   </Bindings>
@@ -1090,7 +1216,7 @@ Priorität (Reihenfolge des Zeichnens) des Objekts. 1 = höchste Priorität -&gt
     <GlobalColorFunctions />
     <LocalColorFunctions>
       <ConstantColor XmlSingularArray="true">
-        <Name>ConstantColor_0</Name>
+        <Name>ConstantColor_1</Name>
         <Color>#FFFFFF00</Color>
       </ConstantColor>
     </LocalColorFunctions>

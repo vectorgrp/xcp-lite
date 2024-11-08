@@ -1,8 +1,8 @@
 [FILE_INFO]
 Identification=CANape-Configuration-File
 FileName=tokio_demo.cna
-FileNameAbsolute=Y:\xcp-lite\examples\tokio_demo\CANape\tokio_demo.cna
-WorkingDirectory=Y:\xcp-lite\examples\tokio_demo\CANape
+FileNameAbsolute=../..\tokio_demo\CANape\tokio_demo.cna
+WorkingDirectory=../..\tokio_demo\CANape
 ProjectId=07e8-0006-0017-0013-0024-0024-0000
 FileVersion=2200
 PrgVersion=Version 22.0.10.964
@@ -938,11 +938,11 @@ FocusID=2004
 ActiveTab=0
 FilterNodeID=Alle
 TreeExpand_0=@Alle
-TreeExpand_1=Alle\Geräte
-TreeExpand_2=Alle\Geräte\tokio_demo
-TreeExpand_3=Alle\Geräte\tokio_demo\tokio_demo.a2l
-TreeExpand_4=$Alle\Geräte
-TreeExpand_5=#Alle\Geräte\tokio_demo\tokio_demo.a2l\index
+TreeExpand_1=Alle\Gerï¿½te
+TreeExpand_2=Alle\Gerï¿½te\tokio_demo
+TreeExpand_3=Alle\Gerï¿½te\tokio_demo\tokio_demo.a2l
+TreeExpand_4=$Alle\Gerï¿½te
+TreeExpand_5=#Alle\Gerï¿½te\tokio_demo\tokio_demo.a2l\index
 TextSearchCaseSensitive=0
 TextSearchUseMode=1
 TextSearchSearchFullText=1

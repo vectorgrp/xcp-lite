@@ -1,8 +1,8 @@
 [FILE_INFO]
 Identification=CANape-Configuration-File
 FileName=single_thread.cna
-FileNameAbsolute=Y:\xcp-lite\examples\single_thread_demo\CANape\single_thread.cna
-WorkingDirectory=Y:\xcp-lite\examples\single_thread_demo\CANape
+FileNameAbsolute=../..\single_thread_demo\CANape\single_thread.cna
+WorkingDirectory=../..\single_thread_demo\CANape
 ProjectId=07e8-0006-001b-000a-0023-000b-0000
 FileVersion=2200
 PrgVersion=Version 22.0.10.964
@@ -491,11 +491,11 @@ FocusID=2004
 ActiveTab=0
 FilterNodeID=Alle
 TreeExpand_0=@Alle
-TreeExpand_1=Alle\Geräte
-TreeExpand_2=Alle\Geräte\single_thread_demo
-TreeExpand_3=Alle\Geräte\single_thread_demo\single_thread_demo.a2l
-TreeExpand_4=$Alle\Geräte
-TreeExpand_5=#Alle\Geräte\single_thread_demo\single_thread_demo.a2l\channel_1
+TreeExpand_1=Alle\Gerï¿½te
+TreeExpand_2=Alle\Gerï¿½te\single_thread_demo
+TreeExpand_3=Alle\Gerï¿½te\single_thread_demo\single_thread_demo.a2l
+TreeExpand_4=$Alle\Gerï¿½te
+TreeExpand_5=#Alle\Gerï¿½te\single_thread_demo\single_thread_demo.a2l\channel_1
 TextSearchCaseSensitive=0
 TextSearchUseMode=1
 TextSearchSearchFullText=1

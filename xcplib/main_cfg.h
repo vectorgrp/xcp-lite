@@ -15,9 +15,9 @@
   #define OPTION_DEFAULT_DEBUG_LEVEL  Default log level: 1 - Error, 2 - Warn, 3 - Info, 4 - Trace, 5 - Debug
 
   // Clock
-  #define OPTION_CLOCK_EPOCH_ARB      arbitrary epoch 
-  #define OPTION_CLOCK_EPOCH_PTP      since 1.1.1970
-  #define OPTION_CLOCK_TICKS_1NS      resolution 1ns or 1us, granularity depends on platform
+  #define OPTION_CLOCK_EPOCH_ARB      Arbitrary epoch or since 1.1.1970
+  #define OPTION_CLOCK_EPOCH_PTP      
+  #define OPTION_CLOCK_TICKS_1NS      Resolution 1ns or 1us, granularity depends on platform
   #define OPTION_CLOCK_TICKS_1US
 
   // XCP  
@@ -34,7 +34,7 @@
 
 // Logging
 #define OPTION_ENABLE_DBG_PRINTS 
-#define OPTION_DEFAULT_DBG_LEVEL 4 
+#define OPTION_DEFAULT_DBG_LEVEL 3 
 
 // XCP options
 #define OPTION_ENABLE_TCP
@@ -49,6 +49,7 @@
 
 
 // Platform options
+// Clock
 #define OPTION_CLOCK_EPOCH_ARB
 #define OPTION_CLOCK_TICKS_1NS
  

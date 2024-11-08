@@ -853,20 +853,20 @@ char* clockGetTimeString(char* str, uint32_t l, int64_t t) {
 
 BOOL clockInit() {
 
-    DBG_PRINT3("\nInit clock\n  (");
+    DBG_PRINT4("\nInit clock\n  ");
 #ifdef OPTION_CLOCK_EPOCH_PTP
-    DBG_PRINT3("OPTION_CLOCK_EPOCH_PTP,");
+    DBG_PRINT4("OPTION_CLOCK_EPOCH_PTP,");
 #endif
 #ifdef OPTION_CLOCK_EPOCH_ARB
-    DBG_PRINT3("OPTION_CLOCK_EPOCH_ARB,");
+    DBG_PRINT4("OPTION_CLOCK_EPOCH_ARB,");
 #endif
 #ifdef OPTION_CLOCK_TICKS_1US
-    DBG_PRINT3("OPTION_CLOCK_TICKS_1US)\n");
+    DBG_PRINT4("OPTION_CLOCK_TICKS_1US\n");
 #endif
 #ifdef OPTION_CLOCK_TICKS_1NS
-    DBG_PRINT3("OPTION_CLOCK_TICKS_1NS)\n");
+    DBG_PRINT4("OPTION_CLOCK_TICKS_1NS\n");
 #endif
-    DBG_PRINTF3("%u\n",CLOCK_TICKS_PER_S);
+    DBG_PRINTF4("  CLOCK_TICKS_PER_S = %u\n\n",CLOCK_TICKS_PER_S);
     
     sClock = 0;
 
@@ -923,9 +923,9 @@ BOOL clockInit() {
     clockGet();
 
 #ifdef DBG_LEVEL
-    if (DBG_LEVEL >= 3) {
+    if (DBG_LEVEL >= 5) {
 #ifndef OPTION_CLOCK_EPOCH_ARB
-        if (DBG_LEVEL >= 3) {
+        if (DBG_LEVEL >= 6) {
             struct tm tm;
             _gmtime64_s(&tm, (const __time64_t*)&time_s);
             printf("    Current time = %I64uus + %ums\n", time_s, time_ms);
