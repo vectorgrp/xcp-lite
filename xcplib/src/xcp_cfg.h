@@ -52,6 +52,12 @@
 // Undefined address extension
 #define XCP_ADDR_EXT_UNDEFINED 0xFF // Undefined address extension
 
+// Make XcpEvent thread safe for same CAL event coming from different threads
+// Needed for xcp-lite, because CalSeg cal sync events may come from different threads
+#ifdef XCP_ENABLE_DYN_ADDRESSING
+  #define XCP_ENABLE_MULTITHREAD_CAL_EVENTS 
+#endif
+
 /*----------------------------------------------------------------------------*/
 /* Protocol features */
 
@@ -65,14 +71,15 @@
 
 // #define XCP_ENABLE_SEED_KEY // Enable seed/key command
 
-#define XCP_ENABLE_SERV_TEXT
+#define XCP_ENABLE_SERV_TEXT // Enable SERV_TEXT events
 
 /*----------------------------------------------------------------------------*/
 /* GET_ID command */
 
-// Uses addr_ext=0xFF to indicate addr space to upload A2L  
+#ifdef OPTION_ENABLE_A2L_UPLOAD
 #define XCP_ENABLE_IDT_A2L_UPLOAD // Upload A2L via XCP enabled
-
+// Uses addr_ext=0xFF to indicate addr space to upload A2L  
+#endif
 
 /*----------------------------------------------------------------------------*/
 /* User defined command */
@@ -101,12 +108,8 @@
   // Enable checking for clock monotony (no decreasing timestamp), use for debugging only, performance and memory impact
   // #define XCP_ENABLE_TIMESTAMP_CHECK
 
-
 #endif 
 
-// Make XcpEvent thread safe for same CAL event coming from different threads
-// Needed for xcp-lite, because CalSeg cal sync events may come from different threads
-#define XCP_ENABLE_MULTITHREAD_CAL_EVENTS 
 
 // Overrun indication via PID
 // Not needed for Ethernet, client detects data loss via transport layer counters
@@ -120,13 +123,12 @@
 #ifdef OPTION_DAQ_MEM_SIZE
 #define XCP_DAQ_MEM_SIZE OPTION_DAQ_MEM_SIZE 
 #else
-#define XCP_DAQ_MEM_SIZE (1024*4) // Amount of memory for DAQ tables, each ODT entry (e.g. measurement variable or memory block) needs 5 bytes
+#define XCP_DAQ_MEM_SIZE (1024*5) // Amount of memory for DAQ tables, each ODT entry (e.g. measurement variable or memory block) needs 5 bytes
 #endif
 
 // Maximum number of DAQ lists
 // Numbers smaller than 256 will switch to 2 byte transport layer header DAQ_HDR_ODT_DAQB
 #define XCP_MAX_DAQ_COUNT 1024
-
 
 // Clock resolution
 //#define XCP_DAQ_CLOCK_32BIT  // Use 32 Bit time stamps
@@ -140,6 +142,10 @@
   #define XCP_TIMESTAMP_TICKS 1  // ticks per unit
 #endif
 
+// Grandmaster clock (optional, use XcpSetGrandmasterClockInfo, implement ApplXcpGetClockInfoGrandmaster)
+#define XCP_ENABLE_PTP
+#define XCP_DAQ_CLOCK_UIID { 0xdc,0xa6,0x32,0xFF,0xFE,0x7e,0x66,0xdc }
+
 // Enable GET_DAQ_CLOCK_MULTICAST 
 // #define XCP_ENABLE_DAQ_CLOCK_MULTICAST 
 #ifdef XCP_ENABLE_DAQ_CLOCK_MULTICAST
@@ -150,6 +156,9 @@
 
 //-------------------------------------------------------------------------------
 // Debug 
+
+// Enable logging
+#define OPTION_ENABLE_DBG_PRINTS
 
 // Enable extended error checks, performance penalty !!!
 #define XCP_ENABLE_TEST_CHECKS

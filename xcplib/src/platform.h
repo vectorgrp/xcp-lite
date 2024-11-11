@@ -92,7 +92,7 @@ typedef pthread_t tXcpThread;
 //-------------------------------------------------------------------------------
 // Platform independant socket functions
 
-#if defined(OPTION_ENABLE_TCP) || defined(OPTION_ENABLE_TCP)
+#if defined(OPTION_ENABLE_TCP) || defined(OPTION_ENABLE_UDP)
 
 #ifdef _LINUX // Linux sockets
 

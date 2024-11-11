@@ -193,7 +193,7 @@ void mutexDestroy(MUTEX* m) {
 // Sockets
 /**************************************************************************/
 
-#if defined(OPTION_ENABLE_TCP) || defined(OPTION_ENABLE_TCP)
+#if defined(OPTION_ENABLE_TCP) || defined(OPTION_ENABLE_UDP)
 
 #ifdef _LINUX
 

@@ -31,8 +31,8 @@
 
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
   #ifndef XCP_MAX_EVENT_COUNT
-    #define XCP_MAX_EVENT_COUNT 16 // 0-15, 0xFFFF is reserved for undefined event
-  #elif XCP_MAX_EVENT_COUNT >= 16
+    #define XCP_MAX_EVENT_COUNT 16
+  #elif XCP_MAX_EVENT_COUNT > 16
     #warning "Memory consumption of event list is high, consider reducing XCP_MAX_EVENT_COUNT or XCP_MAX_EVENT_NAME"
   #endif
   #ifndef XCP_MAX_EVENT_NAME

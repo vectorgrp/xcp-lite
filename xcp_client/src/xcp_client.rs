@@ -122,7 +122,7 @@ impl std::fmt::Display for XcpError {
                 write!(f, "{cmd:?}: XCP PRM ACTIVE")
             }
             CRC_CMD_UNKNOWN => {
-                write!(f, "XCP command ({} UNKNOWN", self.cmd)
+                write!(f, "Unknown XCP command: {cmd:?} ")
             }
             CRC_CMD_SYNTAX => {
                 write!(f, "{cmd:?}: XCP command SYNTAX")
