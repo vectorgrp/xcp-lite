@@ -7,11 +7,10 @@
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-
+//use std::io::Write;
+use super::ifdata;
 use a2lfile::*;
 use a2lfile::{A2lError, A2lFile};
-
-use super::ifdata;
 
 #[derive(Debug, Clone, Copy)]
 pub struct A2lAddr {
@@ -74,14 +73,9 @@ pub fn a2l_get_characteristics(a2l_file: &A2lFile) -> Vec<String> {
 }
 
 pub fn a2l_find_characteristic(a2l_file: &A2lFile, name: &str) -> Option<(A2lAddr, A2lType, A2lLimits)> {
-    let o = a2l_file.project.module[0].characteristic.iter().find(|m| m.name == name);
-    if o.is_none() {
-        debug!("Characteristic {} not found", name);
-        None
-    } else {
-        let c = o.unwrap();
+    if let Some(c) = a2l_file.project.module[0].characteristic.iter().find(|m| m.name == name) {
         let a2l_addr = c.address;
-        let a2l_ext = c.ecu_address_extension.clone().map(|e| e.extension).unwrap_or_default();
+        let a2l_ext = c.ecu_address_extension.as_ref().map(|e| e.extension).unwrap_or_default();
         let characteristic_type = c.characteristic_type; //Ascii,Curve,Map,Cuboid,Cube4,Cube5,ValBlk,Value
         let conversion = c.conversion.clone();
         let a2l_lower_limit = c.lower_limit;
@@ -92,7 +86,6 @@ pub fn a2l_find_characteristic(a2l_file: &A2lFile, name: &str) -> Option<(A2lAdd
         );
 
         // Record layout
-        // Hardcode xcp-lite and XCPlite names
         let a2l_size: u8;
         let a2l_encoding: A2lTypeEncoding;
         match c.deposit.as_str() {
@@ -157,6 +150,9 @@ pub fn a2l_find_characteristic(a2l_file: &A2lFile, name: &str) -> Option<(A2lAdd
                 upper: a2l_upper_limit,
             },
         ))
+    } else {
+        debug!("Characteristic {} not found", name);
+        None
     }
 }
 
@@ -168,72 +164,71 @@ pub fn a2l_get_measurements(a2l_file: &A2lFile) -> Vec<String> {
     v
 }
 
-pub fn a2l_find_measurement(a2l_file: &A2lFile, name: &str) -> Option<(A2lAddr, A2lType)> {
-    let m = a2l_file.project.module[0].measurement.iter().find(|m| m.name == name)?;
-    let a2l_addr: u32 = m.ecu_address.clone().expect("Measurement ecu_address not found!").address;
-    let a2l_ext: u8 = if let Some(e) = m.ecu_address_extension.clone() { e.extension } else { 0 }.try_into().unwrap();
-
-    let get_type = m.datatype;
-    let a2l_size: u8 = match get_type {
-        DataType::Sbyte => 1,
-        DataType::Sword => 2,
-        DataType::Slong => 4,
-        DataType::AInt64 => 8,
-        DataType::Ubyte => 1,
-        DataType::Uword => 2,
-        DataType::Ulong => 4,
-        DataType::AUint64 => 8,
-        DataType::Float64Ieee => 8,
-        DataType::Float32Ieee => 4,
-        DataType::Float16Ieee => 2,
-    };
-    let a2l_encoding: A2lTypeEncoding = match get_type {
-        DataType::Sbyte => A2lTypeEncoding::Signed,
-        DataType::Sword => A2lTypeEncoding::Signed,
-        DataType::Slong => A2lTypeEncoding::Signed,
-        DataType::AInt64 => A2lTypeEncoding::Signed,
-        DataType::Ubyte => A2lTypeEncoding::Unsigned,
-        DataType::Uword => A2lTypeEncoding::Unsigned,
-        DataType::Ulong => A2lTypeEncoding::Unsigned,
-        DataType::AUint64 => A2lTypeEncoding::Unsigned,
-        DataType::Float64Ieee => A2lTypeEncoding::Float,
-        DataType::Float32Ieee => A2lTypeEncoding::Float,
-        DataType::Float16Ieee => A2lTypeEncoding::Float,
-    };
-    assert!(a2l_size > 0, "a2l_size is zero");
-
+fn get_event_from_if_data(if_data: &Vec<IfData>) -> u16 {
     let mut a2l_event: u16 = 0xFFFF;
-    let ifdata_vec = m.if_data.clone();
 
-    for ifdata in &ifdata_vec {
-        // println!("if_data: {:#?}", if_data);
+    for ifdata in if_data {
         let decoded_ifdata = ifdata::A2mlVector::load_from_ifdata(ifdata).unwrap();
-        //println!("decoded_ifdata: {:#?}", decoded_ifdata);
         if let Some(xcp) = decoded_ifdata.xcp {
-            //println!("xcp: {:#?}", xcp);
             if let Some(daq_event) = xcp.daq_event {
-                //println!("daq_event: {:#?}", daq_event);
                 if let Some(fixed_event_list) = daq_event.fixed_event_list {
-                    //println!("fixed_event_list: {:#?}", fixed_event_list);
                     a2l_event = fixed_event_list.event[0].item;
-                    //println!("event =  {:#?}", a2l_event)
                 }
             }
         }
     }
-    assert_ne!(a2l_event, 0xFFFF, "IF_DATA fixed event number not found");
 
-    Some((
-        A2lAddr {
-            ext: a2l_ext,
-            addr: a2l_addr,
-            event: a2l_event,
-        },
-        A2lType {
-            size: a2l_size,
-            encoding: a2l_encoding,
-        },
-    ))
+    a2l_event
+}
+
+pub fn a2l_find_measurement(a2l_file: &A2lFile, name: &str) -> Option<(A2lAddr, A2lType)> {
+    if let Some(m) = a2l_file.project.module[0].measurement.iter().find(|m| m.name == name) {
+        let a2l_addr: u32 = m.ecu_address.as_ref().expect("Measurement ecu_address not found!").address;
+        let a2l_ext: u8 = if let Some(e) = m.ecu_address_extension.clone() { e.extension } else { 0 }.try_into().unwrap();
+        let a2l_type = m.datatype;
+        let a2l_size: u8 = match a2l_type {
+            DataType::Sbyte => 1,
+            DataType::Sword => 2,
+            DataType::Slong => 4,
+            DataType::AInt64 => 8,
+            DataType::Ubyte => 1,
+            DataType::Uword => 2,
+            DataType::Ulong => 4,
+            DataType::AUint64 => 8,
+            DataType::Float64Ieee => 8,
+            DataType::Float32Ieee => 4,
+            DataType::Float16Ieee => 2,
+        };
+        let a2l_encoding: A2lTypeEncoding = match a2l_type {
+            DataType::Sbyte => A2lTypeEncoding::Signed,
+            DataType::Sword => A2lTypeEncoding::Signed,
+            DataType::Slong => A2lTypeEncoding::Signed,
+            DataType::AInt64 => A2lTypeEncoding::Signed,
+            DataType::Ubyte => A2lTypeEncoding::Unsigned,
+            DataType::Uword => A2lTypeEncoding::Unsigned,
+            DataType::Ulong => A2lTypeEncoding::Unsigned,
+            DataType::AUint64 => A2lTypeEncoding::Unsigned,
+            DataType::Float64Ieee => A2lTypeEncoding::Float,
+            DataType::Float32Ieee => A2lTypeEncoding::Float,
+            DataType::Float16Ieee => A2lTypeEncoding::Float,
+        };
+        let a2l_event: u16 = get_event_from_if_data(&m.if_data);
+
+        Some((
+            A2lAddr {
+                ext: a2l_ext,
+                addr: a2l_addr,
+                event: a2l_event,
+            },
+            A2lType {
+                size: a2l_size,
+                encoding: a2l_encoding,
+            },
+        ))
+    } else {
+        debug!("Measurement {} not found", name);
+        None
+    }
 }
 
 pub fn a2l_printf_info(a2l_file: &A2lFile) {
@@ -249,19 +244,40 @@ pub fn a2l_printf_info(a2l_file: &A2lFile) {
         }
     }
 
+    // TYPEDEFs
+    println!("TYPEDEF:");
+    for t in &a2l_file.project.module[0].typedef_structure {
+        println!(r#"  {} "{}" size={}"#, t.name, t.long_identifier, t.total_size);
+        for c in &t.structure_component {
+            println!(r#"    {} type={} offset={}"#, c.component_name, c.component_type, c.address_offset)
+        }
+    }
+
+    // INSTANCEs
+    println!("INSTANCE:");
+    for i in &a2l_file.project.module[0].instance {
+        //println!("{:#?}", i);
+        let ext = match i.ecu_address_extension.as_ref() {
+            Some(e) => e.extension,
+            None => 0,
+        };
+        let event = get_event_from_if_data(&i.if_data);
+        println!(r#"  {} "{}" {}:0x{:X} type={} event={}"#, i.name, i.long_identifier, ext, i.start_address, i.type_ref, event);
+    }
+
     // MEASUREMENT
-    println!("MEASUREMENTS:");
+    println!("MEASUREMENT:");
     for measurement in &a2l_file.project.module[0].measurement {
         let addr = measurement.ecu_address.clone().expect("ecu_address not found!").address;
         let ext: u8 = if let Some(e) = measurement.ecu_address_extension.clone() { e.extension } else { 0 }.try_into().unwrap();
-        println!(" {} {} {}:0x{:X}", measurement.name, measurement.datatype, ext, addr);
+        println!("  {} {} {}:0x{:X}", measurement.name, measurement.datatype, ext, addr);
     }
 
     // CHARACTERISTIC
-    println!("CHARACTERISTICS:");
+    println!("CHARACTERISTIC:");
     for characteristic in &a2l_file.project.module[0].characteristic {
         println!(
-            " {} {:?} {} 0x{:X} {:?} {:?} {} {}",
+            "  {} {:?} {} 0x{:X} {:?} {:?} {} {}",
             characteristic.name,
             characteristic.long_identifier,
             characteristic.deposit,
@@ -275,9 +291,10 @@ pub fn a2l_printf_info(a2l_file: &A2lFile) {
 
     // Write A2L to a file
     // let filename = "a2lfile.txt";
-    // let mut file = File::create(filename).expect("create file failed");
+    // let file = std::fs::File::create(filename).expect("create file failed");
     // let s = format!("{:#?}", a2l_file);
-    // file.write_all(s.as_bytes()).expect("write failed");
+    // let mut writer = std::io::BufWriter::new(file);
+    // writer.write_all(s.as_bytes()).expect("write failed");
     // let filename = "a2lfile.a2l";
     // a2l_file.write(std::ffi::OsString::from(filename), Some("Rewritten by xcp-lite")).expect("failed to write output");
 }

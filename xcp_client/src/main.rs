@@ -405,31 +405,37 @@ async fn xcp_client(
         // Measure all existing measurement variables or the list of variables provided
         // Multi dimensional objects not supported yet
         info!("Measurement variables");
-        let mea_objects = if !measure_all { measurement_list } else { xcp_client.get_measurements() };
-        for o in &mea_objects {
+        let l = if !measure_all { measurement_list } else { xcp_client.get_measurements() };
+        let mut n = 0;
+        for o in &l {
             if xcp_client.create_measurement_object(o).is_some() {
                 info!(r#"  Created measurement object {}"#, o);
+                n += 1;
+            } else {
+                println!("Measurement {} not found", o)
             }
         }
         info!("");
 
         // Measure for 6 seconds
         // 32 bit DAQ timestamp will overflow after 4.2s
-        let start_time = tokio::time::Instant::now();
-        xcp_client.start_measurement().await?;
-        tokio::time::sleep(std::time::Duration::from_secs(6)).await;
-        xcp_client.stop_measurement().await?;
-        let elapsed_time = start_time.elapsed().as_micros();
+        if n > 0 {
+            let start_time = tokio::time::Instant::now();
+            xcp_client.start_measurement().await?;
+            tokio::time::sleep(std::time::Duration::from_secs(6)).await;
+            xcp_client.stop_measurement().await?;
+            let elapsed_time = start_time.elapsed().as_micros();
 
-        // Print statistics
-        let event_count = daq_decoder.lock().event_count;
-        let byte_count = daq_decoder.lock().byte_count;
-        info!(
-            "Measurement done, {} events, {:.0} event/s, {:.3} Mbytes/s",
-            event_count,
-            event_count as f64 * 1_000_000.0 / elapsed_time as f64,
-            byte_count as f64 / elapsed_time as f64
-        );
+            // Print statistics
+            let event_count = daq_decoder.lock().event_count;
+            let byte_count = daq_decoder.lock().byte_count;
+            info!(
+                "Measurement done, {} events, {:.0} event/s, {:.3} Mbytes/s",
+                event_count,
+                event_count as f64 * 1_000_000.0 / elapsed_time as f64,
+                byte_count as f64 / elapsed_time as f64
+            );
+        }
     }
 
     // Disconnect
