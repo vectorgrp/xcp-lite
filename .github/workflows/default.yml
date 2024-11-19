@@ -6,10 +6,6 @@ on:
     branches: ["**"]
     tags: ["**"]
 
-concurrency:
-  group: ${{ (github.ref == 'refs/heads/main') && 'main' || format('{0}-{1}', github.workflow, github.ref) }} # concurrency does not include main branch
-  cancel-in-progress: true
-
 jobs:
     lint:
         name: Lint
