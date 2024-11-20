@@ -26,7 +26,7 @@ members = [
     "examples/rayon_demo",
     "examples/tokio_demo",
     "examples/type_description_demo",
-    "examples/xcp_idl_generator_demo",     
+    "examples/xcp_idl_generator_demo", "examples/xcp_daemon",     
 ]
 
 
@@ -132,6 +132,16 @@ serde_json = { version = "1.0" , optional = true}
 # A2L checker
 a2lfile = { version="2.2.0", optional = true}
 
+
+# Interface to system users and groups
+users = "0.11.0"
+
+# Unix Only
+[target.'cfg(unix)'.dependencies]
+# Unix Signal Handling
+signal-hook = "0.3.17"
+# Syslog logging
+syslog = "7.0.0"
 
 [dev-dependencies]
 
