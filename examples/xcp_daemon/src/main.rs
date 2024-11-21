@@ -60,7 +60,7 @@ impl Process for XcpProcess {
         let xcp = XcpBuilder::new("xcp_daemon")
             .set_log_level(XcpLogLevel::Info)
             .set_epk("EPK_")
-            .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)?;
+            .start_server(XcpTransportLayer::Udp, [172, 17, 247, 66], 5555)?;
 
         self.xcp = Some(Arc::new(xcp));
 
