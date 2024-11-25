@@ -40,7 +40,7 @@ mod registry_tests {
 
         reg.add_characteristic(RegistryCharacteristic::new(
             Some("test_cal_seg_1"),
-            "test_characteristic_1".to_string(),
+            "test_characteristic_1",
             crate::RegistryDataType::Sbyte,
             "comment",
             -128.0,
@@ -53,7 +53,7 @@ mod registry_tests {
         .unwrap();
         reg.add_characteristic(RegistryCharacteristic::new(
             Some("test_cal_seg_1"),
-            "test_characteristic_2".to_string(),
+            "test_characteristic_2",
             crate::RegistryDataType::Sbyte,
             "comment",
             -128.0,
@@ -66,7 +66,7 @@ mod registry_tests {
         .unwrap();
 
         reg.add_measurement(RegistryMeasurement::new(
-            "test_measurement_1".to_string(),
+            "test_measurement_1",
             crate::RegistryDataType::Ubyte,
             1,
             1,
@@ -82,7 +82,7 @@ mod registry_tests {
         .unwrap();
 
         reg.add_measurement(RegistryMeasurement::new(
-            "test_measurement_1".to_string(),
+            "test_measurement_1",
             crate::RegistryDataType::Ubyte,
             1,
             1,
@@ -98,7 +98,7 @@ mod registry_tests {
         .unwrap();
 
         reg.add_measurement(RegistryMeasurement::new(
-            "test_measurement_2".to_string(),
+            "test_measurement_2",
             crate::RegistryDataType::Ubyte,
             1,
             1,
@@ -182,7 +182,7 @@ mod registry_tests {
             let mut reg = reg_ref.lock();
 
             reg.add_measurement(RegistryMeasurement::new(
-                "test_measurement_1".to_string(),
+                "test_measurement_1",
                 crate::RegistryDataType::Ubyte,
                 1,
                 1,
@@ -198,7 +198,7 @@ mod registry_tests {
             .unwrap();
 
             reg.add_measurement(RegistryMeasurement::new(
-                "test_measurement_1".to_string(),
+                "test_measurement_1",
                 crate::RegistryDataType::Ubyte,
                 1,
                 1,
@@ -214,7 +214,7 @@ mod registry_tests {
             .unwrap();
 
             reg.add_measurement(RegistryMeasurement::new(
-                "test_measurement_2".to_string(),
+                "test_measurement_2",
                 crate::RegistryDataType::Ubyte,
                 1,
                 1,

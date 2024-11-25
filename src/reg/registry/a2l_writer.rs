@@ -495,7 +495,7 @@ impl<'a> A2lWriter<'a> {
             for c in self.registry.characteristic_list.iter() {
                 if let Some(calseg_name) = c.calseg_name {
                     if s.name == calseg_name {
-                        write!(self, " {} ", c.name.as_str())?;
+                        write!(self, " {} ", c.name)?;
                     }
                 }
             }

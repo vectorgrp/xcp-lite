@@ -191,7 +191,7 @@ fn main() -> Result<()> {
     xcp.get_registry()
         .lock()
         .add_measurement(RegistryMeasurement::new(
-            "test_data".to_string(),
+            "test_data",
             RegistryDataType::Blob,
             1,
             1,

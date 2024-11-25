@@ -4,11 +4,11 @@
 
 #![allow(dead_code)]
 
-use core::panic;
-use std::net::Ipv4Addr;
-
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
+
+use core::panic;
+use std::{borrow::Cow, net::Ipv4Addr};
 
 use crate::xcp;
 use xcp::XcpEvent;
@@ -27,7 +27,7 @@ pub enum RegistryError {
     Io(#[from] std::io::Error),
 
     #[error("registry error: duplicate symbol `{0}` ")]
-    Duplicate(String),
+    Duplicate(Cow<'static, str>),
 
     #[error("registry error: `{0}` not found")]
     NotFound(&'static str),
@@ -409,7 +409,7 @@ impl RegistryEpk {
 /// Used by the register macros
 #[derive(Clone, Debug)]
 pub struct RegistryMeasurement {
-    name: String,
+    name: Cow<'static, str>,
     // Type
     datatype: RegistryDataType, // Basic types Ubyte, SByte, AUint64, Float64Ieee, ...  or Blob
     x_dim: u16,                 // 1 = basic type (A2L MEASUREMENT), >1 = array[dim] of basic type (A2L MEASUREMENT with MATRIX_DIM x (max u16))
@@ -430,7 +430,7 @@ impl RegistryMeasurement {
     /// Create a new measurement signal
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        name: String,
+        name: &'static str,
         datatype: RegistryDataType,
         x_dim: u16,
         y_dim: u16,
@@ -445,7 +445,7 @@ impl RegistryMeasurement {
     ) -> Self {
         assert!((x_dim as usize * y_dim as usize) * datatype.get_size() <= u16::MAX as usize / 2);
         RegistryMeasurement {
-            name,
+            name: name.into(),
             datatype,
             x_dim,
             y_dim,
@@ -482,7 +482,7 @@ impl RegistryMeasurementList {
     }
 
     fn sort(&mut self) {
-        self.0.sort_by(|a, b| a.name.as_str().cmp(b.name.as_str()));
+        self.0.sort_by(|a, b| a.name.cmp(&b.name));
     }
 }
 
@@ -493,7 +493,7 @@ impl RegistryMeasurementList {
 /// Used by the register macros
 #[derive(Clone, Debug)]
 pub struct RegistryCharacteristic {
-    name: String,
+    name: Cow<'static, str>,
     // Type
     datatype: RegistryDataType,
     x_dim: usize,
@@ -513,9 +513,9 @@ pub struct RegistryCharacteristic {
 #[allow(clippy::too_many_arguments)]
 impl RegistryCharacteristic {
     /// Create a new calibration parameter
-    pub fn new(
+    pub fn new<T: std::convert::Into<Cow<'static, str>>>(
         calseg_name: Option<&'static str>,
-        name: String,
+        name: T,
         datatype: RegistryDataType,
         comment: &'static str,
         min: f64,
@@ -527,7 +527,7 @@ impl RegistryCharacteristic {
     ) -> Self {
         RegistryCharacteristic {
             calseg_name,
-            name,
+            name: name.into(),
             datatype,
             comment,
             min,
@@ -571,7 +571,7 @@ impl RegistryCharacteristicList {
     }
 
     pub fn sort(&mut self) {
-        self.0.sort_by(|a, b| a.name.as_str().cmp(b.name.as_str()));
+        self.0.sort_by(|a, b| a.name.cmp(&b.name));
     }
 
     pub fn iter(&self) -> std::slice::Iter<RegistryCharacteristic> {
@@ -737,7 +737,7 @@ impl Registry {
 
         // Append event index to name in case of a multi instance event (index>0)
         if m.xcp_event.get_index() > 0 {
-            m.name = format!("{}_{}", m.name, m.xcp_event.get_index());
+            m.name = std::borrow::Cow::Owned(format!("{}_{}", m.name, m.xcp_event.get_index()));
         }
 
         // Panic if symbol_name with same name already exists

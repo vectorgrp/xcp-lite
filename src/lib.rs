@@ -132,14 +132,14 @@ macro_rules! cal_register_static {
         let name = stringify!($variable);
         let datatype = ($variable).get_type();
         let addr = &($variable) as *const _ as u64;
-        let c = RegistryCharacteristic::new(None, name.to_string(), datatype, "", datatype.get_min(), datatype.get_max(), "", 1, 1, addr);
+        let c = RegistryCharacteristic::new(None, name, datatype, "", datatype.get_min(), datatype.get_max(), "", 1, 1, addr);
         Xcp::get().get_registry().lock().add_characteristic(c).expect("Duplicate");
     }};
     (   $variable:expr, $comment:expr ) => {{
         let name = stringify!($variable);
         let datatype = ($variable).get_type();
         let addr = &($variable) as *const _ as u64;
-        let c = RegistryCharacteristic::new(None, name.to_string(), datatype, $comment, datatype.get_min(), datatype.get_max(), "", 1, 1, addr);
+        let c = RegistryCharacteristic::new(None, name, datatype, $comment, datatype.get_min(), datatype.get_max(), "", 1, 1, addr);
         Xcp::get().get_registry().lock().add_characteristic(c).expect("Duplicate");
     }};
 
@@ -147,7 +147,7 @@ macro_rules! cal_register_static {
         let name = stringify!($variable);
         let datatype = ($variable).get_type();
         let addr = &($variable) as *const _ as u64;
-        let c = RegistryCharacteristic::new(None, name.to_string(), datatype, $comment, datatype.get_min(), datatype.get_max(), $unit, 1, 1, addr);
+        let c = RegistryCharacteristic::new(None, name, datatype, $comment, datatype.get_min(), datatype.get_max(), $unit, 1, 1, addr);
         Xcp::get().get_registry().lock().add_characteristic(c).expect("Duplicate");
     }};
 }
@@ -159,7 +159,7 @@ macro_rules! daq_register_static {
         let name = stringify!($variable);
         let datatype = ($variable).get_type();
         let addr = &($variable) as *const _ as u64;
-        let mut c = RegistryCharacteristic::new(None, name.to_string(), datatype, "", datatype.get_min(), datatype.get_max(), "", 1, 1, addr);
+        let mut c = RegistryCharacteristic::new(None, name, datatype, "", datatype.get_min(), datatype.get_max(), "", 1, 1, addr);
         c.set_event($event);
         Xcp::get().get_registry().lock().add_characteristic(c).expect("Duplicate");
     }};
@@ -167,7 +167,7 @@ macro_rules! daq_register_static {
         let name = stringify!($variable);
         let datatype = ($variable).get_type();
         let addr = &($variable) as *const _ as u64;
-        let mut c = RegistryCharacteristic::new(None, name.to_string(), datatype, $comment, datatype.get_min(), datatype.get_max(), "", 1, 1, addr);
+        let mut c = RegistryCharacteristic::new(None, name, datatype, $comment, datatype.get_min(), datatype.get_max(), "", 1, 1, addr);
         c.set_event($event);
         Xcp::get().get_registry().lock().add_characteristic(c).expect("Duplicate");
     }};
@@ -176,7 +176,7 @@ macro_rules! daq_register_static {
         let name = stringify!($variable);
         let datatype = ($variable).get_type();
         let addr = &($variable) as *const _ as u64;
-        let mut c = RegistryCharacteristic::new(None, name.to_string(), datatype, $comment, datatype.get_min(), datatype.get_max(), $unit, 1, 1, addr);
+        let mut c = RegistryCharacteristic::new(None, name, datatype, $comment, datatype.get_min(), datatype.get_max(), $unit, 1, 1, addr);
         c.set_event($event);
         Xcp::get().get_registry().lock().add_characteristic(c).expect("Duplicate");
     }};

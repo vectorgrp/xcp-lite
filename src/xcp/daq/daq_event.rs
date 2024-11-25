@@ -17,17 +17,10 @@ impl Xcp {
             .get_registry()
             .lock()
             .add_measurement(RegistryMeasurement::new(
-                name.to_string(),
-                data_type,
-                x_dim,
-                y_dim,
-                event,
-                0, // byte_offset
-                0,
-                1.0, // factor
+                name, data_type, x_dim, y_dim, event, 0, // byte_offset
+                0, 1.0, // factor
                 0.0, // offset
-                comment,
-                "", // unit
+                comment, "", // unit
                 None,
             ))
             .is_err()
@@ -156,7 +149,7 @@ impl<const N: usize> DaqEvent<N> {
             .get_registry()
             .lock()
             .add_measurement(RegistryMeasurement::new(
-                name.to_string(),
+                name,
                 datatype,
                 x_dim,
                 y_dim,
@@ -188,7 +181,7 @@ impl<const N: usize> DaqEvent<N> {
             .get_registry()
             .lock()
             .add_measurement(RegistryMeasurement::new(
-                name.to_string(),
+                name,
                 datatype,
                 x_dim,
                 y_dim,
@@ -216,18 +209,7 @@ impl<const N: usize> DaqEvent<N> {
             .get_registry()
             .lock()
             .add_measurement(RegistryMeasurement::new(
-                name.to_string(),
-                datatype,
-                x_dim,
-                y_dim,
-                self.event,
-                0i16,
-                ptr as u64,
-                factor,
-                offset,
-                comment,
-                unit,
-                None,
+                name, datatype, x_dim, y_dim, self.event, 0i16, ptr as u64, factor, offset, comment, unit, None,
             ))
             .is_err()
         {
