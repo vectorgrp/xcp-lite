@@ -123,10 +123,9 @@ pub use reg::RegistryDataTypeTrait;
 pub use reg::RegistryMeasurement;
 
 // Submodule daemon
-#[cfg(unix)]
 mod daemon;
 #[cfg(unix)]
-pub use daemon::{Daemon, DaemonizationError, Process, DaemonConfig};
+pub use daemon::unix::*;
 
 //----------------------------------------------------------------------------------------------
 // Manually register a static measurement and calibration variables

@@ -1,10 +1,12 @@
 use xcp::*;
 use xcp_type_description::prelude::*;
 
-use libc::{SIGHUP, SIGINT, SIGTERM};
 use log::info;
 use serde::{Deserialize, Serialize};
-use signal_hook::iterator::Signals;
+use signal_hook::{
+    consts::{SIGHUP, SIGINT, SIGTERM},
+    iterator::Signals,
+};
 use thiserror::Error;
 
 use std::{sync::Arc, thread, time::Duration};
@@ -40,12 +42,12 @@ enum XcpProcessError {
 
 struct XcpProcess {
     xcp: Option<Arc<&'static Xcp>>,
-    config: DaemonConfig,
+    cfg: ProcessConfig,
 }
 
 impl XcpProcess {
-    fn new(config: DaemonConfig) -> Self {
-        XcpProcess { xcp: None, config: config }
+    fn new(config: ProcessConfig) -> Self {
+        XcpProcess { xcp: None, cfg: config }
     }
 
     fn get_xcp(&self) -> Result<&Xcp, XcpProcessError> {
@@ -57,12 +59,24 @@ impl Process for XcpProcess {
     type Error = XcpProcessError;
 
     fn init(&mut self) -> Result<(), Self::Error> {
-        let xcp = XcpBuilder::new("xcp_daemon")
+        let host = self.config().sections().get_value("Server Config", "host").unwrap();
+        let port = self.config().sections().get_value("Server Config", "port").unwrap();
+
+        // Parse the host string into an array of integers
+        let host: Vec<u8> = host.split('.').map(|s| s.parse().expect("Invalid IP address")).collect();
+        let host: [u8; 4] = [host[0], host[1], host[2], host[3]];
+
+        // Parse the port string into an integer
+        let port: u16 = port.parse().expect("Invalid port number");
+
+        let xcp = XcpBuilder::new("xcpd")
             .set_log_level(XcpLogLevel::Info)
             .set_epk("EPK_")
-            .start_server(XcpTransportLayer::Udp, [172, 17, 247, 66], 5555)?;
+            .start_server(XcpTransportLayer::Udp, host, port)?;
 
         self.xcp = Some(Arc::new(xcp));
+
+        info!("XCP server initialized - {:?}:{}", host, port);
 
         Ok(())
     }
@@ -100,7 +114,8 @@ impl Process for XcpProcess {
                     }
                     SIGHUP => {
                         info!("Received SIGHUP signal");
-                        for section in self.config.sections() {
+                        for section in self.config().sections().iterate() {
+                            info!("Section: {}", section.name);
                             for item in section.items {
                                 info!("{} = {}", item.0, item.1);
                             }
@@ -144,17 +159,18 @@ impl Process for XcpProcess {
         info!("XCP shutting down.");
         let xcp = self.get_xcp()?;
         xcp.stop_server();
-        std::fs::remove_file("xcp_daemon.a2l")?;
+        std::fs::remove_file("xcpd.a2l")?;
         Ok(())
+    }
+
+    fn config(&self) -> &ProcessConfig {
+        &self.cfg
     }
 }
 
 fn main() {
-    let cfg_path = "/etc/xcp_demo_daemon/xcp_demo_daemon.conf";
-    let config = DaemonConfig::new(cfg_path).unwrap();
-    let mut daemon = Daemon::new(XcpProcess::new(config), "XcpProcess");
-    match daemon.run() {
-        Ok(_) => info!("Daemon run successful"),
-        Err(e) => info!("Daemon run failed: {}", e),
-    }
+    let cfg = ProcessConfig::new("xcpd", "/var/run/xcpd.pid", "/etc/xcpd/xcpd.conf", "/", "/dev/null").expect("Failed to create process config");
+
+    let mut daemon = Daemon::new(XcpProcess::new(cfg));
+    daemon.run().expect("Failed to run daemon");
 }
