@@ -62,12 +62,8 @@ impl Process for XcpProcess {
         let host = self.config().sections().get_value("Server Config", "host").unwrap();
         let port = self.config().sections().get_value("Server Config", "port").unwrap();
 
-        // Parse the host string into an array of integers
-        let host: Vec<u8> = host.split('.').map(|s| s.parse().expect("Invalid IP address")).collect();
-        let host: [u8; 4] = [host[0], host[1], host[2], host[3]];
-
-        // Parse the port string into an integer
-        let port: u16 = port.parse().expect("Invalid port number");
+        let host: std::net::Ipv4Addr = host.parse().expect("Invalid ip addr, parse failed");
+        let port: u16 = port.parse().expect("Invalid port, parse failed");
 
         XcpBuilder::new("xcpd")
             .set_log_level(XcpLogLevel::Info)
