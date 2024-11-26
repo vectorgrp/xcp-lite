@@ -73,7 +73,7 @@ use xcp_type_description::prelude::*;
 
 struct StaticVars {
     test_u32: u32,
-    test_f64: f32,
+    test_f64: f64,
 }
 
 static STATIC_VARS: static_cell::StaticCell<StaticVars> = static_cell::StaticCell::new();
@@ -458,8 +458,6 @@ fn main() {
 
     // Mutable static variables (borrowed from a StaticCell<StaticVars>)
     let static_vars: &'static mut StaticVars = STATIC_VARS.init(StaticVars { test_u32: 0, test_f64: 0.0 });
-    static_vars.test_u32 = 1;
-    assert_eq!(static_vars.test_u32, 1);
     // Create associated event and register as characteristics with absolute addressing and associated XCP event
     let static_event = xcp.create_event("static_event");
     daq_register_static!(static_vars.test_u32, static_event, "Test static u32");

@@ -17,6 +17,15 @@ use std::{fmt::Debug, thread};
 use tokio::time::Duration;
 
 //-----------------------------------------------------------------------------
+// Static Variables
+struct StaticVars {
+    test_u32: u32,
+    test_f64: f64,
+}
+
+static STATIC_VARS: static_cell::StaticCell<StaticVars> = static_cell::StaticCell::new();
+
+//-----------------------------------------------------------------------------
 // Calibration Segment
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
@@ -79,6 +88,12 @@ fn task(cal_seg: CalSeg<CalPage1>) {
     // Create a DAQ event and register local variables for measurment
     let event = daq_create_event!("task");
 
+        // Create static calibration variables 
+        let static_vars: &'static mut StaticVars = STATIC_VARS.init(StaticVars { test_u32: 0x12345678, test_f64: 1.0 });
+        let static_event = Xcp::get().create_event("static_event");
+        daq_register_static!(static_vars.test_u32, static_event, "Test static u32");
+        daq_register_static!(static_vars.test_f64, static_event, "Test static f64");
+    
     daq_register!(changes, event);
     daq_register!(loop_counter, event);
     daq_register!(counter_max, event);
@@ -147,7 +162,7 @@ async fn test_single_thread() {
 
     // Initialize the XCP driver singleton
     let xcp = Xcp::get();
-
+    
     // Create a calibration segment
     let cal_seg = xcp.create_calseg("cal_seg", &CAL_PAR1);
     cal_seg.register_fields();
