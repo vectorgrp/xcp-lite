@@ -177,6 +177,10 @@ uint8_t* ApplXcpGetPointer(uint8_t addr_ext, uint32_t addr) {
 #ifdef _WIN32 // on WIN32 check that XCP address is in range, because addr is relativ to baseaddr
     assert((uint64_t)ApplXcpGetBaseAddr() + addr <= 0xffffffff); 
 #endif
+#ifdef _WIN64 // on WIN64 check that XCP address does not overflow
+    assert((uint64_t)ApplXcpGetBaseAddr() + addr >= (uint64_t)ApplXcpGetBaseAddr()); 
+#endif
+
 
     p = ApplXcpGetBaseAddr() + addr;
     return p;

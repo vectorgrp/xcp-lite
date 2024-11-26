@@ -142,18 +142,20 @@ impl GenerateA2l for RegistryMeasurement {
             let buffer_size = self.x_dim;
             assert!(self.x_dim > 0 && self.y_dim == 1, "Blob must have x_dim > 0 and y_dim == 1");
 
-            // BLOB (new in CANape 22 SP3: use a BLOB instead of a CHARACTERISTIC)
-            // write!(,writer,
-            //     r#"/begin BLOB {name} "{comment}" 0x{addr:X} {buffer_size} ECU_ADDRESS_EXTENSION {ext} {annotation} /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT {event} /end DAQ_EVENT /end IF_DATA /end BLOB"#
-            // )?;
+            // As BLOB string (new representation)
+            write!(
+                writer,
+                r#"/begin BLOB {name} "{comment}" 0x{addr:X} {buffer_size} ECU_ADDRESS_EXTENSION {ext} "#
+            )?;
 
-            // @@@@ ToDo: Intermediate solution
+
             // As ASCII string (old representation)
+/* 
             write!(
                 writer,
                 r#"/begin CHARACTERISTIC {name} "{comment}" ASCII 0x{addr:X} U8 0 NO_COMPU_METHOD 0 255 READ_ONLY NUMBER {buffer_size} ECU_ADDRESS_EXTENSION {ext} "#
             )?;
-
+*/
             let annotation_object_descr = self.annotation.as_ref().expect("Blob type must have annotation");
             write!(
                 writer,
@@ -163,7 +165,13 @@ impl GenerateA2l for RegistryMeasurement {
 /begin ANNOTATION ANNOTATION_LABEL "MaxBufferNeeded" ANNOTATION_ORIGIN "" /begin ANNOTATION_TEXT "{buffer_size}" /end ANNOTATION_TEXT /end ANNOTATION
  "#
             )?;
-        } else {
+        } 
+        
+        
+        
+        
+        
+        else {
             if (self.factor - 1.0).abs() > f64::EPSILON || self.offset != 0.0 || !self.unit.is_empty() {
                 writeln!(writer, r#"/begin COMPU_METHOD {name}.Conv "" LINEAR "%6.3" "{unit}" COEFFS_LINEAR {factor} {offset} /end COMPU_METHOD"#)?;
                 write!(
@@ -191,7 +199,8 @@ impl GenerateA2l for RegistryMeasurement {
         write!(writer, " /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT {event} /end DAQ_EVENT /end IF_DATA")?;
 
         if self.datatype == RegistryDataType::Blob {
-            writeln!(writer, r#" /end CHARACTERISTIC"#)?;
+            writeln!(writer, r#" /end BLOB"#)?;
+            // writeln!(writer, r#" /end CHARACTERISTIC"#)?;
         } else {
             writeln!(writer, r#" /end MEASUREMENT"#)?;
         };

@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<GfxStorageModel Hash="73-5B-99-32-0A-94-97-D6-CB-D8-43-F6-D1-8C-9B-1F" HashVersion="2.0.0.0">
+<GfxStorageModel Hash="D1-A3-01-58-05-D9-BB-AE-01-F5-B5-63-96-5F-F7-45" HashVersion="2.0.0.0">
   <BindingIdToViewId>
     <Item XmlSingularArray="true">
       <Key>a6c8870e-287e-4185-bb13-db8d17e33d55</Key>
@@ -30,13 +30,13 @@
             <DataDimensions />
           </DataDimensions>
           <CompositionType>0</CompositionType>
-          <ObjectType>Vector.PointCloud, Vector.DA.DynamicObject.21-BC-51-19-F0-37-DD-06-FB-56-C4-D7-C9-5B-97-CE, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null</ObjectType>
+          <ObjectType>Vector.PointCloud, Vector.DA.DynamicObject.32-14-3C-0F-1E-B6-35-59-D9-41-5F-04-03-17-99-EC, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null</ObjectType>
           <Properties>
             <Property XmlSingularArray="true">
               <Name>points</Name>
               <TemplateName>points</TemplateName>
               <HasChildren>true</HasChildren>
-              <TypeName>Vector.Point, Vector.DA.DynamicObject.21-BC-51-19-F0-37-DD-06-FB-56-C4-D7-C9-5B-97-CE</TypeName>
+              <TypeName>Vector.Point, Vector.DA.DynamicObject.32-14-3C-0F-1E-B6-35-59-D9-41-5F-04-03-17-99-EC</TypeName>
               <DataDimensions>
                 <IsTemplate>true</IsTemplate>
                 <DataDimensions>
@@ -441,7 +441,7 @@ X-Position eines Punktes mit kartesischen Koordinaten</Description>
                       <Parent>
                         <Name>points</Name>
                         <TemplateName>points</TemplateName>
-                        <TypeName>Vector.Point, Vector.DA.DynamicObject.21-BC-51-19-F0-37-DD-06-FB-56-C4-D7-C9-5B-97-CE</TypeName>
+                        <TypeName>Vector.Point, Vector.DA.DynamicObject.32-14-3C-0F-1E-B6-35-59-D9-41-5F-04-03-17-99-EC</TypeName>
                         <DataDimensions>
                           <IsTemplate>true</IsTemplate>
                           <DataDimensions>
@@ -496,7 +496,7 @@ Y-Position eines Punktes mit kartesischen Koordinaten</Description>
                       <Parent>
                         <Name>points</Name>
                         <TemplateName>points</TemplateName>
-                        <TypeName>Vector.Point, Vector.DA.DynamicObject.21-BC-51-19-F0-37-DD-06-FB-56-C4-D7-C9-5B-97-CE</TypeName>
+                        <TypeName>Vector.Point, Vector.DA.DynamicObject.32-14-3C-0F-1E-B6-35-59-D9-41-5F-04-03-17-99-EC</TypeName>
                         <DataDimensions>
                           <IsTemplate>true</IsTemplate>
                           <DataDimensions>
@@ -551,7 +551,7 @@ Z-Position eines Punktes mit kartesischen Koordinaten</Description>
                       <Parent>
                         <Name>points</Name>
                         <TemplateName>points</TemplateName>
-                        <TypeName>Vector.Point, Vector.DA.DynamicObject.21-BC-51-19-F0-37-DD-06-FB-56-C4-D7-C9-5B-97-CE</TypeName>
+                        <TypeName>Vector.Point, Vector.DA.DynamicObject.32-14-3C-0F-1E-B6-35-59-D9-41-5F-04-03-17-99-EC</TypeName>
                         <DataDimensions>
                           <IsTemplate>true</IsTemplate>
                           <DataDimensions>
@@ -582,8 +582,8 @@ Z-Position eines Punktes mit kartesischen Koordinaten</Description>
                 </Properties>
               </PropertyCollection>
               <PropertyCollection Key="QuickInformation">
-                <Name>QuickInformation</Name>
-                <TypeName>Vector.DA.Gfx.QuickInformation.QuickInfo, Vector.DA.Gfx</TypeName>
+                <Name>QuickInfoDataList</Name>
+                <TypeName>Vector.DA.Gfx.QuickInformation.QuickInfoData, Vector.DA.Gfx</TypeName>
                 <Settings>
                   <DisplayName>Schnellinformationen</DisplayName>
                   <EditorId>QuickInfoEditor</EditorId>
@@ -594,11 +594,128 @@ Z-Position eines Punktes mit kartesischen Koordinaten</Description>
                   <TypeConverter>System.ComponentModel.ExpandableObjectConverter, System</TypeConverter>
                   <CustomAttributes />
                 </Settings>
-                <TypeDisplayName>QuickInformation</TypeDisplayName>
+                <TypeDisplayName>QuickInfoDataList</TypeDisplayName>
                 <Entity>Simple</Entity>
                 <IsSimpleCollection>false</IsSimpleCollection>
                 <Properties>
-                  <PropertyCollection Key="QuickInfoDataList" XmlSingularArray="true">
+                  <Property IsGfx="true" Key="DisplayObjectName">
+                    <Name>DisplayObjectName</Name>
+                    <TypeName>System.Boolean, mscorlib</TypeName>
+                    <Settings>
+                      <DisplayName>DisplayObjectName</DisplayName>
+                      <EditorId>EmptyTemplate</EditorId>
+                      <Browsable>false</Browsable>
+                      <ReadOnly>false</ReadOnly>
+                      <CustomAttributes />
+                    </Settings>
+                    <TypeDisplayName>Boolean</TypeDisplayName>
+                    <IsConstant>true</IsConstant>
+                    <IsAssignable>true</IsAssignable>
+                    <Value>true</Value>
+                    <PhysicalQuantity />
+                    <PhysicalQuantityConversion>
+                      <Factor>1</Factor>
+                      <Offset>0</Offset>
+                    </PhysicalQuantityConversion>
+                  </Property>
+                  <Property IsGfx="true" Key="Format">
+                    <Name>Format</Name>
+                    <TypeName>System.String, mscorlib</TypeName>
+                    <Settings>
+                      <DisplayName>Format</DisplayName>
+                      <EditorId>FormatEditor</EditorId>
+                      <Browsable>false</Browsable>
+                      <ReadOnly>false</ReadOnly>
+                      <CustomAttributes />
+                    </Settings>
+                    <TypeDisplayName>String</TypeDisplayName>
+                    <IsConstant>true</IsConstant>
+                    <IsAssignable>true</IsAssignable>
+                    <Value />
+                    <PhysicalQuantity />
+                    <PhysicalQuantityConversion>
+                      <Factor>1</Factor>
+                      <Offset>0</Offset>
+                    </PhysicalQuantityConversion>
+                  </Property>
+                  <Property IsGfx="true" Key="InfoType">
+                    <Name>InfoType</Name>
+                    <TypeName>Vector.DA.Gfx.QuickInformation.FormatTemplate, Vector.DA.Gfx</TypeName>
+                    <Settings>
+                      <DisplayName>InfoType</DisplayName>
+                      <EditorId>EnumEditor</EditorId>
+                      <Browsable>false</Browsable>
+                      <ReadOnly>false</ReadOnly>
+                      <CustomAttributes />
+                    </Settings>
+                    <TypeDisplayName>FormatTemplate</TypeDisplayName>
+                    <IsConstant>true</IsConstant>
+                    <IsAssignable>true</IsAssignable>
+                    <Value>Custom</Value>
+                    <PhysicalQuantity />
+                    <PhysicalQuantityConversion>
+                      <Factor>1</Factor>
+                      <Offset>0</Offset>
+                    </PhysicalQuantityConversion>
+                  </Property>
+                  <PropertyCollection Key="Values">
+                    <Name>Values</Name>
+                    <TypeName>System.Collections.Generic.Dictionary`2[[System.String, mscorlib],[System.Double, mscorlib]], mscorlib</TypeName>
+                    <Settings>
+                      <DisplayName>Values</DisplayName>
+                      <Browsable>false</Browsable>
+                      <ReadOnly>false</ReadOnly>
+                      <TypeConverter>System.ComponentModel.ExpandableObjectConverter, System</TypeConverter>
+                      <CustomAttributes />
+                    </Settings>
+                    <TypeDisplayName>0, Culture=neutral, PublicKeyToken=b77a5c561934e089]]</TypeDisplayName>
+                    <Entity>Collection</Entity>
+                    <IsSimpleCollection>false</IsSimpleCollection>
+                    <ItemType>System.Collections.Generic.KeyValuePair`2[[System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089],[System.Double, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089]], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</ItemType>
+                    <Properties>
+                      <Property IsGfx="true" Key="Key">
+                        <Name>Key</Name>
+                        <TypeName>System.String, mscorlib</TypeName>
+                        <Settings>
+                          <DisplayName>Key</DisplayName>
+                          <EditorId>TextEditor</EditorId>
+                          <Browsable>true</Browsable>
+                          <ReadOnly>true</ReadOnly>
+                          <CustomAttributes />
+                        </Settings>
+                        <TypeDisplayName>String</TypeDisplayName>
+                        <IsConstant>true</IsConstant>
+                        <IsAssignable>true</IsAssignable>
+                        <Value />
+                        <PhysicalQuantity />
+                        <PhysicalQuantityConversion>
+                          <Factor>1</Factor>
+                          <Offset>0</Offset>
+                        </PhysicalQuantityConversion>
+                      </Property>
+                      <Property IsGfx="true" Key="Value">
+                        <Name>Value</Name>
+                        <TypeName>System.Double, mscorlib</TypeName>
+                        <Settings>
+                          <DisplayName>Value</DisplayName>
+                          <EditorId>NumericDecimalEditor</EditorId>
+                          <Browsable>true</Browsable>
+                          <ReadOnly>true</ReadOnly>
+                          <CustomAttributes />
+                        </Settings>
+                        <TypeDisplayName>Double</TypeDisplayName>
+                        <IsConstant>true</IsConstant>
+                        <IsAssignable>true</IsAssignable>
+                        <Value>0</Value>
+                        <PhysicalQuantity />
+                        <PhysicalQuantityConversion>
+                          <Factor>1</Factor>
+                          <Offset>0</Offset>
+                        </PhysicalQuantityConversion>
+                      </Property>
+                    </Properties>
+                  </PropertyCollection>
+                  <PropertyCollection Key="QuickInfoDataList">
                     <Name>QuickInfoDataList</Name>
                     <TypeName>System.Collections.Generic.List`1[[Vector.DA.Gfx.QuickInformation.QuickInfoData, Vector.DA.Gfx]], mscorlib</TypeName>
                     <Settings>
@@ -712,26 +829,6 @@ Z-Position eines Punktes mit kartesischen Koordinaten</Description>
                       </Property>
                     </Properties>
                   </PropertyCollection>
-                  <Property IsGfx="true" Key="DisplayObjectName" XmlSingularArray="true">
-                    <Name>DisplayObjectName</Name>
-                    <TypeName>System.Boolean, mscorlib</TypeName>
-                    <Settings>
-                      <DisplayName>DisplayObjectName</DisplayName>
-                      <EditorId>EmptyTemplate</EditorId>
-                      <Browsable>false</Browsable>
-                      <ReadOnly>false</ReadOnly>
-                      <CustomAttributes />
-                    </Settings>
-                    <TypeDisplayName>Boolean</TypeDisplayName>
-                    <IsConstant>true</IsConstant>
-                    <IsAssignable>true</IsAssignable>
-                    <Value>true</Value>
-                    <PhysicalQuantity />
-                    <PhysicalQuantityConversion>
-                      <Factor>1</Factor>
-                      <Offset>0</Offset>
-                    </PhysicalQuantityConversion>
-                  </Property>
                 </Properties>
                 <QuickInfoDataList>
                   <item XmlSingularArray="true">
@@ -751,69 +848,6 @@ Z-Position eines Punktes mit kartesischen Koordinaten</Description>
                     <Entity>Simple</Entity>
                     <IsSimpleCollection>false</IsSimpleCollection>
                     <Properties>
-                      <Property IsGfx="true" Key="DisplayObjectName">
-                        <Name>DisplayObjectName</Name>
-                        <TypeName>System.Boolean, mscorlib</TypeName>
-                        <Settings>
-                          <DisplayName>Schnellinformationen</DisplayName>
-                          <EditorId>QuickInfoEditor</EditorId>
-                          <Category>Anzeige</Category>
-                          <Description>Erweitert die formatierte Datenvorschau.</Description>
-                          <Browsable>false</Browsable>
-                          <ReadOnly>true</ReadOnly>
-                          <TypeConverter>System.ComponentModel.ExpandableObjectConverter, System</TypeConverter>
-                          <CustomAttributes />
-                        </Settings>
-                        <TypeDisplayName>Boolean</TypeDisplayName>
-                        <IsConstant>true</IsConstant>
-                        <IsAssignable>true</IsAssignable>
-                        <Value>true</Value>
-                        <PhysicalQuantity />
-                        <PhysicalQuantityConversion>
-                          <Factor>1</Factor>
-                          <Offset>0</Offset>
-                        </PhysicalQuantityConversion>
-                      </Property>
-                      <Property IsGfx="true" Key="Format">
-                        <Name>Format</Name>
-                        <TypeName>System.String, mscorlib</TypeName>
-                        <Settings>
-                          <DisplayName>Format</DisplayName>
-                          <EditorId>FormatEditor</EditorId>
-                          <Browsable>false</Browsable>
-                          <ReadOnly>false</ReadOnly>
-                          <CustomAttributes />
-                        </Settings>
-                        <TypeDisplayName>String</TypeDisplayName>
-                        <IsConstant>true</IsConstant>
-                        <IsAssignable>true</IsAssignable>
-                        <Value>Welt: X:{0}m, Y:{1}m, Z:{2}m</Value>
-                        <PhysicalQuantity />
-                        <PhysicalQuantityConversion>
-                          <Factor>1</Factor>
-                          <Offset>0</Offset>
-                        </PhysicalQuantityConversion>
-                      </Property>
-                      <Property IsGfx="true" Key="InfoType">
-                        <Name>InfoType</Name>
-                        <TypeName>Vector.DA.Gfx.QuickInformation.FormatTemplate, Vector.DA.Gfx</TypeName>
-                        <Settings>
-                          <DisplayName>InfoType</DisplayName>
-                          <EditorId>EnumEditor</EditorId>
-                          <Browsable>false</Browsable>
-                          <ReadOnly>false</ReadOnly>
-                          <CustomAttributes />
-                        </Settings>
-                        <TypeDisplayName>FormatTemplate</TypeDisplayName>
-                        <IsConstant>true</IsConstant>
-                        <IsAssignable>true</IsAssignable>
-                        <Value>World</Value>
-                        <PhysicalQuantity />
-                        <PhysicalQuantityConversion>
-                          <Factor>1</Factor>
-                          <Offset>0</Offset>
-                        </PhysicalQuantityConversion>
-                      </Property>
                       <PropertyCollection Key="Values" XmlSingularArray="true">
                         <Name>Values</Name>
                         <TypeName>System.Collections.Generic.Dictionary`2[[System.String, mscorlib],[System.Double, mscorlib]], mscorlib</TypeName>
@@ -900,6 +934,69 @@ Z-Position eines Punktes mit kartesischen Koordinaten</Description>
                           </Property>
                         </Properties>
                       </PropertyCollection>
+                      <Property IsGfx="true" Key="DisplayObjectName">
+                        <Name>DisplayObjectName</Name>
+                        <TypeName>System.Boolean, mscorlib</TypeName>
+                        <Settings>
+                          <DisplayName>Schnellinformationen</DisplayName>
+                          <EditorId>QuickInfoEditor</EditorId>
+                          <Category>Anzeige</Category>
+                          <Description>Erweitert die formatierte Datenvorschau.</Description>
+                          <Browsable>false</Browsable>
+                          <ReadOnly>true</ReadOnly>
+                          <TypeConverter>System.ComponentModel.ExpandableObjectConverter, System</TypeConverter>
+                          <CustomAttributes />
+                        </Settings>
+                        <TypeDisplayName>Boolean</TypeDisplayName>
+                        <IsConstant>true</IsConstant>
+                        <IsAssignable>true</IsAssignable>
+                        <Value>true</Value>
+                        <PhysicalQuantity />
+                        <PhysicalQuantityConversion>
+                          <Factor>1</Factor>
+                          <Offset>0</Offset>
+                        </PhysicalQuantityConversion>
+                      </Property>
+                      <Property IsGfx="true" Key="Format">
+                        <Name>Format</Name>
+                        <TypeName>System.String, mscorlib</TypeName>
+                        <Settings>
+                          <DisplayName>Format</DisplayName>
+                          <EditorId>FormatEditor</EditorId>
+                          <Browsable>false</Browsable>
+                          <ReadOnly>false</ReadOnly>
+                          <CustomAttributes />
+                        </Settings>
+                        <TypeDisplayName>String</TypeDisplayName>
+                        <IsConstant>true</IsConstant>
+                        <IsAssignable>true</IsAssignable>
+                        <Value>Welt: X:{0}m, Y:{1}m, Z:{2}m</Value>
+                        <PhysicalQuantity />
+                        <PhysicalQuantityConversion>
+                          <Factor>1</Factor>
+                          <Offset>0</Offset>
+                        </PhysicalQuantityConversion>
+                      </Property>
+                      <Property IsGfx="true" Key="InfoType">
+                        <Name>InfoType</Name>
+                        <TypeName>Vector.DA.Gfx.QuickInformation.FormatTemplate, Vector.DA.Gfx</TypeName>
+                        <Settings>
+                          <DisplayName>InfoType</DisplayName>
+                          <EditorId>EnumEditor</EditorId>
+                          <Browsable>false</Browsable>
+                          <ReadOnly>false</ReadOnly>
+                          <CustomAttributes />
+                        </Settings>
+                        <TypeDisplayName>FormatTemplate</TypeDisplayName>
+                        <IsConstant>true</IsConstant>
+                        <IsAssignable>true</IsAssignable>
+                        <Value>World</Value>
+                        <PhysicalQuantity />
+                        <PhysicalQuantityConversion>
+                          <Factor>1</Factor>
+                          <Offset>0</Offset>
+                        </PhysicalQuantityConversion>
+                      </Property>
                     </Properties>
                   </item>
                 </QuickInfoDataList>
@@ -908,7 +1005,7 @@ Z-Position eines Punktes mit kartesischen Koordinaten</Description>
                 <Name>SpacialRotation</Name>
                 <TypeName>Vector.DA.Gfx.EulerRotation, Vector.DA.Gfx</TypeName>
                 <Settings>
-                  <DisplayName>Räumliche Drehung</DisplayName>
+                  <DisplayName>Quaternion</DisplayName>
                   <EditorId>SpacialRotationsEditor</EditorId>
                   <Category>Basis</Category>
                   <Description>Beschreibt die Drehung eines Objekts durch Euler-Winkel und eine gegebene Drehreihenfolge.</Description>

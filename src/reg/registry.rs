@@ -497,17 +497,18 @@ pub struct RegistryCharacteristic {
     // Type
     datatype: RegistryDataType,
     x_dim: usize,
+    y_dim: usize,
+
     // Addressing
     calseg_name: Option<&'static str>, // Name of the calibration segment, if none absolute addressing
     addr_offset: u64,                  // Offset relative to calibration segment (XCP_ADDR_EXT_APP) or absolute address (XCP_ADDR_EXT_ABS) if calseg_name is None
     event: Option<XcpEvent>,           // The event associated with the calibration parameter to enable event triggered measurement
+    
     // Metadata
     comment: &'static str,
     min: f64,
     max: f64,
     unit: &'static str,
-
-    y_dim: usize,
 }
 
 #[allow(clippy::too_many_arguments)]

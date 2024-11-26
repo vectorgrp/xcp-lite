@@ -53,7 +53,7 @@ const CAL_PAGE: CalPage1 = CalPage1 {
 
 // A task executed in multiple threads sharing a calibration parameter segment
 fn demo_task(id: u32, cal_seg: CalSeg<CalPage1>) {
-    // Create a thread local event instance 
+    // Create a thread local event instance
     // The capacity of the event capture buffer is 16 bytes
     let mut event = daq_create_event_tli!("demo_task", 16);
     println!("Task {id} started");
@@ -81,7 +81,7 @@ fn demo_task(id: u32, cal_seg: CalSeg<CalPage1>) {
         daq_capture_tli!(sine, event, "sine: f64", "Volt", 1.0, 0.0);
 
         // Trigger the measurement event
-        // Take a event timestamp send the captured data 
+        // Take a event timestamp send the captured data
         event.trigger();
 
         // Synchronize calibration operations
@@ -115,7 +115,7 @@ fn main() -> Result<()> {
     calseg.register_fields(); // Register all struct fields (with meta data from annotations) in the A2L registry
 
     // Start multiple instances of the demo task
-    // Each instance will create its own measurement variable and event instances 
+    // Each instance will create its own measurement variable and event instances
     // The calibration segment is shared between the tasks (comparable to an Arc<Mutex>>)
     let mut t = Vec::new();
     for i in 0..=9 {
