@@ -9,13 +9,7 @@ pub struct ProcessConfig {
 }
 
 impl ProcessConfig {
-    pub fn new(
-        name: &'static str,
-        pid_fpath: &'static str,
-        cfg_path: &'static str,
-        cwd: &'static str,
-        stdio: &'static str,
-    ) -> Result<Self, std::io::Error> {
+    pub fn new(name: &'static str, pid_fpath: &'static str, cfg_path: &'static str, cwd: &'static str, stdio: &'static str) -> Result<Self, std::io::Error> {
         let sections = Sections::from_file(cfg_path)?;
 
         Ok(Self {
@@ -111,6 +105,7 @@ pub struct Section<'a> {
     pub items: &'a HashMap<String, String>,
 }
 
+#[allow(dead_code)]
 pub struct SectionItemIter<'a> {
     inner: std::collections::hash_map::Iter<'a, String, String>,
 }

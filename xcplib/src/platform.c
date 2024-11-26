@@ -689,7 +689,7 @@ uint64_t clockGetLast() {
 #if defined(_LINUX) // Linux or macOS
 
 #if !defined(OPTION_CLOCK_EPOCH_PTP) && !defined(OPTION_CLOCK_EPOCH_ARB)
-    #error "Please define OPTION_CLOCK_EPOCH_ARB or OPTION_CLOCK_EPOCH_PTP
+    #error "Please define OPTION_CLOCK_EPOCH_ARB or OPTION_CLOCK_EPOCH_PTP"
 #endif
 
 /*

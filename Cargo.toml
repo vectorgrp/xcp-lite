@@ -39,6 +39,10 @@ name = "hello_xcp"
 path = "examples/hello_xcp/src/main.rs"
 
 [[example]]
+name = "xcp_daemon"
+path = "examples/xcp_daemon/src/main.rs"
+
+[[example]]
 name = "single_thread_demo"
 path = "examples/single_thread_demo/src/main.rs"
 

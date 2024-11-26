@@ -522,9 +522,6 @@ impl<'a> A2lWriter<'a> {
         self.write_a2l_measurements()?;
         self.write_a2l_characteristics()?;
         self.write_a2l_tail()?;
-
-        info!("Write A2L file {},{}", project_name, module_name);
-
         Ok(())
     }
 }

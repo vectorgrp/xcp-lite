@@ -9,7 +9,7 @@ use signal_hook::{
 };
 use thiserror::Error;
 
-use std::{sync::Arc, thread, time::Duration};
+use std::{thread, time::Duration};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
 struct CalPage1 {
@@ -32,8 +32,8 @@ const CAL_PAGE: CalPage1 = CalPage1 {
 enum XcpProcessError {
     #[error("An XCP error occurred: {0}")]
     XcpError(#[from] XcpError),
-    #[error("XCP instance not initialized")]
-    UninitializedError,
+    // #[error("XCP instance not initialized")]
+    // UninitializedError,
     #[error("General error: {0}")]
     GeneralError(String),
     #[error("IO error: {0}")]
@@ -41,18 +41,18 @@ enum XcpProcessError {
 }
 
 struct XcpProcess {
-    xcp: Option<Arc<&'static Xcp>>,
+    //xcp: Option<Arc<&'static Xcp>>,
     cfg: ProcessConfig,
 }
 
 impl XcpProcess {
     fn new(config: ProcessConfig) -> Self {
-        XcpProcess { xcp: None, cfg: config }
+        XcpProcess { /*xcp: None,*/ cfg: config }
     }
 
-    fn get_xcp(&self) -> Result<&Xcp, XcpProcessError> {
-        self.xcp.as_ref().map(|arc| **arc).ok_or(XcpProcessError::UninitializedError)
-    }
+    // fn get_xcp(&self) -> Result<&Xcp, XcpProcessError> {
+    //     self.xcp.as_ref().map(|arc| **arc).ok_or(XcpProcessError::UninitializedError)
+    // }
 }
 
 impl Process for XcpProcess {
@@ -69,12 +69,12 @@ impl Process for XcpProcess {
         // Parse the port string into an integer
         let port: u16 = port.parse().expect("Invalid port number");
 
-        let xcp = XcpBuilder::new("xcpd")
+        XcpBuilder::new("xcpd")
             .set_log_level(XcpLogLevel::Info)
             .set_epk("EPK_")
             .start_server(XcpTransportLayer::Udp, host, port)?;
 
-        self.xcp = Some(Arc::new(xcp));
+        //self.xcp = Some(Arc::new(xcp));
 
         info!("XCP server initialized - {:?}:{}", host, port);
 
@@ -84,7 +84,7 @@ impl Process for XcpProcess {
     fn run(&mut self) -> Result<(), Self::Error> {
         // Create a calibration segment with default values
         // and register the calibration parameters
-        let xcp = self.get_xcp()?;
+        let xcp = Xcp::get(); // self.get_xcp()?;
         let calseg = xcp.create_calseg("calseg", &CAL_PAGE);
         calseg.register_fields();
 
@@ -157,7 +157,7 @@ impl Process for XcpProcess {
 
     fn deinit(&mut self) -> Result<(), Self::Error> {
         info!("XCP shutting down.");
-        let xcp = self.get_xcp()?;
+        let xcp = Xcp::get(); //self.get_xcp()?;
         xcp.stop_server();
         std::fs::remove_file("xcpd.a2l")?;
         Ok(())
