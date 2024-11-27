@@ -5,21 +5,34 @@ pub struct ProcessConfig {
     name: &'static str,
     pid_fpath: &'static str,
     cwd: &'static str,
-    logdir: &'static str,
+    stdin: &'static str,
+    stdout: &'static str,
+    stderr: &'static str,
     log_level: LevelFilter,
     sections: Sections,
 }
 
 impl ProcessConfig {
-    pub fn new(name: &'static str, pid_fpath: &'static str, cfg_path: &'static str, workdir: &'static str, logdir: &'static str, log_level: LevelFilter) -> Result<Self, std::io::Error> {
+    pub fn new(
+        name: &'static str,
+        pid_fpath: &'static str,
+        cfg_path: &'static str,
+        workdir: &'static str,
+        stdin: &'static str,
+        stdout: &'static str,
+        stderr: &'static str,
+        log_level: LevelFilter,
+    ) -> Result<Self, std::io::Error> {
         let sections = Sections::from_file(cfg_path)?;
 
         Ok(Self {
-            name,
-            pid_fpath,
+            name: name,
+            pid_fpath: pid_fpath,
             cwd: workdir,
-            logdir,
-            log_level,
+            stdin: stdin,
+            stdout: stdout,
+            stderr: stderr,
+            log_level: log_level,
             sections,
         })
     }
@@ -36,8 +49,16 @@ impl ProcessConfig {
         self.cwd
     }
 
-    pub fn logdir(&self) -> &'static str {
-        self.logdir
+    pub fn stdin(&self) -> &'static str {
+        self.stdin
+    }
+
+    pub fn stdout(&self) -> &'static str {
+        self.stdout
+    }
+
+    pub fn stderr(&self) -> &'static str {
+        self.stderr
     }
 
     pub fn sections(&self) -> &Sections {
@@ -54,7 +75,9 @@ impl Default for ProcessConfig {
         Self {
             name: "xcpd",
             cwd: "/",
-            logdir: "/var/log/xcpd.log",
+            stdin: "/var/log/xcpd.log",
+            stdout: "/var/log/xcpd.log",
+            stderr: "/var/log/xcpd.log",
             pid_fpath: "/var/run/xcpd.pid",
             log_level: LevelFilter::Info,
             sections: Sections::default(),

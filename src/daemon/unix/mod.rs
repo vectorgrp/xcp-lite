@@ -15,22 +15,32 @@ use nix::{
     unistd::{self, fork, getpid, setsid, ForkResult, Pid},
 };
 
-use log::{error, info};
-use syslog::{Facility, Formatter3164};
-use std::{fs::File, io::Write, os::fd::AsRawFd, path::Path};
+use std::{fs::File, io::Write, os::fd::AsRawFd, path::Path, sync::Mutex};
+use syslog::{Facility, Formatter3164, Logger};
 
 pub struct Daemon<P: Process> {
     process: P,
     pid: Pid,
     sid: Pid,
+    syslog_logger: Mutex<Logger<syslog::LoggerBackend, Formatter3164>>,
 }
 
 impl<P: Process> Daemon<P> {
     pub fn new(process: P) -> Daemon<P> {
+        let process_name = process.config().name().to_string();
         Self {
-            process: process,
+            process,
             pid: Pid::from_raw(-1),
             sid: Pid::from_raw(-1),
+            syslog_logger: Mutex::new(
+                syslog::unix(Formatter3164 {
+                    facility: Facility::LOG_DAEMON,
+                    hostname: None,
+                    process: process_name,
+                    pid: 0,
+                })
+                .unwrap(),
+            ),
         }
     }
 
@@ -43,7 +53,7 @@ impl<P: Process> Daemon<P> {
                 Ok(())
             }
             Err(e) => {
-                error!("Failed to daemonize: {}", e);
+                self.log_error(&format!("Failed to daemonize: {}", e));
                 panic!("Failed to daemonize: {}", e);
             }
         }
@@ -62,7 +72,7 @@ impl<P: Process> Daemon<P> {
                 stat::umask(Mode::empty());
                 self.create_pid_file()?;
                 self.redirect_stdio()?;
-                info!("Process '{}' daemonized with PID: {}", self.process.config().name(), self.pid);
+                self.log_info(&format!("Process '{}' daemonized with PID: {}", self.process.config().name(), self.pid));
             }
         }
 
@@ -84,43 +94,56 @@ impl<P: Process> Daemon<P> {
     }
 
     fn redirect_stdio(&self) -> Result<(), DaemonizationError> {
-        let log_path = Path::new(self.process.config().logdir());
+        // Redirect stdin
+        let stdin_dst = open(Path::new(self.process.config().stdin()), OFlag::O_RDWR, Mode::empty())?;
+        unistd::dup2(stdin_dst, STDIN_FILENO)?;
+        unistd::close(stdin_dst)?;
 
-        // Create the log file if it does not exist
-        if !log_path.exists() {
-            File::create(log_path)?;
-        }
+        // Redirect stdout
+        let stdout_dst = open(Path::new(self.process.config().stdout()), OFlag::O_RDWR, Mode::empty())?;
+        unistd::dup2(stdout_dst, STDOUT_FILENO)?;
+        unistd::close(stdout_dst)?;
 
-        let dst = open(log_path, OFlag::O_RDWR, Mode::empty())?;
-
-        for src in &[STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO] {
-            unistd::dup2(dst, *src)?;
-        }
-
-        unistd::close(dst)?;
+        // Redirect stderr
+        let stderr_dst = open(Path::new(self.process.config().stderr()), OFlag::O_RDWR, Mode::empty())?;
+        unistd::dup2(stderr_dst, STDERR_FILENO)?;
+        unistd::close(stderr_dst)?;
 
         Ok(())
     }
 
-    fn setup_syslog(&self) -> Result<(), DaemonizationError> {
+    fn setup_syslog(&mut self) -> Result<(), DaemonizationError> {
+        // In the child we have the pid of the process so
+        // we reinitialize the logger with the pid
         let formatter = Formatter3164 {
             facility: Facility::LOG_DAEMON,
             hostname: None,
             process: self.process.config().name().to_string(),
-            pid: 0,
+            pid: self.pid.as_raw() as u32,
         };
 
         let logger = syslog::unix(formatter)?;
-        log::set_boxed_logger(Box::new(syslog::BasicLogger::new(logger)))?;
-        log::set_max_level(self.process.config().loglvl());
-
+        self.syslog_logger = Mutex::new(logger);
         Ok(())
+    }
+
+    pub fn log_info(&self, message: &str) {
+        self.syslog_logger.lock().unwrap().info(message).unwrap();
+    }
+
+    pub fn log_error(&self, message: &str) {
+        self.syslog_logger.lock().unwrap().err(message).unwrap();
+    }
+
+    pub fn log_warning(&self, message: &str) {
+        self.syslog_logger.lock().unwrap().warning(message).unwrap();
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use log::info;
     use thiserror::Error;
 
     #[derive(Error, Debug)]

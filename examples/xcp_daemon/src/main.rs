@@ -1,7 +1,7 @@
 use xcp::*;
 use xcp_type_description::prelude::*;
 
-use log::info;
+use log::{info, LevelFilter};
 use serde::{Deserialize, Serialize};
 use signal_hook::{
     consts::{SIGHUP, SIGINT, SIGTERM},
@@ -59,8 +59,7 @@ impl Process for XcpProcess {
     type Error = XcpProcessError;
 
     fn init(&mut self) -> Result<(), Self::Error> {
-        // env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(log::LevelFilter::Info).init();
-
+        env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(LevelFilter::Info).init();
 
         let host = self.config().sections().get_value("Server Config", "host").unwrap();
         let port = self.config().sections().get_value("Server Config", "port").unwrap();
@@ -178,7 +177,10 @@ fn main() {
         "/etc/xcpd/xcpd.conf",
         "/",
         "/var/log/xcpd.log",
-        log::LevelFilter::Debug)
+        "/var/log/xcpd.log",
+        "/var/log/xcpd.log",
+        log::LevelFilter::Debug,
+    )
     .expect("Failed to create process config");
 
     let mut daemon = Daemon::new(XcpProcess::new(cfg));
