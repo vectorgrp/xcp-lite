@@ -136,6 +136,7 @@ pub struct Section<'a> {
     pub items: &'a HashMap<String, String>,
 }
 
+#[allow(dead_code)]
 pub struct SectionItemIter<'a> {
     inner: std::collections::hash_map::Iter<'a, String, String>,
 }

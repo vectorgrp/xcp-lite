@@ -1,7 +1,7 @@
 use xcp::*;
 use xcp_type_description::prelude::*;
 
-use log::{info, LevelFilter};
+use log::info;
 use serde::{Deserialize, Serialize};
 use signal_hook::{
     consts::{SIGHUP, SIGINT, SIGTERM},
@@ -9,7 +9,7 @@ use signal_hook::{
 };
 use thiserror::Error;
 
-use std::{sync::Arc, thread, time::Duration};
+use std::{thread, time::Duration};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
 struct CalPage1 {
@@ -32,8 +32,6 @@ const CAL_PAGE: CalPage1 = CalPage1 {
 enum XcpProcessError {
     #[error("An XCP error occurred: {0}")]
     XcpError(#[from] XcpError),
-    #[error("XCP instance not initialized")]
-    UninitializedError,
     #[error("General error: {0}")]
     GeneralError(String),
     #[error("IO error: {0}")]
@@ -41,17 +39,12 @@ enum XcpProcessError {
 }
 
 struct XcpProcess {
-    xcp: Option<Arc<&'static Xcp>>,
     cfg: ProcessConfig,
 }
 
 impl XcpProcess {
     fn new(config: ProcessConfig) -> Self {
-        XcpProcess { xcp: None, cfg: config }
-    }
-
-    fn get_xcp(&self) -> Result<&Xcp, XcpProcessError> {
-        self.xcp.as_ref().map(|arc| **arc).ok_or(XcpProcessError::UninitializedError)
+        XcpProcess { cfg: config }
     }
 }
 
@@ -59,24 +52,16 @@ impl Process for XcpProcess {
     type Error = XcpProcessError;
 
     fn init(&mut self) -> Result<(), Self::Error> {
-        env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(LevelFilter::Info).init();
-
         let host = self.config().sections().get_value("Server Config", "host").unwrap();
         let port = self.config().sections().get_value("Server Config", "port").unwrap();
 
-        // Parse the host string into an array of integers
-        let host: Vec<u8> = host.split('.').map(|s| s.parse().expect("Invalid IP address")).collect();
-        let host: [u8; 4] = [host[0], host[1], host[2], host[3]];
+        let host: std::net::Ipv4Addr = host.parse().expect("Invalid ip addr, parse failed");
+        let port: u16 = port.parse().expect("Invalid port, parse failed");
 
-        // Parse the port string into an integer
-        let port: u16 = port.parse().expect("Invalid port number");
-
-        let xcp = XcpBuilder::new(self.config().name())
+        XcpBuilder::new("xcpd")
             .set_log_level(XcpLogLevel::Info)
             .set_epk("EPK_")
             .start_server(XcpTransportLayer::Udp, host, port)?;
-
-        self.xcp = Some(Arc::new(xcp));
 
         info!("XCP server initialized - {:?}:{}", host, port);
 
@@ -86,7 +71,7 @@ impl Process for XcpProcess {
     fn run(&mut self) -> Result<(), Self::Error> {
         // Create a calibration segment with default values
         // and register the calibration parameters
-        let xcp = self.get_xcp()?;
+        let xcp = Xcp::get();
         let calseg = xcp.create_calseg("calseg", &CAL_PAGE);
         calseg.register_fields();
 
@@ -159,7 +144,7 @@ impl Process for XcpProcess {
 
     fn deinit(&mut self) -> Result<(), Self::Error> {
         info!("XCP shutting down.");
-        let xcp = self.get_xcp()?;
+        let xcp = Xcp::get(); //self.get_xcp()?;
         xcp.stop_server();
         std::fs::remove_file("xcpd.a2l")?;
         Ok(())
