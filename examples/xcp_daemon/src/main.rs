@@ -52,13 +52,15 @@ impl Process for XcpProcess {
     type Error = XcpProcessError;
 
     fn init(&mut self) -> Result<(), Self::Error> {
+        env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(self.config().loglvl()).init();
+
         let host = self.config().sections().get_value("Server Config", "host").unwrap();
         let port = self.config().sections().get_value("Server Config", "port").unwrap();
 
         let host: std::net::Ipv4Addr = host.parse().expect("Invalid ip addr, parse failed");
         let port: u16 = port.parse().expect("Invalid port, parse failed");
 
-        XcpBuilder::new("xcpd")
+        XcpBuilder::new(self.config().name())
             .set_log_level(XcpLogLevel::Info)
             .set_epk("EPK_")
             .start_server(XcpTransportLayer::Udp, host, port)?;
@@ -144,9 +146,9 @@ impl Process for XcpProcess {
 
     fn deinit(&mut self) -> Result<(), Self::Error> {
         info!("XCP shutting down.");
-        let xcp = Xcp::get(); //self.get_xcp()?;
+        let xcp = Xcp::get();
         xcp.stop_server();
-        std::fs::remove_file("xcpd.a2l")?;
+        std::fs::remove_file(format!("{}.a2l", self.config().name()))?;
         Ok(())
     }
 
@@ -164,7 +166,7 @@ fn main() {
         "/var/log/xcpd.log",
         "/var/log/xcpd.log",
         "/var/log/xcpd.log",
-        log::LevelFilter::Debug,
+        log::LevelFilter::Info,
     )
     .expect("Failed to create process config");
 
