@@ -88,12 +88,12 @@ fn task(cal_seg: CalSeg<CalPage1>) {
     // Create a DAQ event and register local variables for measurment
     let event = daq_create_event!("task");
 
-        // Create static calibration variables 
-        let static_vars: &'static mut StaticVars = STATIC_VARS.init(StaticVars { test_u32: 0x12345678, test_f64: 1.0 });
-        let static_event = Xcp::get().create_event("static_event");
-        daq_register_static!(static_vars.test_u32, static_event, "Test static u32");
-        daq_register_static!(static_vars.test_f64, static_event, "Test static f64");
-    
+    // Create static calibration variables
+    let static_vars: &'static mut StaticVars = STATIC_VARS.init(StaticVars { test_u32: 0x12345678, test_f64: 1.0 });
+    let static_event = Xcp::get().create_event("static_event");
+    daq_register_static!(static_vars.test_u32, static_event, "Test static u32");
+    daq_register_static!(static_vars.test_f64, static_event, "Test static f64");
+
     daq_register!(changes, event);
     daq_register!(loop_counter, event);
     daq_register!(counter_max, event);
@@ -162,7 +162,7 @@ async fn test_single_thread() {
 
     // Initialize the XCP driver singleton
     let xcp = Xcp::get();
-    
+
     // Create a calibration segment
     let cal_seg = xcp.create_calseg("cal_seg", &CAL_PAR1);
     cal_seg.register_fields();

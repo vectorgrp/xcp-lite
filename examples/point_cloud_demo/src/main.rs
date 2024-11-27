@@ -22,7 +22,7 @@ use xcp_type_description::prelude::*;
 
 const BIND_ADDR: [u8; 4] = [127, 0, 0, 1];
 
-const MAX_POINT_COUNT: usize = 20;
+const MAX_POINT_COUNT: usize = 32;
 const AMPL: f64 = 10.0;
 const PERIOD: f64 = 10.0;
 
@@ -135,7 +135,7 @@ fn main() -> Result<()> {
 
     let mut point_cloud = create_point_cloud(&params);
 
-    let mut event_point_cloud = daq_create_event!("point_cloud", MAX_POINT_COUNT * 12 + 8);
+    let mut event_point_cloud = daq_create_event!("point_cloud", MAX_POINT_COUNT * 12 + 8, 10000000u32);
 
     info!("Created point cloud: MAX_POINT_COUNT = {}, size = {} bytes", MAX_POINT_COUNT, MAX_POINT_COUNT * 12 + 8);
 

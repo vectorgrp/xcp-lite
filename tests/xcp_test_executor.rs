@@ -496,7 +496,6 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
             // But the queue of the client may still contain data or the control channel may need some time
             tokio::time::sleep(Duration::from_millis(500)).await;
 
-
             // Test signed
             debug!("Create calibration object CalPage1.test_i16");
             let test_i32 = xcp_client
@@ -514,15 +513,15 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
 
             // Test static
             debug!("Create calibration object static_vars.test_u32");
-            let test_u32 = xcp_client
-                .create_calibration_object("static_vars.test_u32")
-                .await;
+            let test_u32 = xcp_client.create_calibration_object("static_vars.test_u32").await;
             if test_u32.is_ok() {
                 let test_u32 = test_u32.unwrap();
                 let v = xcp_client.get_value_u64(test_u32);
                 info!("static_vars.test_u32 = {:X}", v);
-                assert_eq!(v,0x12345678);
-            } else { warn!("static_vars.test_u32 not found!");}
+                assert_eq!(v, 0x12345678);
+            } else {
+                warn!("static_vars.test_u32 not found!");
+            }
 
             // Check page switching
             // Check page is ram
