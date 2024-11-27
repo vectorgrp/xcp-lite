@@ -15,3 +15,5 @@ cp ./cfg/xcpd.conf /etc/xcpd && echo "Copied config file to /etc/xcpd" || { echo
 cp ../../target/debug/xcp_daemon /usr/bin && echo "Copied binary to /usr/bin" || { echo "Failed to copy binary"; exit 1; }
 
 systemctl daemon-reload && echo "Reloaded daemons" || { echo "Failed to reload daemons"; exit 1; }
+
+systemctl start xcpd && echo "Started xcpd" || { echo "Failed to start xcpd"; exit 1; }
