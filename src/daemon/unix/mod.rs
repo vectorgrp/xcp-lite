@@ -70,7 +70,7 @@ impl<P: Process> Daemon<P> {
     }
 
     fn set_cwd(&mut self) -> Result<(), DaemonizationError> {
-        unistd::chdir(Path::new(self.process.config().cwd()))?;
+        unistd::chdir(Path::new(self.process.config().workdir()))?;
         Ok(())
     }
 
@@ -84,7 +84,14 @@ impl<P: Process> Daemon<P> {
     }
 
     fn redirect_stdio(&self) -> Result<(), DaemonizationError> {
-        let dst = open(Path::new(self.process.config().stdio()), OFlag::O_RDWR, Mode::empty())?;
+        let log_path = Path::new(self.process.config().logdir());
+
+        // Create the log file if it does not exist
+        if !log_path.exists() {
+            File::create(log_path)?;
+        }
+
+        let dst = open(log_path, OFlag::O_RDWR, Mode::empty())?;
 
         for src in &[STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO] {
             unistd::dup2(dst, *src)?;
@@ -92,7 +99,7 @@ impl<P: Process> Daemon<P> {
 
         unistd::close(dst)?;
 
-        return Ok(());
+        Ok(())
     }
 
     fn setup_syslog(&self) -> Result<(), DaemonizationError> {
@@ -105,7 +112,7 @@ impl<P: Process> Daemon<P> {
 
         let logger = syslog::unix(formatter)?;
         log::set_boxed_logger(Box::new(syslog::BasicLogger::new(logger)))?;
-        log::set_max_level(log::LevelFilter::Info);
+        log::set_max_level(self.process.config().loglvl());
 
         Ok(())
     }

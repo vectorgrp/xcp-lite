@@ -1,28 +1,25 @@
+use log::LevelFilter;
 use std::collections::HashMap;
 
 pub struct ProcessConfig {
     name: &'static str,
     pid_fpath: &'static str,
     cwd: &'static str,
-    stdio: &'static str,
+    logdir: &'static str,
+    log_level: LevelFilter,
     sections: Sections,
 }
 
 impl ProcessConfig {
-    pub fn new(
-        name: &'static str,
-        pid_fpath: &'static str,
-        cfg_path: &'static str,
-        cwd: &'static str,
-        stdio: &'static str,
-    ) -> Result<Self, std::io::Error> {
+    pub fn new(name: &'static str, pid_fpath: &'static str, cfg_path: &'static str, workdir: &'static str, logdir: &'static str, log_level: LevelFilter) -> Result<Self, std::io::Error> {
         let sections = Sections::from_file(cfg_path)?;
 
         Ok(Self {
             name,
             pid_fpath,
-            cwd,
-            stdio,
+            cwd: workdir,
+            logdir,
+            log_level,
             sections,
         })
     }
@@ -35,16 +32,20 @@ impl ProcessConfig {
         self.pid_fpath
     }
 
-    pub fn cwd(&self) -> &'static str {
+    pub fn workdir(&self) -> &'static str {
         self.cwd
     }
 
-    pub fn stdio(&self) -> &'static str {
-        self.stdio
+    pub fn logdir(&self) -> &'static str {
+        self.logdir
     }
 
     pub fn sections(&self) -> &Sections {
         &self.sections
+    }
+
+    pub fn loglvl(&self) -> LevelFilter {
+        self.log_level
     }
 }
 
@@ -53,8 +54,9 @@ impl Default for ProcessConfig {
         Self {
             name: "xcpd",
             cwd: "/",
-            stdio: "/dev/null",
+            logdir: "/var/log/xcpd.log",
             pid_fpath: "/var/run/xcpd.pid",
+            log_level: LevelFilter::Info,
             sections: Sections::default(),
         }
     }

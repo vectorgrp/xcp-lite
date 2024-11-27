@@ -59,6 +59,9 @@ impl Process for XcpProcess {
     type Error = XcpProcessError;
 
     fn init(&mut self) -> Result<(), Self::Error> {
+        // env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(log::LevelFilter::Info).init();
+
+
         let host = self.config().sections().get_value("Server Config", "host").unwrap();
         let port = self.config().sections().get_value("Server Config", "port").unwrap();
 
@@ -69,7 +72,7 @@ impl Process for XcpProcess {
         // Parse the port string into an integer
         let port: u16 = port.parse().expect("Invalid port number");
 
-        let xcp = XcpBuilder::new("xcpd")
+        let xcp = XcpBuilder::new(self.config().name())
             .set_log_level(XcpLogLevel::Info)
             .set_epk("EPK_")
             .start_server(XcpTransportLayer::Udp, host, port)?;
@@ -169,7 +172,14 @@ impl Process for XcpProcess {
 }
 
 fn main() {
-    let cfg = ProcessConfig::new("xcpd", "/var/run/xcpd.pid", "/etc/xcpd/xcpd.conf", "/", "/dev/null").expect("Failed to create process config");
+    let cfg = ProcessConfig::new(
+        "xcpd",
+        "/var/run/xcpd.pid",
+        "/etc/xcpd/xcpd.conf",
+        "/",
+        "/var/log/xcpd.log",
+        log::LevelFilter::Debug)
+    .expect("Failed to create process config");
 
     let mut daemon = Daemon::new(XcpProcess::new(cfg));
     daemon.run().expect("Failed to run daemon");
