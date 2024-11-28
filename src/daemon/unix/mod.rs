@@ -15,7 +15,13 @@ use nix::{
     unistd::{self, fork, getpid, setsid, ForkResult, Pid},
 };
 
-use std::{fs::File, io::Write, os::fd::AsRawFd, path::Path, sync::Mutex};
+use std::{
+    fs::{File, OpenOptions},
+    io::Write,
+    os::fd::AsRawFd,
+    path::Path,
+    sync::Mutex,
+};
 use syslog::{Facility, Formatter3164, Logger};
 
 pub struct Daemon<P: Process> {
@@ -94,18 +100,30 @@ impl<P: Process> Daemon<P> {
     }
 
     fn redirect_stdio(&self) -> Result<(), DaemonizationError> {
-        // Redirect stdin
-        let stdin_dst = open(Path::new(self.process.config().stdin()), OFlag::O_RDWR, Mode::empty())?;
+        // Ensure stdin path exists
+        let stdin_path = Path::new(self.process.config().stdin());
+        if !stdin_path.exists() {
+            OpenOptions::new().create(true).write(true).append(true).open(stdin_path)?;
+        }
+        let stdin_dst = open(stdin_path, OFlag::O_RDWR | OFlag::O_APPEND, Mode::empty())?;
         unistd::dup2(stdin_dst, STDIN_FILENO)?;
         unistd::close(stdin_dst)?;
 
-        // Redirect stdout
-        let stdout_dst = open(Path::new(self.process.config().stdout()), OFlag::O_RDWR, Mode::empty())?;
+        // Ensure stdout path exists
+        let stdout_path = Path::new(self.process.config().stdout());
+        if !stdout_path.exists() {
+            OpenOptions::new().create(true).write(true).append(true).open(stdout_path)?;
+        }
+        let stdout_dst = open(stdout_path, OFlag::O_RDWR | OFlag::O_APPEND, Mode::empty())?;
         unistd::dup2(stdout_dst, STDOUT_FILENO)?;
         unistd::close(stdout_dst)?;
 
-        // Redirect stderr
-        let stderr_dst = open(Path::new(self.process.config().stderr()), OFlag::O_RDWR, Mode::empty())?;
+        // Ensure stderr path exists
+        let stderr_path = Path::new(self.process.config().stderr());
+        if !stderr_path.exists() {
+            OpenOptions::new().create(true).write(true).append(true).open(stderr_path)?;
+        }
+        let stderr_dst = open(stderr_path, OFlag::O_RDWR | OFlag::O_APPEND, Mode::empty())?;
         unistd::dup2(stderr_dst, STDERR_FILENO)?;
         unistd::close(stderr_dst)?;
 
