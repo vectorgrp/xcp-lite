@@ -60,8 +60,16 @@ impl Process for XcpProcess {
         let host: std::net::Ipv4Addr = host.parse().expect("Invalid ip addr, parse failed");
         let port: u16 = port.parse().expect("Invalid port, parse failed");
 
+        let xcp_log_lvl = match self.config().loglvl() {
+            log::LevelFilter::Trace => XcpLogLevel::Trace,
+            log::LevelFilter::Debug => XcpLogLevel::Debug,
+            log::LevelFilter::Warn => XcpLogLevel::Warn,
+            log::LevelFilter::Error => XcpLogLevel::Error,
+            _ => XcpLogLevel::Info,
+        };
+
         XcpBuilder::new(self.config().name())
-            .set_log_level(XcpLogLevel::Info)
+            .set_log_level(xcp_log_lvl)
             .set_epk("EPK_")
             .start_server(XcpTransportLayer::Udp, host, port)?;
 
