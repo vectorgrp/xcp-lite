@@ -370,7 +370,10 @@ fn main() {
     let log_level = XcpLogLevel::from(args.log_level);
 
     // Logging
-    env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(log_level.to_log_level_filter()).init();
+    env_logger::Builder::new()
+        .target(env_logger::Target::Stdout)
+        .filter_level(log_level.to_log_level_filter())
+        .init();
 
     // Initialize XCP and start the XCP on ETH server
     let xcp = XcpBuilder::new("xcp_lite")

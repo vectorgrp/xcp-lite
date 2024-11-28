@@ -8,11 +8,11 @@ pub struct ProcessConfig {
     stdin: &'static str,
     stdout: &'static str,
     stderr: &'static str,
-    log_level: LevelFilter,
     sections: Sections,
 }
 
 impl ProcessConfig {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         name: &'static str,
         pid_fpath: &'static str,
@@ -21,18 +21,16 @@ impl ProcessConfig {
         stdin: &'static str,
         stdout: &'static str,
         stderr: &'static str,
-        log_level: LevelFilter,
     ) -> Result<Self, std::io::Error> {
         let sections = Sections::from_file(cfg_path)?;
 
         Ok(Self {
-            name: name,
-            pid_fpath: pid_fpath,
+            name,
+            pid_fpath,
             cwd: workdir,
-            stdin: stdin,
-            stdout: stdout,
-            stderr: stderr,
-            log_level: log_level,
+            stdin,
+            stdout,
+            stderr,
             sections,
         })
     }
@@ -66,7 +64,8 @@ impl ProcessConfig {
     }
 
     pub fn loglvl(&self) -> LevelFilter {
-        self.log_level
+        //self.log_level
+        LevelFilter::Info
     }
 }
 
@@ -79,7 +78,6 @@ impl Default for ProcessConfig {
             stdout: "/var/log/xcpd.log",
             stderr: "/var/log/xcpd.log",
             pid_fpath: "/var/run/xcpd.pid",
-            log_level: LevelFilter::Info,
             sections: Sections::default(),
         }
     }

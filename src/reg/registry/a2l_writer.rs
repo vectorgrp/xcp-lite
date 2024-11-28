@@ -46,7 +46,11 @@ impl GenerateA2l for RegistryEvent {
                 name, index, name, index, channel
             )
         } else {
-            writeln!(writer, "/begin EVENT \"{:.100}\" \"{:.8}\" {} DAQ 0xFF 0 0 0 CONSISTENCY DAQ /end EVENT", name, name, channel)
+            writeln!(
+                writer,
+                "/begin EVENT \"{:.100}\" \"{:.8}\" {} DAQ 0xFF 0 0 0 CONSISTENCY DAQ /end EVENT",
+                name, name, channel
+            )
         }
     }
 }
@@ -143,19 +147,15 @@ impl GenerateA2l for RegistryMeasurement {
             assert!(self.x_dim > 0 && self.y_dim == 1, "Blob must have x_dim > 0 and y_dim == 1");
 
             // As BLOB string (new representation)
-            write!(
-                writer,
-                r#"/begin BLOB {name} "{comment}" 0x{addr:X} {buffer_size} ECU_ADDRESS_EXTENSION {ext} "#
-            )?;
-
+            write!(writer, r#"/begin BLOB {name} "{comment}" 0x{addr:X} {buffer_size} ECU_ADDRESS_EXTENSION {ext} "#)?;
 
             // As ASCII string (old representation)
-/* 
-            write!(
-                writer,
-                r#"/begin CHARACTERISTIC {name} "{comment}" ASCII 0x{addr:X} U8 0 NO_COMPU_METHOD 0 255 READ_ONLY NUMBER {buffer_size} ECU_ADDRESS_EXTENSION {ext} "#
-            )?;
-*/
+            /*
+                        write!(
+                            writer,
+                            r#"/begin CHARACTERISTIC {name} "{comment}" ASCII 0x{addr:X} U8 0 NO_COMPU_METHOD 0 255 READ_ONLY NUMBER {buffer_size} ECU_ADDRESS_EXTENSION {ext} "#
+                        )?;
+            */
             let annotation_object_descr = self.annotation.as_ref().expect("Blob type must have annotation");
             write!(
                 writer,
@@ -165,15 +165,12 @@ impl GenerateA2l for RegistryMeasurement {
 /begin ANNOTATION ANNOTATION_LABEL "MaxBufferNeeded" ANNOTATION_ORIGIN "" /begin ANNOTATION_TEXT "{buffer_size}" /end ANNOTATION_TEXT /end ANNOTATION
  "#
             )?;
-        } 
-        
-        
-        
-        
-        
-        else {
+        } else {
             if (self.factor - 1.0).abs() > f64::EPSILON || self.offset != 0.0 || !self.unit.is_empty() {
-                writeln!(writer, r#"/begin COMPU_METHOD {name}.Conv "" LINEAR "%6.3" "{unit}" COEFFS_LINEAR {factor} {offset} /end COMPU_METHOD"#)?;
+                writeln!(
+                    writer,
+                    r#"/begin COMPU_METHOD {name}.Conv "" LINEAR "%6.3" "{unit}" COEFFS_LINEAR {factor} {offset} /end COMPU_METHOD"#
+                )?;
                 write!(
                     writer,
                     r#"/begin MEASUREMENT {name} "{comment}" {type_str} {name}.Conv 0 0 {min} {max} PHYS_UNIT "{unit}" ECU_ADDRESS 0x{addr:X} ECU_ADDRESS_EXTENSION {ext}"#

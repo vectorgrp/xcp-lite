@@ -33,7 +33,11 @@ struct Mandelbrot {
 // Defaults
 //const MANDELBROT: Mandelbrot = Mandelbrot { x: -0.5, y: 0.0, width: 3.0 }; // Complete set
 //const MANDELBROT: Mandelbrot = Mandelbrot { x: -1.4, y: 0.0, width: 0.015 };
-const MANDELBROT: Mandelbrot = Mandelbrot { x: -0.8015, y: 0.1561, width: 0.0055 };
+const MANDELBROT: Mandelbrot = Mandelbrot {
+    x: -0.8015,
+    y: 0.1561,
+    width: 0.0055,
+};
 
 //---------------------------------------------------------------------------------------
 // Coloring

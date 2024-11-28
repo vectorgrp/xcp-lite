@@ -280,7 +280,11 @@ async fn test_tokio_multi_thread() {
 
     // Start tokio XCP server
     // Initialize the xcplib transport and protocol layer only, not the server
-    let xcp: &'static Xcp = XcpBuilder::new("test_tokio_multi_thread").set_log_level(OPTION_XCP_LOG_LEVEL).set_epk("EPK_TEST").tl_start().unwrap();
+    let xcp: &'static Xcp = XcpBuilder::new("test_tokio_multi_thread")
+        .set_log_level(OPTION_XCP_LOG_LEVEL)
+        .set_epk("EPK_TEST")
+        .tl_start()
+        .unwrap();
     let _xcp_task = tokio::spawn(xcp_server_task::xcp_task(xcp, [127, 0, 0, 1], 5555));
 
     // Create a calibration segment

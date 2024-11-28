@@ -25,7 +25,9 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::time::{timeout, Duration};
 
 #[allow(unused_imports)]
-use crate::a2l::a2l_reader::{a2l_find_characteristic, a2l_find_measurement, a2l_get_characteristics, a2l_get_measurements, a2l_load, a2l_printf_info, A2lAddr, A2lLimits, A2lType};
+use crate::a2l::a2l_reader::{
+    a2l_find_characteristic, a2l_find_measurement, a2l_get_characteristics, a2l_get_measurements, a2l_load, a2l_printf_info, A2lAddr, A2lLimits, A2lType,
+};
 
 //--------------------------------------------------------------------------------------------------------------------------------------------------
 // XCP Parameters
@@ -327,7 +329,9 @@ pub struct XcpCommandBuilder {
 
 impl XcpCommandBuilder {
     pub fn new(command_code: u8) -> XcpCommandBuilder {
-        let mut cmd = XcpCommandBuilder { data: BytesMut::with_capacity(12) };
+        let mut cmd = XcpCommandBuilder {
+            data: BytesMut::with_capacity(12),
+        };
         cmd.data.put_u16_le(0);
         cmd.data.put_u16_le(0);
         cmd.data.put_u8(command_code);
@@ -905,14 +909,16 @@ impl XcpClient {
     pub async fn set_ecu_page(&mut self, page: u8) -> Result<(), Box<dyn Error>> {
         let mode = CAL_PAGE_MODE_ECU | 0x80;
         let segment = 0;
-        self.send_command(XcpCommandBuilder::new(CC_SET_CAL_PAGE).add_u8(mode).add_u8(segment).add_u8(page).build()).await?;
+        self.send_command(XcpCommandBuilder::new(CC_SET_CAL_PAGE).add_u8(mode).add_u8(segment).add_u8(page).build())
+            .await?;
         Ok(())
     }
 
     pub async fn set_xcp_page(&mut self, page: u8) -> Result<(), Box<dyn Error>> {
         let mode = CAL_PAGE_MODE_XCP | 0x80;
         let segment = 0;
-        self.send_command(XcpCommandBuilder::new(CC_SET_CAL_PAGE).add_u8(mode).add_u8(segment).add_u8(page).build()).await?;
+        self.send_command(XcpCommandBuilder::new(CC_SET_CAL_PAGE).add_u8(mode).add_u8(segment).add_u8(page).build())
+            .await?;
         Ok(())
     }
 
@@ -993,7 +999,8 @@ impl XcpClient {
     }
 
     async fn set_daq_ptr(&mut self, daq: u16, odt: u8, idx: u8) -> Result<(), Box<dyn Error>> {
-        self.send_command(XcpCommandBuilder::new(CC_SET_DAQ_PTR).add_u8(0).add_u16(daq).add_u8(odt).add_u8(idx).build()).await?;
+        self.send_command(XcpCommandBuilder::new(CC_SET_DAQ_PTR).add_u8(0).add_u16(daq).add_u8(odt).add_u8(idx).build())
+            .await?;
         Ok(())
     }
 
@@ -1035,11 +1042,13 @@ impl XcpClient {
 
     // Prepare, start selected, stop all
     async fn prepare_selected_daq_lists(&mut self) -> Result<(), Box<dyn Error>> {
-        self.send_command(XcpCommandBuilder::new(CC_START_STOP_SYNCH).add_u8(3 /* prepare selected */).build()).await?;
+        self.send_command(XcpCommandBuilder::new(CC_START_STOP_SYNCH).add_u8(3 /* prepare selected */).build())
+            .await?;
         Ok(())
     }
     async fn start_selected_daq_lists(&mut self) -> Result<(), Box<dyn Error>> {
-        self.send_command(XcpCommandBuilder::new(CC_START_STOP_SYNCH).add_u8(1 /* start selected */).build()).await?;
+        self.send_command(XcpCommandBuilder::new(CC_START_STOP_SYNCH).add_u8(1 /* start selected */).build())
+            .await?;
         Ok(())
     }
     async fn stop_all_daq_lists(&mut self) -> Result<(), Box<dyn Error>> {

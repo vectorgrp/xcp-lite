@@ -322,7 +322,14 @@ async fn test_multi_thread() {
     }
 
     thread::sleep(Duration::from_millis(250)); // Wait to give all threads a chance to initialize and enter their loop
-    xcp_test_executor(xcp, xcp_test_executor::TestModeCal::Cal, xcp_test_executor::TestModeDaq::MultiThreadDAQ, "test_multi_thread.a2l", false).await; // Start the test executor XCP client
+    xcp_test_executor(
+        xcp,
+        xcp_test_executor::TestModeCal::Cal,
+        xcp_test_executor::TestModeDaq::MultiThreadDAQ,
+        "test_multi_thread.a2l",
+        false,
+    )
+    .await; // Start the test executor XCP client
 
     info!("Test done. Waiting for tasks to terminate");
     for t in v {

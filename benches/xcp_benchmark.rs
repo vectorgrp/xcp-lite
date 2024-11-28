@@ -42,7 +42,10 @@ struct DaqDecoder {
 
 impl DaqDecoder {
     pub fn new() -> DaqDecoder {
-        DaqDecoder { event_count: 0, event_lost_count: 0 }
+        DaqDecoder {
+            event_count: 0,
+            event_lost_count: 0,
+        }
     }
 }
 

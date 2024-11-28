@@ -898,7 +898,11 @@ mod cal_tests {
         info!("load");
         cal_seg.sync();
         info!("sync");
-        assert_eq!(xcp.get_ecu_cal_page(), XcpCalPage::Ram, "XCP should be on RAM page here, there is no independant page switching yet");
+        assert_eq!(
+            xcp.get_ecu_cal_page(),
+            XcpCalPage::Ram,
+            "XCP should be on RAM page here, there is no independant page switching yet"
+        );
         test_is_mut!(cal_seg); // Default page must be mut_page
         xcp.set_ecu_cal_page(XcpCalPage::Flash); // Simulate a set cal page to default from XCP master
         cal_seg.sync();

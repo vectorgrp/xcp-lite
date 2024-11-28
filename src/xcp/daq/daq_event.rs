@@ -171,12 +171,30 @@ impl<const N: usize> DaqEvent<N> {
 
     /// Associate a variable on stack to this DaqEvent and register it
     #[allow(clippy::too_many_arguments)]
-    pub fn add_stack(&self, name: &'static str, ptr: *const u8, datatype: RegistryDataType, x_dim: u16, y_dim: u16, factor: f64, offset: f64, unit: &'static str, comment: &'static str) {
+    pub fn add_stack(
+        &self,
+        name: &'static str,
+        ptr: *const u8,
+        datatype: RegistryDataType,
+        x_dim: u16,
+        y_dim: u16,
+        factor: f64,
+        offset: f64,
+        unit: &'static str,
+        comment: &'static str,
+    ) {
         let p = ptr as usize; // variable address
         let b = &self.buffer as *const _ as usize; // base address
         let o: i64 = p as i64 - b as i64; // variable - base address
         let event_offset: i16 = o.try_into().expect("memory offset out of rang");
-        trace!("add_stack: {} {:?} ptr={:p} base={:p} event_offset={}", name, datatype, ptr, &self.buffer as *const _, event_offset);
+        trace!(
+            "add_stack: {} {:?} ptr={:p} base={:p} event_offset={}",
+            name,
+            datatype,
+            ptr,
+            &self.buffer as *const _,
+            event_offset
+        );
         if Xcp::get()
             .get_registry()
             .lock()
@@ -202,7 +220,18 @@ impl<const N: usize> DaqEvent<N> {
 
     /// Associate a variable on stack to this DaqEvent and register it
     #[allow(clippy::too_many_arguments)]
-    pub fn add_heap(&self, name: &'static str, ptr: *const u8, datatype: RegistryDataType, x_dim: u16, y_dim: u16, factor: f64, offset: f64, unit: &'static str, comment: &'static str) {
+    pub fn add_heap(
+        &self,
+        name: &'static str,
+        ptr: *const u8,
+        datatype: RegistryDataType,
+        x_dim: u16,
+        y_dim: u16,
+        factor: f64,
+        offset: f64,
+        unit: &'static str,
+        comment: &'static str,
+    ) {
         debug!("add_heap: {} {:?} ptr={:p} ", name, datatype, ptr,);
 
         if Xcp::get()

@@ -1,9 +1,8 @@
+use log::SetLoggerError;
 use nix::Error as NixError;
 use std::io::Error as IoError;
-use thiserror::Error;
 use syslog::Error as SyslogError;
-use log::SetLoggerError;
-
+use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum DaemonizationError {

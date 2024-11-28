@@ -73,7 +73,7 @@ impl Process for XcpProcess {
             .set_epk("EPK_")
             .start_server(XcpTransportLayer::Udp, host, port)?;
 
-        info!("XCP server initialized - {:?}:{}", host, port);
+        info!("XCP server initialized - {:?}:{}", host, /*....................................................*/ port);
 
         Ok(())
     }
@@ -174,7 +174,6 @@ fn main() {
         "/var/log/xcpd.log",
         "/var/log/xcpd.log",
         "/var/log/xcpd.log",
-        log::LevelFilter::Info,
     )
     .expect("Failed to create process config");
 

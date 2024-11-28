@@ -367,7 +367,13 @@ struct RegistryCalSeg {
 
 impl RegistryCalSeg {
     fn new(name: &'static str, index: u16, addr: u32, addr_ext: u8, size: u32) -> RegistryCalSeg {
-        RegistryCalSeg { name, index, addr, addr_ext, size }
+        RegistryCalSeg {
+            name,
+            index,
+            addr,
+            addr_ext,
+            size,
+        }
     }
 }
 
@@ -503,7 +509,7 @@ pub struct RegistryCharacteristic {
     calseg_name: Option<&'static str>, // Name of the calibration segment, if none absolute addressing
     addr_offset: u64,                  // Offset relative to calibration segment (XCP_ADDR_EXT_APP) or absolute address (XCP_ADDR_EXT_ABS) if calseg_name is None
     event: Option<XcpEvent>,           // The event associated with the calibration parameter to enable event triggered measurement
-    
+
     // Metadata
     comment: &'static str,
     min: f64,

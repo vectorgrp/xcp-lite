@@ -345,7 +345,10 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
 
         // Create a calibration object for CalPage.run
         debug!("Create calibration object CalPage1.run");
-        let run = xcp_client.create_calibration_object("CalPage1.run").await.expect("could not create calibration object CalPage1.run");
+        let run = xcp_client
+            .create_calibration_object("CalPage1.run")
+            .await
+            .expect("could not create calibration object CalPage1.run");
         let v = xcp_client.get_value_u64(run);
         assert_eq!(v, 1);
 
@@ -496,7 +499,6 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
             // But the queue of the client may still contain data or the control channel may need some time
             tokio::time::sleep(Duration::from_millis(500)).await;
 
-
             // Test signed
             debug!("Create calibration object CalPage1.test_i16");
             let test_i32 = xcp_client
@@ -514,15 +516,15 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
 
             // Test static
             debug!("Create calibration object static_vars.test_u32");
-            let test_u32 = xcp_client
-                .create_calibration_object("static_vars.test_u32")
-                .await;
+            let test_u32 = xcp_client.create_calibration_object("static_vars.test_u32").await;
             if test_u32.is_ok() {
                 let test_u32 = test_u32.unwrap();
                 let v = xcp_client.get_value_u64(test_u32);
                 info!("static_vars.test_u32 = {:X}", v);
-                assert_eq!(v,0x12345678);
-            } else { warn!("static_vars.test_u32 not found!");}
+                assert_eq!(v, 0x12345678);
+            } else {
+                warn!("static_vars.test_u32 not found!");
+            }
 
             // Check page switching
             // Check page is ram
@@ -533,7 +535,10 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
             assert!(page == 0);
 
             // Mark the ram page in variable cal_seg.page
-            let mut cal_seg_page = xcp_client.create_calibration_object("CalPage1.page").await.expect("could not create calibration object CalPage1.page");
+            let mut cal_seg_page = xcp_client
+                .create_calibration_object("CalPage1.page")
+                .await
+                .expect("could not create calibration object CalPage1.page");
             xcp_client // init page variable in ram page of cal_seg
                 .set_value_u64(cal_seg_page, 0)
                 .await
@@ -543,7 +548,10 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
             xcp_client.set_xcp_page(1).await.unwrap();
             tokio::time::sleep(Duration::from_micros(100000)).await;
             // Check if cal_seg.page marker is default
-            cal_seg_page = xcp_client.create_calibration_object("CalPage1.page").await.expect("could not create calibration object CalPage1.page");
+            cal_seg_page = xcp_client
+                .create_calibration_object("CalPage1.page")
+                .await
+                .expect("could not create calibration object CalPage1.page");
             page = xcp_client.get_value_u64(cal_seg_page).try_into().unwrap();
             assert_eq!(page, 1);
             // Check if get cal page returns default

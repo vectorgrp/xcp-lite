@@ -166,7 +166,10 @@ impl CalSegList {
         for (i, d) in self.0.iter().enumerate() {
             trace!("Register CalSeg {}, size={}", d.get_name(), d.get_size());
             assert!(i == d.calseg.lock().get_index());
-            Xcp::get().get_registry().lock().add_cal_seg(d.get_name(), i.try_into().unwrap(), d.get_size().try_into().unwrap());
+            Xcp::get()
+                .get_registry()
+                .lock()
+                .add_cal_seg(d.get_name(), i.try_into().unwrap(), d.get_size().try_into().unwrap());
         }
     }
 
