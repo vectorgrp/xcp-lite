@@ -475,7 +475,11 @@ void XcpEthTlGetInfo(BOOL* isTcp, uint8_t* mac, uint8_t* addr, uint16_t *port) {
   
     if (isTcp!=NULL) *isTcp = gXcpTl.ServerUseTCP;
     if (addr!=NULL) memcpy(addr, gXcpTl.ServerAddr, 4);
-    if (mac!=NULL) memcpy(mac, gXcpTl.ServerMac, 4);
+#ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
+    if (mac!=NULL) memcpy(mac, gXcpTl.ServerMac, 6);
+#else
+    if (mac!=NULL) memset(mac, 0, 6);
+#endif
     if (port!=NULL) *port = gXcpTl.ServerPort;
 }
 
