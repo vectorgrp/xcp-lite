@@ -379,12 +379,12 @@ BOOL XcpEthTlInit(const uint8_t* addr, uint16_t port, BOOL useTCP, BOOL blocking
 
     if (!XcpTlInit()) return FALSE;
 
+    uint8_t bind_addr[4] = {0,0,0,0}; // Bind to ANY(0.0.0.0)
     if (addr != 0)  { // Bind to given addr 
-        memcpy(gXcpTl.ServerAddr, addr, 4);
-    } else { // Bind to ANY(0.0.0.0)
-        memset(gXcpTl.ServerAddr, 0, 4);
-    }
+        memcpy(bind_addr, addr, 4);
+    } 
     gXcpTl.ServerPort = port;
+    memcpy(gXcpTl.ServerAddr,bind_addr, 4);
     gXcpTl.ServerUseTCP = useTCP;
     gXcpTl.blockingRx = blockingRx;
     gXcpTl.MasterAddrValid = FALSE;
@@ -395,9 +395,9 @@ BOOL XcpEthTlInit(const uint8_t* addr, uint16_t port, BOOL useTCP, BOOL blocking
     if (useTCP) 
     { // TCP
         if (!socketOpen(&gXcpTl.ListenSock, TRUE /* useTCP */, !blockingRx, TRUE /*reuseAddr*/, FALSE /* timestamps*/)) return FALSE;
-        if (!socketBind(gXcpTl.ListenSock, gXcpTl.ServerAddr, gXcpTl.ServerPort)) return FALSE; // Bind on ANY, when serverAddr=255.255.255.255
+        if (!socketBind(gXcpTl.ListenSock, bind_addr, gXcpTl.ServerPort)) return FALSE; 
         if (!socketListen(gXcpTl.ListenSock)) return FALSE; // Put socket in listen mode
-        DBG_PRINTF3("  Listening for TCP connections on %u.%u.%u.%u port %u\n", gXcpTl.ServerAddr[0], gXcpTl.ServerAddr[1], gXcpTl.ServerAddr[2], gXcpTl.ServerAddr[3], gXcpTl.ServerPort);
+        DBG_PRINTF3("  Listening for TCP connections on %u.%u.%u.%u port %u\n", bind_addr[0], bind_addr[1], bind_addr[2], bind_addr[3], port);
     }
     else
 #else
@@ -410,12 +410,22 @@ BOOL XcpEthTlInit(const uint8_t* addr, uint16_t port, BOOL useTCP, BOOL blocking
 #endif
     { // UDP
         if (!socketOpen(&gXcpTl.Sock, FALSE /* useTCP */, !blockingRx, TRUE /*reuseAddr*/, FALSE /* timestamps*/)) return FALSE;
-        if (!socketBind(gXcpTl.Sock, gXcpTl.ServerAddr, gXcpTl.ServerPort)) return FALSE; // Bind on ANY, when serverAddr=255.255.255.255
-        DBG_PRINTF3("  Listening for XCP commands on UDP %u.%u.%u.%u port %u\n", gXcpTl.ServerAddr[0], gXcpTl.ServerAddr[1], gXcpTl.ServerAddr[2], gXcpTl.ServerAddr[3], gXcpTl.ServerPort);
+        if (!socketBind(gXcpTl.Sock, bind_addr, port)) return FALSE; // Bind on ANY, when serverAddr=255.255.255.255
+        DBG_PRINTF3("  Listening for XCP commands on UDP %u.%u.%u.%u port %u\n", bind_addr[0], bind_addr[1], bind_addr[2], bind_addr[3], port);
     }
 
 #ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
-    socketGetLocalAddr(gXcpTl.ServerMac, NULL); // Store MAC for later use
+    {
+        uint8_t addr[4] = {0,0,0,0};
+        uint8_t mac[6] = {0,0,0,0,0,0};
+        socketGetLocalAddr(mac,addr); // Store actual MAC and IP addr for later use
+        if (bind_addr[0]==0 || memcmp(bind_addr,addr,4)==0) { 
+            DBG_PRINTF3("  MAC=%02X.%02X.%02X.%02X.%02X.%02X IP=%u.%u.%u.%u\n", mac[0],mac[1],mac[2],mac[3],mac[4],mac[5], addr[0],addr[1],addr[2],addr[3]);
+            memcpy(gXcpTl.ServerAddr,addr,4);
+            memcpy(gXcpTl.ServerMac,mac,6);
+        }
+    
+    }
 #endif
 
     // Multicast UDP commands
@@ -461,15 +471,13 @@ void XcpEthTlShutdown() {
 
 //-------------------------------------------------------------------------------------------------------
 
-#ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
 void XcpEthTlGetInfo(BOOL* isTcp, uint8_t* mac, uint8_t* addr, uint16_t *port) {
   
-    *isTcp = gXcpTl.ServerUseTCP;
-    memcpy(addr, gXcpTl.ServerAddr, 4);
-    memcpy(mac, gXcpTl.ServerMac, 4);
-    *port = gXcpTl.ServerPort;
+    if (isTcp!=NULL) *isTcp = gXcpTl.ServerUseTCP;
+    if (addr!=NULL) memcpy(addr, gXcpTl.ServerAddr, 4);
+    if (mac!=NULL) memcpy(mac, gXcpTl.ServerMac, 4);
+    if (port!=NULL) *port = gXcpTl.ServerPort;
 }
-#endif
 
 
 #endif  // defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)

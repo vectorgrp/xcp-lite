@@ -47,8 +47,8 @@ struct Args {
     #[arg(short, long, default_value_t = 3)]
     log_level: u8,
 
-    /// Bind address
-    #[arg(short, long, default_value_t = Ipv4Addr::new(127, 0, 0, 1))]
+    /// Bind address, default is ANY
+    #[arg(short, long, default_value_t = Ipv4Addr::new(0, 0, 0, 0))]
     bind: Ipv4Addr,
 
     /// Use TCP as transport layer, default is UDP

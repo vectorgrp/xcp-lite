@@ -410,11 +410,10 @@ impl XcpBuilder {
         xcp.set_log_level(self.log_level);
         xcp.set_epk(self.epk);
 
-        // Registry parameters from XcpBuiler
+        // Register name and epk
         {
             let mut r = xcp.registry.lock();
             r.set_name(self.name);
-            r.set_tl_params(tl.protocol_name(), ipv4_addr, port); // Transport layer parameters
             r.set_epk(self.epk, Xcp::XCP_EPK_ADDR); // EPK
         }
 
@@ -425,6 +424,20 @@ impl XcpBuilder {
             if 0 == xcplib::XcpEthServerInit(&a as *const u8, port, (tl == XcpTransportLayer::Tcp) as u8) {
                 return Err(XcpError::XcpLib("Error: XcpEthServerInit() failed"));
             }
+        }
+
+        // Register transport layer parameters and actual ip addr of the server to make the A2L plug&play
+        {
+            let mut r = xcp.registry.lock();
+            // If bound to any, get the actual ip address
+            let mut addr: [u8; 4] = ipv4_addr.octets();
+            if addr == [0, 0, 0, 0] {
+                // @@@@ Unsafe - C library call
+                unsafe {
+                    xcplib::XcpEthTlGetInfo(std::ptr::null_mut(), std::ptr::null_mut(), &mut addr[0] as *mut u8, std::ptr::null_mut());
+                }
+            }
+            r.set_tl_params(tl.protocol_name(), addr.into(), port); // Transport layer parameters
         }
 
         Ok(xcp)

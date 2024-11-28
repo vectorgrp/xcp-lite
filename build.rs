@@ -22,6 +22,7 @@ fn main() {
             .allowlist_function("XcpTlTransmitQueuePeekMsg")
             .allowlist_function("XcpTlTransmitQueueNextMsg")
             .allowlist_function("XcpTlTransmitQueueHasMsg")
+            .allowlist_function("XcpEthTlGetInfo")
             // ETH server
             .allowlist_function("XcpEthServerInit")
             .allowlist_function("XcpEthServerShutdown")
@@ -41,7 +42,6 @@ fn main() {
             .expect("Unable to generate bindings");
         bindings.write_to_file("src/xcp/xcplib.rs").expect("Couldn't write bindings!");
     */
-
     // Build a XCP on ETH version of XCPlite as a library
     cc::Build::new()
         .include("xcplib/src/")

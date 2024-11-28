@@ -1046,6 +1046,7 @@ static void XcpSendResponse(const tXcpCto* crm, uint8_t crmLen) {
 }
 
 // Transmit multicast command response
+#ifdef XCPTL_ENABLE_MULTICAST
 #ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
 static void XcpSendMulticastResponse( const tXcpCto* crm, uint8_t crmLen, uint8_t *addr, uint16_t port) {
 
@@ -1054,6 +1055,7 @@ static void XcpSendMulticastResponse( const tXcpCto* crm, uint8_t crmLen, uint8_
   if (DBG_LEVEL >= 4) XcpPrintRes(crm);
 #endif
 }
+#endif
 #endif
 
 //  Push XCP command which can not be executes in this context for later async execution
@@ -1750,12 +1752,11 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint8_t cmdL
                     goto no_response; // Not supported, no response, response has atypical layout
 
               case CC_TL_GET_SERVER_ID_EXTENDED:
-                    #ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
                       check_len(CRO_TL_GET_SERVER_ID_LEN);
                       BOOL server_isTCP;
                       uint16_t server_port;
-                      uint8_t server_addr[4];
-                      uint8_t server_mac[6];
+                      uint8_t server_addr[4] = {0,0,0,0};
+                      uint8_t server_mac[6] = {0,0,0,0,0,0};
                       uint16_t client_port;
                       uint8_t client_addr[4];
                       client_port = CRO_TL_GET_SERVER_ID_PORT;
@@ -1772,7 +1773,6 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint8_t cmdL
                       memcpy((uint8_t*)&CRM_TL_GET_SERVER_ID_MAC(CRM_TL_GET_SERVER_ID_ID_LEN), server_mac, 6);
                       CRM_LEN = (uint8_t)CRM_TL_GET_SERVER_ID_LEN(CRM_TL_GET_SERVER_ID_ID_LEN);
                       XcpSendMulticastResponse(&CRM, CRM_LEN,client_addr,client_port); // Transmit multicast command response
-                    #endif // PLATFORM_ENABLE_GET_LOCAL_ADDR
                     goto no_response;
               #endif // XCPTL_ENABLE_MULTICAST
 

@@ -53,3 +53,6 @@
  // Logging
 #define OPTION_ENABLE_DBG_PRINTS 
 #define OPTION_DEFAULT_DBG_LEVEL 3 
+
+// @@@@ 
+#define PLATFORM_ENABLE_GET_LOCAL_ADDR
