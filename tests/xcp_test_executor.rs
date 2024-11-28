@@ -17,8 +17,8 @@ pub use xcp_client::xcp_client::XCPTL_MAX_SEGMENT_SIZE;
 //-----------------------------------------------------------------------------
 
 // Logging
-pub const OPTION_LOG_LEVEL: xcp::XcpLogLevel = xcp::XcpLogLevel::Info;
-pub const OPTION_XCP_LOG_LEVEL: xcp::XcpLogLevel = xcp::XcpLogLevel::Info;
+pub const OPTION_LOG_LEVEL: log::LevelFilter = log::LevelFilter::Info;
+pub const OPTION_XCP_LOG_LEVEL: u8 = 3;
 
 // Test parameters
 pub const MULTI_THREAD_TASK_COUNT: usize = 8; // Number of threads

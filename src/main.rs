@@ -367,17 +367,20 @@ fn main() {
 
     // Args
     let args = Args::parse();
-    let log_level = XcpLogLevel::from(args.log_level);
+    let log_level = match args.log_level {
+        2 => log::LevelFilter::Warn,
+        3 => log::LevelFilter::Info,
+        4 => log::LevelFilter::Debug,
+        5 => log::LevelFilter::Trace,
+        _ => log::LevelFilter::Error,
+    };
 
     // Logging
-    env_logger::Builder::new()
-        .target(env_logger::Target::Stdout)
-        .filter_level(log_level.to_log_level_filter())
-        .init();
+    env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(log_level).init();
 
     // Initialize XCP and start the XCP on ETH server
     let xcp = XcpBuilder::new("xcp_lite")
-        .set_log_level(log_level)
+        .set_log_level(args.log_level)
         // .set_epk(build_info::format!("{}", $.timestamp)); // Create new EPK from build info
         .set_epk("EPK_")
         .start_server(if args.tcp { XcpTransportLayer::Tcp } else { XcpTransportLayer::Udp }, args.bind, args.port)

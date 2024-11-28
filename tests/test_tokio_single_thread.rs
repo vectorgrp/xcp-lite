@@ -135,11 +135,7 @@ fn task(cal_seg: CalSeg<CalPage1>) {
 #[ignore]
 #[tokio::test]
 async fn test_tokio_single_thread() {
-    env_logger::Builder::new()
-        .target(env_logger::Target::Stdout)
-        .filter_level(OPTION_LOG_LEVEL.to_log_level_filter())
-        .try_init()
-        .ok();
+    env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(OPTION_LOG_LEVEL).try_init().ok();
 
     info!("Running test_tokio_single_thread");
 

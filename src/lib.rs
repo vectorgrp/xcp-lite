@@ -108,7 +108,6 @@ pub use xcp::XcpBuilder;
 pub use xcp::XcpCalPage;
 pub use xcp::XcpError;
 pub use xcp::XcpEvent;
-pub use xcp::XcpLogLevel;
 pub use xcp::XcpSessionStatus;
 pub use xcp::XcpTransportLayer;
 

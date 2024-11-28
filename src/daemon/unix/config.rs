@@ -1,4 +1,3 @@
-use log::LevelFilter;
 use std::collections::HashMap;
 
 pub struct ProcessConfig {
@@ -61,11 +60,6 @@ impl ProcessConfig {
 
     pub fn sections(&self) -> &Sections {
         &self.sections
-    }
-
-    pub fn loglvl(&self) -> LevelFilter {
-        //self.log_level
-        LevelFilter::Info
     }
 }
 

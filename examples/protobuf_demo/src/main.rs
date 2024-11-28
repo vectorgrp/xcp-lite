@@ -153,7 +153,7 @@ fn main() -> Result<()> {
     env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(log::LevelFilter::Info).init();
 
     let xcp = XcpBuilder::new("xcp_demo")
-        .set_log_level(XcpLogLevel::Debug)
+        .set_log_level(3)
         .set_epk("EPK_")
         .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)?;
 

@@ -101,7 +101,7 @@ fn main() -> Result<()> {
 
     // Initialize XCP
     let xcp = XcpBuilder::new("multi_thread_demo")
-        .set_log_level(XcpLogLevel::Warn)
+        .set_log_level(2)
         .set_epk("EPK_12345678")
         .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)?;
 

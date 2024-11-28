@@ -52,28 +52,43 @@ impl Process for XcpProcess {
     type Error = XcpProcessError;
 
     fn init(&mut self) -> Result<(), Self::Error> {
-        env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(self.config().loglvl()).init();
+        // Defaults
+        let mut server_addr: std::net::Ipv4Addr = [0, 0, 0, 0].into();
+        let mut server_port: u16 = 5555;
+        let mut server_log_level: u8 = 2; // Warn
 
-        let host = self.config().sections().get_value("Server Config", "host").unwrap();
-        let port = self.config().sections().get_value("Server Config", "port").unwrap();
-
-        let host: std::net::Ipv4Addr = host.parse().expect("Invalid ip addr, parse failed");
-        let port: u16 = port.parse().expect("Invalid port, parse failed");
-
-        let xcp_log_lvl = match self.config().loglvl() {
-            log::LevelFilter::Trace => XcpLogLevel::Trace,
-            log::LevelFilter::Debug => XcpLogLevel::Debug,
-            log::LevelFilter::Warn => XcpLogLevel::Warn,
-            log::LevelFilter::Error => XcpLogLevel::Error,
-            _ => XcpLogLevel::Info,
+        // Read from config
+        if let Some(s) = self.config().sections().get_value("Server Config", "host") {
+            if let Ok(h) = s.parse() {
+                server_addr = h;
+            }
+        }
+        if let Some(s) = self.config().sections().get_value("Server Config", "port") {
+            if let Ok(p) = s.parse() {
+                server_port = p;
+            }
+        }
+        if let Some(l) = self.config().sections().get_value("Server Config", "log_level") {
+            server_log_level = l.parse().unwrap_or(2);
+        }
+        let daemon_log_level = match server_log_level {
+            2 => log::LevelFilter::Warn,
+            3 => log::LevelFilter::Info,
+            4 => log::LevelFilter::Debug,
+            5 => log::LevelFilter::Trace,
+            _ => log::LevelFilter::Error,
         };
 
-        XcpBuilder::new(self.config().name())
-            .set_log_level(xcp_log_lvl)
-            .set_epk("EPK_")
-            .start_server(XcpTransportLayer::Udp, host, port)?;
+        // Logger
+        env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(daemon_log_level).init();
 
-        info!("XCP server initialized - {:?}:{}", host, /*....................................................*/ port);
+        // XCP
+        XcpBuilder::new(self.config().name())
+            .set_log_level(server_log_level)
+            .set_epk("EPK_")
+            .start_server(XcpTransportLayer::Udp, server_addr, server_port)?;
+
+        info!("XCP server initialized - {:?}:{}", server_addr, server_port);
 
         Ok(())
     }

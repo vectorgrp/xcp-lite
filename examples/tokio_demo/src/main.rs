@@ -108,7 +108,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Start tokio XCP server
     // Initialize the xcplib transport and protocol layer only, not the server
-    let xcp: &'static Xcp = XcpBuilder::new("tokio_demo").set_log_level(XcpLogLevel::Debug).tl_start().unwrap();
+    let xcp: &'static Xcp = XcpBuilder::new("tokio_demo").set_log_level(3).tl_start().unwrap();
     let xcp_task = tokio::spawn(xcp_task(xcp, [127, 0, 0, 1], 5555));
 
     // let mut xcp_server = xcp_server::XcpServer::new([127, 0, 0, 1], 5555);

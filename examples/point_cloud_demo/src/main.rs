@@ -27,7 +27,7 @@ const AMPL: f64 = 10.0;
 const PERIOD: f64 = 10.0;
 
 const LOG_LEVEL: log::LevelFilter = log::LevelFilter::Info;
-const XCP_LOG_LEVEL: XcpLogLevel = XcpLogLevel::Info;
+const XCP_LOG_LEVEL: u8 = 3;
 
 //-----------------------------------------------------------------------------
 // Parameters

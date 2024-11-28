@@ -169,7 +169,7 @@ fn main() -> Result<()> {
     const BIND_ADDR: [u8; 4] = [127, 0, 0, 1];
 
     let xcp = XcpBuilder::new("mandelbrot")
-        .set_log_level(XcpLogLevel::Debug)
+        .set_log_level(3)
         .set_epk("EPK")
         .start_server(XcpTransportLayer::Udp, BIND_ADDR, 5555)?;
 

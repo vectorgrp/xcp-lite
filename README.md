@@ -177,7 +177,7 @@ fn task(calseg: CalSeg<CalPage>) {
 fn main() -> Result<()> {
 
     // Initialize XCP driver singleton, the transport layer UDP and enable the automatic A2L writer and upload
-    let xcp = XcpBuilder::new("my_module_name").set_log_level(XcpLogLevel::Warn).set_epk("MY_EPK")
+    let xcp = XcpBuilder::new("my_module_name").set_log_level(2).set_epk("MY_EPK")
       .start_server(XcpTransportLayer::Udp,[127, 0, 0, 1],5555, 1400,)?;
 
     // Create a calibration parameter set named "calsseg" (struct CalSeg, a MEMORY_SEGMENT in A2L and CANape)

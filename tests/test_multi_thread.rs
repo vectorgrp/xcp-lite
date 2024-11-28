@@ -289,10 +289,7 @@ fn task(index: usize, cal_seg: CalSeg<CalPage1>) {
 
 #[tokio::test]
 async fn test_multi_thread() {
-    env_logger::Builder::new()
-        .target(env_logger::Target::Stdout)
-        .filter_level(OPTION_LOG_LEVEL.to_log_level_filter())
-        .init();
+    env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(OPTION_LOG_LEVEL).init();
 
     // Initialize XCP driver singleton, the transport layer server and enable the A2L writer
     let xcp = match XcpBuilder::new("test_multi_thread")

@@ -54,51 +54,6 @@ pub enum XcpError {
 }
 
 //----------------------------------------------------------------------------------------------
-// XCP log level
-
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-
-/// Represents the log level for the XCP protocol layer
-pub enum XcpLogLevel {
-    Off = 0,
-    Error = 1,
-    Warn = 2,
-    Info = 3,
-    Debug = 4,
-    Trace = 5,
-}
-
-impl From<u8> for XcpLogLevel {
-    fn from(item: u8) -> XcpLogLevel {
-        match item {
-            0 => XcpLogLevel::Off,
-            1 => XcpLogLevel::Error,
-            //2 => XcpLogLevel::Warn,
-            3 => XcpLogLevel::Info,
-            4 => XcpLogLevel::Debug,
-            5 => XcpLogLevel::Trace,
-            _ => XcpLogLevel::Warn,
-        }
-    }
-}
-#[allow(unused_imports)]
-use log::{debug, error, info, trace, warn};
-
-impl XcpLogLevel {
-    /// Convert XcpLogLevel to 'log::LevelFilter'
-    pub fn to_log_level_filter(self) -> log::LevelFilter {
-        match self {
-            XcpLogLevel::Off => log::LevelFilter::Off,
-            XcpLogLevel::Error => log::LevelFilter::Error,
-            XcpLogLevel::Warn => log::LevelFilter::Warn,
-            XcpLogLevel::Info => log::LevelFilter::Info,
-            XcpLogLevel::Debug => log::LevelFilter::Debug,
-            XcpLogLevel::Trace => log::LevelFilter::Trace,
-        }
-    }
-}
-
-//----------------------------------------------------------------------------------------------
 // Session statuc
 
 bitflags! {
@@ -297,7 +252,7 @@ impl EventList {
             event_map[e.event.channel as usize] = i.try_into().unwrap();
         }
         XCP_EVENT_MAP.set(event_map).ok();
-        trace!("Event map: {:?}", XCP_EVENT_MAP.get().unwrap());
+        log::trace!("Event map: {:?}", XCP_EVENT_MAP.get().unwrap());
 
         // Register all events
         let r = Xcp::get().get_registry();
@@ -323,7 +278,7 @@ impl EventList {
         // Create XcpEvent
         let event = XcpEvent::new(channel, index);
 
-        debug!("Create event {} channel={}, index={}", name, event.get_channel(), event.get_index());
+        log::debug!("Create event {} channel={}, index={}", name, event.get_channel(), event.get_index());
 
         // Add XcpEventInfo to event list
         self.0.push(XcpEventInfo { name, event });
@@ -386,24 +341,20 @@ impl XcpTransportLayer {
 /// A builder pattern to initialize the singleton instance of the XCP server
 #[derive(Debug)]
 pub struct XcpBuilder {
-    log_level: XcpLogLevel, // log level for the server
-    name: &'static str,     // Registry name, file name for the registry A2L generator
-    epk: &'static str,      // EPK string for A2L version check
+    log_level: u8,      // log level for the server
+    name: &'static str, // Registry name, file name for the registry A2L generator
+    epk: &'static str,  // EPK string for A2L version check
 }
 
 impl XcpBuilder {
     /// Create a XcpBuilder
     pub fn new(name: &'static str) -> XcpBuilder {
-        XcpBuilder {
-            log_level: XcpLogLevel::Info,
-            name,
-            epk: "EPK",
-        }
+        XcpBuilder { log_level: 3, name, epk: "EPK" }
     }
 
     /// Set log level
     #[must_use]
-    pub fn set_log_level(mut self, log_level: XcpLogLevel) -> Self {
+    pub fn set_log_level(mut self, log_level: u8) -> Self {
         self.log_level = log_level;
         self
     }
@@ -421,7 +372,7 @@ impl XcpBuilder {
     pub fn tl_start(self) -> Result<&'static Xcp, XcpError> {
         let xcp = Xcp::get();
 
-        info!("Start XCP protocol layer and transport layer");
+        log::info!("Start XCP protocol layer and transport layer");
 
         // Server parameters from XcpBuilder
         xcp.set_log_level(self.log_level);
@@ -580,10 +531,10 @@ impl Xcp {
 
     /// Set the log level for XCP protocol layer
     #[allow(clippy::unused_self)]
-    pub fn set_log_level(&self, level: XcpLogLevel) {
+    pub fn set_log_level(&self, level: u8) {
         // @@@@ Unsafe - C library call
         unsafe {
-            xcplib::ApplXcpSetLogLevel(level as u8);
+            xcplib::ApplXcpSetLogLevel(level);
         }
     }
 
@@ -864,10 +815,10 @@ const CAL_PAGE_MODE_ALL: u8 = 0x80; // switch all segments simultaneously
 
 #[no_mangle]
 extern "C" fn cb_connect() -> u8 {
-    trace!("cb_connect: generate and write Al2 file");
+    log::trace!("cb_connect: generate and write Al2 file");
     let xcp = Xcp::get();
     if let Err(e) = xcp.write_a2l() {
-        error!("connect refused, A2L file write failed, {}", e);
+        log::error!("connect refused, A2L file write failed, {}", e);
         return FALSE;
     }
     TRUE
@@ -875,33 +826,33 @@ extern "C" fn cb_connect() -> u8 {
 
 #[no_mangle]
 extern "C" fn cb_prepare_daq() -> u8 {
-    trace!("cb_prepare_daq");
+    log::trace!("cb_prepare_daq");
     TRUE
 }
 
 #[no_mangle]
 extern "C" fn cb_start_daq() -> u8 {
-    trace!("cb_start_daq");
+    log::trace!("cb_start_daq");
     TRUE
 }
 
 #[no_mangle]
 extern "C" fn cb_stop_daq() {
-    trace!("cb_stop_daq");
+    log::trace!("cb_stop_daq");
 }
 
 // Switching individual segments (CANape option CALPAGE_SINGLE_SEGMENT_SWITCHING) not supported, not needed and CANape is buggy
 // Returns 0xFF on invalid mode, segment number is ignored, CAL_PAGE_MODE_ALL is ignored
 #[no_mangle]
 extern "C" fn cb_get_cal_page(segment: u8, mode: u8) -> u8 {
-    debug!("cb_get_cal_page: get cal page of segment {}, mode {:02X}", segment, mode);
+    log::debug!("cb_get_cal_page: get cal page of segment {}, mode {:02X}", segment, mode);
     let page: u8;
     if (mode & CAL_PAGE_MODE_ECU) != 0 {
         page = Xcp::get().get_ecu_cal_page() as u8;
-        debug!("cb_get_cal_page: ECU page = {:?}", XcpCalPage::from(page));
+        log::debug!("cb_get_cal_page: ECU page = {:?}", XcpCalPage::from(page));
     } else if (mode & CAL_PAGE_MODE_XCP) != 0 {
         page = Xcp::get().get_xcp_cal_page() as u8;
-        debug!("cb_get_cal_page: XCP page = {:?}", XcpCalPage::from(page));
+        log::debug!("cb_get_cal_page: XCP page = {:?}", XcpCalPage::from(page));
     } else {
         return 0xFF; // Invalid page mode
     }
@@ -910,7 +861,7 @@ extern "C" fn cb_get_cal_page(segment: u8, mode: u8) -> u8 {
 
 #[no_mangle]
 extern "C" fn cb_set_cal_page(segment: u8, page: u8, mode: u8) -> u8 {
-    debug!("cb_set_cal_page: set cal page to segment={}, page={:?}, mode={:02X}", segment, XcpCalPage::from(page), mode);
+    log::debug!("cb_set_cal_page: set cal page to segment={}, page={:?}, mode={:02X}", segment, XcpCalPage::from(page), mode);
     if (mode & CAL_PAGE_MODE_ALL) == 0 {
         return CRC_PAGE_MODE_NOT_VALID; // Switching individual segments not supported yet
     }
@@ -933,14 +884,14 @@ extern "C" fn cb_set_cal_page(segment: u8, page: u8, mode: u8) -> u8 {
 
 #[no_mangle]
 extern "C" fn cb_init_cal(_src_page: u8, _dst_page: u8) -> u8 {
-    trace!("cb_init_cal");
+    log::trace!("cb_init_cal");
     Xcp::get().set_init_request();
     CRC_CMD_OK
 }
 
 #[no_mangle]
 extern "C" fn cb_freeze_cal() -> u8 {
-    trace!("cb_freeze_cal");
+    log::trace!("cb_freeze_cal");
     Xcp::get().set_freeze_request();
     CRC_CMD_OK
 }
@@ -953,7 +904,7 @@ extern "C" fn cb_freeze_cal() -> u8 {
 // @@@@ Unsafe - direct memory access with pointer arithmetic
 #[no_mangle]
 unsafe extern "C" fn cb_read(addr: u32, len: u8, dst: *mut u8) -> u8 {
-    trace!("cb_read: addr=0x{:08X}, len={}, dst={:?}", addr, len, dst);
+    log::trace!("cb_read: addr=0x{:08X}, len={}, dst={:?}", addr, len, dst);
     assert!((addr & 0x80000000) != 0, "cb_read: invalid address");
     assert!(len > 0, "cb_read: zero length");
 
@@ -995,7 +946,7 @@ unsafe extern "C" fn cb_read(addr: u32, len: u8, dst: *mut u8) -> u8 {
 // @@@@ Unsafe - direct memory access with pointer arithmetic
 #[no_mangle]
 unsafe extern "C" fn cb_write(addr: u32, len: u8, src: *const u8, delay: u8) -> u8 {
-    trace!("cb_write: dst=0x{:08X}, len={}, src={:?}, delay={}", addr, len, src, delay);
+    log::trace!("cb_write: dst=0x{:08X}, len={}, src={:?}, delay={}", addr, len, src, delay);
     // @@@@ callbacks should not panic
     assert!(len > 0, "cb_write: zero length");
 
@@ -1018,7 +969,7 @@ unsafe extern "C" fn cb_write(addr: u32, len: u8, src: *const u8, delay: u8) -> 
 
 #[no_mangle]
 extern "C" fn cb_flush() -> u8 {
-    trace!("cb_flush");
+    log::trace!("cb_flush");
     Xcp::get().calseg_list.lock().flush();
     CRC_CMD_OK
 }
@@ -1037,7 +988,7 @@ pub mod xcp_test {
     // Setup the test environment
     #[allow(dead_code)]
     pub fn test_setup(x: log::LevelFilter) -> &'static Xcp {
-        info!("test_setup");
+        log::info!("test_setup");
         TEST_INIT.call_once(|| {
             env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(x).init();
         });
@@ -1048,7 +999,7 @@ pub mod xcp_test {
     // Reinit XCP singleton before the next test
     pub fn test_reinit() -> &'static Xcp {
         let xcp = Xcp::get();
-        xcp.set_log_level(XcpLogLevel::Warn);
+        xcp.set_log_level(2);
         {
             let mut l = xcp.event_list.lock();
             l.clear();
@@ -1065,7 +1016,7 @@ pub mod xcp_test {
         }
         xcp.set_ecu_cal_page(XcpCalPage::Ram);
         xcp.set_xcp_cal_page(XcpCalPage::Ram);
-        info!("Test reinit done");
+        log::info!("Test reinit done");
         xcp
     }
 }
