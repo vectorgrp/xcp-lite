@@ -10,14 +10,13 @@ description = "XCP for Rust, based on XCPlite"
 readme = "README.md"
 keywords = ["XCP","Rust","Vector","ASAM","CANape","A2L"]
 license = "MIT OR Apache-2.0"
-homepage = "https://vector.com"  
+homepage = "https://vector.com"
 repository = "https://github.com/vectorgrp/xcp-lite"
-categories = ["MC"] 
+categories = ["MC"]
 
 [workspace]
-members = [    
-    "xcp_client",  
-      
+members = [
+    "xcp_client",
     "examples/hello_xcp",
     "examples/single_thread_demo",
     "examples/multi_thread_demo",
@@ -26,9 +25,9 @@ members = [
     "examples/rayon_demo",
     "examples/tokio_demo",
     "examples/type_description_demo",
-    "examples/xcp_idl_generator_demo",     
+    "examples/xcp_idl_generator_demo",
+    "examples/xcp_daemon"
 ]
-
 
 
 [[example]]
@@ -38,6 +37,10 @@ path = "xcp_client/src/main.rs"
 [[example]]
 name = "hello_xcp"
 path = "examples/hello_xcp/src/main.rs"
+
+[[example]]
+name = "xcp_daemon"
+path = "examples/xcp_daemon/src/main.rs"
 
 [[example]]
 name = "single_thread_demo"
@@ -70,7 +73,7 @@ path = "examples/protobuf_demo/src/main.rs"
 
 [features]
 
-# Feature xcp_server enables the buildin XCP server 
+# Feature xcp_server enables the buildin XCP server
 xcp_server = []
 
 # Feature load, save and freeze calibration segment to json
@@ -92,7 +95,7 @@ clap = { version = "4.5.9", features = ["derive"] }
 
 # Raw FFI bindings to platform libraries
 # For XcpLite
-libc = "0.2.153"
+# libc = "0.2.153"
 
 # A macro to generate structures which behave like bitflags
 bitflags = "2.6.0"
@@ -132,6 +135,14 @@ serde_json = { version = "1.0" , optional = true}
 # A2L checker
 a2lfile = { version="2.2.0", optional = true}
 
+# Unix Only, dependencies required for daemonization
+[target.'cfg(unix)'.dependencies]
+# Unix Signal Handling
+signal-hook = "0.3.17"
+# Syslog logging
+syslog = "7.0.0"
+# Bindings to unix APIs
+nix = { version = "0.29.0", features = ["process", "fs"] }
 
 [dev-dependencies]
 

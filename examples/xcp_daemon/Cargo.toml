@@ -1,0 +1,18 @@
+[package]
+name = "xcp_daemon"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+xcp = { path = "../../", features = [] }
+xcp_type_description  = { path = "../../xcp_type_description/"}
+xcp_type_description_derive = { path = "../../xcp_type_description/xcp_type_description_derive/" }
+
+log = "0.4.22"
+signal-hook = "0.3.17"
+syslog = "7.0.0"
+thiserror = "2.0.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+lazy_static = "1.4.0"
+env_logger = "0.11.3"

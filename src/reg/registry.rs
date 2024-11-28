@@ -827,6 +827,7 @@ impl Registry {
         let mut a2l_path = std::path::PathBuf::from(a2l_name);
         a2l_path.set_extension("a2l");
         let a2l_file = std::fs::File::create(&a2l_path)?;
+        info!("Write A2L file {}", a2l_path.display());
         let writer: &mut dyn std::io::Write = &mut std::io::LineWriter::new(a2l_file);
         let mut a2l_writer = A2lWriter::new(writer, self);
         a2l_writer.write_a2l(a2l_name, a2l_name)?;
