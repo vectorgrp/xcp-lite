@@ -14,8 +14,6 @@ use std::{
 // XCP
 
 use xcp::*;
-use xcp_idl_generator::prelude::*;
-use xcp_type_description::prelude::*;
 
 //-----------------------------------------------------------------------------
 // Defaults

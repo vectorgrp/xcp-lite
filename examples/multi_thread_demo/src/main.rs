@@ -12,7 +12,6 @@ use std::{
 use anyhow::Result;
 
 use xcp::*;
-use xcp_type_description::prelude::*;
 
 // Static application start time
 lazy_static::lazy_static! {

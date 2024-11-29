@@ -12,7 +12,6 @@ use log::{debug, error, info, trace, warn};
 use std::{fmt::Debug, thread, time::Duration};
 
 use xcp::*;
-use xcp_type_description::prelude::*;
 
 //-----------------------------------------------------------------------------
 // Calibration parameters

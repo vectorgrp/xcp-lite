@@ -10,7 +10,6 @@ use core::f64::consts::PI;
 use std::error::Error;
 
 use xcp::*;
-use xcp_type_description::prelude::*;
 
 include!("../../../tests/xcp_server_task.rs");
 
