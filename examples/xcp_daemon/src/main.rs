@@ -1,16 +1,11 @@
-use xcp::*;
-use xcp_type_description::prelude::*;
+#[cfg(unix)]
+mod platform;
+#[cfg(unix)]
+use platform::*;
 
-use log::info;
-use serde::{Deserialize, Serialize};
-use signal_hook::{
-    consts::{SIGHUP, SIGINT, SIGTERM},
-    iterator::Signals,
-};
-use thiserror::Error;
+use log::error;
 
-use std::{thread, time::Duration};
-
+#[cfg(unix)]
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
 struct CalPage1 {
     #[type_description(comment = "Max counter value", min = "0", max = "1023")]
@@ -21,6 +16,7 @@ struct CalPage1 {
     delay: u32,
 }
 
+#[cfg(unix)]
 // Default value for the calibration parameters
 const CAL_PAGE: CalPage1 = CalPage1 {
     counter_min: 5,
@@ -28,6 +24,7 @@ const CAL_PAGE: CalPage1 = CalPage1 {
     delay: 100000,
 };
 
+#[cfg(unix)]
 #[derive(Error, Debug)]
 enum XcpProcessError {
     #[error("An XCP error occurred: {0}")]
@@ -38,16 +35,19 @@ enum XcpProcessError {
     IoError(#[from] std::io::Error),
 }
 
+#[cfg(unix)]
 struct XcpProcess {
     cfg: ProcessConfig,
 }
 
+#[cfg(unix)]
 impl XcpProcess {
     fn new(config: ProcessConfig) -> Self {
         XcpProcess { cfg: config }
     }
 }
 
+#[cfg(unix)]
 impl Process for XcpProcess {
     type Error = XcpProcessError;
 
@@ -165,7 +165,8 @@ impl Process for XcpProcess {
     }
 }
 
-fn main() {
+#[cfg(unix)]
+fn _main() {
     let cfg = ProcessConfig::new(
         "xcpd",
         "/var/run/xcpd.pid",
@@ -180,4 +181,13 @@ fn main() {
 
     let mut daemon = Daemon::new(XcpProcess::new(cfg));
     daemon.run().expect("Failed to run daemon");
+}
+
+#[cfg(not(unix))]
+fn _main() {
+    error!("Daemonization is only supported for Unix platforms.");
+}
+
+fn main() {
+    _main();
 }
