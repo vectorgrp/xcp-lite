@@ -5,8 +5,4 @@ edition = "2021"
 
 [dependencies]
 xcp = { path = "../../", features = [] }
-xcp_type_description = { path = "../../xcp_type_description" }
-xcp_type_description_derive = { path = "../../xcp_type_description/xcp_type_description_derive/" }
-
-
 

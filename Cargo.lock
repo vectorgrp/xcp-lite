@@ -862,8 +862,6 @@ dependencies = [
  "serde",
  "serde_json",
  "xcp",
- "xcp_type_description",
- "xcp_type_description_derive",
 ]
 
 [[package]]
@@ -1368,8 +1366,6 @@ dependencies = [
  "serde",
  "serde_json",
  "xcp",
- "xcp_type_description",
- "xcp_type_description_derive",
 ]
 
 [[package]]
@@ -1645,10 +1641,6 @@ dependencies = [
  "serde",
  "serde_json",
  "xcp",
- "xcp_idl_generator",
- "xcp_idl_generator_derive",
- "xcp_type_description",
- "xcp_type_description_derive",
 ]
 
 [[package]]
@@ -1891,8 +1883,6 @@ dependencies = [
  "serde",
  "serde_json",
  "xcp",
- "xcp_type_description",
- "xcp_type_description_derive",
 ]
 
 [[package]]
@@ -2095,10 +2085,6 @@ dependencies = [
  "serde",
  "serde_json",
  "xcp",
- "xcp_idl_generator",
- "xcp_idl_generator_derive",
- "xcp_type_description",
- "xcp_type_description_derive",
 ]
 
 [[package]]
@@ -2354,8 +2340,6 @@ dependencies = [
  "serde_json",
  "tokio",
  "xcp",
- "xcp_type_description",
- "xcp_type_description_derive",
 ]
 
 [[package]]
@@ -2397,8 +2381,6 @@ name = "type_description_demo"
 version = "0.1.0"
 dependencies = [
  "xcp",
- "xcp_type_description",
- "xcp_type_description_derive",
 ]
 
 [[package]]
@@ -2782,8 +2764,6 @@ dependencies = [
  "syslog",
  "thiserror 2.0.3",
  "xcp",
- "xcp_type_description",
- "xcp_type_description_derive",
 ]
 
 [[package]]
@@ -2799,8 +2779,6 @@ dependencies = [
  "serde",
  "serde_json",
  "xcp",
- "xcp_type_description",
- "xcp_type_description_derive",
 ]
 
 [[package]]

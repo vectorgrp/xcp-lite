@@ -13,7 +13,6 @@ use num::Complex;
 use rayon::prelude::*;
 use std::{thread, time::Duration};
 use xcp::*;
-use xcp_type_description::prelude::*;
 
 //---------------------------------------------------------------------------------------
 // Calibratable parameters

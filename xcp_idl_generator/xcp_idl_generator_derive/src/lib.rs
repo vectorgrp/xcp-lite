@@ -17,7 +17,6 @@ pub fn idl_generator_derive(input: TokenStream) -> TokenStream {
                 .fields
                 .iter()
                 .map(|field| {
-                    //TODO Error handling
                     let field_name = &field.ident.as_ref().unwrap();
                     let field_type = &field.ty;
 
@@ -44,6 +43,7 @@ pub fn idl_generator_derive(input: TokenStream) -> TokenStream {
                 }
 
                 #[ctor::ctor]
+                #[allow(non_snake_case)]
                 fn #register_function_name() {
                     let mut struct_fields = FieldList::new();
                     #(#field_handlers)*
@@ -51,7 +51,7 @@ pub fn idl_generator_derive(input: TokenStream) -> TokenStream {
                     static mut STRUCT_INSTANCE: Option<Struct> = None;
                     static mut INITIALIZED: bool = false;
 
-                    // @@@@ - unsafe - Mutable static, todo
+                    // @@@@ - unsafe - Mutable static
                     unsafe {
                         // Prevent the user from calling the register function multiple times
                         if INITIALIZED {

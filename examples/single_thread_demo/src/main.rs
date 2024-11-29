@@ -11,7 +11,6 @@ use std::{
 };
 
 use xcp::*;
-use xcp_type_description::prelude::*;
 
 //-----------------------------------------------------------------------------
 // Demo calibration parameters

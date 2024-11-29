@@ -1,5 +1,4 @@
-//use xcp::*;
-use xcp_type_description::prelude::*;
+use xcp::*;
 
 #[derive(Clone, Copy, XcpTypeDescription, Debug)]
 struct Parent {

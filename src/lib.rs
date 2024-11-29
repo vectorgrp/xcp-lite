@@ -126,6 +126,9 @@ mod daemon;
 #[cfg(unix)]
 pub use daemon::unix::*;
 
+pub use xcp_type_description::prelude::*;
+pub use xcp_idl_generator::prelude::*;
+
 //----------------------------------------------------------------------------------------------
 // Manually register a static measurement and calibration variables
 

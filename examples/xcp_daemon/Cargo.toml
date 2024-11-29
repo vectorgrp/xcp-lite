@@ -4,14 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 # In windows we simply log an error message and exit
+# So we don't need to link any dependencies
 [dependencies]
 log = "0.4.22"
 
-# In unix we link our dependencies
+# In unix we link our dependencies as per usual
 [target.'cfg(unix)'.dependencies]
 xcp = { path = "../../", features = [] }
-xcp_type_description  = { path = "../../xcp_type_description/"}
-xcp_type_description_derive = { path = "../../xcp_type_description/xcp_type_description_derive/" }
 
 log = "0.4.22"
 signal-hook = "0.3.17"
