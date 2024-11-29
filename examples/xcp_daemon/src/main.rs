@@ -2,11 +2,13 @@
 mod platform;
 #[cfg(unix)]
 use platform::*;
+#[cfg(unix)]
+use log::info;
 
 use log::error;
 
 #[cfg(unix)]
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
 struct CalPage1 {
     #[type_description(comment = "Max counter value", min = "0", max = "1023")]
     counter_max: u32,
@@ -189,7 +191,6 @@ fn _main() {
         "/var/log/xcpd.log",
         "/var/log/xcpd.log",
         "/var/log/xcpd.log",
-        log::LevelFilter::Info,
     )
     .expect("Failed to create process config");
 

@@ -1,12 +1,9 @@
 #![cfg(unix)]
 
-use xcp::*;
-use xcp_type_description::prelude::*;
-
-use serde::{Deserialize, Serialize};
-use signal_hook::{
+pub use signal_hook::{
     consts::{SIGHUP, SIGINT, SIGTERM},
     iterator::Signals,
 };
-use std::{thread, time::Duration};
-use thiserror::Error;
+pub use std::{thread, time::Duration};
+pub use thiserror::Error;
+pub use xcp::*;
