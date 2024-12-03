@@ -13,7 +13,7 @@ sudo chmod +x ./install.sh; # Make the install script executable
 sudo ./install.sh; # Install the example (binaries and configuration files)
 
 # edit parameters
-sudo nano /etc/xcpd/xcpd.conf 
+sudo nano /etc/xcpd/xcpd.conf
 
 # run
 sudo systemctl start xcpd; # Start the daemon

@@ -17,10 +17,6 @@ lazy_static = "1.4.0"
 cdr = "0.2.4"
 
 xcp = { path = "../../", features = [] }
-xcp_type_description  = { path = "../../xcp_type_description/"}
-xcp_type_description_derive = { path = "../../xcp_type_description/xcp_type_description_derive/" }
-xcp_idl_generator  = { path = "../../xcp_idl_generator/"}
-xcp_idl_generator_derive  = { path = "../../xcp_idl_generator/xcp_idl_generator_derive/"}
 
 
 
