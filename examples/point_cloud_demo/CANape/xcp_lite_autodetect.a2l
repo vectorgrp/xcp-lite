@@ -120,7 +120,7 @@
                 0x1 SIZE_DWORD UNIT_1US TIMESTAMP_FIXED
             /end TIMESTAMP_SUPPORTED
             
-/begin EVENT "point_cloud" "point_cl" 0 DAQ 0xFF 0 0 0 CONSISTENCY DAQ /end EVENT
+/begin EVENT "point_cloud" "point_cl" 0 DAQ 0xFF 100 5 0 CONSISTENCY DAQ /end EVENT
 
 			/end DAQ
 

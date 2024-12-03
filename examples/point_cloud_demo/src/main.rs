@@ -135,7 +135,7 @@ fn main() -> Result<()> {
 
     let mut point_cloud = create_point_cloud(&params);
 
-    let mut event_point_cloud = daq_create_event!("point_cloud", MAX_POINT_COUNT * 12 + 8);
+    let mut event_point_cloud = daq_create_event!("point_cloud", MAX_POINT_COUNT * 12 + 8, 10000000u32);
 
     info!("Created point cloud: MAX_POINT_COUNT = {}, size = {} bytes", MAX_POINT_COUNT, MAX_POINT_COUNT * 12 + 8);
 

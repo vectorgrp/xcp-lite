@@ -73,7 +73,7 @@ impl<const N: usize> DaqEvent<N> {
     pub fn new(name: &'static str) -> DaqEvent<N> {
         let xcp = Xcp::get();
         DaqEvent {
-            event: xcp.create_event_ext(name, false),
+            event: xcp.create_event_ext(name, false, 0),
             buffer_len: 0,
             buffer: [0; N],
         }
@@ -232,6 +232,16 @@ impl<const N: usize> DaqEvent<N> {
 #[allow(unused_macros)]
 #[macro_export]
 macro_rules! daq_create_event {
+    // With capture buffer and cycle time
+    // Value may be moved, variable addresses is capture buffer offset
+    ( $name:expr, $capacity: expr, $cycle_time_ns: expr ) => {{
+        // Scope for lazy static XCP_EVENT__, create the XCP event only once
+        lazy_static::lazy_static! {
+            static ref XCP_EVENT__: XcpEvent = Xcp::get().create_event_ext($name,false,$cycle_time_ns);
+        }
+        // Create the DAQ event every time the thread is running through this code
+        DaqEvent::<{ $capacity }>::new_from(&XCP_EVENT__)
+    }};
     // With capture buffer
     // Value may be moved, variable addresses is capture buffer offset
     ( $name:expr, $capacity: expr ) => {{
@@ -452,7 +462,7 @@ macro_rules! daq_create_event_tli {
             static XCP_EVENT__: std::cell::Cell<XcpEvent> = const { std::cell::Cell::new(XcpEvent::XCP_UNDEFINED_EVENT) }
         }
         if XCP_EVENT__.get() == XcpEvent::XCP_UNDEFINED_EVENT {
-            XCP_EVENT__.set(Xcp::get().create_event_ext($name, true));
+            XCP_EVENT__.set(Xcp::get().create_event_ext($name, true, 0));
         }
         DaqEvent::<$capacity>::new_from(&XCP_EVENT__.get())
     }};
@@ -461,7 +471,7 @@ macro_rules! daq_create_event_tli {
             static XCP_EVENT__: std::cell::Cell<XcpEvent> = const { std::cell::Cell::new(XcpEvent::XCP_UNDEFINED_EVENT) }
         }
         if XCP_EVENT__.get() == XcpEvent::XCP_UNDEFINED_EVENT {
-            XCP_EVENT__.set(Xcp::get().create_event_ext($name, true));
+            XCP_EVENT__.set(Xcp::get().create_event_ext($name, true, 0));
         }
         DaqEvent::<0>::new_from(&XCP_EVENT__.get())
     }};
@@ -579,7 +589,7 @@ macro_rules! daq_register_tli {
 #[macro_export]
 macro_rules! daq_create_event_instance {
     ( $name:expr ) => {{
-        DaqEvent::<0>::new_from(&Xcp::get().create_event_ext($name, true))
+        DaqEvent::<0>::new_from(&Xcp::get().create_event_ext($name, true, 0))
     }};
 }
 

@@ -36,18 +36,30 @@ impl GenerateA2l for RegistryEvent {
 
         trace!("Write event {} index={}  channel={}", name, index, channel);
 
-        // @@@@ ToDo: CANape does not accept CONSISTENCY EVENT for serialized data types
+        let priority = 0; // Priority is always set to normal priority
+
+        // Convert cycle time to ASAM coding timeCycle and timeUnit
+        // "UNIT_1NS" = 0, "UNIT_10NS" = 1, ...
+        // @@@@ Warning: Not all cycle times can be represented in ASAM timeCycle and timeUnit
+        let mut time_unit: u8 = 0;
+        let mut time_cycle = self.cycle_time_ns;
+        while time_cycle >= 256 {
+            time_cycle /= 10;
+            time_unit += 1;
+        }
+
         // long name 100+1 characters
         // short name 8+1 characters
+        // TimeCycle 0
+        // TimeUnit 0
+        // Priority 0
+        // @@@@ ToDo: CANape does not accept CONSISTENCY EVENT for serialized data types
         if index > 0 {
-            writeln!(
-                writer,
-                "/begin EVENT \"{:.98}_{}\" \"{:.6}_{}\" {} DAQ 0xFF 0 0 0 CONSISTENCY DAQ /end EVENT",
-                name, index, name, index, channel
-            )
+            write!(writer, "/begin EVENT \"{:.98}_{}\" \"{:.6}_{}\" ", name, index, name, index)?;
         } else {
-            writeln!(writer, "/begin EVENT \"{:.100}\" \"{:.8}\" {} DAQ 0xFF 0 0 0 CONSISTENCY DAQ /end EVENT", name, name, channel)
+            write!(writer, "/begin EVENT \"{:.100}\" \"{:.8}\" ", name, name)?;
         }
+        writeln!(writer, "{} DAQ 0xFF {} {} {} CONSISTENCY DAQ /end EVENT", channel, time_cycle, time_unit, priority)
     }
 }
 
@@ -143,19 +155,15 @@ impl GenerateA2l for RegistryMeasurement {
             assert!(self.x_dim > 0 && self.y_dim == 1, "Blob must have x_dim > 0 and y_dim == 1");
 
             // As BLOB string (new representation)
-            write!(
-                writer,
-                r#"/begin BLOB {name} "{comment}" 0x{addr:X} {buffer_size} ECU_ADDRESS_EXTENSION {ext} "#
-            )?;
-
+            write!(writer, r#"/begin BLOB {name} "{comment}" 0x{addr:X} {buffer_size} ECU_ADDRESS_EXTENSION {ext} "#)?;
 
             // As ASCII string (old representation)
-/* 
-            write!(
-                writer,
-                r#"/begin CHARACTERISTIC {name} "{comment}" ASCII 0x{addr:X} U8 0 NO_COMPU_METHOD 0 255 READ_ONLY NUMBER {buffer_size} ECU_ADDRESS_EXTENSION {ext} "#
-            )?;
-*/
+            /*
+                        write!(
+                            writer,
+                            r#"/begin CHARACTERISTIC {name} "{comment}" ASCII 0x{addr:X} U8 0 NO_COMPU_METHOD 0 255 READ_ONLY NUMBER {buffer_size} ECU_ADDRESS_EXTENSION {ext} "#
+                        )?;
+            */
             let annotation_object_descr = self.annotation.as_ref().expect("Blob type must have annotation");
             write!(
                 writer,
@@ -165,13 +173,7 @@ impl GenerateA2l for RegistryMeasurement {
 /begin ANNOTATION ANNOTATION_LABEL "MaxBufferNeeded" ANNOTATION_ORIGIN "" /begin ANNOTATION_TEXT "{buffer_size}" /end ANNOTATION_TEXT /end ANNOTATION
  "#
             )?;
-        } 
-        
-        
-        
-        
-        
-        else {
+        } else {
             if (self.factor - 1.0).abs() > f64::EPSILON || self.offset != 0.0 || !self.unit.is_empty() {
                 writeln!(writer, r#"/begin COMPU_METHOD {name}.Conv "" LINEAR "%6.3" "{unit}" COEFFS_LINEAR {factor} {offset} /end COMPU_METHOD"#)?;
                 write!(
