@@ -4,6 +4,7 @@
 // (c) 2024 by Vector Informatik GmbH
 //
 // Demonstrates the usage of xcp-lite for Rust together with a CANape project
+// For more comprehensive examples see ./examples/
 
 #![allow(dead_code)] // Demo code
 #![allow(clippy::vec_init_then_push)]

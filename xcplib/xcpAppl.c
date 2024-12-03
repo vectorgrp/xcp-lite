@@ -494,7 +494,6 @@ uint32_t ApplXcpGetId(uint8_t id, uint8_t* buf, uint32_t bufLen) {
         break;
 #endif
 
-#ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
 #ifdef XCP_ENABLE_IDT_A2L_HTTP_GET
     case IDT_ASAM_URL:
         if (buf) {
@@ -505,7 +504,6 @@ uint32_t ApplXcpGetId(uint8_t id, uint8_t* buf, uint32_t bufLen) {
             }
         }
         break;
-#endif
 #endif
 
     }

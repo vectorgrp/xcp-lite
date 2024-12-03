@@ -10,7 +10,9 @@
 
 extern BOOL XcpEthTlInit(const uint8_t* addr, uint16_t port, BOOL useTCP, BOOL blockingRx); // Start transport layer
 extern void XcpEthTlShutdown();
+#ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
 extern void XcpEthTlGetInfo(BOOL* isTCP, uint8_t* mac, uint8_t* addr, uint16_t* port);
+#endif
 
 /* Transmit a segment (contains multiple XCP DTO or CRO messages */
 int XcpEthTlSend(const uint8_t *data, uint16_t size, const uint8_t* addr, uint16_t port);

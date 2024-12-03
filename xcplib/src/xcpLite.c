@@ -1047,7 +1047,6 @@ static void XcpSendResponse(const tXcpCto* crm, uint8_t crmLen) {
 
 // Transmit multicast command response
 #ifdef XCPTL_ENABLE_MULTICAST
-#ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
 static void XcpSendMulticastResponse( const tXcpCto* crm, uint8_t crmLen, uint8_t *addr, uint16_t port) {
 
   XcpEthTlSendMulticastCrm((const uint8_t*)crm, crmLen, addr, port);
@@ -1055,7 +1054,6 @@ static void XcpSendMulticastResponse( const tXcpCto* crm, uint8_t crmLen, uint8_
   if (DBG_LEVEL >= 4) XcpPrintRes(crm);
 #endif
 }
-#endif
 #endif
 
 //  Push XCP command which can not be executes in this context for later async execution

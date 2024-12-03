@@ -161,7 +161,7 @@
 
 			/end DAQ
 
-			/begin XCP_ON_UDP_IP 0x104 5555 ADDRESS "127.0.0.1" /end XCP_ON_UDP_IP
+			/begin XCP_ON_UDP_IP 0x104 5555 ADDRESS "172.31.31.4" /end XCP_ON_UDP_IP
 
 		/end IF_DATA
 

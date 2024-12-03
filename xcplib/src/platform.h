@@ -8,6 +8,10 @@
 #error "Include dependency error! options not set"
 #endif
 
+
+#define PLATFORM_ENABLE_GET_LOCAL_ADDR
+
+
 //-------------------------------------------------------------------------------
 // Keyboard
 

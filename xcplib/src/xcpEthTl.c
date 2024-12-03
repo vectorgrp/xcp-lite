@@ -28,8 +28,8 @@ static struct {
 #endif
 #ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
     uint8_t ServerMac[6];
-#endif
     uint8_t ServerAddr[4];
+#endif
     uint16_t ServerPort;
     BOOL ServerUseTCP;
     BOOL blockingRx;
@@ -129,7 +129,7 @@ int XcpEthTlSend(const uint8_t *data, uint16_t size, const uint8_t* addr, uint16
 
 
 // Transmit XCP multicast response
-#ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
+#ifdef XCPTL_ENABLE_MULTICAST
 void XcpEthTlSendMulticastCrm(const uint8_t* packet, uint16_t packet_size, const uint8_t* addr, uint16_t port) {
 
   int r;
@@ -380,15 +380,16 @@ BOOL XcpEthTlInit(const uint8_t* addr, uint16_t port, BOOL useTCP, BOOL blocking
     if (!XcpTlInit()) return FALSE;
 
     uint8_t bind_addr[4] = {0,0,0,0}; // Bind to ANY(0.0.0.0)
-    if (addr != 0)  { // Bind to given addr 
+    if (addr != NULL)  { // Bind to given addr 
         memcpy(bind_addr, addr, 4);
     } 
+
     gXcpTl.ServerPort = port;
-    memcpy(gXcpTl.ServerAddr,bind_addr, 4);
     gXcpTl.ServerUseTCP = useTCP;
     gXcpTl.blockingRx = blockingRx;
     gXcpTl.MasterAddrValid = FALSE;
     gXcpTl.Sock = INVALID_SOCKET;
+
     // Unicast UDP or TCP commands
 #ifdef XCPTL_ENABLE_TCP
     gXcpTl.ListenSock = INVALID_SOCKET;
@@ -419,22 +420,23 @@ BOOL XcpEthTlInit(const uint8_t* addr, uint16_t port, BOOL useTCP, BOOL blocking
         uint8_t addr[4] = {0,0,0,0};
         uint8_t mac[6] = {0,0,0,0,0,0};
         socketGetLocalAddr(mac,addr); // Store actual MAC and IP addr for later use
-        if (bind_addr[0]==0 || memcmp(bind_addr,addr,4)==0) { 
-            DBG_PRINTF3("  MAC=%02X.%02X.%02X.%02X.%02X.%02X IP=%u.%u.%u.%u\n", mac[0],mac[1],mac[2],mac[3],mac[4],mac[5], addr[0],addr[1],addr[2],addr[3]);
-            memcpy(gXcpTl.ServerAddr,addr,4);
-            memcpy(gXcpTl.ServerMac,mac,6);
+        DBG_PRINTF3("  MAC=%02X.%02X.%02X.%02X.%02X.%02X IP=%u.%u.%u.%u\n", mac[0],mac[1],mac[2],mac[3],mac[4],mac[5], addr[0],addr[1],addr[2],addr[3]);
+        if (bind_addr[0]==0) {
+            memcpy(gXcpTl.ServerAddr,addr,4); // Store IP address for XcpEthTlGetInfo
+        } else { 
+            memcpy(gXcpTl.ServerAddr,bind_addr, 4); 
         }
-    
-    }
-#endif
+        memcpy(gXcpTl.ServerMac,mac,6); // Store MAC address for XcpEthTlGetInfo
+    }  
+#endif  
 
     // Multicast UDP commands
 #ifdef XCPTL_ENABLE_MULTICAST
 
       // Open a socket for GET_DAQ_CLOCK_MULTICAST and join its multicast group
       if (!socketOpen(&gXcpTl.MulticastSock, FALSE /*useTCP*/, FALSE /*nonblocking*/, TRUE /*reusable*/, FALSE /* timestamps*/)) return FALSE;
-      DBG_PRINTF3("  Bind XCP multicast socket to %u.%u.%u.%u:%u\n", gXcpTl.ServerAddr[0], gXcpTl.ServerAddr[1], gXcpTl.ServerAddr[2], gXcpTl.ServerAddr[3], XCPTL_MULTICAST_PORT);
-      if (!socketBind(gXcpTl.MulticastSock, gXcpTl.ServerAddr, XCPTL_MULTICAST_PORT)) return FALSE; // Bind to ANY, when serverAddr=255.255.255.255
+      DBG_PRINTF3("  Bind XCP multicast socket to %u.%u.%u.%u:%u\n", bind_addr[0], bind_addr[1], bind_addr[2], bind_addr[3], XCPTL_MULTICAST_PORT);
+      if (!socketBind(gXcpTl.MulticastSock, bind_addr, XCPTL_MULTICAST_PORT)) return FALSE; // Bind to ANY, when serverAddr=255.255.255.255
       uint16_t cid = XcpGetClusterId();
       uint8_t maddr[4] = { 239,255,0,0 }; // XCPTL_MULTICAST_ADDR = 0xEFFFiiii; 
       maddr[2] = (uint8_t)(cid >> 8);
@@ -470,19 +472,15 @@ void XcpEthTlShutdown() {
 
 
 //-------------------------------------------------------------------------------------------------------
-
+#ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
 void XcpEthTlGetInfo(BOOL* isTcp, uint8_t* mac, uint8_t* addr, uint16_t *port) {
   
     if (isTcp!=NULL) *isTcp = gXcpTl.ServerUseTCP;
     if (addr!=NULL) memcpy(addr, gXcpTl.ServerAddr, 4);
-#ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
     if (mac!=NULL) memcpy(mac, gXcpTl.ServerMac, 6);
-#else
-    if (mac!=NULL) memset(mac, 0, 6);
-#endif
     if (port!=NULL) *port = gXcpTl.ServerPort;
 }
-
+#endif
 
 #endif  // defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)
 

@@ -4,7 +4,6 @@
 
 // cargo test --features=a2l_reader --features=serde -- --test-threads=1 --nocapture  --test test_single_thread
 use xcp::*;
-use xcp_type_description::prelude::*;
 
 mod xcp_test_executor;
 use xcp_test_executor::xcp_test_executor;
@@ -154,7 +153,7 @@ fn task(cal_seg: CalSeg<CalPage1>) {
 async fn test_single_thread() {
     env_logger::Builder::new()
         .target(env_logger::Target::Stdout)
-        .filter_level(OPTION_LOG_LEVEL.to_log_level_filter())
+        .filter_level(OPTION_LOG_LEVEL)
         .try_init()
         .ok();
 

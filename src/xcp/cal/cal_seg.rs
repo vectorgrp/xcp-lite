@@ -698,6 +698,7 @@ mod cal_tests {
         unsafe {
             let offset = &CAL_PAGE_TEST2.byte1 as *const u8 as usize - &CAL_PAGE_TEST2 as *const _ as *const u8 as usize;
             assert!(offset == 0);
+            assert!(index==1);
             let data: u8 = 1;
             cb_write(0x80000000u32 + (((index + 1) as u32) << 16), 1, &data, 0);
             let data: u8 = 2;
@@ -714,6 +715,9 @@ mod cal_tests {
         assert!(cal_page_test2.byte2 == 2);
         assert!(cal_page_test2.byte3 == 3);
         assert!(cal_page_test2.byte4 == 4);
+
+        //t1.join().unwrap();
+        //t2.join().unwrap();
 
         // Test drop and expected size
         let size = std::mem::size_of::<CalSeg<CalPageTest2>>();

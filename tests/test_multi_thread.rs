@@ -7,7 +7,6 @@
 #![allow(unused_assignments)]
 
 use xcp::*;
-use xcp_type_description::prelude::*;
 
 mod xcp_test_executor;
 use xcp_test_executor::xcp_test_executor;
