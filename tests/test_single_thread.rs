@@ -89,10 +89,7 @@ fn task(cal_seg: CalSeg<CalPage1>) {
     let event = daq_create_event!("task");
 
     // Create static calibration variables
-    let static_vars: &'static mut StaticVars = STATIC_VARS.init(StaticVars {
-        test_u32: 0x12345678,
-        test_f64: 1.0,
-    });
+    let static_vars: &'static mut StaticVars = STATIC_VARS.init(StaticVars { test_u32: 0x12345678, test_f64: 1.0 });
     let static_event = Xcp::get().create_event("static_event");
     daq_register_static!(static_vars.test_u32, static_event, "Test static u32");
     daq_register_static!(static_vars.test_f64, static_event, "Test static f64");
@@ -155,7 +152,11 @@ fn task(cal_seg: CalSeg<CalPage1>) {
 
 #[tokio::test]
 async fn test_single_thread() {
-    env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(OPTION_LOG_LEVEL).try_init().ok();
+    env_logger::Builder::new()
+        .target(env_logger::Target::Stdout)
+        .filter_level(OPTION_LOG_LEVEL.to_log_level_filter())
+        .try_init()
+        .ok();
 
     info!("Running test_single_thread");
 
@@ -223,14 +224,7 @@ async fn test_single_thread() {
             Ok(xcp) => xcp,
         };
 
-        xcp_test_executor(
-            xcp,
-            xcp_test_executor::TestModeCal::None,
-            xcp_test_executor::TestModeDaq::None,
-            "test_single_thread.a2l",
-            false,
-        )
-        .await; // Start the test executor XCP client
+        xcp_test_executor(xcp, xcp_test_executor::TestModeCal::None, xcp_test_executor::TestModeDaq::None, "test_single_thread.a2l", false).await; // Start the test executor XCP client
 
         xcp.stop_server();
 

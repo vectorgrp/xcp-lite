@@ -214,6 +214,7 @@ impl PartialEq for XcpEvent {
 struct XcpEventInfo {
     name: &'static str,
     event: XcpEvent,
+    cycle_time_ns: u32, // 0 -sporadic or unknown
 }
 
 struct EventList(Vec<XcpEventInfo>);
@@ -258,11 +259,11 @@ impl EventList {
         let r = Xcp::get().get_registry();
         {
             let mut l = r.lock();
-            self.0.iter().for_each(|e| l.add_event(e.name, e.event));
+            self.0.iter().for_each(|e| l.add_event(e.name, e.event,e.cycle_time_ns));
         }
     }
 
-    fn create_event_ext(&mut self, name: &'static str, indexed: bool) -> XcpEvent {
+    fn create_event_ext(&mut self, name: &'static str, indexed: bool, cycle_time_ns: u32) -> XcpEvent {
         // Allocate a new, sequential event channel number
         let channel: u16 = self.0.len().try_into().unwrap();
 
@@ -281,7 +282,7 @@ impl EventList {
         log::debug!("Create event {} channel={}, index={}", name, event.get_channel(), event.get_index());
 
         // Add XcpEventInfo to event list
-        self.0.push(XcpEventInfo { name, event });
+        self.0.push(XcpEventInfo { name, event, cycle_time_ns });
 
         event
     }
@@ -705,14 +706,14 @@ impl Xcp {
     /// Create XCP event  
     /// index==0 single instance  
     /// index>0 multi instance (instance number is attached to name)  
-    pub fn create_event_ext(&self, name: &'static str, indexed: bool) -> XcpEvent {
-        self.event_list.lock().create_event_ext(name, indexed)
+    pub fn create_event_ext(&self, name: &'static str, indexed: bool, cycle_time_ns: u32) -> XcpEvent {
+        self.event_list.lock().create_event_ext(name, indexed, cycle_time_ns)
     }
 
     /// Create XCP event  
     /// Single instance  
     pub fn create_event(&self, name: &'static str) -> XcpEvent {
-        self.event_list.lock().create_event_ext(name, false)
+        self.event_list.lock().create_event_ext(name, false, 0)
     }
 
     //------------------------------------------------------------------------------------------

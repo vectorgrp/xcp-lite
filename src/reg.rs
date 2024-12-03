@@ -32,11 +32,11 @@ mod registry_tests {
         reg.add_cal_seg("test_cal_seg_2", 1, 4);
 
         let event1_1 = crate::XcpEvent::new(0, 1);
-        reg.add_event("event1", event1_1);
+        reg.add_event("event1", event1_1,0);
         let event1_2 = crate::XcpEvent::new(1, 2);
-        reg.add_event("event1", event1_2);
+        reg.add_event("event1", event1_2,0);
         let event2 = crate::XcpEvent::new(2, 0);
-        reg.add_event("event2", event2);
+        reg.add_event("event2", event2,0);
 
         reg.add_characteristic(RegistryCharacteristic::new(
             Some("test_cal_seg_1"),
@@ -174,9 +174,9 @@ mod registry_tests {
 
         let _calseg1 = xcp.create_calseg("test_cal_seg_1", &CAL_PAGE).register_fields();
 
-        let event1_1 = xcp.create_event_ext("event1", true);
-        let event1_2 = xcp.create_event_ext("event1", true);
-        let event2 = xcp.create_event_ext("event2", false);
+        let event1_1 = xcp.create_event_ext("event1", true, 0);
+        let event1_2 = xcp.create_event_ext("event1", true, 0);
+        let event2 = xcp.create_event_ext("event2", false, 0);
 
         {
             let mut reg = reg_ref.lock();

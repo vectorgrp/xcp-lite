@@ -325,6 +325,7 @@ impl Default for RegistryXcpTransportLayer {
 struct RegistryEvent {
     name: &'static str,
     xcp_event: XcpEvent,
+    cycle_time_ns: u32, // 0 -> no cycle time = sporadic event
 }
 
 #[derive(Debug)]
@@ -675,12 +676,13 @@ impl Registry {
         self.tl_params = Some(RegistryXcpTransportLayer { protocol_name, addr, port });
     }
 
-    // Add an event
-    pub fn add_event(&mut self, name: &'static str, xcp_event: XcpEvent) {
+    /// Add an XCP event with name and cycle time in ns
+    /// cycle_time_ns = 0 is sporadic or unknown
+    pub fn add_event(&mut self, name: &'static str, xcp_event: XcpEvent, cycle_time_ns: u32) {
         debug!("Registry add_event: channel={}, index={}", xcp_event.get_channel(), xcp_event.get_index());
         assert!(!self.is_frozen(), "Registry is closed");
 
-        self.event_list.push(RegistryEvent { name, xcp_event });
+        self.event_list.push(RegistryEvent { name, xcp_event, cycle_time_ns });
     }
 
     // Add a calibration segment
