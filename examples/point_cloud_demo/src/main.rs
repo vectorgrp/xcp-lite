@@ -22,7 +22,7 @@ use xcp_type_description::prelude::*;
 
 const BIND_ADDR: [u8; 4] = [127, 0, 0, 1];
 
-const MAX_POINT_COUNT: usize = 32;
+const MAX_POINT_COUNT: usize = 20;
 const AMPL: f64 = 10.0;
 const PERIOD: f64 = 10.0;
 

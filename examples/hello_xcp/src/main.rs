@@ -1,23 +1,26 @@
 // hello_xcp
-// Basis example
+// Basic demo
 
-// cargo run --example hello_xcp
+// Run the demo
+// cargo run --features serde --example hello_xcp
 
-// Run the test XCP client in another terminal with the following command:
-// cargo run --example xcp_client
+// Run the test XCP client in another terminal or start CANape with the project in folder examples/hello_xcp/CANape
+// cargo run --example xcp_client 
 
 use anyhow::Result;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use std::{fmt::Debug, thread, time::Duration};
-
 use xcp::*;
 use xcp_type_description::prelude::*;
 
 //-----------------------------------------------------------------------------
 // Calibration parameters
+
+// Define calibration parameters as a struct
+// XCP: Add meta data for A2L generation
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
-struct CalPage1 {
+struct CalPage {
     #[type_description(comment = "Max counter value")]
     #[type_description(min = "0")]
     #[type_description(max = "1023")]
@@ -35,62 +38,70 @@ struct CalPage1 {
     delay: u32,
 }
 
-// Default value for the calibration parameters
-const CAL_PAGE: CalPage1 = CalPage1 {
+// Optionally define methods if needed
+impl CalPage {
+    fn get_delay(&self) -> u64 {
+        self.delay as u64
+    }
+}
+
+// Default values for the calibration parameters
+const CAL_PAGE: CalPage = CalPage {
     counter_min: 5,
     counter_max: 10,
     delay: 100000,
 };
+
 
 //-----------------------------------------------------------------------------
 
 fn main() -> Result<()> {
     println!("XCP Demo");
 
+    // Logging
     env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(log::LevelFilter::Info).init();
 
-    // Initalize the XCP server
+    // XCP: Initalize the XCP server
     let xcp = XcpBuilder::new("hello_xcp")
         .set_log_level(XcpLogLevel::Info)
         .set_epk("EPK_")
         .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)?;
 
-    // Create a calibration segment with default values and register the calibration parameters
-    let calseg = xcp.create_calseg("calseg", &CAL_PAGE);
-    calseg.register_fields();
+    // XCP: Create a calibration segment wrapper with default values and register the calibration parameters
+    let cal_page = xcp.create_calseg("calseg", &CAL_PAGE);
+    cal_page.register_fields();
 
-    // Load calibration parameter mutable page from a file if it exists, otherwise initially save the defaults
+    // XCP: Load calibration parameter page from a file if it exists, otherwise initially save the defaults
     #[allow(unexpected_cfgs)]
     #[cfg(feature = "serde")]
-    if calseg.load("hello_xcp.json").is_err() {
-        calseg.save("hello_xcp.json").unwrap();
+    if cal_page.load("hello_xcp.json").is_err() {
+        cal_page.save("hello_xcp.json").unwrap();
     }
 
-    // Measurement signal
-    let mut counter: u32 = calseg.counter_min;
+    // Measurement variables on stack
+    let mut counter: u32 = cal_page.counter_min;
     let mut counter_u64: u64 = 0;
 
-    // Register a measurement event and bind it to the measurement signal
-    let mut event = daq_create_event!("mainloop", 16);
-
+    // XCP: Register a measurement event and bind the measurement variables 
+    let event = daq_create_event!("mainloop", 16);
+    daq_register!(counter, event);
+    daq_register!(counter_u64, event);
+    
     loop {
+
         counter += 1;
         counter_u64 += 1;
-        if counter > calseg.counter_max {
-            counter = calseg.counter_min;
+        if counter > cal_page.counter_max {
+            counter = cal_page.counter_min;
         }
 
-        // Trigger timestamped measurement data acquisition of the counters
-        daq_capture!(counter, event);
-        daq_capture!(counter_u64, event);
+        // XCP: Trigger timestamped measurement data acquisition
         event.trigger();
 
-        // Synchronize calibration parameters in calseg
-        calseg.sync();
+        // XCP: Synchronize calibration parameters in cal_page
+        cal_page.sync();
 
-        xcp.write_a2l().unwrap(); // Force writing the A2L file once (optional, just for inspection)
-
-        thread::sleep(Duration::from_micros(calseg.delay as u64));
+        thread::sleep(Duration::from_micros(cal_page.get_delay()));
     }
 
     // Ok(())
