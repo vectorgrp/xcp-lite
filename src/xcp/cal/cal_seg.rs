@@ -11,6 +11,7 @@ use super::RegisterFieldsTrait;
 use crate::reg;
 use crate::xcp;
 use parking_lot::Mutex;
+use std::ops::DerefMut;
 use std::{marker::PhantomData, ops::Deref, sync::Arc};
 use xcp::Xcp;
 use xcp::XcpCalPage;
@@ -18,13 +19,13 @@ use xcp::XcpCalPage;
 //----------------------------------------------------------------------------------------------
 // Manually add calibration page fields to a calibration segment description
 
-/// Calibration page field description  
-/// Glue used by the calseg_field macro to manually add a field to a calibration segment  
-/// # example  
+/// Calibration page field description
+/// Glue used by the calseg_field macro to manually add a field to a calibration segment
+/// # example
 /// '''
-/// const CAL_PAGE: CalPage = CalPage { cycle_time_ms: MAINLOOP_CYCLE_TIME };  
-/// let calseg = xcp.add_calseg("CalPage", &CAL_PAGE );  
-/// calseg.add_field(calseg_field!(CAL_PAGE.cycle_time_ms, "ms", "main task cycle time"));  
+/// const CAL_PAGE: CalPage = CalPage { cycle_time_ms: MAINLOOP_CYCLE_TIME };
+/// let calseg = xcp.add_calseg("CalPage", &CAL_PAGE );
+/// calseg.add_field(calseg_field!(CAL_PAGE.cycle_time_ms, "ms", "main task cycle time"));
 /// '''
 
 #[derive(Debug, Clone, Copy)]
@@ -137,10 +138,10 @@ impl<T> CalPageTrait for T where T: Sized + Send + Sync + Copy + Clone + 'static
 //----------------------------------------------------------------------------------------------
 // CalSeg
 
-/// Thread safe calibration parameter page wrapper with interiour mutabiity by XCP  
-/// Each instance stores 2 copies of its inner data, the calibration page  
+/// Thread safe calibration parameter page wrapper with interiour mutabiity by XCP
+/// Each instance stores 2 copies of its inner data, the calibration page
 /// One for each clone of the readers, a shared copy for the writer (XCP) and
-/// a reference to the default values  
+/// a reference to the default values
 /// Implements Deref to simplify usage
 ///
 
@@ -212,16 +213,16 @@ impl<T> CalSeg<T>
 where
     T: CalPageTrait,
 {
-    /// Create a calibration segment for a calibration parameter struct T (called calibration page type)  
-    /// With a name and static const default values, which will be the "FLASH" page  
-    /// The mutable "RAM" page is initialized from name.json, if load_json==true and if it exists, otherwise with default  
-    /// CalSeg is Send and implements Clone, so clones can be savely send to other threads  
-    /// This comes with the cost of maintaining a shadow copy of the calibration page for each clone  
-    /// On calibration tool changes, sync copies the shadow (xcp_page) to the active page (ecu_page)  
+    /// Create a calibration segment for a calibration parameter struct T (called calibration page type)
+    /// With a name and static const default values, which will be the "FLASH" page
+    /// The mutable "RAM" page is initialized from name.json, if load_json==true and if it exists, otherwise with default
+    /// CalSeg is Send and implements Clone, so clones can be savely send to other threads
+    /// This comes with the cost of maintaining a shadow copy of the calibration page for each clone
+    /// On calibration tool changes, sync copies the shadow (xcp_page) to the active page (ecu_page)
     ///
-    /// # Panics  
-    /// If the name is not unique  
-    /// If the maximum number of calibration segments is reached, CANape supports a maximum of 255 calibration segments  
+    /// # Panics
+    /// If the name is not unique
+    /// If the maximum number of calibration segments is reached, CANape supports a maximum of 255 calibration segments
     ///
     pub fn new(index: usize, init_page: T, default_page: &'static T) -> CalSeg<T> {
         CalSeg {
@@ -280,11 +281,19 @@ where
         Arc::strong_count(&self.xcp_page)
     }
 
-    /// Sync the calibration segment  
-    /// If calibration changes from XCP tool happened since last sync, copy the xcp page to the ecu page  
-    /// Handle freeze and init operations on request here  
-    /// # Returns  
-    /// true, if the calibration segment was modified  
+    /// Consistent read access to the calibration segment while the lock guard is held
+    pub fn read_lock(&self) -> ReadLockGuard<'_, T> {
+        self.sync();
+        // page swap logic inside deref
+        let xcp_or_default_page = self.deref();
+        ReadLockGuard { page: xcp_or_default_page }
+    }
+
+    /// Sync the calibration segment
+    /// If calibration changes from XCP tool happened since last sync, copy the xcp page to the ecu page
+    /// Handle freeze and init operations on request here
+    /// # Returns
+    /// true, if the calibration segment was modified
     pub fn sync(&self) -> bool {
         let mut modified = false;
 
@@ -544,6 +553,20 @@ where
 /// Sync stays disabled, because this would allow to call 'calseg.sync()' from multiple threads with references to the same 'CalSeg'
 // @@@@ Unsafe - Implementation of Send marker for CalSeg
 //unsafe impl<T> Send for CalSeg<T> where T: CalPageTrait {}
+
+//----------------------------------------------------------------------------------------------
+// Read lock guard
+pub struct ReadLockGuard<'a, T: CalPageTrait> {
+    page: &'a T,
+}
+
+impl<T: CalPageTrait> Deref for ReadLockGuard<'_, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.page
+    }
+}
 
 //----------------------------------------------------------------------------------------------
 // Test
