@@ -118,14 +118,12 @@ impl XcpDaqDecoder for DaqDecoder {
             warn!("packet loss = {}, total = {}", lost, self.packets_lost);
         }
 
-        let daq: u16;
-        let odt: u8;
         let mut timestamp_raw: u32 = 0;
         let data: &[u8];
 
         // Decode header and raw timestamp
-        daq = buf[2] as u16 | (buf[3] as u16) << 8;
-        odt = buf[0];
+        let daq = buf[2] as u16 | (buf[3] as u16) << 8;
+        let odt = buf[0];
         if odt == 0 {
             timestamp_raw = buf[4] as u32 | (buf[4 + 1] as u32) << 8 | (buf[4 + 2] as u32) << 16 | (buf[4 + 3] as u32) << 24;
             data = &buf[8..];

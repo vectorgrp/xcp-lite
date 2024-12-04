@@ -9,9 +9,6 @@
 #endif
 
 
-#define PLATFORM_ENABLE_GET_LOCAL_ADDR
-
-
 //-------------------------------------------------------------------------------
 // Keyboard
 
@@ -77,14 +74,14 @@ void mutexDestroy(MUTEX* m);
 
 #if defined(_WIN) // Windows
 
-typedef HANDLE tXcpThread;
+typedef HANDLE THREAD;
 #define create_thread(h,t) *h = CreateThread(0, 0, t, NULL, 0, NULL)
 #define join_thread(h) WaitForSingleObject(h, INFINITE);
 #define cancel_thread(h) { TerminateThread(h,0); WaitForSingleObject(h,1000); CloseHandle(h); }
 
 #elif defined(_LINUX) // Linux
 
-typedef pthread_t tXcpThread;
+typedef pthread_t THREAD;
 #define create_thread(h,t) pthread_create(h, NULL, t, NULL)
 #define join_thread(h) pthread_join(h,NULL)
 #define cancel_thread(h) { pthread_detach(h); pthread_cancel(h); }

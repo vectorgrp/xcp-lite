@@ -6,7 +6,6 @@
 
 use xcp::*;
 
-
 mod xcp_test_executor;
 use xcp_test_executor::xcp_test_executor;
 use xcp_test_executor::OPTION_LOG_LEVEL;

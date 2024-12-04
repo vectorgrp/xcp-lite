@@ -452,7 +452,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     info!("local_addr: {}", local_addr);
 
     let measurement_list = args.measurement_list;
-    if measurement_list.len() > 0 {
+    if !measurement_list.is_empty() {
         info!("measurement_list: {:?}", measurement_list);
     }
 

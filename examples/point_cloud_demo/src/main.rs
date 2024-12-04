@@ -99,7 +99,7 @@ fn create_point_cloud(params: &CalSeg<Params>) -> PointCloud {
     for _ in 0..params.point_count {
         point_cloud.points.push(Point { x: 0.0, y: 0.0, z: 0.0 });
     }
-    calculate_point_cloud(&params, &mut point_cloud, 0.0, 0.0, 0.0);
+    calculate_point_cloud(params, &mut point_cloud, 0.0, 0.0, 0.0);
     point_cloud
 }
 

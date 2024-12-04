@@ -41,9 +41,9 @@ static struct {
     BOOL isInit; 
 
     // Threads
-    tXcpThread TransmitThreadHandle;
+    THREAD TransmitThreadHandle;
     volatile BOOL TransmitThreadRunning;
-    tXcpThread ReceiveThreadHandle;
+    THREAD ReceiveThreadHandle;
     volatile BOOL ReceiveThreadRunning;
 
     MUTEX TransmitQueueMutex; 

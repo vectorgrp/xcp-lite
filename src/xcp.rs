@@ -259,7 +259,7 @@ impl EventList {
         let r = Xcp::get().get_registry();
         {
             let mut l = r.lock();
-            self.0.iter().for_each(|e| l.add_event(e.name, e.event,e.cycle_time_ns));
+            self.0.iter().for_each(|e| l.add_event(e.name, e.event, e.cycle_time_ns));
         }
     }
 

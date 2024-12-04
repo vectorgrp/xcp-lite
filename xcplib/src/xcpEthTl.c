@@ -39,7 +39,7 @@ static struct {
 
     // Multicast
 #ifdef XCPTL_ENABLE_MULTICAST
-    tXcpThread MulticastThreadHandle;
+    THREAD MulticastThreadHandle;
     SOCKET MulticastSock;
 #endif
 

@@ -661,17 +661,17 @@ mod cal_tests {
             let data: u8 = 1;
             let offset = &CAL_PAGE_TEST1.byte1 as *const u8 as usize - &CAL_PAGE_TEST1 as *const _ as *const u8 as usize;
             assert!(offset == 0);
-            cb_write(0x80000000u32 + (((index + 1) as u32) << 16), 1, &data, 0);
+            cb_write(0x80000000u32, 1, &data, 0);
         }
         cal_page_test1.sync();
         test = cal_page_test1.byte1;
         assert_eq!(cal_page_test1.byte1, 1);
         assert_eq!(test, 1);
-        cb_set_cal_page((index + 1) as u8, XCP_CAL_PAGE_FLASH, CAL_PAGE_MODE_ECU | CAL_PAGE_MODE_ALL);
+        cb_set_cal_page(1, XCP_CAL_PAGE_FLASH, CAL_PAGE_MODE_ECU | CAL_PAGE_MODE_ALL);
         test = cal_page_test1.byte1;
         assert_eq!(cal_page_test1.byte1, 0);
         assert_eq!(test, 0);
-        cb_set_cal_page((index + 1) as u8, XCP_CAL_PAGE_RAM, CAL_PAGE_MODE_ECU | CAL_PAGE_MODE_ALL);
+        cb_set_cal_page(1, XCP_CAL_PAGE_RAM, CAL_PAGE_MODE_ECU | CAL_PAGE_MODE_ALL);
 
         // Move to threads
         let cal_page_test2 = xcp.create_calseg("CalPageTest2", &CAL_PAGE_TEST2);
@@ -696,17 +696,17 @@ mod cal_tests {
         });
         // @@@@ - unsafe - Test
         unsafe {
-            let offset = &CAL_PAGE_TEST2.byte1 as *const u8 as usize - &CAL_PAGE_TEST2 as *const _ as *const u8 as usize;
-            assert!(offset == 0);
-            assert!(index==1);
+            let offset = &CAL_PAGE_TEST2.byte4 as *const u8 as usize - &CAL_PAGE_TEST2 as *const _ as *const u8 as usize;
+            assert!(offset == 3);
+            assert!(index == 1);
             let data: u8 = 1;
-            cb_write(0x80000000u32 + (((index + 1) as u32) << 16), 1, &data, 0);
+            cb_write(0x80010000u32, 1, &data, 0);
             let data: u8 = 2;
-            cb_write(0x80000001u32 + (((index + 1) as u32) << 16), 1, &data, 0);
+            cb_write(0x80010001u32, 1, &data, 0);
             let data: u8 = 3;
-            cb_write(0x80000002u32 + (((index + 1) as u32) << 16), 1, &data, 0);
+            cb_write(0x80010002u32, 1, &data, 0);
             let data: u8 = 4;
-            cb_write(0x80000003u32 + (((index + 1) as u32) << 16), 1, &data, 0);
+            cb_write(0x80010003u32, 1, &data, 0);
         }
         t1.join().unwrap();
         t2.join().unwrap();

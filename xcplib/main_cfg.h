@@ -50,8 +50,11 @@
 #define OPTION_CLOCK_EPOCH_ARB
 #define OPTION_CLOCK_TICKS_1NS
  
+// Enable socketGetLocalAddr and XcpEthTlGetInfo
+// For convinience to get a correct ip addr in A2L, when bound to ANY 0.0.0.0
+#define PLATFORM_ENABLE_GET_LOCAL_ADDR
+ 
+ 
  // Logging
 #define OPTION_ENABLE_DBG_PRINTS 
 #define OPTION_DEFAULT_DBG_LEVEL 3 
-
-
