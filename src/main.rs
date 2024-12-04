@@ -244,12 +244,14 @@ fn task2(instance_num: usize, calseg: CalSeg<CalPage>, calseg2: CalSeg<CalPage2>
 
     while RUN.load(Ordering::Relaxed) {
         // Stop task if calibration parameter run2 is false
-        if !calseg.run2 {
+        if !calseg.read_lock().run2 {
             break;
         }
 
         // Sleep for a calibratable amount of microseconds
         thread::sleep(Duration::from_micros(static_cal_page.task2_cycle_time_us as u64));
+
+        let calseg2 = calseg2.read_lock();
 
         // Calculate demo measurement variable depending on calibration parameters (sine signal with ampl and period)
         let time = START_TIME.elapsed().as_micros() as f64 * 0.000001; // s
@@ -265,11 +267,6 @@ fn task2(instance_num: usize, calseg: CalSeg<CalPage>, calseg2: CalSeg<CalPage2>
         // daq_capture creates a static signal for all instances of this thread
         daq_capture!(channel, event, "sine: f64", "Volt");
         event.trigger(); // Take a timestamp and trigger the static data acquisition event
-
-        // Synchronize calibration operations
-        // All calibration write operations (download, page switch, init) on a segment happen here
-        calseg.sync();
-        calseg2.sync();
     }
     info!("{} stopped", std::thread::current().name().unwrap());
 }
@@ -319,12 +316,14 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
 
     while RUN.load(Ordering::Relaxed) {
         // Stop task if calibration parameter run1 is false
-        if !calseg.run1 {
+        if !calseg.read_lock().run1 {
             break;
         }
 
         // Sleep for a calibratable amount of microseconds
         thread::sleep(Duration::from_micros(static_cal_page.task1_cycle_time_us as u64));
+
+        let calseg1 = calseg1.read_lock();
 
         // Basic types and array variables on stack
         counter += 1;
@@ -351,10 +350,6 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
         // Trigger single instance event "task1" for data acquisition
         // Capture variables from stack happens here
         event.trigger();
-
-        // Sync the calibration segments
-        calseg1.sync();
-        calseg.sync();
     }
     info!("task1 stopped");
 }
@@ -468,10 +463,12 @@ fn main() {
     let mut current_session_status = xcp.get_session_status();
     let mut idle_time = 0.0;
     while RUN.load(Ordering::Relaxed) {
-        if !calseg.run {
+        if !calseg.read_lock().run {
             break;
         }
         thread::sleep(Duration::from_millis(calseg.cycle_time_ms as u64));
+
+        let calseg = calseg.read_lock();
 
         // Variables on stack and heap
         mainloop_counter1 += 1;
@@ -494,9 +491,6 @@ fn main() {
         static_vars.test_u32 += 1;
         static_vars.test_f64 += 0.1;
         static_event.trigger();
-
-        // Sync
-        calseg.sync();
 
         // Check if the XCP server is still alive
         // Optional

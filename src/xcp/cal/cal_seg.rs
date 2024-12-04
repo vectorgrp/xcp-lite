@@ -11,7 +11,6 @@ use super::RegisterFieldsTrait;
 use crate::reg;
 use crate::xcp;
 use parking_lot::Mutex;
-use std::ops::DerefMut;
 use std::{marker::PhantomData, ops::Deref, sync::Arc};
 use xcp::Xcp;
 use xcp::XcpCalPage;
@@ -285,7 +284,7 @@ where
     pub fn read_lock(&self) -> ReadLockGuard<'_, T> {
         self.sync();
         // page swap logic inside deref
-        let xcp_or_default_page = self.deref();
+        let xcp_or_default_page = &**self;
         ReadLockGuard { page: xcp_or_default_page }
     }
 
@@ -554,8 +553,7 @@ where
 // @@@@ Unsafe - Implementation of Send marker for CalSeg
 //unsafe impl<T> Send for CalSeg<T> where T: CalPageTrait {}
 
-//----------------------------------------------------------------------------------------------
-// Read lock guard
+/// Read lock guard that provides consistent read only access to a calibration page
 pub struct ReadLockGuard<'a, T: CalPageTrait> {
     page: &'a T,
 }

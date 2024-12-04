@@ -74,10 +74,14 @@ fn main() -> Result<()> {
     let mut event = daq_create_event!("mainloop", 16);
 
     loop {
-        counter += 1;
-        counter_u64 += 1;
-        if counter > calseg.counter_max {
-            counter = calseg.counter_min;
+        {
+            let calseg = calseg.read_lock();
+
+            counter += 1;
+            counter_u64 += 1;
+            if counter > calseg.counter_max {
+                counter = calseg.counter_min;
+            }
         }
 
         // Trigger timestamped measurement data acquisition of the counters
@@ -85,12 +89,9 @@ fn main() -> Result<()> {
         daq_capture!(counter_u64, event);
         event.trigger();
 
-        // Synchronize calibration parameters in calseg
-        calseg.sync();
-
         xcp.write_a2l().unwrap(); // Force writing the A2L file once (optional, just for inspection)
 
-        thread::sleep(Duration::from_micros(calseg.delay as u64));
+        thread::sleep(Duration::from_micros(calseg.read_lock().delay as u64));
     }
 
     // Ok(())

@@ -82,18 +82,18 @@ fn task(cal_seg: CalSeg<CalPage1>) {
     let mut loop_counter: u32 = 0;
     let mut changes: u32 = 0;
     let mut cal_test: u64 = 0;
-    let mut counter_max: u32 = cal_seg.counter_max;
+    let mut counter_max: u32 = cal_seg.read_lock().counter_max;
     let mut counter: u32 = 0;
 
     // Create a DAQ event and register local variables for measurment
     let event = daq_create_event!("task");
 
-        // Create static calibration variables 
-        let static_vars: &'static mut StaticVars = STATIC_VARS.init(StaticVars { test_u32: 0x12345678, test_f64: 1.0 });
-        let static_event = Xcp::get().create_event("static_event");
-        daq_register_static!(static_vars.test_u32, static_event, "Test static u32");
-        daq_register_static!(static_vars.test_f64, static_event, "Test static f64");
-    
+    // Create static calibration variables
+    let static_vars: &'static mut StaticVars = STATIC_VARS.init(StaticVars { test_u32: 0x12345678, test_f64: 1.0 });
+    let static_event = Xcp::get().create_event("static_event");
+    daq_register_static!(static_vars.test_u32, static_event, "Test static u32");
+    daq_register_static!(static_vars.test_f64, static_event, "Test static f64");
+
     daq_register!(changes, event);
     daq_register!(loop_counter, event);
     daq_register!(counter_max, event);
@@ -102,39 +102,39 @@ fn task(cal_seg: CalSeg<CalPage1>) {
 
     loop {
         // Sleep for a calibratable amount of microseconds
-        thread::sleep(Duration::from_micros(cal_seg.cycle_time_us as u64));
+        thread::sleep(Duration::from_micros(cal_seg.read_lock().cycle_time_us as u64));
         loop_counter += 1;
 
-        // Test XCP text messages if counter_max has changed
-        if counter_max != cal_seg.counter_max {
-            xcp_println!("Task: counter_max calibrated: counter_max={} !!!", cal_seg.counter_max);
+        {
+            let cal_seg = cal_seg.read_lock();
+            // Test XCP text messages if counter_max has changed
+            if counter_max != cal_seg.counter_max {
+                xcp_println!("Task: counter_max calibrated: counter_max={} !!!", cal_seg.counter_max);
+            }
+
+            // Create a calibratable wrapping counter signal
+            counter_max = cal_seg.counter_max;
+            counter += 1;
+            if counter > counter_max {
+                counter = 0;
+            }
+
+            // Test calibration data validity
+            if cal_test != cal_seg.cal_test {
+                changes += 1;
+                cal_test = cal_seg.cal_test;
+                assert_eq!((cal_test >> 32) ^ 0x55555555, cal_test & 0xFFFFFFFF);
+            }
+
+            // Trigger DAQ event
+            // daq_capture!(cal_test, event);
+            // daq_capture!(counter_max, event);
+            // daq_capture!(counter, event);
+            event.trigger();
         }
-
-        // Create a calibratable wrapping counter signal
-        counter_max = cal_seg.counter_max;
-        counter += 1;
-        if counter > counter_max {
-            counter = 0;
-        }
-
-        // Test calibration data validity
-        if cal_test != cal_seg.cal_test {
-            changes += 1;
-            cal_test = cal_seg.cal_test;
-            assert_eq!((cal_test >> 32) ^ 0x55555555, cal_test & 0xFFFFFFFF);
-        }
-
-        // Trigger DAQ event
-        // daq_capture!(cal_test, event);
-        // daq_capture!(counter_max, event);
-        // daq_capture!(counter, event);
-        event.trigger();
-
-        // Synchronize the calibration segment
-        cal_seg.sync();
 
         // Check for termination
-        if !cal_seg.run {
+        if !cal_seg.read_lock().run {
             break;
         }
 
@@ -162,7 +162,7 @@ async fn test_single_thread() {
 
     // Initialize the XCP driver singleton
     let xcp = Xcp::get();
-    
+
     // Create a calibration segment
     let cal_seg = xcp.create_calseg("cal_seg", &CAL_PAR1);
     cal_seg.register_fields();
