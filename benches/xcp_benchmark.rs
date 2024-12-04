@@ -268,11 +268,29 @@ fn xcp_benchmark(c: &mut Criterion) {
 
     // Bench deref performance
     info!("Start calibration segment deref bench");
-    c.bench_function("deref", |b| {
-        b.iter(|| {
-            let _x = cal_page.ampl;
-        })
-    });
+    {
+        let mut deref_bench = c.benchmark_group("calibration segment deref");
+
+        deref_bench.bench_function("deref no sync", |b| {
+            b.iter(|| {
+                let _x = cal_page.ampl;
+            })
+        });
+
+        deref_bench.bench_function("deref with sync", |b| {
+            b.iter(|| {
+                cal_page.sync();
+                let _x = cal_page.ampl;
+            })
+        });
+
+        deref_bench.bench_function("deref read_lock", |b| {
+            b.iter(|| {
+                let cal_page = cal_page.read_lock();
+                let _x = cal_page.ampl;
+            })
+        });
+    }
 
     // Bench calibration segment sync
     // Bench calibration operations (in xcp_client_task)
