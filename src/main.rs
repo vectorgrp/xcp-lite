@@ -252,12 +252,15 @@ fn task2(instance_num: usize, calseg: CalSeg<CalPage>, calseg2: CalSeg<CalPage2>
         // Sleep for a calibratable amount of microseconds
         thread::sleep(Duration::from_micros(static_cal_page.task2_cycle_time_us as u64));
 
-        let calseg2 = calseg2.read_lock();
+        let channel = {
+            // Synchronize calibration parameters in cal_page and lock read access
+            let calseg2 = calseg2.read_lock();
 
-        // Calculate demo measurement variable depending on calibration parameters (sine signal with ampl and period)
-        let time = START_TIME.elapsed().as_micros() as f64 * 0.000001; // s
-        let offset = instance_num as f64 * 10.0;
-        let channel = offset + calseg2.ampl * (PI * time / calseg2.period).sin(); // Use active page in calibration segment
+            // Calculate demo measurement variable depending on calibration parameters (sine signal with ampl and period)
+            let time = START_TIME.elapsed().as_micros() as f64 * 0.000001; // s
+            let offset = instance_num as f64 * 10.0;
+            offset + calseg2.ampl * (PI * time / calseg2.period).sin()
+        };
 
         // Measurement of local variables by capturing their value and association to the given XCP event
 

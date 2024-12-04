@@ -196,11 +196,12 @@ impl std::error::Error for XcpError {}
 pub const CC_CONNECT: u8 = 0xFF;
 pub const CC_DISCONNECT: u8 = 0xFE;
 pub const CC_SHORT_DOWNLOAD: u8 = 0xED;
+pub const CC_SYNC: u8 = 0xFC;
+pub const CC_GET_ID: u8 = 0xFA;
 pub const CC_UPLOAD: u8 = 0xF5;
 pub const CC_SHORT_UPLOAD: u8 = 0xF4;
-pub const CC_SYNC: u8 = 0xFC;
+pub const CC_USER: u8 = 0xF1;
 pub const CC_NOP: u8 = 0xC1;
-pub const CC_GET_ID: u8 = 0xFA;
 pub const CC_SET_CAL_PAGE: u8 = 0xEB;
 pub const CC_GET_CAL_PAGE: u8 = 0xEA;
 pub const CC_GET_SEGMENT_INFO: u8 = 0xE8;
@@ -234,6 +235,7 @@ enum XcpCommand {
     ShortDownload = CC_SHORT_DOWNLOAD as isize,
     Upload = CC_UPLOAD as isize,
     ShortUpload = CC_SHORT_UPLOAD as isize,
+    User = CC_USER as isize,
     Sync = CC_SYNC as isize,
     Nop = CC_NOP as isize,
     GetId = CC_GET_ID as isize,
@@ -272,6 +274,7 @@ impl From<u8> for XcpCommand {
             CC_SHORT_DOWNLOAD => XcpCommand::ShortDownload,
             CC_UPLOAD => XcpCommand::Upload,
             CC_SHORT_UPLOAD => XcpCommand::ShortUpload,
+            CC_USER => XcpCommand::User,
             CC_SYNC => XcpCommand::Sync,
             CC_NOP => XcpCommand::Nop,
             CC_GET_ID => XcpCommand::GetId,
@@ -951,6 +954,16 @@ impl XcpClient {
     pub async fn upload(&mut self, size: u8) -> Result<Vec<u8>, Box<dyn Error>> {
         let data = self.send_command(XcpCommandBuilder::new(CC_UPLOAD).add_u8(size).build()).await?;
         Ok(data)
+    }
+
+    pub async fn modify_begin(&mut self) -> Result<(), Box<dyn Error>> {
+        self.send_command(XcpCommandBuilder::new(CC_USER).add_u8(1).add_u8(0).add_u8(0).build()).await?;
+        Ok(())
+    }
+
+    pub async fn modify_end(&mut self) -> Result<(), Box<dyn Error>> {
+        self.send_command(XcpCommandBuilder::new(CC_USER).add_u8(2).add_u8(0).add_u8(0).build()).await?;
+        Ok(())
     }
 
     //------------------------------------------------------------------------

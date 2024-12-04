@@ -6,6 +6,7 @@
 use log::{debug, error, info, trace, warn};
 use parking_lot::Mutex;
 use std::net::SocketAddr;
+use std::num::Wrapping;
 use std::sync::Arc;
 use tokio::time::{Duration, Instant};
 use xcp::Xcp;
@@ -606,6 +607,71 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
                 );
                 if download_time > 100.0 {
                     warn!("Calibration download time ({}us) is too high!", download_time);
+                }
+            }
+
+            // Consistent calibration test loop
+            // Do MAX_ITER consistent calibrations on cal_seg.sync_test1/2 cal_test, task will panic if different
+            {
+                tokio::time::sleep(Duration::from_micros(10000)).await;
+
+                // Create calibration variable CalPage1.sync_test1
+                let a2l = xcp_client.get_a2l_file().unwrap();
+                let sync_test1 = a2l_reader::a2l_find_characteristic(a2l, "CalPage1.sync_test1");
+                let sync_test2 = a2l_reader::a2l_find_characteristic(a2l, "CalPage1.sync_test2");
+                if sync_test1.is_some() && sync_test2.is_some() {
+                    let addr_sync_test1 = sync_test1.unwrap().0.addr;
+                    let addr_sync_test2 = sync_test2.unwrap().0.addr;
+
+                    info!("start consistent calibration test loop");
+
+                    // Calibration loop
+                    // Set calibration variable cal_test to a defined pattern which will be checked by the server application task
+                    for i in 0..CAL_TEST_MAX_ITER {
+                        let value: u16 = (i & 0xFFFF) as u16;
+
+                        xcp_client
+                            .modify_begin()
+                            .await
+                            .map_err(|e| {
+                                error_state = true;
+                                error!("modify begin: {:?}", e);
+                            })
+                            .ok();
+
+                        xcp_client // SHORT_DOWNLOAD cal_seg.test_u64
+                            .short_download(addr_sync_test1, 0, &value.to_le_bytes())
+                            .await
+                            .map_err(|e| {
+                                error_state = true;
+                                error!("download CalPage1.sync_test1: {:?}", e);
+                            })
+                            .ok();
+
+                        xcp_client // SHORT_DOWNLOAD cal_seg.test_u64
+                            .short_download(addr_sync_test2, 0, &value.to_le_bytes())
+                            .await
+                            .map_err(|e| {
+                                error_state = true;
+                                error!("download CalPage1.sync_test2: {:?}", e);
+                            })
+                            .ok();
+
+                        xcp_client
+                            .modify_end()
+                            .await
+                            .map_err(|e| {
+                                error_state = true;
+                                error!("modify end: {:?}", e);
+                            })
+                            .ok();
+
+                        if error_state {
+                            break;
+                        }
+                    }
+
+                    info!("consistent calibration test loop done, {} iterations", CAL_TEST_MAX_ITER);
                 }
             }
         }

@@ -43,6 +43,8 @@ struct CalPage1 {
     run: bool,
     counter_max: u32,
     cal_test: u64,
+    sync_test1: u16,
+    sync_test2: u16,
     cycle_time_us: u32,
     page: u8,
     test_ints: TestInts,
@@ -54,6 +56,8 @@ const CAL_PAR1: CalPage1 = CalPage1 {
     cycle_time_us: 100000, // Default cycle time 100ms, will be set by xcp_test_executor
     counter_max: 0xFFFF,
     cal_test: 0x5555555500000000u64,
+    sync_test1: 0,
+    sync_test2: 0,
     page: XcpCalPage::Flash as u8,
     test_ints: TestInts {
         test_bool: false,
@@ -244,11 +248,20 @@ fn task(index: usize, cal_seg: CalSeg<CalPage1>) {
             counter = 0;
         }
 
-        // Test calibration - check cal_seg.cal_test is valid and report the number of changes
+        // Test atomic calibration
+        // Check that modified cal_seg.cal_test value is not corrupted and report the number of changes
         if cal_test != cal_seg.cal_test {
             changes += 1;
             cal_test = cal_seg.cal_test;
             assert_eq!((cal_test >> 32) ^ 0x55555555, cal_test & 0xFFFFFFFF);
+        }
+
+        // Test consistent calibration
+        {
+            // Syncronize the calibration segment and get a read lock
+            // Check that modified values of sync_test1/2 are always equal
+            let cal_seg = cal_seg.read_lock();
+            assert_eq!(cal_seg.sync_test1, cal_seg.sync_test2);
         }
 
         // Capture variable cal_test, to test capture buffer measurement mode
@@ -288,7 +301,14 @@ fn task(index: usize, cal_seg: CalSeg<CalPage1>) {
 
 #[tokio::test]
 async fn test_multi_thread() {
-    env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(OPTION_LOG_LEVEL).init();
+    env_logger::Builder::new()
+        .target(env_logger::Target::Stdout)
+        .format_timestamp(None)
+        //.format_timestamp_millis()
+        .format_module_path(false)
+        .format_target(false)
+        .filter_level(OPTION_LOG_LEVEL)
+        .init();
 
     // Initialize XCP driver singleton, the transport layer server and enable the A2L writer
     let xcp = match XcpBuilder::new("test_multi_thread")

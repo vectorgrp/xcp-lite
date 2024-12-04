@@ -5,7 +5,7 @@
 // cargo run --features serde --example hello_xcp
 
 // Run the test XCP client in another terminal or start CANape with the project in folder examples/hello_xcp/CANape
-// cargo run --example xcp_client 
+// cargo run --example xcp_client
 
 use anyhow::Result;
 #[allow(unused_imports)]
@@ -51,7 +51,6 @@ const CAL_PAGE: CalPage = CalPage {
     delay: 100000,
 };
 
-
 //-----------------------------------------------------------------------------
 
 fn main() -> Result<()> {
@@ -81,12 +80,14 @@ fn main() -> Result<()> {
     let mut counter: u32 = cal_page.counter_min;
     let mut counter_u64: u64 = 0;
 
-    // XCP: Register a measurement event and bind the measurement variables 
+    // XCP: Register a measurement event and bind the measurement variables
     let event = daq_create_event!("mainloop", 16);
     daq_register!(counter, event);
     daq_register!(counter_u64, event);
-    
+
     loop {
+        // XCP: Synchronize calibration parameters in cal_page and lock read access
+        let cal_page = cal_page.read_lock();
 
         counter += 1;
         counter_u64 += 1;
@@ -96,9 +97,6 @@ fn main() -> Result<()> {
 
         // XCP: Trigger timestamped measurement data acquisition
         event.trigger();
-
-        // XCP: Synchronize calibration parameters in cal_page
-        cal_page.sync();
 
         thread::sleep(Duration::from_micros(cal_page.get_delay()));
     }

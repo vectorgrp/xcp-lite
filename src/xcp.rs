@@ -259,7 +259,7 @@ impl EventList {
         let r = Xcp::get().get_registry();
         {
             let mut l = r.lock();
-            self.0.iter().for_each(|e| l.add_event(e.name, e.event,e.cycle_time_ns));
+            self.0.iter().for_each(|e| l.add_event(e.name, e.event, e.cycle_time_ns));
         }
     }
 
@@ -1004,7 +1004,14 @@ pub mod xcp_test {
     pub fn test_setup(x: log::LevelFilter) -> &'static Xcp {
         log::info!("test_setup");
         TEST_INIT.call_once(|| {
-            env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(x).init();
+            env_logger::Builder::new()
+                .target(env_logger::Target::Stdout)
+                .filter_level(x)
+                .format_timestamp(None)
+                //.format_timestamp_millis()
+                .format_module_path(false)
+                .format_target(false)
+                .init();
         });
 
         test_reinit()
