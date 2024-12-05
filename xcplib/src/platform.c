@@ -271,6 +271,9 @@ BOOL socketClose(SOCKET *sp) {
 #include <ifaddrs.h>
 #include <net/if_dl.h>
 #endif
+#ifdef _LINUX
+#include <ifaddrs.h>
+#endif
 
 static BOOL GetMAC(char* ifname, uint8_t* mac) {
     struct ifaddrs *ifaddrs, *ifa;
