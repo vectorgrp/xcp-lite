@@ -39,3 +39,4 @@ mandelbrot.png
 multi_thread_demo.a2l
 single_thread_demo.a2l
 /examples/point_cloud_demo/CANape/~CANapeCurrentCfg.gvc
+/.github/workflows/default.yml
