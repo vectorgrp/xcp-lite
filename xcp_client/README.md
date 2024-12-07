@@ -5,6 +5,34 @@ Used for integration testing xcp-lite.
 Partial XCP implementation hard-coded for xcp-lite testing.  
 Using tokio and a2lfile.  
 
+xcp-lite-rdm % cargo r --example xcp_client -- -h
+
+Usage: xcp_client [OPTIONS]
+
+Options:
+  -l, --log-level <LOG_LEVEL>
+          Log level (Off=0, Error=1, Warn=2, Info=3, Debug=4, Trace=5) [default: 2]
+  -d, --dest-addr <DEST_ADDR>
+          XCP server address [default: 127.0.0.1:5555]
+  -p, --port <PORT>
+          XCP server port number [default: 5555]
+  -b, --bind-addr <BIND_ADDR>
+          Bind address, master port number [default: 0.0.0.0:9999]
+      --print-a2l
+          Print detailled A2L infos
+      --list-mea
+          Lists all measurement variables
+      --list-cal
+          Lists all calibration variables
+  -m, --measurement-list <MEASUREMENT_LIST>...
+          Specifies the variables names for DAQ measurement, 'all' or a list of names separated by space
+  -a, --a2l-filename <A2L_FILENAME>
+          A2L filename, default is upload A2L file
+  -h, --help
+          Print help
+  -V, --version
+          Print version
+
 
 
   ``` rust
