@@ -41,9 +41,9 @@ static struct {
     BOOL isInit; 
 
     // Threads
-    tXcpThread TransmitThreadHandle;
+    THREAD TransmitThreadHandle;
     volatile BOOL TransmitThreadRunning;
-    tXcpThread ReceiveThreadHandle;
+    THREAD ReceiveThreadHandle;
     volatile BOOL ReceiveThreadRunning;
 
     MUTEX TransmitQueueMutex; 
@@ -63,7 +63,7 @@ BOOL XcpEthServerInit(const uint8_t* addr, uint16_t port, BOOL useTCP)
     int r = 0;
 
     if (gXcpServer.isInit) return FALSE;
-    DBG_PRINT3("\nStart XCP server\n");
+    DBG_PRINT3("Start XCP server\n");
 
     // Init network sockets
     if (!socketStartup()) return FALSE;

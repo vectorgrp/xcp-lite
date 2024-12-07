@@ -39,7 +39,7 @@ static struct {
 
     // Multicast
 #ifdef XCPTL_ENABLE_MULTICAST
-    tXcpThread MulticastThreadHandle;
+    THREAD MulticastThreadHandle;
     SOCKET MulticastSock;
 #endif
 
@@ -159,8 +159,8 @@ static int handleXcpCommand(tXcpCtoMessage *p, uint8_t *srcAddr, uint16_t srcPor
 #ifdef DBG_LEVEL
     if (DBG_LEVEL >= 5) {
         DBG_PRINTF5("RX: CTR %04X LEN %04X DATA = ", p->ctr,p->dlc);
-        for (int i = 0; i < p->dlc; i++) DBG_PRINTF5("%0X ", p->packet[i]);
-        DBG_PRINT5("\n");
+        for (int i = 0; i < p->dlc; i++) printf("%0X ", p->packet[i]);
+        printf("\n");
     }
 #endif
 

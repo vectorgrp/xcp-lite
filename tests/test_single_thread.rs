@@ -158,7 +158,6 @@ async fn test_single_thread() {
         .target(env_logger::Target::Stdout)
         .filter_level(OPTION_LOG_LEVEL)
         .format_timestamp(None)
-        //.format_timestamp_millis()
         .format_module_path(false)
         .format_target(false)
         .try_init()

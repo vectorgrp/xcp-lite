@@ -439,7 +439,7 @@ uint32_t openA2lFile() {
     rewind(gXcpFile); 
     assert(gXcpFileLength > 0);
 
-    DBG_PRINTF3("A2L file %s ready for upload, size=%u\n\n", filename, gXcpFileLength);
+    DBG_PRINTF3("A2L file %s ready for upload, size=%u\n", filename, gXcpFileLength);
     return gXcpFileLength;
 }
 

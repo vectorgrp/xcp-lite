@@ -755,18 +755,18 @@ char* clockGetString(char* s, uint32_t l, uint64_t c) {
 
 BOOL clockInit()
 {    
-    DBG_PRINT3("\nInit clock\n  (");
+    DBG_PRINT3("Init clock\n");
 #ifdef OPTION_CLOCK_EPOCH_PTP
-    DBG_PRINT3("OPTION_CLOCK_EPOCH_PTP,");
+    DBG_PRINT3("  epoch = OPTION_CLOCK_EPOCH_PTP\n");
 #endif
 #ifdef OPTION_CLOCK_EPOCH_ARB
-    DBG_PRINT3("OPTION_CLOCK_EPOCH_ARB,");
+    DBG_PRINT3("  epoch = OPTION_CLOCK_EPOCH_ARB\n");
 #endif
 #ifdef OPTION_CLOCK_TICKS_1US
-    DBG_PRINT3("OPTION_CLOCK_TICKS_1US)\n");
+    DBG_PRINT3("  ticks = OPTION_CLOCK_TICKS_1US\n");
 #endif
 #ifdef OPTION_CLOCK_TICKS_1NS
-    DBG_PRINT3("OPTION_CLOCK_TICKS_1NS)\n");
+    DBG_PRINT3("  ticks = OPTION_CLOCK_TICKS_1NS\n");
 #endif
     
     sClock = 0;
@@ -775,7 +775,7 @@ BOOL clockInit()
     if (DBG_LEVEL >= 3) { // Test
         struct timespec gtr;
         clock_getres(CLOCK_TYPE, &gtr);
-        DBG_PRINTF3("  Clock resolution is %ldns!\n", gtr.tv_nsec);
+        DBG_PRINTF3("  resolution = %ldns!\n", gtr.tv_nsec);
     }
 #endif
 
@@ -791,7 +791,7 @@ BOOL clockInit()
         // t1 = clockGet(); sleepMs(100); t2 = clockGet();
         // DBG_PRINTF4("  +0us:   %" PRIu64 " %s\n", t1, clockGetString(s, sizeof(s), t1));
         // DBG_PRINTF4("  +100ms: %" PRIu64 " %s (dt=%u)\n", t2, clockGetString(s, sizeof(s), t2), (uint32_t)(t2 - t1));
-        DBG_PRINT4("\n");
+        
     }
 #endif
 
@@ -856,7 +856,7 @@ char* clockGetTimeString(char* str, uint32_t l, int64_t t) {
 
 BOOL clockInit() {
 
-    DBG_PRINT4("\nInit clock\n  ");
+    DBG_PRINT4("Init clock\n  ");
 #ifdef OPTION_CLOCK_EPOCH_PTP
     DBG_PRINT4("OPTION_CLOCK_EPOCH_PTP,");
 #endif

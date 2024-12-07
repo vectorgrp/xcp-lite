@@ -43,7 +43,7 @@ impl ServTextDecoder {
 impl XcpTextDecoder for ServTextDecoder {
     // Handle incomming text data from XCP server
     fn decode(&self, data: &[u8]) {
-        print!("SERV_TEXT: ");
+        print!("[SERV_TEXT] ");
         let mut j = 0;
         while j < data.len() {
             if data[j] == 0 {
@@ -119,14 +119,12 @@ impl XcpDaqDecoder for DaqDecoder {
             warn!("packet loss = {}, total = {}", lost, self.packets_lost);
         }
 
-        let daq: u16;
-        let odt: u8;
         let mut timestamp_raw: u32 = 0;
         let data: &[u8];
 
         // Decode header and raw timestamp
-        daq = buf[2] as u16 | (buf[3] as u16) << 8;
-        odt = buf[0];
+        let daq = buf[2] as u16 | (buf[3] as u16) << 8;
+        let odt = buf[0];
         if odt == 0 {
             timestamp_raw = buf[4] as u32 | (buf[4 + 1] as u32) << 8 | (buf[4 + 2] as u32) << 16 | (buf[4 + 3] as u32) << 24;
             data = &buf[8..];
@@ -331,7 +329,7 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
         };
         let epk = resp[1..=8].to_vec();
         let epk_string = String::from_utf8(epk.clone()).unwrap();
-        info!("Upload EPK = {} {:?}\n", epk_string, epk);
+        info!("Upload EPK = {} {:?}", epk_string, epk);
         assert_eq!(epk_string, "EPK_TEST", "Unexpected EPK string");
 
         //-------------------------------------------------------------------------------------------------------------------------------------
@@ -612,6 +610,7 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
 
             // Consistent calibration test loop
             // Do MAX_ITER consistent calibrations on cal_seg.sync_test1/2 cal_test, task will panic if different
+            /* @@@@ TODO reanbale this
             {
                 tokio::time::sleep(Duration::from_micros(10000)).await;
 
@@ -674,6 +673,7 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
                     info!("consistent calibration test loop done, {} iterations", CAL_TEST_MAX_ITER);
                 }
             }
+            */
         }
 
         // Stop test task

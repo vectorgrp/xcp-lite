@@ -177,7 +177,7 @@ static atomic_flag lock = ATOMIC_FLAG_INIT;
 
 void XcpTlInitTransmitQueue() {
 
-    DBG_PRINT3("\nInit XCP transport layer queue\n");
+    DBG_PRINT3("Init XCP transport layer queue\n");
     DBG_PRINTF3("  SEGMENT_SIZE=%u, QUEUE_SIZE=%u, ALIGNMENT=%u, %uKiB queue memory used\n", XCPTL_MAX_SEGMENT_SIZE, XCPTL_QUEUE_SIZE, XCPTL_PACKET_ALIGNMENT, (unsigned int)sizeof(gXcpTlQueue) / 1024);
     gXcpTlQueue.overruns = 0;
     gXcpTlQueue.ctr = 0;

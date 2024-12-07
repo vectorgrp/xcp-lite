@@ -375,7 +375,13 @@ fn main() {
     };
 
     // Logging
-    env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(log_level).init();
+    env_logger::Builder::new()
+        .target(env_logger::Target::Stdout)
+        .filter_level(log_level)
+        .format_timestamp(None)
+        .format_module_path(false)
+        .format_target(false)
+        .init();
 
     // Initialize XCP and start the XCP on ETH server
     let xcp = XcpBuilder::new("xcp_lite")

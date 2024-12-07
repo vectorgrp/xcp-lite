@@ -249,7 +249,7 @@ impl ServTextDecoder {
 impl XcpTextDecoder for ServTextDecoder {
     // Handle incomming text data from XCP server
     fn decode(&self, data: &[u8]) {
-        print!("SERV_TEXT: ");
+        print!("[SERV_TEXT] ");
         let mut j = 0;
         while j < data.len() {
             print!("{}", data[j] as char);
@@ -444,7 +444,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
 
     let log_level = args.log_level.to_log_level_filter();
-    env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(log_level).init();
+    env_logger::Builder::new()
+        .target(env_logger::Target::Stdout)
+        .filter_level(log_level)
+        .format_timestamp(None)
+        .format_module_path(false)
+        .format_target(false)
+        .init();
 
     let dest_addr: std::net::SocketAddr = args.dest_addr.parse().map_err(|e| format!("{}", e))?;
     let local_addr: std::net::SocketAddr = args.bind_addr.parse().map_err(|e| format!("{}", e))?;
@@ -452,7 +458,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     info!("local_addr: {}", local_addr);
 
     let measurement_list = args.measurement_list;
-    if measurement_list.len() > 0 {
+    if !measurement_list.is_empty() {
         info!("measurement_list: {:?}", measurement_list);
     }
 

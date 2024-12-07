@@ -219,7 +219,13 @@ fn xcp_client_task(mode: Arc<parking_lot::Mutex<ClientMode>>) {
 fn xcp_benchmark(c: &mut Criterion) {
     println!("XCP Benchmark");
 
-    env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(log::LevelFilter::Info).init();
+    env_logger::Builder::new()
+        .target(env_logger::Target::Stdout)
+        .filter_level(log::LevelFilter::Info)
+        .format_timestamp(None)
+        .format_module_path(false)
+        .format_target(false)
+        .init();
 
     // Start XCP server
     let xcp = XcpBuilder::new("xcp_benchmark")

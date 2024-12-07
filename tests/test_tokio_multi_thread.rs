@@ -272,7 +272,13 @@ async fn task(index: usize, cal_seg: CalSeg<CalPage1>) {
 #[ignore]
 #[tokio::test]
 async fn test_tokio_multi_thread() {
-    env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(OPTION_LOG_LEVEL).init();
+    env_logger::Builder::new()
+        .target(env_logger::Target::Stdout)
+        .filter_level(OPTION_LOG_LEVEL)
+        .format_timestamp(None)
+        .format_module_path(false)
+        .format_target(false)
+        .init();
 
     // Start tokio XCP server
     // Initialize the xcplib transport and protocol layer only, not the server

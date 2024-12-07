@@ -1958,7 +1958,7 @@ void XcpStart()
     if (!isInitialized()) return;
 
 #ifdef DBG_LEVEL
-    DBG_PRINT3("\nInit XCP protocol layer\n");
+    DBG_PRINT3("Init XCP protocol layer\n");
     DBG_PRINTF3("  Version=%u.%u, MAX_CTO=%u, MAX_DTO=%u, DAQ_MEM=%u, MAX_DAQ=%u, MAX_ODT_ENTRY=%u, MAX_ODT_ENTRYSIZE=%u\n", XCP_PROTOCOL_LAYER_VERSION >> 8, XCP_PROTOCOL_LAYER_VERSION & 0xFF, XCPTL_MAX_CTO_SIZE, XCPTL_MAX_DTO_SIZE, XCP_DAQ_MEM_SIZE, (1 << sizeof(uint16_t) * 8) - 1, (1 << sizeof(uint16_t) * 8) - 1, (1 << (sizeof(uint8_t) * 8)) - 1);
     DBG_PRINTF3("  %u KiB memory used\n", (unsigned int)sizeof(gXcp) / 1024);
     DBG_PRINT3("  Options=(");
@@ -1994,7 +1994,7 @@ void XcpStart()
   #ifdef XCP_ENABLE_INTERLEAVED // Enable interleaved command execution
     DBG_PRINT3("INTERLEAVED,");
   #endif
-    DBG_PRINT3(")\n\n");
+    DBG_PRINT3(")\n");
 #endif
 
 #ifdef XCP_ENABLE_PROTOCOL_LAYER_ETH

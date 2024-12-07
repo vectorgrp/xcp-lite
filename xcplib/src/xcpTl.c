@@ -29,7 +29,7 @@ BOOL XcpTlInit() {
 
     XcpTlInitTransmitQueue();
     
-    DBG_PRINT3("\nInit XCP transport layer\n");
+    DBG_PRINT3("Init XCP transport layer\n");
     DBG_PRINTF3("  MAX_CTO_SIZE=%u\n", XCPTL_MAX_CTO_SIZE);
 #ifdef XCPTL_ENABLE_MULTICAST
     DBG_PRINT3("        Option ENABLE_MULTICAST (not recommended)\n");

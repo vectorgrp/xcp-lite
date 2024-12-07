@@ -481,7 +481,7 @@ impl XcpMeasurementObject {
 pub trait XcpTextDecoder {
     /// Handle incomming SERV_TEXT data from XCP server
     fn decode(&self, data: &[u8]) {
-        print!("SERV_TEXT: ");
+        print!("[SERV_TEXT] ");
         let mut j = 0;
         while j < data.len() {
             if data[j] == 0 {

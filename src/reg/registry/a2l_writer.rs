@@ -175,7 +175,10 @@ impl GenerateA2l for RegistryMeasurement {
             )?;
         } else {
             if (self.factor - 1.0).abs() > f64::EPSILON || self.offset != 0.0 || !self.unit.is_empty() {
-                writeln!(writer, r#"/begin COMPU_METHOD {name}.Conv "" LINEAR "%6.3" "{unit}" COEFFS_LINEAR {factor} {offset} /end COMPU_METHOD"#)?;
+                writeln!(
+                    writer,
+                    r#"/begin COMPU_METHOD {name}.Conv "" LINEAR "%6.3" "{unit}" COEFFS_LINEAR {factor} {offset} /end COMPU_METHOD"#
+                )?;
                 write!(
                     writer,
                     r#"/begin MEASUREMENT {name} "{comment}" {type_str} {name}.Conv 0 0 {min} {max} PHYS_UNIT "{unit}" ECU_ADDRESS 0x{addr:X} ECU_ADDRESS_EXTENSION {ext}"#

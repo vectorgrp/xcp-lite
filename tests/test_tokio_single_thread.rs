@@ -6,7 +6,6 @@
 
 use xcp::*;
 
-
 mod xcp_test_executor;
 use xcp_test_executor::xcp_test_executor;
 use xcp_test_executor::OPTION_LOG_LEVEL;
@@ -135,7 +134,14 @@ fn task(cal_seg: CalSeg<CalPage1>) {
 #[ignore]
 #[tokio::test]
 async fn test_tokio_single_thread() {
-    env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(OPTION_LOG_LEVEL).try_init().ok();
+    env_logger::Builder::new()
+        .target(env_logger::Target::Stdout)
+        .filter_level(OPTION_LOG_LEVEL)
+        .format_timestamp(None)
+        .format_module_path(false)
+        .format_target(false)
+        .try_init()
+        .ok();
 
     info!("Running test_tokio_single_thread");
 

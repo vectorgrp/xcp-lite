@@ -1008,7 +1008,6 @@ pub mod xcp_test {
                 .target(env_logger::Target::Stdout)
                 .filter_level(x)
                 .format_timestamp(None)
-                //.format_timestamp_millis()
                 .format_module_path(false)
                 .format_target(false)
                 .init();

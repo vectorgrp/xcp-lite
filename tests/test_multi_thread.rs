@@ -304,7 +304,6 @@ async fn test_multi_thread() {
     env_logger::Builder::new()
         .target(env_logger::Target::Stdout)
         .format_timestamp(None)
-        //.format_timestamp_millis()
         .format_module_path(false)
         .format_target(false)
         .filter_level(OPTION_LOG_LEVEL)
@@ -343,7 +342,7 @@ async fn test_multi_thread() {
         xcp_test_executor::TestModeCal::Cal,
         xcp_test_executor::TestModeDaq::MultiThreadDAQ,
         "test_multi_thread.a2l",
-        false,
+        true,
     )
     .await; // Start the test executor XCP client
 

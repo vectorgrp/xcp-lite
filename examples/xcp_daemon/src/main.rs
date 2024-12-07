@@ -1,9 +1,9 @@
 #[cfg(unix)]
 mod platform;
 #[cfg(unix)]
-use platform::*;
-#[cfg(unix)]
 use log::info;
+#[cfg(unix)]
+use platform::*;
 
 use log::error;
 
