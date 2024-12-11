@@ -25,11 +25,8 @@ xcp_client.a2l
 xcp_client_autodetect.a2l
 test_single_thread.a2l
 test_multi_thread.a2l
-test_tokio_single_thread.a2l
-test_tokio_multi_thread.a2l
-
+tokio_demo_autodetect.a2l
 xcp_benchmark.a2l
-
 hello_xcp.a2l
 tokio_demo.a2l
 rayon_demo.a2l
@@ -38,7 +35,5 @@ mandelbrot.a2l
 mandelbrot.png
 multi_thread_demo.a2l
 single_thread_demo.a2l
-/examples/point_cloud_demo/CANape/~CANapeCurrentCfg.gvc
-/.github/workflows/default.yml
-/multi_thread_demo_autodetect.a2l
-/examples/tokio_demo/tokio_demo_autodetect.a2l
+multi_thread_demo_autodetect.a2l
+

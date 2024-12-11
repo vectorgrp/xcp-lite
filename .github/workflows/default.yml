@@ -1,0 +1,56 @@
+name: XCP_lite Default
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["**"]
+    tags: ["**"]
+
+concurrency:
+  group: ${{ (github.ref == 'refs/heads/main') && 'main' || format('{0}-{1}', github.workflow, github.ref) }} # concurrency does not include main branch
+  cancel-in-progress: true
+
+jobs:
+    lint:
+        name: Lint
+        runs-on: [ubuntu-22.04]
+        steps:
+        - uses: actions/checkout@v3
+        - uses: moonrepo/setup-rust@v1
+          with:
+            bins: cargo-make
+            components: clippy
+        - name: Run linter
+          run: cargo clippy
+    build:
+      name: Build
+      runs-on: ${{ matrix.os }}
+      needs: [lint]
+      strategy:
+        matrix:
+          os: [ubuntu-22.04, macos-13, macos-14, windows-2022]
+        fail-fast: false
+      steps:
+        - uses: actions/checkout@v3
+        - uses: moonrepo/setup-rust@v1
+          with:
+            components: rustfmt
+        - name: Build binary
+          run: |
+            cargo build --verbose
+    test:
+        name: Test
+        runs-on: ${{ matrix.os }}
+        needs: [build]
+        strategy:
+          matrix:
+            os: [ubuntu-22.04, macos-13, macos-14, windows-2022]
+          fail-fast: false
+        steps:
+        - uses: actions/checkout@v3
+        - uses: moonrepo/setup-rust@v1
+          with:
+            bins: cargo-make, cargo-nextest
+        - name: Run tests
+          run: cargo test --features=a2l_reader --features=serde -- --test-threads=1 --nocapture
+    
