@@ -476,15 +476,11 @@ fn main() {
 
     // Mainloop
     xcp_println!("Main task starts");
-    let mut current_session_status = xcp.get_session_status();
-    let mut idle_time = 0.0;
     while RUN.load(Ordering::Relaxed) {
         if !calseg.read_lock().run {
             break;
         }
         thread::sleep(Duration::from_millis(calseg.cycle_time_ms as u64));
-
-        let calseg = calseg.read_lock();
 
         // Variables on stack and heap
         mainloop_counter1 += 1;
@@ -514,39 +510,6 @@ fn main() {
             warn!("XCP server shutdown!");
             break;
         }
-
-        // Check if the XCP session status has changed and print info
-        let session_status = xcp.get_session_status();
-        if session_status != current_session_status {
-            info!("XCP session status: {:?}", session_status);
-            current_session_status = session_status;
-        }
-
-        // Log idle time
-        if !xcp.is_connected() {
-            idle_time += calseg.cycle_time_ms as f64 / 1000.0;
-        } else {
-            idle_time = 0.0;
-        }
-        // @@@@ Dev:
-        // Finalize A2l after 2s delay
-        // This is just for testing, to force creation of A2L file for inspection
-        // Without this, the A2L file will be automatically written on XCP connect, to be available for download by CANape
-        if idle_time >= 2.0 {
-            // Test A2L write
-            xcp.write_a2l().expect("could not write a2l"); // @@@@ Remove: force A2L write
-
-            // Test init request
-            // xcp.set_init_request();
-
-            // Test freeze request
-            // xcp.set_freeze_request();
-        }
-
-        // Terminate after more than 10s disconnected to test shutdown behaviour
-        // if idle_time >= 10.0 {
-        //     break;
-        // }
     }
 
     info!("Main task finished");

@@ -222,7 +222,7 @@ pub enum TestModeCal {
     Cal,
 }
 
-pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_daq: TestModeDaq, a2l_file: &str, a2l_upload: bool) {
+pub async fn xcp_test_executor(_xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_daq: TestModeDaq, a2l_file: &str, a2l_upload: bool) {
     let mut error_state = false;
 
     tokio::time::sleep(Duration::from_millis(500)).await;
@@ -240,7 +240,6 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
     let serv_text_decoder = ServTextDecoder::new();
     xcp_client.connect(Arc::clone(&daq_decoder), serv_text_decoder).await.unwrap();
     tokio::time::sleep(Duration::from_micros(10000)).await;
-    assert!(xcp.get_session_status().contains(xcp::XcpSessionStatus::SS_CONNECTED));
 
     //-------------------------------------------------------------------------------------------------------------------------------------
     // Check command timeout using a command CC_NOP (non standard) without response
@@ -255,7 +254,6 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
                     assert_eq!(e.get_error_code(), ERROR_CMD_TIMEOUT);
                 })
                 .or_else(|| {
-                    info!("XCP session status: {:?}", xcp.get_session_status());
                     panic!("CC_NOP should return XCP error code ERROR_CMD_TIMEOUT");
                 });
         }
@@ -270,12 +268,10 @@ pub async fn xcp_test_executor(xcp: &Xcp, test_mode_cal: TestModeCal, test_mode_
         Err(e) => {
             e.downcast_ref::<XcpError>()
                 .map(|e| {
-                    info!("XCP session status: {:?}", xcp.get_session_status());
                     assert_eq!(e.get_error_code(), CRC_CMD_SYNCH);
                     debug!("XCP error code CRC_CMD_SYNCH from SYNC as expected: {}", e);
                 })
                 .or_else(|| {
-                    info!("XCP session status: {:?}", xcp.get_session_status());
                     panic!("Should return XCP error from SYNC command");
                 });
         }

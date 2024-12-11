@@ -1,7 +1,7 @@
 // xcp-lite - tokio_demo
-// Implement the XCP server as a tokio task (xcp_server::xcp_task), no threads running in xcplib anymore
-// Demo the usual measurement and calibration operations
-// Demo how to visualize tokio tasks start/stop in tokios worker thread pool
+
+// Demo the usual measurement and calibration operations in an async environment
+// Demo how to visualize tokio tasks start/stop in a tokio worker thread pool
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
@@ -10,8 +10,6 @@ use core::f64::consts::PI;
 use std::error::Error;
 
 use xcp::*;
-
-include!("../../../tests/xcp_server_task.rs");
 
 //-----------------------------------------------------------------------------
 // Demo calibration parameters (static)
@@ -84,7 +82,7 @@ async fn task(task_index: u16) {
     trace!("task {} start", index);
 
     let event = daq_create_event_tli!("task");
-    daq_register!(index, event, "Task index", "");
+    daq_register_tli!(index, event, "Task index", "");
     event.trigger();
 
     tokio::time::sleep(tokio::time::Duration::from_micros(200)).await;
@@ -105,13 +103,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Initialize logger
     env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(log::LevelFilter::Info).init();
 
-    // Start tokio XCP server
-    // Initialize the xcplib transport and protocol layer only, not the server
-    let xcp: &'static Xcp = XcpBuilder::new("tokio_demo").set_log_level(3).tl_start().unwrap();
-    let xcp_task = tokio::spawn(xcp_task(xcp, [127, 0, 0, 1], 5555));
-
-    // let mut xcp_server = xcp_server::XcpServer::new([127, 0, 0, 1], 5555);
-    // let xcp = xcp_server.start_xcp(xcp).await?;
+    // Initialize XCP
+    let xcp = XcpBuilder::new("tokio_demo")
+        .set_log_level(2)
+        .set_epk("EPK_12345678")
+        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)?;
 
     // Create and register a static calibration parameter set
     let calpage = CAL_PAGE.get().unwrap();
@@ -143,7 +139,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Create a measurement event with a unique name "task"
     // This will apear as measurement mode in the CANape measurement configuration
-    let event = daq_create_event!("task");
+    let event = daq_create_event!("mainloop");
 
     // Register local variables "counter" and "channel_1" and associate them to event "task"
     daq_register!(counter, event);
@@ -191,9 +187,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     info!("mainloop stopped");
 
-    xcp_task.abort();
-    xcp.tl_shutdown();
-    //xcp_task.await.unwrap()?;
+    // Stop the XCP server
+    xcp.stop_server();
 
     Ok(())
 }

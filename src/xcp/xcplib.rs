@@ -22,31 +22,10 @@ extern "C" {
     pub fn ApplXcpSetA2lName(name: *const ::std::os::raw::c_char);
 }
 extern "C" {
-    pub fn XcpTlInit() -> u8;
-}
-extern "C" {
-    pub fn XcpTlShutdown();
-}
-extern "C" {
-    pub fn XcpTlCommand(msgLen: u16, msgBuf: *const u8) -> u8;
-}
-extern "C" {
-    pub fn XcpTlTransmitQueuePeekMsg(msg_len: *mut u16) -> *const u8;
-}
-extern "C" {
-    pub fn XcpTlTransmitQueueNextMsg();
-}
-extern "C" {
-    pub fn XcpTlTransmitQueueHasMsg() -> u8;
-}
-extern "C" {
     pub fn XcpEthTlGetInfo(isTCP: *mut u8, mac: *mut u8, addr: *mut u8, port: *mut u16);
 }
 extern "C" {
     pub fn XcpInit();
-}
-extern "C" {
-    pub fn XcpStart();
 }
 extern "C" {
     pub fn XcpDisconnect();
@@ -59,9 +38,6 @@ extern "C" {
 }
 extern "C" {
     pub fn XcpPrint(str_: *const ::std::os::raw::c_char);
-}
-extern "C" {
-    pub fn XcpGetSessionStatus() -> u16;
 }
 extern "C" {
     pub fn ApplXcpGetAddr(p: *const u8) -> u32;

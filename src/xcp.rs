@@ -33,8 +33,14 @@ pub mod cal;
 use cal::cal_seg::{CalPageTrait, CalSeg};
 use cal::CalSegList;
 
-// XCPlite FFI bindings
+// Use XCPlite xcplib as XCP server
+// Enable XCPlite FFI bindings in xcplib.rs
+#[cfg(not(feature = "xcp_server"))]
 mod xcplib;
+
+// Use rust XCP implementation of XCP protocol layer, transport layer and server
+#[cfg(feature = "xcp_server")]
+mod xcplib_rs;
 
 //----------------------------------------------------------------------------------------------
 // XCP error
@@ -143,18 +149,14 @@ impl XcpEvent {
     /// The buffer must match its registry description, to avoid corrupt data given to the XCP tool
     //#[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub unsafe fn trigger_ext(self, base: *const u8) -> u8 {
-        // trace!(
-        //     "Trigger event {} channel={}, index={}, base=0x{:X}, len={}",
-        //     self.get_name(),
-        //     self.get_channel(),
-        //     self.get_index(),
-        //     base as u64,
-        //     len
-        // );
-        // @@@@ Unsafe - C library call and transfering a pointer and its valid memory range to XCPlite FFI
+        #[cfg(not(feature = "xcp_server"))]
         unsafe {
-            // Trigger event
+            // @@@@ Unsafe - C library call and transfering a pointer and its valid memory range to XCPlite FFI
             xcplib::XcpEventExt(self.get_channel(), base)
+        }
+        #[cfg(feature = "xcp_server")]
+        {
+            xcplib_rs::event_ext(self.get_channel(), base)
         }
     }
 
@@ -166,16 +168,14 @@ impl XcpEvent {
     /// The buffer must match its registry description, to avoid corrupt data given to the XCP tool
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn trigger(self) {
-        // trace!(
-        //     "Trigger event {} channel={}, index={}",
-        //     self.get_name(),
-        //     self.get_channel(),
-        //     self.get_index(),
-        // );
-        // @@@@ Unsafe - C library call and transfering a pointer and its valid memory range to XCPlite FFI
+        #[cfg(not(feature = "xcp_server"))]
         unsafe {
-            // Trigger event
+            // @@@@ Unsafe - C library call and transfering a pointer and its valid memory range to XCPlite FFI
             xcplib::XcpEvent(self.get_channel());
+        }
+        #[cfg(feature = "xcp_server")]
+        {
+            xcplib_rs::event(self.get_channel());
         }
     }
 
@@ -187,17 +187,14 @@ impl XcpEvent {
     /// This is a C ffi call, which gets a pointer to a daq capture buffer
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn trigger_abs(self) {
-        // trace!(
-        //     "Trigger event {} channel={}, index={}, len={}",
-        //     self.get_name(),
-        //     self.get_channel(),
-        //     self.get_index(),
-        //     len
-        // );
-        // @@@@ Unsafe - C library call
+        #[cfg(not(feature = "xcp_server"))]
         unsafe {
-            // Trigger event
+            // @@@@ Unsafe - C library call
             xcplib::XcpEvent(self.get_channel());
+        }
+        #[cfg(feature = "xcp_server")]
+        {
+            xcplib_rs::event(self.get_channel());
         }
     }
 }
@@ -339,7 +336,7 @@ impl XcpTransportLayer {
 //------------------------------------------------------------------------------------------
 // XcpBuilder
 
-/// A builder pattern to initialize the singleton instance of the XCP server
+/// A builder to initialize the singleton instance of the XCP server
 #[derive(Debug)]
 pub struct XcpBuilder {
     log_level: u8,      // log level for the server
@@ -367,39 +364,7 @@ impl XcpBuilder {
         self
     }
 
-    /// Start the XCP transport and protocol layer in external server mode
-    /// The server must be started after this call
-    /// Server example in tokio_demo::xcp_server::xcp_task
-    pub fn tl_start(self) -> Result<&'static Xcp, XcpError> {
-        let xcp = Xcp::get();
-
-        log::info!("Start XCP protocol layer and transport layer");
-
-        // Server parameters from XcpBuilder
-        xcp.set_log_level(self.log_level);
-        xcp.set_epk(self.epk);
-
-        // Registry parameters from XcpBuiler
-        {
-            let mut r = xcp.registry.lock();
-            r.set_name(self.name);
-            r.set_epk(self.epk, Xcp::XCP_EPK_ADDR);
-        }
-
-        // @@@@ Unsafe - C library call
-        unsafe {
-            if xcplib::XcpTlInit() == 0 {
-                return Err(XcpError::XcpLib("Error: XcpTlInit() failed"));
-            }
-            xcplib::XcpStart();
-        }
-
-        Ok(xcp)
-    }
-
     /// Start the XCP on Ethernet Server
-    /// Use the server rx and tx threads in xcplib
-    #[cfg(feature = "xcp_server")]
     pub fn start_server<A>(self, tl: XcpTransportLayer, addr: A, port: u16) -> Result<&'static Xcp, XcpError>
     where
         A: Into<Ipv4Addr>,
@@ -407,8 +372,11 @@ impl XcpBuilder {
         let ipv4_addr: Ipv4Addr = addr.into();
         let xcp = &XCP_SINGLETON;
 
-        // Server parameters from XcpBuilder
+        // xcplib server log level parameter
+        #[cfg(not(feature = "xcp_server"))]
         xcp.set_log_level(self.log_level);
+
+        // EPV parameter
         xcp.set_epk(self.epk);
 
         // Register name and epk
@@ -418,27 +386,40 @@ impl XcpBuilder {
             r.set_epk(self.epk, Xcp::XCP_EPK_ADDR); // EPK
         }
 
-        // @@@@ Unsafe - C library call
+        // Initialize the XCP Server and ETH transport layer
+        #[cfg(not(feature = "xcp_server"))]
         unsafe {
-            // Initialize the XCP Server and ETH transport layer
             let a: [u8; 4] = ipv4_addr.octets();
+            // @@@@ Unsafe - C library call
             if 0 == xcplib::XcpEthServerInit(&a as *const u8, port, (tl == XcpTransportLayer::Tcp) as u8) {
+                return Err(XcpError::XcpLib("Error: XcpEthServerInit() failed"));
+            }
+        }
+        #[cfg(feature = "xcp_server")]
+        {
+            if !xcplib_rs::server_init(ipv4_addr, port, tl) {
                 return Err(XcpError::XcpLib("Error: XcpEthServerInit() failed"));
             }
         }
 
         // Register transport layer parameters and actual ip addr of the server to make the A2L plug&play
+        #[cfg(not(feature = "xcp_server"))]
         {
             let mut r = xcp.registry.lock();
             // If bound to any, get the actual ip address
             let mut addr: [u8; 4] = ipv4_addr.octets();
             if addr == [0, 0, 0, 0] {
-                // @@@@ Unsafe - C library call
                 unsafe {
+                    // @@@@ Unsafe - C library call
                     xcplib::XcpEthTlGetInfo(std::ptr::null_mut(), std::ptr::null_mut(), &mut addr[0] as *mut u8, std::ptr::null_mut());
                 }
             }
             r.set_tl_params(tl.protocol_name(), addr.into(), port); // Transport layer parameters
+        }
+        #[cfg(feature = "xcp_server")]
+        {
+            let mut r = xcp.registry.lock();
+            r.set_tl_params(tl.protocol_name(), ipv4_addr, port); // Transport layer parameters
         }
 
         Ok(xcp)
@@ -477,22 +458,51 @@ impl Xcp {
     /// Get address extension and address for A2L generation for XCP_ADDR_EXT_ABS addressing mode
     /// Used by A2L writer
     pub fn get_abs_ext_addr(addr: u64) -> (u8, u32) {
-        let a2l_ext = Xcp::XCP_ADDR_EXT_ABS;
-        // @@@@ Unsafe - C library call
-        let a2l_addr = unsafe { xcplib::ApplXcpGetAddr(addr as *const u8) };
-        (a2l_ext, a2l_addr)
+        #[cfg(not(feature = "xcp_server"))]
+        {
+            let a2l_ext = Xcp::XCP_ADDR_EXT_ABS;
+            // @@@@ Unsafe - C library call
+            let a2l_addr = unsafe { xcplib::ApplXcpGetAddr(addr as *const u8) };
+            (a2l_ext, a2l_addr)
+        }
+        #[cfg(feature = "xcp_server")]
+        {
+            unimplemented!();
+        }
     }
 
     // new
     // Lazy static initialization of the Xcp singleton
     fn new() -> Xcp {
-        // @@@@ Unsafe - C library call
+        #[cfg(not(feature = "xcp_server"))]
         unsafe {
             // Initialize the XCP protocol layer
+            // @@@@ Unsafe - C library calls
             xcplib::XcpInit();
 
             // Register the callbacks from xcplib
+            // @@@@ Unsafe - C library calls
             xcplib::ApplXcpRegisterCallbacks(
+                Some(cb_connect),
+                Some(cb_prepare_daq),
+                Some(cb_start_daq),
+                Some(cb_stop_daq),
+                Some(cb_get_cal_page),
+                Some(cb_set_cal_page),
+                Some(cb_freeze_cal),
+                Some(cb_init_cal),
+                Some(cb_read),
+                Some(cb_write),
+                Some(cb_flush),
+            );
+        }
+        #[cfg(feature = "xcp_server")]
+        {
+            // Initialize the XCP protocol layer
+            xcplib_rs::init();
+
+            // Register the callbacks from xcplib
+            xcplib_rs::register_callbacks(
                 Some(cb_connect),
                 Some(cb_prepare_daq),
                 Some(cb_start_daq),
@@ -525,119 +535,62 @@ impl Xcp {
         &XCP_SINGLETON
     }
 
-    /// Get XCP session status flags
     #[allow(clippy::unused_self)]
-    pub fn get_session_status(&self) -> XcpSessionStatus {
-        // @@@@ Unsafe - C library call
-        let session_status: u16 = unsafe { xcplib::XcpGetSessionStatus() } & 0xE040;
-        XcpSessionStatus::from_bits(session_status).unwrap()
-    }
-
-    /// Check if a client is connected
-    pub fn is_connected(&self) -> bool {
-        self.get_session_status().contains(XcpSessionStatus::SS_CONNECTED)
-    }
-
-    /// Check if measurement is started
-    pub fn is_daq_running(&self) -> bool {
-        self.get_session_status().contains(XcpSessionStatus::SS_DAQ)
-    }
-
     /// Set the log level for XCP protocol layer
-    #[allow(clippy::unused_self)]
-    pub fn set_log_level(&self, level: u8) {
-        // @@@@ Unsafe - C library call
+    #[cfg(not(feature = "xcp_server"))]
+    pub fn set_log_level(&self, _level: u8) {
         unsafe {
-            xcplib::ApplXcpSetLogLevel(level);
+            // @@@@ Unsafe - C library call
+            xcplib::ApplXcpSetLogLevel(_level);
         }
     }
 
     /// Print a formated text message to the XCP client tool console
     #[allow(clippy::unused_self)]
     pub fn print(&self, msg: &str) {
-        let msg = std::ffi::CString::new(msg).unwrap();
-        // @@@@ Unsafe - C library call
+        #[cfg(not(feature = "xcp_server"))]
         unsafe {
+            let msg = std::ffi::CString::new(msg).unwrap();
+            // @@@@ Unsafe - C library call
             xcplib::XcpPrint(msg.as_ptr());
         }
-    }
-
-    //------------------------------------------------------------------------------------------
-    // Transport layer mode
-
-    /// Execute a XCP command
-    /// In transport layer mode
-    #[allow(clippy::unused_self)]
-    pub fn tl_command(&self, buf: &[u8]) {
-        // @@@@ Unsafe - C library call
-        unsafe {
-            xcplib::XcpTlCommand(buf.len().try_into().unwrap(), &buf[0] as *const u8);
-        }
-    }
-
-    /// Get the next message in the transmit queue, do not advance the read pointer
-    /// Data is ready to be sent over TCP or UDP socket
-    #[allow(clippy::unused_self)]
-    pub fn tl_transmit_queue_peek(&self) -> Option<&'static [u8]> {
-        // @@@@ Unsafe - C library call
-        unsafe {
-            let mut buf_len: u16 = 0;
-            let buf_ptr = xcplib::XcpTlTransmitQueuePeekMsg(&mut buf_len as *mut u16);
-            if !buf_ptr.is_null() {
-                //trace!("tl_transmit_queue_peek: len={}", buf_len);
-                return Some(std::slice::from_raw_parts(buf_ptr, buf_len as usize));
-            }
-        }
-        None
-    }
-
-    /// Check if the transmit queue has a message ready to be sent
-    #[allow(clippy::unused_self)]
-    pub fn tl_transmit_queue_has_msg(&self) -> bool {
-        // @@@@ Unsafe - C library call
-        unsafe { xcplib::XcpTlTransmitQueueHasMsg() != 0 }
-    }
-
-    /// Advance the transmit queue read pointer
-    #[allow(clippy::unused_self)]
-    pub fn tl_transmit_queue_next(&self) {
-        // @@@@ Unsafe - C library call
-        unsafe {
-            xcplib::XcpTlTransmitQueueNextMsg();
-        }
-    }
-
-    /// Shut down the XCP transport layer
-    #[allow(clippy::unused_self)]
-    pub fn tl_shutdown(&self) {
-        // @@@@ Unsafe - C library call
-        unsafe {
-            xcplib::XcpTlShutdown();
+        #[cfg(feature = "xcp_server")]
+        {
+            xcplib_rs::print(msg);
         }
     }
 
     //------------------------------------------------------------------------------------------
-    // Server mode
+    // Server
 
     /// Check if the XCP server is ok and running
-    #[cfg(feature = "xcp_server")]
     #[allow(clippy::unused_self)]
     pub fn check_server(&self) -> bool {
-        // @@@@ Unsafe - C library call
+        #[cfg(not(feature = "xcp_server"))]
         unsafe {
-            // Return server status
+            // @@@@ Unsafe - C library call
             0 != xcplib::XcpEthServerStatus()
+        }
+        #[cfg(feature = "xcp_server")]
+        {
+            xcplib_rs::server_status()
         }
     }
 
     /// Stop the XCP server
-    #[cfg(feature = "xcp_server")]
     #[allow(clippy::unused_self)]
     pub fn stop_server(&self) {
-        // @@@@ Unsafe - C library call
+        #[cfg(not(feature = "xcp_server"))]
         unsafe {
+            // @@@@ Unsafe - C library call
             xcplib::XcpDisconnect();
+            // @@@@ Unsafe - C library call
             xcplib::XcpEthServerShutdown();
+        }
+        #[cfg(feature = "xcp_server")]
+        {
+            xcplib_rs::disconnect();
+            xcplib_rs::server_shutdown();
         }
     }
 
@@ -740,12 +693,13 @@ impl Xcp {
 
             // A2L exists and is up to date on disk
             // Set the name of the A2L file in the XCPlite server to enable upload via XCP
-            let name = std::ffi::CString::new(self.registry.lock().get_name().unwrap()).unwrap();
-            // @@@@ Unsafe - C library call
+            #[cfg(not(feature = "xcp_server"))]
             unsafe {
+                let name = std::ffi::CString::new(self.registry.lock().get_name().unwrap()).unwrap();
+                // @@@@ Unsafe - C library call
                 xcplib::ApplXcpSetA2lName(name.as_ptr());
+                std::mem::forget(name); // This memory is never dropped, it is moved to xcplib singleton
             }
-            std::mem::forget(name); // This memory is never dropped, it is moved to xcplib singleton
 
             // A2l is no longer needed yet, free memory
             // Another call to a2l_write will do nothing
@@ -1019,6 +973,7 @@ pub mod xcp_test {
     // Reinit XCP singleton before the next test
     pub fn test_reinit() -> &'static Xcp {
         let xcp = Xcp::get();
+        #[cfg(not(feature = "xcp_server"))]
         xcp.set_log_level(2);
         {
             let mut l = xcp.event_list.lock();

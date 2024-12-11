@@ -72,9 +72,7 @@ Shows how to measure and calibrate in a task instanciated in multiple threads wi
 Use CANape to observe rayon workers calculating a mandelbrot set line by line   
 
 ### tokio_demo
-Demonstrates using the XCP server tokio task (xcp_server::xcp_task) with tokio::net::UdpSocket, no threads running in xcplib anymore  
-TCP not implemented yet  
-Demo the usual measurement and calibration operations  
+Demonstrates using XCP in an async tokio base application
 Demo which visualizes multiples tokio tasks start and stop executing in the tokio worker thread pool (similar to rayon_demo)  
  
 ### point_cloud_demo
@@ -230,8 +228,13 @@ XCP is used during the development process only, it is never integrated in produ
 ### Features
 
 Features are:
-- xcp_server
+- serde
+Enable persistence of CalSeg to json files
+
 - a2l_reader
+Check A2L file after generation and upload
+
+
 
 ### Build, Run, Test
 
@@ -240,22 +243,25 @@ Build, Run, Test examples:
 ```
 
 Build:
-  cargo build 
-  cargo build --release 
+  cargo b 
+  cargo b --release 
+  cargo b --features serde --features a2l_reader
 
 Run the main example:
-  cargo run -- --bind 127.0.0.1 --log-level 4
-  cargo run -- --port 5555 --bind 172.19.11.24 --tcp 
+  cargo r -- --bind 127.0.0.1 --log-level 4
+  cargo r --features serde -- --port 5555 --bind 172.19.11.24 --tcp 
  
 Run a specific example:
-  cargo run --example point_cloud_demo
+  cargo r --example point_cloud_demo
   cargo r --example xcp_client  
 
 ```
 
+Test
+
 Tests may not run in parallel, as the XCP implementation is a singleton.
-Feature json and #[derive(serde::Serialize, serde::Deserialize)] must be enabled for testing. (Currently default)
-Feature a2l_reader enabled automatic check of generated A2L file with crate a2lfile
+Feature serde for #[derive(serde::Serialize, serde::Deserialize)] must be enabled for testing. 
+Feature a2l_reader enables automatic checking of generated A2L file with the A2L reader from crate a2lfile
 
 
 ```
@@ -266,6 +272,7 @@ Feature a2l_reader enabled automatic check of generated A2L file with crate a2lf
 ```
 
 Use --nocapture because the debug output from the XCPlite C library is via normal printf
+
 
 ## Notes
 

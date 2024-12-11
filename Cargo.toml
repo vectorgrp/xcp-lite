@@ -73,8 +73,10 @@ path = "examples/protobuf_demo/src/main.rs"
 
 [features]
 
-# Feature xcp_server enables the buildin XCP server
+# Feature xcp_server enables the rust XCP server instead of xcplib from XCPlite
+# Unimplemented yet
 xcp_server = []
+# default = ["xcp_server"] # test
 
 # Feature load, save and freeze calibration segment to json
 serde = ["dep:serde","dep:serde_json"]
@@ -82,7 +84,6 @@ serde = ["dep:serde","dep:serde_json"]
 # Feature a2l_reader to enable automatic check of the generated A2L file
 a2l_reader = ["dep:a2lfile"]
 
-default = ["xcp_server"]
 
 
 [dependencies]

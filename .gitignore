@@ -40,3 +40,5 @@ multi_thread_demo.a2l
 single_thread_demo.a2l
 /examples/point_cloud_demo/CANape/~CANapeCurrentCfg.gvc
 /.github/workflows/default.yml
+/multi_thread_demo_autodetect.a2l
+/examples/tokio_demo/tokio_demo_autodetect.a2l

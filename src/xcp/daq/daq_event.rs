@@ -604,6 +604,17 @@ macro_rules! daq_register_tli {
             $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, $id.get_type(), 1, 1, 1.0, 0.0, "", "");
         };
     }};
+    // name, event, comment, unit
+    ( $id:ident, $daq_event:expr, $comment:expr, $unit:expr ) => {{
+        thread_local! {
+            static DAQ_REGISTERED__: std::cell::Cell<i16> = const { std::cell::Cell::new(0) }
+        }
+        if DAQ_REGISTERED__.get() == 0 {
+            DAQ_REGISTERED__.set(1);
+            //assert!($daq_event.get_capacity() == 0, "DAQ event with capture buffer");
+            $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, $id.get_type(), 1, 1, 1.0, 0.0, $unit, $comment);
+        };
+    }};
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
