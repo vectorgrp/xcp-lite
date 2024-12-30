@@ -699,6 +699,13 @@ impl Xcp {
                 // @@@@ Unsafe - C library call
                 xcplib::ApplXcpSetA2lName(name.as_ptr());
                 std::mem::forget(name); // This memory is never dropped, it is moved to xcplib singleton
+
+                let epk = std::ffi::CString::new(self.registry.lock().get_epk().unwrap()).unwrap();
+                // @@@@ Unsafe - C library call
+                xcplib::ApplXcpSetEpk(epk.as_ptr());
+                std::mem::forget(epk); // This memory is never dropped, it is moved to xcplib singleton
+
+
             }
 
             // A2l is no longer needed yet, free memory

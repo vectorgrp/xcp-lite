@@ -22,6 +22,9 @@ extern "C" {
     pub fn ApplXcpSetA2lName(name: *const ::std::os::raw::c_char);
 }
 extern "C" {
+    pub fn ApplXcpSetEpk(epk: *const ::std::os::raw::c_char);
+}
+extern "C" {
     pub fn XcpEthTlGetInfo(isTCP: *mut u8, mac: *mut u8, addr: *mut u8, port: *mut u16);
 }
 extern "C" {

@@ -318,6 +318,7 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
     daq_register!(counter_option_u16, event, "wrapping counter optional: u8", "");
     daq_register_array!(array1, event);
 
+    
     while RUN.load(Ordering::Relaxed) {
         // Stop task if calibration parameter run1 is false
         if !calseg.read_lock().run1 {
@@ -350,6 +351,7 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
             counter_option_u16 = None;
         }
         array1[counter_usize.0 % array1.len()] = counter as f64;
+
 
         // Trigger single instance event "task1" for data acquisition
         // Capture variables from stack happens here
@@ -384,10 +386,10 @@ fn main() {
         .init();
 
     // Initialize XCP and start the XCP on ETH server
+    let epk = build_info::format!("{}", $.timestamp);
     let xcp = XcpBuilder::new("xcp_lite")
         .set_log_level(args.log_level)
-        // .set_epk(build_info::format!("{}", $.timestamp)); // Create new EPK from build info
-        .set_epk("EPK_")
+        .set_epk(epk) // Create new EPK from build info timestamp
         .start_server(if args.tcp { XcpTransportLayer::Tcp } else { XcpTransportLayer::Udp }, args.bind, args.port)
         .expect("could not start XCP server");
 
@@ -510,6 +512,9 @@ fn main() {
             warn!("XCP server shutdown!");
             break;
         }
+
+        // Create A2L file early
+        let _ = xcp.write_a2l();
     }
 
     info!("Main task finished");

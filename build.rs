@@ -3,7 +3,7 @@ fn main() {
 
     // Generate XCPlite C code bindings
     // Uncomment this to regenerate the bindings
-
+/* 
     let bindings = bindgen::Builder::default()
         .header("xcplib/wrapper.h")
         .clang_arg("-Ixcplib/src")
@@ -35,12 +35,14 @@ fn main() {
         .allowlist_function("XcpPrint")
         .allowlist_function("ApplXcpSetLogLevel")
         .allowlist_function("ApplXcpSetA2lName")
+        .allowlist_function("ApplXcpSetEpk")
         .allowlist_function("ApplXcpGetAddr")
         .allowlist_function("ApplXcpRegisterCallbacks")
         //
         .generate()
         .expect("Unable to generate bindings");
     bindings.write_to_file("src/xcp/xcplib.rs").expect("Couldn't write bindings!");
+*/
 
     // Build a XCP on ETH version of XCPlite as a library
     cc::Build::new()

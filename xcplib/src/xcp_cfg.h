@@ -44,8 +44,12 @@
 #define XCP_ADDR_EXT_APP 0x00 // Address format handled by application
 
 // Internally used address extensions
+// Use addr_ext XCP_ADDR_EXT_EPK to indicate EPK upload memory space
+#define XCP_ADDR_EXT_EPK 0x00
+#define XCP_ADDR_EPK 0x80000000
 // Use addr_ext XCP_ADDR_EXT_A2L to indicate A2L upload memory space
 #define XCP_ADDR_EXT_A2L 0xFD
+#define XCP_ADDR_A2l 0x00000000
 // Use addr_ext XCP_ADDR_EXT_PTR to indicate gXcp.MtaPtr is valid 
 #define XCP_ADDR_EXT_PTR 0xFE
 
@@ -77,8 +81,7 @@
 /* GET_ID command */
 
 #ifdef OPTION_ENABLE_A2L_UPLOAD
-#define XCP_ENABLE_IDT_A2L_UPLOAD // Upload A2L via XCP enabled
-// Uses addr_ext=0xFF to indicate addr space to upload A2L  
+#define XCP_ENABLE_IDT_A2L_UPLOAD // Enable upload A2L via XCP 
 #endif
 
 /*----------------------------------------------------------------------------*/

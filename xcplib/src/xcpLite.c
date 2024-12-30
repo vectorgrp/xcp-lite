@@ -1203,24 +1203,27 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint8_t cmdL
           {
               check_len(CRO_GET_ID_LEN);
               CRM_LEN = CRM_GET_ID_LEN;
-              CRM_GET_ID_MODE = 0; // Transfer mode
+              CRM_GET_ID_MODE = 0x00; // Default transfer mode is "Uncompressed data upload"
               CRM_GET_ID_LENGTH = 0;
               switch (CRO_GET_ID_TYPE) {
-                case IDT_ASCII: 
+                case IDT_ASCII: // All other informations are provided in the response 
                 case IDT_ASAM_NAME:
                 case IDT_ASAM_PATH:
                 case IDT_ASAM_URL:
-                case IDT_ASAM_EPK:
                   CRM_GET_ID_LENGTH = ApplXcpGetId(CRO_GET_ID_TYPE, CRM_GET_ID_DATA, CRM_GET_ID_DATA_MAX_LEN);
                   CRM_LEN = (uint8_t)(CRM_GET_ID_LEN+CRM_GET_ID_LENGTH);
-                  CRM_GET_ID_MODE = 0x01; // Uncompressed data in response
+                  CRM_GET_ID_MODE = 0x01; // Transfer mode is "Uncompressed data in response"
                   break;
-#ifdef XCP_ENABLE_IDT_A2L_UPLOAD
+#ifdef XCP_ENABLE_IDT_A2L_UPLOAD // A2L and EPK are always provided via upload
+                case IDT_ASAM_EPK:
+                    gXcp.MtaAddr = XCP_ADDR_EPK;
+                    gXcp.MtaExt = XCP_ADDR_EXT_EPK;
+                    CRM_GET_ID_LENGTH = ApplXcpGetId(CRO_GET_ID_TYPE, NULL, 0);
+                    break;
                 case IDT_ASAM_UPLOAD:
-                    gXcp.MtaAddr = 0;
+                    gXcp.MtaAddr = XCP_ADDR_A2l;
                     gXcp.MtaExt = XCP_ADDR_EXT_A2L;
                     CRM_GET_ID_LENGTH = ApplXcpGetId(CRO_GET_ID_TYPE, NULL, 0);
-                    CRM_GET_ID_MODE = 0x00; // Uncompressed data upload 
                     break;
 #endif
                 default:

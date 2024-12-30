@@ -107,7 +107,7 @@ env_logger = "0.11.3"
 
 # Collects build-information of your Rust crate
 # used to generate EPK
-# build-info = "0.0.36"
+build-info = "0.0.39"
 
 # A macro for declaring lazily evaluated statics
 lazy_static = "1.4.0"
@@ -181,7 +181,7 @@ harness = false
 
 [build-dependencies]
 cc = "1.0"
-build-info-build = "0.0.36"
+build-info-build = "0.0.39"
 
 # generate interface to XCPlite
 bindgen = "0.69.4"

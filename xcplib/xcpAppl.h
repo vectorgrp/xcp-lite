@@ -20,3 +20,4 @@ extern void ApplXcpRegisterCallbacks(
 );
 
 extern void ApplXcpSetA2lName(const char *name);
+extern void ApplXcpSetEpk(const char *name);
