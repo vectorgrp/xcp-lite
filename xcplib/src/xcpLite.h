@@ -58,6 +58,67 @@ typedef struct {
 
 #endif
 
+/****************************************************************************/
+/* DAQ information                                                          */
+/****************************************************************************/
+
+/* ODT */
+/* Size must be even !!! */
+typedef struct {
+    uint16_t first_odt_entry;       /* Absolute odt entry number */
+    uint16_t last_odt_entry;        /* Absolute odt entry number */
+    uint16_t size;                /* Number of bytes */
+} tXcpOdt;
+
+/* DAQ list */
+typedef struct {
+    uint16_t last_odt;             /* Absolute odt number */
+    uint16_t first_odt;            /* Absolute odt number */
+    uint16_t event_channel;
+#ifdef XCP_ENABLE_PACKED_MODE
+    uint16_t sampleCount;         /* Packed mode */
+#endif
+    uint8_t mode;
+    uint8_t state;
+    uint8_t priority;
+    uint8_t addr_ext;
+} tXcpDaqList;
+
+
+/* Dynamic DAQ list structure in a linear memory block with size XCP_DAQ_MEM_SIZE + 8 */
+typedef struct {
+
+    uint16_t odt_entry_count; // Total number of ODT entries in ODT entry addr and size arrays
+    uint16_t odt_count; // Total number of ODTs in ODT array
+    uint16_t daq_count; // Number of DAQ lists in DAQ list array
+    uint16_t res;
+
+    // Pointers to optimze access to DAQ lists, ODT and ODT entry array pointers
+    int32_t* odt_entry_addr; // ODT entry addr array
+    uint8_t* odt_entry_size; // ODT entry size array
+    tXcpOdt* odt; // ODT array
+
+    // DAQ array
+    union {
+        // DAQ array
+        tXcpDaqList daq_list[XCP_DAQ_MEM_SIZE / sizeof(tXcpDaqList)];
+        // ODT array
+        tXcpOdt odt[XCP_DAQ_MEM_SIZE / sizeof(tXcpOdt)];
+        // ODT entry addr array
+        uint32_t odt_entry_addr[XCP_DAQ_MEM_SIZE / sizeof(4)];
+        // ODT entry size array
+        uint8_t odt_entry_size[XCP_DAQ_MEM_SIZE];        
+
+        // DAQ memory layout:
+        //  tXcpDaqList[] - DAQ list array
+        //  tXcpOdt[] - ODT array
+        //  uint32_t[] - ODT entry addr array
+        //  uint8_t[] - ODT entry size array
+        uint8_t b[XCP_DAQ_MEM_SIZE];        
+    } u;
+
+} tXcpDaqLists;
+
 
 /****************************************************************************/
 /* Protocol layer interface                                                 */
@@ -130,7 +191,7 @@ extern tXcpEvent* XcpGetEvent(uint16_t event);
 extern BOOL ApplXcpConnect();
 extern void ApplXcpDisconnect();
 #if XCP_PROTOCOL_LAYER_VERSION >= 0x0104
-extern BOOL ApplXcpPrepareDaq();
+extern BOOL ApplXcpPrepareDaq(const tXcpDaqLists *daq);
 #endif
 extern BOOL ApplXcpStartDaq();
 extern void ApplXcpStopDaq();

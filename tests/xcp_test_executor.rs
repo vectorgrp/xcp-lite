@@ -606,7 +606,8 @@ pub async fn xcp_test_executor(_xcp: &Xcp, test_mode_cal: TestModeCal, test_mode
 
             // Consistent calibration test loop
             // Do MAX_ITER consistent calibrations on cal_seg.sync_test1/2 cal_test, task will panic if different
-            /* @@@@ TODO reanbale this
+            warn!("Consistent calibration test disabled");
+            /* @@@@ TODO reenable this
             {
                 tokio::time::sleep(Duration::from_micros(10000)).await;
 

@@ -47,7 +47,7 @@ void ApplXcpSetLogLevel(uint8_t level) {
 /**************************************************************************/
 
 static uint8_t (*callback_connect)() = NULL;
-static uint8_t (*callback_prepare_daq)() = NULL;
+static uint8_t (*callback_prepare_daq)(const tXcpDaqLists* daq) = NULL;
 static uint8_t (*callback_start_daq)() = NULL;
 static void    (*callback_stop_daq)() = NULL;
 static uint8_t (*callback_get_cal_page)(uint8_t segment, uint8_t mode) = NULL;
@@ -61,7 +61,7 @@ static uint8_t (*callback_flush)()  = NULL;
 
 void ApplXcpRegisterCallbacks(
     uint8_t (*cb_connect)(),
-    uint8_t (*cb_prepare_daq)(),
+    uint8_t (*cb_prepare_daq)(const tXcpDaqLists* daq),
     uint8_t (*cb_start_daq)(),
     void (*cb_stop_daq)(),
     uint8_t (*cb_get_cal_page)(uint8_t segment, uint8_t mode),
@@ -110,9 +110,9 @@ void ApplXcpDisconnect() {
 }
 
 #if XCP_PROTOCOL_LAYER_VERSION >= 0x0104
-BOOL ApplXcpPrepareDaq() { 
+BOOL ApplXcpPrepareDaq(const tXcpDaqLists* daq) { 
     DBG_PRINT3("XCP prepare DAQ\n");
-    if (callback_prepare_daq!=NULL) return callback_prepare_daq();
+    if (callback_prepare_daq!=NULL) return callback_prepare_daq(daq);
     return TRUE;
 }
 #endif

@@ -9,6 +9,7 @@ use std::{
         Arc,
     },
 };
+use xcplib::tXcpDaqLists;
 
 // Using sync version of OnceCell from once_cell crate for the static event remapping array
 use once_cell::sync::OnceCell;
@@ -704,8 +705,6 @@ impl Xcp {
                 // @@@@ Unsafe - C library call
                 xcplib::ApplXcpSetEpk(epk.as_ptr());
                 std::mem::forget(epk); // This memory is never dropped, it is moved to xcplib singleton
-
-
             }
 
             // A2l is no longer needed yet, free memory
@@ -800,7 +799,7 @@ extern "C" fn cb_connect() -> u8 {
 }
 
 #[no_mangle]
-extern "C" fn cb_prepare_daq() -> u8 {
+extern "C" fn cb_prepare_daq(_daq: *const tXcpDaqLists) -> u8 {
     log::trace!("cb_prepare_daq");
     TRUE
 }

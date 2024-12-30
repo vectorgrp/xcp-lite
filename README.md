@@ -5,7 +5,7 @@ Disclaimer: This code is in experimental state. There is no release yet.
 
 xcp-lite is a Rust API for measurement and calibration, which uses the ASAM XCP protocol for communication with a measurement and calibration tool like CANape and ASAM A2L for data description.  
 
-This is no complete implementation of XCP in Rust, parts of it are still C/C++ from XCPlite.  
+This is no complete implementation of XCP in Rust, the protocoll and transport layer implementation is in C/C++ based on XCPlite.  
 
 Main purpose was to experiment with Rust and to demonstrate some more advanced features of measurement and calibration with CANape:
 - Automatic A2L and IDL generation with proc-macros
@@ -17,7 +17,7 @@ Main purpose was to experiment with Rust and to demonstrate some more advanced f
 - Data objects and containers with dynamic size like point clouds or detection lists, to demonstrate CANape ADAS features
 - Support Google protobuf or OMG DDS/CDR serialized data objects with XCP and CANape
 
-Requires CANape 22 SP2.  
+Requires CANape 22. Example projects are updated to CANape 23.  
   
 
 ## Introduction
@@ -302,14 +302,11 @@ The EPK version string in the A2L file can be set by the application. It resides
 
 ## Possible improvements
 
-- Create a minimal lock MPSC event queue, increase queue efficiency (optimize mutex contention) for many daq lists and events
-- Support more types of calibration parameters, including types for curves and maps with axis
-- Avoid the mutex lock in CalSeg::Sync when there is no pending parameter modification
+- Create a lock free algorithm to aquire an entry in the MPSC event queue
+- Support specialized types of calibration parameters, including types for curves and maps with axis
+- Avoid the mutex lock in CalSeg::Sync when there is no pending parameter modification or switch to a mcu algorithm  
 - Improve the meta data annotations of the A2L serializer
-- Reduce the number of heap allocations and strings, reduce the overall memory footprint
-- Add sub groups of measurements for event instances
-- Improve the pointer provenance checks in XcpEvent
-- Add support to describe the application clock domain in rust
+- Add support to describe the application clock domain
 - Provide a no-std version and create an embassy example
 
 

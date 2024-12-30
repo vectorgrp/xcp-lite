@@ -3,7 +3,7 @@ fn main() {
 
     // Generate XCPlite C code bindings
     // Uncomment this to regenerate the bindings
-/* 
+
     let bindings = bindgen::Builder::default()
         .header("xcplib/wrapper.h")
         .clang_arg("-Ixcplib/src")
@@ -11,6 +11,7 @@ fn main() {
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         //
         .blocklist_type("T_CLOCK_INFO")
+        .allowlist_type("tXcpDaqLists")
         // Protocol layer
         .allowlist_function("XcpInit")
         //.allowlist_function("XcpStart")
@@ -42,7 +43,6 @@ fn main() {
         .generate()
         .expect("Unable to generate bindings");
     bindings.write_to_file("src/xcp/xcplib.rs").expect("Couldn't write bindings!");
-*/
 
     // Build a XCP on ETH version of XCPlite as a library
     cc::Build::new()
@@ -51,6 +51,7 @@ fn main() {
         .file("xcplib/xcpAppl.c")
         .file("xcplib/src/platform.c")
         .file("xcplib/src/xcpLite.c")
+        .file("xcplib/src/xcpDaq.c")
         .file("xcplib/src/xcpTlQueue.c")
         .file("xcplib/src/xcpTl.c")
         .file("xcplib/src/xcpEthTl.c")
@@ -78,4 +79,6 @@ fn main() {
     println!("cargo:rerun-if-changed=xcplib/src/xcp.h");
     println!("cargo:rerun-if-changed=xcplib/src/xcpLite.h");
     println!("cargo:rerun-if-changed=xcplib/src/xcpLite.c");
+    println!("cargo:rerun-if-changed=xcplib/src/xcpDaq.h");
+    println!("cargo:rerun-if-changed=xcplib/src/xcpDaq.c");
 }
