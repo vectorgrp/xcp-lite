@@ -32,6 +32,7 @@ impl GeneratorCollection {
             INIT.call_once(|| {
                 INSTANCE = Some(GeneratorCollection::new());
             });
+            #[allow(static_mut_refs)]
             INSTANCE.as_ref().unwrap()
         }
     }

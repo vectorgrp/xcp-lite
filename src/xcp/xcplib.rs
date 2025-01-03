@@ -212,13 +212,28 @@ extern "C" {
     pub fn ApplXcpGetAddr(p: *const u8) -> u32;
 }
 extern "C" {
+    pub fn XcpApplPrintDaqLists(daq_lists: *const tXcpDaqLists);
+}
+extern "C" {
+    pub fn XcpApplEventAt(daq_lists: *const tXcpDaqLists, event: u16, clock: u64);
+}
+extern "C" {
+    pub fn XcpApplEventExtAt(daq_lists: *const tXcpDaqLists, event: u16, base: *const u8, clock: u64);
+}
+extern "C" {
+    pub fn XcpApplEvent(daq_lists: *const tXcpDaqLists, event: u16);
+}
+extern "C" {
+    pub fn XcpApplEventExt(daq_lists: *const tXcpDaqLists, event: u16, base: *const u8) -> u8;
+}
+extern "C" {
     pub fn ApplXcpSetLogLevel(level: u8);
 }
 extern "C" {
     pub fn ApplXcpRegisterCallbacks(
         cb_connect: ::std::option::Option<unsafe extern "C" fn() -> u8>,
         cb_prepare_daq: ::std::option::Option<unsafe extern "C" fn(daq: *const tXcpDaqLists) -> u8>,
-        cb_start_daq: ::std::option::Option<unsafe extern "C" fn() -> u8>,
+        cb_start_daq: ::std::option::Option<unsafe extern "C" fn(daq: *const tXcpDaqLists) -> u8>,
         cb_stop_daq: ::std::option::Option<unsafe extern "C" fn()>,
         cb_get_cal_page: ::std::option::Option<unsafe extern "C" fn(segment: u8, mode: u8) -> u8>,
         cb_set_cal_page: ::std::option::Option<unsafe extern "C" fn(segment: u8, page: u8, mode: u8) -> u8>,

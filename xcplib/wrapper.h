@@ -16,6 +16,7 @@ typedef signed long long int64_t;
 
 #include "main_cfg.h"
 #include "src/xcpLite.h"   
+#include "src/xcpDaq.h"   
 #include "xcpAppl.h"   
 #include "src/xcpEthTl.h"
 #include "src/xcpEthServer.h"

@@ -205,6 +205,8 @@ typedef struct {
 
     /* DAQ runtime state*/
     uint64_t DaqStartClock64;
+
+    /* DAQ queue overflow */
     uint32_t DaqOverflowCount;
 
 #ifdef XCP_ENABLE_FREEZE_CAL_PAGE
@@ -241,6 +243,8 @@ typedef struct {
 } tXcpData;
 
 static tXcpData gXcp = { 0 };
+
+
 // Some compilers complain about this initialization
 // Calling XCP functions (e.g. XcpEvent()) before XcpInit() is forbidden
 // Static initialization of gXcp.SessionStatus to 0 allows to check this condition
@@ -463,6 +467,7 @@ static void  XcpFreeDaq() {
   gXcp.Daq.daq_count = 0;
   gXcp.Daq.odt_count= 0;
   gXcp.Daq.odt_entry_count = 0;
+  gXcp.Daq.res = 0xBEAC;
 
   gXcp.Daq.odt = NULL;
   gXcp.Daq.odt_entry_addr = NULL;
@@ -755,6 +760,15 @@ static void XcpStopAllDaq() {
 
 // Measurement data acquisition, sample and transmit measurement date associated to event
 
+#if XCP_MAX_DAQ_COUNT>256
+  #define ODT_HEADER_SIZE 4 // ODT,align,DAQ_WORD header 
+#else
+  #define ODT_HEADER_SIZE 2 // ODT,DAQ header
+#endif
+
+#define ODT_TIMESTAMP_SIZE 4
+
+
 // Trigger daq list
 static void XcpTriggerDaq(uint16_t daq, const uint8_t* base, uint64_t clock) {
 
@@ -769,12 +783,7 @@ static void XcpTriggerDaq(uint16_t daq, const uint8_t* base, uint64_t clock) {
       sc = DaqListSampleCount(daq); // Packed mode sample count, 0 if not packed
 #endif
 
-#define ODT_TIMESTAMP_SIZE 4
-#if XCP_MAX_DAQ_COUNT>256
-  #define ODT_HEADER_SIZE 4 // ODT,align,DAQ_WORD header 
-#else
-  #define ODT_HEADER_SIZE 2 // ODT,DAQ header
-#endif
+
 
       // Loop over all ODTs of the current DAQ list
       for (hs=ODT_HEADER_SIZE+ODT_TIMESTAMP_SIZE,odt=DaqListFirstOdt(daq);odt<=DaqListLastOdt(daq);hs=ODT_HEADER_SIZE,odt++)  {
@@ -1457,7 +1466,7 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint8_t cmdL
             CRM_LEN = CRM_GET_DAQ_EVENT_INFO_LEN;
             CRM_GET_DAQ_EVENT_INFO_PROPERTIES = DAQ_EVENT_PROPERTIES_DAQ | DAQ_EVENT_PROPERTIES_EVENT_CONSISTENCY;
   #ifdef XCP_ENABLE_PACKED_MODE
-            if (ApplXcpEventList[event].sampleCount) CRM_GET_DAQ_EVENT_INFO_PROPERTIES |= DAQ_EVENT_PROPERTIES_PACKED;
+            if (XcpEventList[event].sampleCount) CRM_GET_DAQ_EVENT_INFO_PROPERTIES |= DAQ_EVENT_PROPERTIES_PACKED;
   #endif
             CRM_GET_DAQ_EVENT_INFO_MAX_DAQ_LIST = 0xFF;
             CRM_GET_DAQ_EVENT_INFO_NAME_LENGTH = (uint8_t)strlen(event->name);
@@ -1595,7 +1604,7 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint8_t cmdL
                 XcpStopAllSelectedDaq();
                 break;
             case 1: /* start selected */
-                if (!ApplXcpStartDaq()) error(CRC_RESOURCE_TEMPORARY_NOT_ACCESSIBLE);
+                if (!ApplXcpStartDaq((const tXcpDaqLists*)&gXcp.Daq)) error(CRC_RESOURCE_TEMPORARY_NOT_ACCESSIBLE);
                 XcpSendResponse(&CRM, CRM_LEN); // Transmit response first and then start DAQ
                 XcpStartAllSelectedDaq();
                 goto no_response; // Do not send response again
@@ -2422,12 +2431,11 @@ static void XcpPrintDaqList( uint16_t daq )
 #endif
   for (i=DaqListFirstOdt(daq);i<=DaqListLastOdt(daq);i++) {
     printf("  ODT %u (%u):",i-DaqListFirstOdt(daq),i);
-    printf(" firstOdtEntry=%u, lastOdtEntry=%u, size=%u:\n", DaqListOdtFirstEntry(i), DaqListOdtLastEntry(i),DaqListOdtSize(i));
-    if (DBG_LEVEL >= 5) {
+    printf(" firstOdtEntry=%u, lastOdtEntry=%u, size=%u:\n", DaqListOdtFirstEntry(i), DaqListOdtLastEntry(i), DaqListOdtSize(i));
       for (e=DaqListOdtFirstEntry(i);e<=DaqListOdtLastEntry(i);e++) {
-        printf("   %08X,%u\n",OdtEntryAddr(e), OdtEntrySize(e));
+        printf("   ODT_ENTRY %u (%u): %08X,%u\n", e-DaqListOdtFirstEntry(i), e, OdtEntryAddr(e), OdtEntrySize(e));
       }
-    }
+
   } /* j */
 }
 

@@ -114,6 +114,7 @@ impl Generator for CdrGenerator {
 
                 MAPPING = Some(mapping);
             });
+            #[allow(static_mut_refs)]
             MAPPING.as_ref().unwrap() //TODO: Error Handling??
         }
     }

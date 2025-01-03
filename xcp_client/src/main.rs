@@ -170,7 +170,7 @@ impl XcpDaqDecoder for DaqDecoder {
             t_last
         };
 
-        println!("DAQ: lost={}, daq={}, odt={}, t={}ns", lost, daq, odt, t);
+        println!("DAQ: lost={}, daq={}, odt={}, t={}ns (+{}us)", lost, daq, odt, t, (t - t_last) / 1000);
 
         // Get daq list
         let daq_list = &self.daq_odt_entries.as_ref().unwrap()[daq as usize];

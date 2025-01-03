@@ -48,7 +48,7 @@ void ApplXcpSetLogLevel(uint8_t level) {
 
 static uint8_t (*callback_connect)() = NULL;
 static uint8_t (*callback_prepare_daq)(const tXcpDaqLists* daq) = NULL;
-static uint8_t (*callback_start_daq)() = NULL;
+static uint8_t (*callback_start_daq)(const tXcpDaqLists* daq) = NULL;
 static void    (*callback_stop_daq)() = NULL;
 static uint8_t (*callback_get_cal_page)(uint8_t segment, uint8_t mode) = NULL;
 static uint8_t (*callback_set_cal_page)(uint8_t segment, uint8_t page, uint8_t mode) = NULL;
@@ -62,7 +62,7 @@ static uint8_t (*callback_flush)()  = NULL;
 void ApplXcpRegisterCallbacks(
     uint8_t (*cb_connect)(),
     uint8_t (*cb_prepare_daq)(const tXcpDaqLists* daq),
-    uint8_t (*cb_start_daq)(),
+    uint8_t (*cb_start_daq)(const tXcpDaqLists* daq),
     void (*cb_stop_daq)(),
     uint8_t (*cb_get_cal_page)(uint8_t segment, uint8_t mode),
     uint8_t (*cb_set_cal_page)(uint8_t segment, uint8_t page, uint8_t mode),
@@ -117,9 +117,9 @@ BOOL ApplXcpPrepareDaq(const tXcpDaqLists* daq) {
 }
 #endif
 
-BOOL ApplXcpStartDaq() {
+BOOL ApplXcpStartDaq(const tXcpDaqLists* daq) {
     DBG_PRINT3("XCP start DAQ\n");
-    if (callback_start_daq!=NULL) return callback_start_daq();
+    if (callback_start_daq!=NULL) return callback_start_daq(daq);
     return TRUE;
 }
 

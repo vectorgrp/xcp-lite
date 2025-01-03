@@ -16,19 +16,17 @@ fn main() {
         .allowlist_function("XcpInit")
         //.allowlist_function("XcpStart")
         .allowlist_function("XcpDisconnect")
-        // Transport layer
-        //.allowlist_function("XcpTlInit")
-        //.allowlist_function("XcpTlShutdown")
-        //.allowlist_function("XcpTlCommand")
-        //.allowlist_function("XcpTlTransmitQueuePeekMsg")
-        //.allowlist_function("XcpTlTransmitQueueNextMsg")
-        //.allowlist_function("XcpTlTransmitQueueHasMsg")
-        .allowlist_function("XcpEthTlGetInfo")
-        // ETH server
+        // Appl-Daemon mode
+        .allowlist_function("XcpApplEvent")
+        .allowlist_function("XcpApplEventExt")
+        .allowlist_function("XcpApplEventAt")
+        .allowlist_function("XcpApplEventExtAt")
+        .allowlist_function("XcpApplPrintDaqLists")
+        // ETH server mode
         .allowlist_function("XcpEthServerInit")
         .allowlist_function("XcpEthServerShutdown")
         .allowlist_function("XcpEthServerStatus")
-        //.allowlist_function("XcpGetSessionStatus")
+        .allowlist_function("XcpEthTlGetInfo")
         // DAQ
         .allowlist_function("XcpEvent")
         .allowlist_function("XcpEventExt")

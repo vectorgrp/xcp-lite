@@ -193,7 +193,7 @@ extern void ApplXcpDisconnect();
 #if XCP_PROTOCOL_LAYER_VERSION >= 0x0104
 extern BOOL ApplXcpPrepareDaq(const tXcpDaqLists *daq);
 #endif
-extern BOOL ApplXcpStartDaq();
+extern BOOL ApplXcpStartDaq(const tXcpDaqLists *daq);
 extern void ApplXcpStopDaq();
 
 /* Address conversions from A2L address to pointer and vice versa in absolute addressing mode */

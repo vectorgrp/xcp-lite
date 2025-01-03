@@ -73,10 +73,12 @@ path = "examples/protobuf_demo/src/main.rs"
 
 [features]
 
-# Feature xcp_server enables the rust XCP server instead of xcplib from XCPlite
+# Feature xcp_daemon, xcp_appl enable multi-app/daemon mode
 # Unimplemented yet
-xcp_server = []
-# default = ["xcp_server"] # test
+xcp_appl = []
+xcp_daemon = []
+# default = ["xcp_appl"] 
+# default = ["xcp_daemon"] 
 
 # Feature load, save and freeze calibration segment to json
 serde = ["dep:serde","dep:serde_json"]

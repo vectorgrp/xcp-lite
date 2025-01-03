@@ -467,17 +467,11 @@ where
     // Deref to currently active page
     #[inline]
     fn deref(&self) -> &Self::Target {
-        if xcp::XCP_SINGLETON.ecu_cal_page.load(std::sync::atomic::Ordering::Relaxed) == XcpCalPage::Ram as u8 {
+        if xcp::XCP.ecu_cal_page.load(std::sync::atomic::Ordering::Relaxed) == XcpCalPage::Ram as u8 {
             std::hint::black_box(&self.ecu_page.page)
         } else {
             self.default_page
         }
-
-        // let xcp = Xcp::get();
-        // match xcp.get_ecu_cal_page() {
-        //     XcpCalPage::Ram => std::hint::black_box(&self.ecu_page.page),
-        //     _ => self.default_page,
-        // }
     }
 }
 
