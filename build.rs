@@ -16,19 +16,16 @@ fn main() {
         .allowlist_function("XcpInit")
         //.allowlist_function("XcpStart")
         .allowlist_function("XcpDisconnect")
-        // Appl-Daemon mode
-        .allowlist_function("XcpApplEvent")
-        .allowlist_function("XcpApplEventExt")
-        .allowlist_function("XcpApplEventAt")
-        .allowlist_function("XcpApplEventExtAt")
-        .allowlist_function("XcpApplPrintDaqLists")
         // ETH server mode
         .allowlist_function("XcpEthServerInit")
         .allowlist_function("XcpEthServerShutdown")
         .allowlist_function("XcpEthServerStatus")
         .allowlist_function("XcpEthTlGetInfo")
         // DAQ
+        .allowlist_function("XcpTriggerDaqEventAt")
+        //.allowlist_function("XcpEventAt")
         .allowlist_function("XcpEvent")
+        //.allowlist_function("XcpEventExtAt")
         .allowlist_function("XcpEventExt")
         // Misc
         .allowlist_function("XcpPrint")
@@ -49,7 +46,7 @@ fn main() {
         .file("xcplib/xcpAppl.c")
         .file("xcplib/src/platform.c")
         .file("xcplib/src/xcpLite.c")
-        .file("xcplib/src/xcpDaq.c")
+        //.file("xcplib/src/xcpDaq.c")
         .file("xcplib/src/xcpTlQueue.c")
         .file("xcplib/src/xcpTl.c")
         .file("xcplib/src/xcpEthTl.c")
@@ -77,6 +74,6 @@ fn main() {
     println!("cargo:rerun-if-changed=xcplib/src/xcp.h");
     println!("cargo:rerun-if-changed=xcplib/src/xcpLite.h");
     println!("cargo:rerun-if-changed=xcplib/src/xcpLite.c");
-    println!("cargo:rerun-if-changed=xcplib/src/xcpDaq.h");
-    println!("cargo:rerun-if-changed=xcplib/src/xcpDaq.c");
+    //println!("cargo:rerun-if-changed=xcplib/src/xcpDaq.h");
+    //println!("cargo:rerun-if-changed=xcplib/src/xcpDaq.c");
 }

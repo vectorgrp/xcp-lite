@@ -67,7 +67,7 @@ typedef struct {
 typedef struct {
     uint16_t first_odt_entry;       /* Absolute odt entry number */
     uint16_t last_odt_entry;        /* Absolute odt entry number */
-    uint16_t size;                /* Number of bytes */
+    uint16_t size;                  /* Number of bytes */
 } tXcpOdt;
 
 /* DAQ list */
@@ -135,10 +135,12 @@ extern uint8_t XcpCommand( const uint32_t* pCommand, uint8_t len );
 /* Disconnect, stop DAQ, flush queue */
 extern void XcpDisconnect();
 
-/* Trigger a XCP data acquisition or stimulation event */
-extern void XcpEvent(uint16_t event);
+/* Trigger a XCP data acquisition event */
+extern void XcpTriggerDaqEventAt(const tXcpDaqLists* daq_lists, uint16_t event, const uint8_t* base, uint64_t clock);
+extern uint8_t XcpEventExtAt(uint16_t event, const uint8_t* base, uint64_t clock);
 extern uint8_t XcpEventExt(uint16_t event, const uint8_t* base);
-extern void XcpEventAt(uint16_t event, uint64_t clock);
+extern void XcpEventAt(uint16_t event, uint64_t clock); 
+extern void XcpEvent(uint16_t event); 
 
 /* Send an XCP event message */
 extern void XcpSendEvent(uint8_t ev, uint8_t evc, const uint8_t* d, uint8_t l);

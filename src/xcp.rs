@@ -152,10 +152,10 @@ impl XcpEvent {
         unsafe {
             let daq_lists = XCP.daq_lists.load(Ordering::Relaxed);
             if !daq_lists.is_null() {
-                xcplib::XcpApplEventExt(daq_lists, self.get_channel(), base)
-            } else {
-                0
+                // DAQ running
+                xcplib::XcpTriggerDaqEventAt(daq_lists, self.get_channel(), base, 0);
             }
+            0
         }
     }
 
@@ -172,7 +172,8 @@ impl XcpEvent {
         unsafe {
             let daq_lists = XCP.daq_lists.load(Ordering::Relaxed);
             if !daq_lists.is_null() {
-                xcplib::XcpApplEvent(daq_lists, self.get_channel());
+                // DAQ running
+                xcplib::XcpTriggerDaqEventAt(daq_lists, self.get_channel(), std::ptr::null_mut(), 0);
             }
         }
     }
@@ -402,7 +403,7 @@ pub struct Xcp {
     calseg_list: Arc<Mutex<CalSegList>>,
     epk: Mutex<&'static str>,
     #[cfg(feature = "xcp_appl")]
-    daq_lists: sync::atomic::AtomicPtr<xcplib::tXcpDaqLists>,
+    daq_lists: std::sync::atomic::AtomicPtr<xcplib::tXcpDaqLists>,
 }
 
 lazy_static! {
@@ -462,7 +463,7 @@ impl Xcp {
             calseg_list: Arc::new(Mutex::new(CalSegList::new())),
             epk: Mutex::new("DEFAULT_EPK"),
             #[cfg(feature = "xcp_appl")]
-            daq_lists: sync::atomic::AtomicPtr::new(null_mut()),
+            daq_lists: std::sync::atomic::AtomicPtr::new(std::ptr::null_mut()),
         }
     }
 
@@ -731,13 +732,6 @@ extern "C" fn cb_start_daq(daq: *const xcplib::tXcpDaqLists) -> u8 {
     log::trace!("cb_start_daq");
     #[cfg(feature = "xcp_appl")]
     XCP.daq_lists.store(daq.cast_mut(), Ordering::Relaxed);
-
-    // #[cfg(feature = "xcp_appl")]
-    // unsafe {
-    //     // @@@@ Unsafe - C library call
-    //     xcplib::XcpApplPrintDaqLists(daq);
-    // }
-
     TRUE
 }
 

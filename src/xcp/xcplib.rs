@@ -200,31 +200,19 @@ extern "C" {
     pub fn XcpDisconnect();
 }
 extern "C" {
-    pub fn XcpEvent(event: u16);
+    pub fn XcpTriggerDaqEventAt(daq_lists: *const tXcpDaqLists, event: u16, base: *const u8, clock: u64);
 }
 extern "C" {
     pub fn XcpEventExt(event: u16, base: *const u8) -> u8;
+}
+extern "C" {
+    pub fn XcpEvent(event: u16);
 }
 extern "C" {
     pub fn XcpPrint(str_: *const ::std::os::raw::c_char);
 }
 extern "C" {
     pub fn ApplXcpGetAddr(p: *const u8) -> u32;
-}
-extern "C" {
-    pub fn XcpApplPrintDaqLists(daq_lists: *const tXcpDaqLists);
-}
-extern "C" {
-    pub fn XcpApplEventAt(daq_lists: *const tXcpDaqLists, event: u16, clock: u64);
-}
-extern "C" {
-    pub fn XcpApplEventExtAt(daq_lists: *const tXcpDaqLists, event: u16, base: *const u8, clock: u64);
-}
-extern "C" {
-    pub fn XcpApplEvent(daq_lists: *const tXcpDaqLists, event: u16);
-}
-extern "C" {
-    pub fn XcpApplEventExt(daq_lists: *const tXcpDaqLists, event: u16, base: *const u8) -> u8;
 }
 extern "C" {
     pub fn ApplXcpSetLogLevel(level: u8);
