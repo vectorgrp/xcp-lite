@@ -62,6 +62,8 @@ typedef struct {
 /* DAQ information                                                          */
 /****************************************************************************/
 
+#define XCP_UNDEFINED_DAQ_LIST 0xFFFF
+
 /* ODT */
 /* Size must be even !!! */
 typedef struct {
@@ -72,9 +74,12 @@ typedef struct {
 
 /* DAQ list */
 typedef struct {
-    uint16_t last_odt;             /* Absolute odt number */
-    uint16_t first_odt;            /* Absolute odt number */
-    uint16_t event_channel;
+    uint16_t last_odt;        /* Absolute odt number */
+    uint16_t first_odt;       /* Absolute odt number */
+    uint16_t event_channel;   /* Associated event */
+#ifdef XCP_MAX_EVENT_COUNT
+    uint16_t next;            /* Next DAQ list asociated to event_channel */
+#endif
 #ifdef XCP_ENABLE_PACKED_MODE
     uint16_t sampleCount;         /* Packed mode */
 #endif
@@ -87,11 +92,13 @@ typedef struct {
 
 /* Dynamic DAQ list structure in a linear memory block with size XCP_DAQ_MEM_SIZE + 8 */
 typedef struct {
-
     uint16_t odt_entry_count; // Total number of ODT entries in ODT entry addr and size arrays
     uint16_t odt_count; // Total number of ODTs in ODT array
     uint16_t daq_count; // Number of DAQ lists in DAQ list array
     uint16_t res;
+#ifdef XCP_MAX_EVENT_COUNT
+    uint16_t daq_first[XCP_MAX_EVENT_COUNT]; // Event channel to DAQ list mapping
+#endif
 
     // Pointers to optimze access to DAQ lists, ODT and ODT entry array pointers
     int32_t* odt_entry_addr; // ODT entry addr array
