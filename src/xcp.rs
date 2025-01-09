@@ -166,7 +166,7 @@ impl XcpEvent {
         // @@@@ Unsafe - C library call and transfering a pointer and its valid memory range to XCPlite FFI
         #[cfg(not(feature = "xcp_appl"))]
         unsafe {
-            xcplib::XcpEvent(self.get_channel())
+            xcplib::XcpEvent(self.get_channel());
         }
         #[cfg(feature = "xcp_appl")]
         unsafe {
@@ -477,10 +477,10 @@ impl Xcp {
 
     #[allow(clippy::unused_self)]
     /// Set the log level for XCP library
-    pub fn set_log_level(&self, _level: u8) {
+    pub fn set_log_level(&self, level: u8) {
         unsafe {
             // @@@@ Unsafe - C library call
-            xcplib::ApplXcpSetLogLevel(_level);
+            xcplib::ApplXcpSetLogLevel(level);
         }
     }
 
@@ -509,11 +509,20 @@ impl Xcp {
     /// Stop the XCP server
     #[allow(clippy::unused_self)]
     pub fn stop_server(&self) {
+        // @@@@ Unsafe - C library calls
         unsafe {
-            // @@@@ Unsafe - C library call
+            xcplib::XcpSendTerminateSessionEvent(); // Send terminate session event, if the XCP client is still connected
             xcplib::XcpDisconnect();
-            // @@@@ Unsafe - C library call
             xcplib::XcpEthServerShutdown();
+        }
+    }
+
+    /// Signal the client to disconnect
+    #[allow(clippy::unused_self)]
+    pub fn disconnect_client(&self) {
+        // @@@@ Unsafe - C library calls
+        unsafe {
+            xcplib::XcpSendTerminateSessionEvent(); // Send terminate session event, if the XCP client is connected
         }
     }
 

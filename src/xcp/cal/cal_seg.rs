@@ -141,7 +141,7 @@ impl<T> CalPageTrait for T where T: Sized + Send + Sync + Copy + Clone + 'static
 /// Each instance stores 2 copies of its inner data, the calibration page
 /// One for each clone of the readers, a shared copy for the writer (XCP) and
 /// a reference to the default values
-/// Implements Deref to simplify usage
+/// Implements Deref to simplify usage, is send, not sync and implements copy and clone
 ///
 
 #[derive(Debug)]
@@ -153,8 +153,7 @@ where
     default_page: &'static T,
     ecu_page: Box<CalPage<T>>,
     xcp_page: Arc<Mutex<CalPage<T>>>,
-    //_not_send_sync_marker: PhantomData<*mut ()>,
-    _not_sync_marker: PhantomData<std::cell::Cell<()>>,
+    _not_sync_marker: PhantomData<std::cell::Cell<()>>, // CalSeg is send, not sync
 }
 
 // Impl register_fields for types which implement RegisterFieldsTrait
@@ -381,13 +380,13 @@ where
     // Read from xcp_page or default_page depending on the active XCP page
     // # Safety
     // dst must be valid
-    // @@@@ Unsafe function
+    // @@@@ - Unsafe function
     unsafe fn read(&self, offset: u16, len: u8, dst: *mut u8) -> bool;
 
     // Write to xcp_page
     // # Safety
     // src must be valid
-    // @@@@ Unsafe function
+    // @@@@ - Unsafe function
     unsafe fn write(&self, offset: u16, len: u8, src: *const u8, delay: u8) -> bool;
 
     // Flush delayed modifications
@@ -417,7 +416,7 @@ where
         self.xcp_page.lock().init_request = true;
     }
 
-    // @@@@ Unsafe
+    // @@@@ Unsafe - function
     unsafe fn read(&self, offset: u16, len: u8, dst: *mut u8) -> bool {
         assert!(offset as usize + len as usize <= std::mem::size_of::<T>());
         if Xcp::get().get_xcp_cal_page() == XcpCalPage::Ram {
@@ -432,7 +431,7 @@ where
         }
     }
 
-    // @@@@ Unsafe
+    // @@@@ Unsafe - function
     unsafe fn write(&self, offset: u16, len: u8, src: *const u8, delay: u8) -> bool {
         assert!(offset as usize + len as usize <= std::mem::size_of::<T>());
         if Xcp::get().get_xcp_cal_page() == XcpCalPage::Ram {
@@ -533,19 +532,7 @@ where
 // }
 
 //----------------------------------------------------------------------------------------------
-// Send marker
-
-// The Send marker trait indicates that ownership of the type can be transferred to a different thread.
-// The Sync marker trait would indicates that it is safe to share references to CalSeg between threads, which is not the case.
-
-/// Send marker for 'CalSeg'
-/// 'CalSeg' is not Sync, but Send
-/// # Safety
-/// This is safe, because 'CalSeg' would be Send and Sync, but its disabled by PhantomData
-/// Send is reimplemented here
-/// Sync stays disabled, because this would allow to call 'calseg.sync()' from multiple threads with references to the same 'CalSeg'
-// @@@@ Unsafe - Implementation of Send marker for CalSeg
-//unsafe impl<T> Send for CalSeg<T> where T: CalPageTrait {}
+// Read lock guard for calibration pages
 
 /// Read lock guard that provides consistent read only access to a calibration page
 pub struct ReadLockGuard<'a, T: CalPageTrait> {

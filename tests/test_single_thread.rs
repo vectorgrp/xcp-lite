@@ -147,6 +147,8 @@ fn task(cal_seg: CalSeg<CalPage1>) {
     }
 
     debug!("Task terminated, loop counter = {}, {} changes observed", loop_counter, changes);
+    xcp_println!("Task terminated, loop counter = {}, {} changes observed", loop_counter, changes);
+    Xcp::disconnect_client(Xcp::get());
 }
 
 //-----------------------------------------------------------------------------

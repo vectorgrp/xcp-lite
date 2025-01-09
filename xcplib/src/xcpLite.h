@@ -150,7 +150,10 @@ extern void XcpEventAt(uint16_t event, uint64_t clock);
 extern void XcpEvent(uint16_t event); 
 
 /* Send an XCP event message */
-extern void XcpSendEvent(uint8_t ev, uint8_t evc, const uint8_t* d, uint8_t l);
+extern void XcpSendEvent(uint8_t evc, const uint8_t* d, uint8_t l);
+
+/* Send terminate session signal event */
+extern void XcpSendTerminateSessionEvent();
 
 /* Print log message via XCP */
 #ifdef XCP_ENABLE_SERV_TEXT

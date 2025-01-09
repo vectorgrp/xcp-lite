@@ -19,6 +19,7 @@ use std::io::Write;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
+use tokio::io::join;
 use tokio::net::UdpSocket;
 use tokio::select;
 use tokio::sync::mpsc::{self, Receiver, Sender};
@@ -70,6 +71,8 @@ pub const ERROR_TL_HEADER: u8 = 0xF1;
 pub const ERROR_A2L: u8 = 0xF2;
 pub const ERROR_LIMIT: u8 = 0xF3;
 pub const ERROR_ODT_SIZE: u8 = 0xF4;
+pub const ERROR_TASK_TERMINATED: u8 = 0xF5;
+pub const ERROR_SESSION_TERMINATION: u8 = 0xF6;
 
 #[derive(Default)]
 pub struct XcpError {
@@ -92,6 +95,12 @@ impl std::fmt::Display for XcpError {
         match self.code {
             ERROR_CMD_TIMEOUT => {
                 write!(f, "{cmd:?}: Command response timeout")
+            }
+            ERROR_TASK_TERMINATED => {
+                write!(f, "Client task terminated")
+            }
+            ERROR_SESSION_TERMINATION => {
+                write!(f, "Session terminated by XCP server")
             }
             ERROR_TL_HEADER => {
                 write!(f, "Transport layer header error")
@@ -546,6 +555,7 @@ pub struct XcpClient {
     bind_addr: SocketAddr,
     dest_addr: SocketAddr,
     socket: Option<Arc<UdpSocket>>,
+    receive_task: Option<tokio::task::JoinHandle<()>>,
     rx_cmd_resp: Option<mpsc::Receiver<Vec<u8>>>,
     tx_task_control: Option<mpsc::Sender<XcpTaskControl>>,
     task_control: XcpTaskControl,
@@ -570,6 +580,7 @@ impl XcpClient {
             bind_addr,
             dest_addr,
             socket: None,
+            receive_task: None,
             rx_cmd_resp: None,
             tx_task_control: None,
             task_control: XcpTaskControl::new(),
@@ -641,7 +652,7 @@ impl XcpClient {
                         Ok((size, _)) => {
                             // Handle the data from recv_from
                             if size == 0 {
-                                warn!("xcp_receive: socket closed");
+                                warn!("receive_task: stop, socket closed");
                                 return Ok(());
                             }
 
@@ -669,19 +680,23 @@ impl XcpClient {
                                     0xFF => {
                                         // Command response
                                         let response = &buf[(i + 4)..(i + 4 + len)];
-                                        trace!("xcp_receive: XCP response = {:?}", response);
+                                        trace!("receive_task: XCP response = {:?}", response);
                                         tx_resp.send(response.to_vec()).await?;
                                     }
                                     0xFE => {
                                         // Command error response
                                         let response = &buf[(i + 4)..(i + 6)];
-                                        trace!("xcp_receive: XCP error response = {:?}", response);
+                                        trace!("receive_task: XCP error response = {:?}", response);
                                         tx_resp.send(response.to_vec()).await?;
                                     }
                                     0xFD => {
                                         // Event
                                         let event_code = buf[i + 5];
-                                        warn!("xcp_receive: ignored XCP event = 0x{:0X}", event_code);
+                                        match event_code {
+                                            0x07 => { warn!("receive_task: stop, SESSION_TERMINATDED"); return Err(Box::new(XcpError::new(ERROR_SESSION_TERMINATION,0)) as Box<dyn Error>); },
+                                            _ => warn!("xcp_receive: ignored XCP event = 0x{:0X}", event_code),
+                                        }
+
                                     }
                                     0xFC => {
                                         // Service
@@ -691,7 +706,7 @@ impl XcpClient {
                                         } else {
                                             // Unknown PID
                                             warn!(
-                                                "xcp_receive: ignored unknown service request code = 0x{:0X}",
+                                                "receive_task: ignored unknown service request code = 0x{:0X}",
                                                 service_code
                                             );
                                         }
@@ -716,7 +731,7 @@ impl XcpClient {
                         }
                         Err(e) => {
                             // Handle the error from recv_from
-                            error!("xcp_receive: socket error {}",e);
+                            warn!("receive_task: stop, socket error {}",e);
                             return Err(Box::new(XcpError::new(ERROR_TL_HEADER,0)) as Box<dyn Error>);
                         }
                     }
@@ -756,9 +771,9 @@ impl XcpClient {
                         }
                     }
                     None => {
-                        // @@@@ Empty response, channel has been closed, return with XcpError Timeout
-                        error!("xcp_command: receive_task channel closed");
-                        Err(Box::new(XcpError::new(ERROR_CMD_TIMEOUT, 0)) as Box<dyn Error>)
+                        // Empty response, channel has been closed because receive task terminated
+                        warn!("xcp_command: receive_task terminated");
+                        Err(Box::new(XcpError::new(ERROR_TASK_TERMINATED, cmd_bytes[4])) as Box<dyn Error>)
                     }
                 }
             }
@@ -792,9 +807,9 @@ impl XcpClient {
             self.tx_task_control = Some(tx_daq); // tx XCP DAQ control channel
             let daq_decoder_clone = Arc::clone(&daq_decoder);
 
-            tokio::spawn(async move {
+            self.receive_task = Some(tokio::spawn(async move {
                 let _res = XcpClient::receive_task(socket, tx_resp, rx_daq, text_decoder, daq_decoder_clone).await;
-            });
+            }));
             tokio::time::sleep(Duration::from_millis(100)).await; // wait for the receive task to start
         }
 
@@ -832,11 +847,23 @@ impl XcpClient {
 
     //------------------------------------------------------------------------
     pub async fn disconnect(&mut self) -> Result<(), Box<dyn Error>> {
-        self.send_command(XcpCommandBuilder::new(CC_DISCONNECT).add_u8(0).build()).await?;
+        // Ignore errors and assume disconnected
 
+        // Disconnect
+        let _ = self.send_command(XcpCommandBuilder::new(CC_DISCONNECT).add_u8(0).build()).await;
+
+        // Stop XCP client task
         self.task_control.connected = false;
         self.task_control.running = false;
-        self.tx_task_control.as_ref().unwrap().send(self.task_control).await.unwrap();
+        let _ = self.tx_task_control.as_ref().unwrap().send(self.task_control).await;
+
+        // Make sure receive_task has terminated
+        if let Some(receive_task) = self.receive_task.take() {
+            let res = receive_task.await;
+            if let Err(e) = res {
+                error!("{:?}", e);
+            }
+        }
 
         Ok(())
     }

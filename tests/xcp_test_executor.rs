@@ -481,7 +481,7 @@ pub async fn xcp_test_executor(_xcp: &Xcp, test_mode_cal: TestModeCal, test_mode
                 assert_eq!(d.counter_errors, 0);
                 assert_eq!(d.packets_lost, 0);
             }
-        }
+        } // test_mode_daq == TestModeDaq::SingleThreadDAQ || test_mode_daq == TestModeDaq::MultiThreadDAQ
 
         //-------------------------------------------------------------------------------------------------------------------------------------
         //-------------------------------------------------------------------------------------------------------------------------------------
@@ -602,12 +602,12 @@ pub async fn xcp_test_executor(_xcp: &Xcp, test_mode_cal: TestModeCal, test_mode
                 if download_time > 100.0 {
                     warn!("Calibration download time ({}us) is too high!", download_time);
                 }
-            }
+            } // Calibration test loop
 
+            /* @@@@ TODO reenable this
             // Consistent calibration test loop
             // Do MAX_ITER consistent calibrations on cal_seg.sync_test1/2 cal_test, task will panic if different
             warn!("Consistent calibration test disabled");
-            /* @@@@ TODO reenable this
             {
                 tokio::time::sleep(Duration::from_micros(10000)).await;
 
@@ -669,9 +669,9 @@ pub async fn xcp_test_executor(_xcp: &Xcp, test_mode_cal: TestModeCal, test_mode
 
                     info!("consistent calibration test loop done, {} iterations", CAL_TEST_MAX_ITER);
                 }
-            }
+            } // Consistent calibration test loop
             */
-        }
+        } // !error_state && (test_mode_cal == TestModeCal::Cal)
 
         // Stop test task
         info!("Stop test tasks");
@@ -684,7 +684,8 @@ pub async fn xcp_test_executor(_xcp: &Xcp, test_mode_cal: TestModeCal, test_mode
             })
             .ok();
 
-        tokio::time::sleep(Duration::from_millis(500)).await; // Give the user task some time to finish
+        info!("...");
+        tokio::time::sleep(Duration::from_millis(1000)).await; // Give the user task some time to finish
     }
 
     // Disconnect

@@ -221,6 +221,9 @@ extern "C" {
     pub fn XcpEvent(event: u16);
 }
 extern "C" {
+    pub fn XcpSendTerminateSessionEvent();
+}
+extern "C" {
     pub fn XcpPrint(str_: *const ::std::os::raw::c_char);
 }
 extern "C" {

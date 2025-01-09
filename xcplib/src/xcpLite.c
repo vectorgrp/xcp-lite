@@ -1925,18 +1925,29 @@ no_response:
 
 
 /*****************************************************************************
-| Event
+| Events
 ******************************************************************************/
-void XcpSendEvent(uint8_t ev, uint8_t evc, const uint8_t* d, uint8_t l)
+
+void XcpSendEvent(uint8_t evc, const uint8_t* d, uint8_t l)
 {
-  if (isConnected()) return;
+  if (!isConnected()) return;
   
+  assert(l < XCPTL_MAX_CTO_SIZE-2);
+
   tXcpCto crm;  
-  crm.b[0] = ev; /* Event*/
+  crm.b[0] = PID_EV; /* Event */
   crm.b[1] = evc;  /* Eventcode */
   uint8_t i;
-  for (i = 0; i < l && i < XCPTL_MAX_CTO_SIZE-4; i++) crm.b[i+2] = d[i];
+  if (d!=NULL && l>0) {
+    for (i = 0; i < l; i++) crm.b[i+2] = d[i];
+  }
   XcpTlSendCrm((const uint8_t*)&crm, l+2);
+}
+ 
+
+// Send terminate session signal event
+void XcpSendTerminateSessionEvent() {
+  XcpSendEvent(EVC_SESSION_TERMINATED, NULL, 0); 
 }
 
 
@@ -1951,7 +1962,7 @@ void XcpPrint( const char *str ) {
   if (!isConnected()) return;
   
   tXcpCto crm;  
-  crm.b[0] = PID_SERV; /* Event*/
+  crm.b[0] = PID_SERV; /* Event */
   crm.b[1] = 0x01;  /* Eventcode SERV_TEXT */
   uint8_t i;
   uint16_t l = (uint16_t)strlen(str);
@@ -1959,14 +1970,14 @@ void XcpPrint( const char *str ) {
   crm.b[i+2] = '\n';
   crm.b[i+3] = 0;
   XcpTlSendCrm((const uint8_t*)&crm, l+4);
-}
+}  
                            
 #endif // XCP_ENABLE_SERV_TEXT
 
                             
-/*****************************************************************************
-| Initialization of the XCP Protocol Layer
-******************************************************************************/
+/****************************************************************************/
+/* Initialization of the XCP Protocol Layer                                 */
+/****************************************************************************/
 
 // Init XCP protocol layer
 void XcpInit()
@@ -2090,7 +2101,7 @@ void XcpReset() {
 
 
 /**************************************************************************/
-// Eventlist
+/* Eventlist                                                              */
 /**************************************************************************/
 
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST

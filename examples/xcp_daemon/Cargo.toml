@@ -10,7 +10,7 @@ log = "0.4.22"
 
 # In unix we link our dependencies as per usual
 [target.'cfg(unix)'.dependencies]
-xcp = { path = "../../", features = [] }
+xcp = { path = "../../", features = ["xcp_daemon"] }
 
 log = "0.4.22"
 signal-hook = "0.3.17"
