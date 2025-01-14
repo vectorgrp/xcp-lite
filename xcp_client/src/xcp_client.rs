@@ -46,7 +46,7 @@ pub const CRC_CMD_PENDING: u8 = 0x01;
 pub const CRC_CMD_IGNORED: u8 = 0x02;
 pub const CRC_CMD_BUSY: u8 = 0x10;
 pub const CRC_DAQ_ACTIVE: u8 = 0x11;
-pub const CRC_PRM_ACTIVE: u8 = 0x12;
+pub const CRC_PGM_ACTIVE: u8 = 0x12;
 pub const CRC_CMD_UNKNOWN: u8 = 0x20;
 pub const CRC_CMD_SYNTAX: u8 = 0x21;
 pub const CRC_OUT_OF_RANGE: u8 = 0x22;
@@ -120,8 +120,8 @@ impl std::fmt::Display for XcpError {
             CRC_DAQ_ACTIVE => {
                 write!(f, "{cmd:?}: XCP DAQ ACTIVE")
             }
-            CRC_PRM_ACTIVE => {
-                write!(f, "{cmd:?}: XCP PRM ACTIVE")
+            CRC_PGM_ACTIVE => {
+                write!(f, "{cmd:?}: XCP PGM ACTIVE")
             }
             CRC_CMD_UNKNOWN => {
                 write!(f, "Unknown XCP command: {cmd:?} ")

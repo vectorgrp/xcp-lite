@@ -2244,7 +2244,7 @@ static void XcpPrintRes(const tXcpCto* crm) {
                 case  CRC_CMD_SYNCH: e = "CRC_CMD_SYNCH"; break;
                 case  CRC_CMD_BUSY: e = "CRC_CMD_BUSY"; break;
                 case  CRC_DAQ_ACTIVE: e = "CRC_DAQ_ACTIVE"; break;
-                case  CRC_PRM_ACTIVE: e = "CRC_PRM_ACTIVE"; break;
+                case  CRC_PGM_ACTIVE: e = "CRC_PGM_ACTIVE"; break;
                 case  CRC_CMD_UNKNOWN: e = "CRC_CMD_UNKNOWN"; break;
                 case  CRC_CMD_SYNTAX: e = "CRC_CMD_SYNTAX"; break;
                 case  CRC_OUT_OF_RANGE: e = "CRC_OUT_OF_RANGE"; break;

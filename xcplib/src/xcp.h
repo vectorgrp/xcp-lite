@@ -138,7 +138,7 @@
 #define CRC_CMD_IGNORED                         0x02
 #define CRC_CMD_BUSY                            0x10
 #define CRC_DAQ_ACTIVE                          0x11
-#define CRC_PRM_ACTIVE                          0x12
+#define CRC_PGM_ACTIVE                          0x12
 #define CRC_CMD_UNKNOWN                         0x20
 #define CRC_CMD_SYNTAX                          0x21
 #define CRC_OUT_OF_RANGE                        0x22
