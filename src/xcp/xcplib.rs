@@ -112,12 +112,12 @@ fn bindgen_test_layout_tXcpDaqLists__bindgen_ty_1() {
     let ptr = UNINIT.as_ptr();
     assert_eq!(
         ::std::mem::size_of::<tXcpDaqLists__bindgen_ty_1>(),
-        30000usize,
+        15000usize,
         concat!("Size of: ", stringify!(tXcpDaqLists__bindgen_ty_1))
     );
     assert_eq!(
         ::std::mem::align_of::<tXcpDaqLists__bindgen_ty_1>(),
-        8usize,
+        4usize,
         concat!("Alignment of ", stringify!(tXcpDaqLists__bindgen_ty_1))
     );
     assert_eq!(
@@ -150,7 +150,7 @@ fn bindgen_test_layout_tXcpDaqLists__bindgen_ty_1() {
 fn bindgen_test_layout_tXcpDaqLists() {
     const UNINIT: ::std::mem::MaybeUninit<tXcpDaqLists> = ::std::mem::MaybeUninit::uninit();
     let ptr = UNINIT.as_ptr();
-    assert_eq!(::std::mem::size_of::<tXcpDaqLists>(), 30032usize, concat!("Size of: ", stringify!(tXcpDaqLists)));
+    assert_eq!(::std::mem::size_of::<tXcpDaqLists>(), 15032usize, concat!("Size of: ", stringify!(tXcpDaqLists)));
     assert_eq!(::std::mem::align_of::<tXcpDaqLists>(), 8usize, concat!("Alignment of ", stringify!(tXcpDaqLists)));
     assert_eq!(
         unsafe { ::std::ptr::addr_of!((*ptr).odt_entry_count) as usize - ptr as usize },
