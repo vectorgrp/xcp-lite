@@ -146,7 +146,7 @@
 #define CRC_ACCESS_DENIED                       0x24
 #define CRC_ACCESS_LOCKED                       0x25
 #define CRC_PAGE_NOT_VALID                      0x26
-#define CRC_PAGE_MODE_NOT_VALID                 0x27
+#define CRC_MODE_NOT_VALID                      0x27
 #define CRC_SEGMENT_NOT_VALID                   0x28
 #define CRC_SEQUENCE                            0x29
 #define CRC_DAQ_CONFIG                          0x2A

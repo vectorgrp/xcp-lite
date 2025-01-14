@@ -54,7 +54,7 @@ pub const CRC_WRITE_PROTECTED: u8 = 0x23;
 pub const CRC_ACCESS_DENIED: u8 = 0x24;
 pub const CRC_ACCESS_LOCKED: u8 = 0x25;
 pub const CRC_PAGE_NOT_VALID: u8 = 0x26;
-pub const CRC_PAGE_MODE_NOT_VALID: u8 = 0x27;
+pub const CRC_MODE_NOT_VALID: u8 = 0x27;
 pub const CRC_SEGMENT_NOT_VALID: u8 = 0x28;
 pub const CRC_SEQUENCE: u8 = 0x29;
 pub const CRC_DAQ_CONFIG: u8 = 0x2A;
@@ -144,8 +144,8 @@ impl std::fmt::Display for XcpError {
             CRC_PAGE_NOT_VALID => {
                 write!(f, "{cmd:?}: Invalid page")
             }
-            CRC_PAGE_MODE_NOT_VALID => {
-                write!(f, "{cmd:?}: Invalide page mode")
+            CRC_MODE_NOT_VALID => {
+                write!(f, "{cmd:?}: Invalide mode")
             }
             CRC_SEGMENT_NOT_VALID => {
                 write!(f, "{cmd:?}: Invalid segment")

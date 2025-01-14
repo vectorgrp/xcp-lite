@@ -1321,7 +1321,7 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint8_t cmdL
             check_len(CRO_GET_CAL_PAGE_LEN);
             CRM_LEN = CRM_GET_CAL_PAGE_LEN;
             uint8_t page = ApplXcpGetCalPage(CRO_GET_CAL_PAGE_SEGMENT, CRO_GET_CAL_PAGE_MODE);
-            if (page == 0xFF) error(CRC_PAGE_MODE_NOT_VALID);
+            if (page == 0xFF) error(CRC_MODE_NOT_VALID);
             CRM_GET_CAL_PAGE_PAGE = page;
           }
           break;
@@ -1607,7 +1607,7 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint8_t cmdL
                 }
                 break;
             default:
-                error(CRC_PAGE_MODE_NOT_VALID);
+                error(CRC_MODE_NOT_VALID);
             }
               
           }
@@ -2252,7 +2252,7 @@ static void XcpPrintRes(const tXcpCto* crm) {
                 case  CRC_ACCESS_DENIED: e = "CRC_ACCESS_DENIED"; break;
                 case  CRC_ACCESS_LOCKED: e = "CRC_ACCESS_LOCKED"; break;
                 case  CRC_PAGE_NOT_VALID: e = "CRC_PAGE_NOT_VALID"; break;
-                case  CRC_PAGE_MODE_NOT_VALID: e = "CRC_PAGE_MODE_NOT_VALID"; break;
+                case  CRC_MODE_NOT_VALID: e = "CRC_MODE_NOT_VALID"; break;
                 case  CRC_SEGMENT_NOT_VALID: e = "CRC_SEGMENT_NOT_VALID"; break;
                 case  CRC_SEQUENCE: e = "CRC_SEQUENCE"; break;
                 case  CRC_DAQ_CONFIG: e = "CRC_DAQ_CONFIG"; break;
