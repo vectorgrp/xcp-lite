@@ -1607,7 +1607,7 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint8_t cmdL
                 }
                 break;
             default:
-                error(CRC_OUT_OF_RANGE);
+                error(CRC_PAGE_MODE_NOT_VALID);
             }
               
           }
