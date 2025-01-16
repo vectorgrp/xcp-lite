@@ -8,7 +8,7 @@ extern void ApplXcpSetLogLevel(uint8_t level);
 extern void ApplXcpRegisterCallbacks(
     uint8_t (*cb_connect)(),
     uint8_t (*cb_prepare_daq)(const tXcpDaqLists* daq),
-    uint8_t (*cb_start_daq)(),
+    uint8_t (*cb_start_daq)(const tXcpDaqLists* daq),
     void (*cb_stop_daq)(),
     uint8_t (*cb_get_cal_page)(uint8_t segment, uint8_t mode),
     uint8_t (*cb_set_cal_page)(uint8_t segment, uint8_t page, uint8_t mode),

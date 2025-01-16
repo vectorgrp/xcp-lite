@@ -9,7 +9,6 @@ use std::{
         Arc,
     },
 };
-use xcplib::tXcpDaqLists;
 
 // Using sync version of OnceCell from once_cell crate for the static event remapping array
 use once_cell::sync::OnceCell;
@@ -35,13 +34,7 @@ use cal::cal_seg::{CalPageTrait, CalSeg};
 use cal::CalSegList;
 
 // Use XCPlite xcplib as XCP server
-// Enable XCPlite FFI bindings in xcplib.rs
-#[cfg(not(feature = "xcp_server"))]
 mod xcplib;
-
-// Use rust XCP implementation of XCP protocol layer, transport layer and server
-#[cfg(feature = "xcp_server")]
-mod xcplib_rs;
 
 //----------------------------------------------------------------------------------------------
 // XCP error
@@ -112,7 +105,7 @@ impl XcpEvent {
 
     /// Get the event name
     pub fn get_name(self) -> &'static str {
-        Xcp::get().event_list.lock().get_name(self).unwrap()
+        XCP.event_list.lock().get_name(self).unwrap()
     }
 
     /// Get the event number as u16
@@ -150,52 +143,38 @@ impl XcpEvent {
     /// The buffer must match its registry description, to avoid corrupt data given to the XCP tool
     //#[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub unsafe fn trigger_ext(self, base: *const u8) -> u8 {
-        #[cfg(not(feature = "xcp_server"))]
+        // @@@@ Unsafe - C library call and transfering a pointer and its valid memory range to XCPlite FFI
+        #[cfg(not(feature = "xcp_appl"))]
         unsafe {
-            // @@@@ Unsafe - C library call and transfering a pointer and its valid memory range to XCPlite FFI
             xcplib::XcpEventExt(self.get_channel(), base)
         }
-        #[cfg(feature = "xcp_server")]
-        {
-            xcplib_rs::event_ext(self.get_channel(), base)
+        #[cfg(feature = "xcp_appl")]
+        unsafe {
+            let daq_lists = XCP.daq_lists.load(Ordering::Relaxed);
+            if !daq_lists.is_null() {
+                // DAQ running
+                xcplib::XcpTriggerDaqEventAt(daq_lists, self.get_channel(), base, 0);
+            }
+            0
         }
     }
 
     /// Trigger a XCP event for absolute addressing DAQ lists (XCP_ADDR_EXT_ABS)
     /// Address of the associated measurement variables must be absolute (relative to ApplXcpGetBaseAddr)
-    ///
-    /// # Safety
-    /// This is a C ffi call, which gets a pointer to static memory segment
-    /// The buffer must match its registry description, to avoid corrupt data given to the XCP tool
-    #[allow(clippy::not_unsafe_ptr_arg_deref)]
-    pub fn trigger(self) {
-        #[cfg(not(feature = "xcp_server"))]
-        unsafe {
-            // @@@@ Unsafe - C library call and transfering a pointer and its valid memory range to XCPlite FFI
-            xcplib::XcpEvent(self.get_channel());
-        }
-        #[cfg(feature = "xcp_server")]
-        {
-            xcplib_rs::event(self.get_channel());
-        }
-    }
-
-    /// Trigger a XCP event for measurement objects in absolute addressing mode (XCP_ADDR_EXT_DYN)
-    /// Address of the associated measurement variable must be relative to module load addr
-    /// In 64 applications, this offset might overflow in the A2L description - this is checked wenn generating A2L
-    ///
-    /// # Safety
-    /// This is a C ffi call, which gets a pointer to a daq capture buffer
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn trigger_abs(self) {
-        #[cfg(not(feature = "xcp_server"))]
+        // @@@@ Unsafe - C library call and transfering a pointer and its valid memory range to XCPlite FFI
+        #[cfg(not(feature = "xcp_appl"))]
         unsafe {
-            // @@@@ Unsafe - C library call
             xcplib::XcpEvent(self.get_channel());
         }
-        #[cfg(feature = "xcp_server")]
-        {
-            xcplib_rs::event(self.get_channel());
+        #[cfg(feature = "xcp_appl")]
+        unsafe {
+            let daq_lists = XCP.daq_lists.load(Ordering::Relaxed);
+            if !daq_lists.is_null() {
+                // DAQ running
+                xcplib::XcpTriggerDaqEventAt(daq_lists, self.get_channel(), std::ptr::null_mut(), 0);
+            }
         }
     }
 }
@@ -254,7 +233,7 @@ impl EventList {
         log::trace!("Event map: {:?}", XCP_EVENT_MAP.get().unwrap());
 
         // Register all events
-        let r = Xcp::get().get_registry();
+        let r = XCP.get_registry();
         {
             let mut l = r.lock();
             self.0.iter().for_each(|e| l.add_event(e.name, e.event, e.cycle_time_ns));
@@ -371,10 +350,9 @@ impl XcpBuilder {
         A: Into<Ipv4Addr>,
     {
         let ipv4_addr: Ipv4Addr = addr.into();
-        let xcp = &XCP_SINGLETON;
+        let xcp = &XCP;
 
         // xcplib server log level parameter
-        #[cfg(not(feature = "xcp_server"))]
         xcp.set_log_level(self.log_level);
 
         // EPV parameter
@@ -388,7 +366,6 @@ impl XcpBuilder {
         }
 
         // Initialize the XCP Server and ETH transport layer
-        #[cfg(not(feature = "xcp_server"))]
         unsafe {
             let a: [u8; 4] = ipv4_addr.octets();
             // @@@@ Unsafe - C library call
@@ -396,32 +373,18 @@ impl XcpBuilder {
                 return Err(XcpError::XcpLib("Error: XcpEthServerInit() failed"));
             }
         }
-        #[cfg(feature = "xcp_server")]
-        {
-            if !xcplib_rs::server_init(ipv4_addr, port, tl) {
-                return Err(XcpError::XcpLib("Error: XcpEthServerInit() failed"));
-            }
-        }
 
         // Register transport layer parameters and actual ip addr of the server to make the A2L plug&play
-        #[cfg(not(feature = "xcp_server"))]
-        {
-            let mut r = xcp.registry.lock();
-            // If bound to any, get the actual ip address
-            let mut addr: [u8; 4] = ipv4_addr.octets();
-            if addr == [0, 0, 0, 0] {
-                unsafe {
-                    // @@@@ Unsafe - C library call
-                    xcplib::XcpEthTlGetInfo(std::ptr::null_mut(), std::ptr::null_mut(), &mut addr[0] as *mut u8, std::ptr::null_mut());
-                }
+        let mut r = xcp.registry.lock();
+        // If bound to any, get the actual ip address
+        let mut addr: [u8; 4] = ipv4_addr.octets();
+        if addr == [0, 0, 0, 0] {
+            unsafe {
+                // @@@@ Unsafe - C library call
+                xcplib::XcpEthTlGetInfo(std::ptr::null_mut(), std::ptr::null_mut(), &mut addr[0] as *mut u8, std::ptr::null_mut());
             }
-            r.set_tl_params(tl.protocol_name(), addr.into(), port); // Transport layer parameters
         }
-        #[cfg(feature = "xcp_server")]
-        {
-            let mut r = xcp.registry.lock();
-            r.set_tl_params(tl.protocol_name(), ipv4_addr, port); // Transport layer parameters
-        }
+        r.set_tl_params(tl.protocol_name(), addr.into(), port); // Transport layer parameters
 
         Ok(xcp)
     }
@@ -439,10 +402,12 @@ pub struct Xcp {
     registry: Arc<Mutex<Registry>>,
     calseg_list: Arc<Mutex<CalSegList>>,
     epk: Mutex<&'static str>,
+    #[cfg(feature = "xcp_appl")]
+    daq_lists: std::sync::atomic::AtomicPtr<xcplib::tXcpDaqLists>,
 }
 
 lazy_static! {
-    static ref XCP_SINGLETON: Xcp = Xcp::new();
+    static ref XCP: Xcp = Xcp::new();
 }
 
 impl Xcp {
@@ -459,23 +424,15 @@ impl Xcp {
     /// Get address extension and address for A2L generation for XCP_ADDR_EXT_ABS addressing mode
     /// Used by A2L writer
     pub fn get_abs_ext_addr(addr: u64) -> (u8, u32) {
-        #[cfg(not(feature = "xcp_server"))]
-        {
-            let a2l_ext = Xcp::XCP_ADDR_EXT_ABS;
-            // @@@@ Unsafe - C library call
-            let a2l_addr = unsafe { xcplib::ApplXcpGetAddr(addr as *const u8) };
-            (a2l_ext, a2l_addr)
-        }
-        #[cfg(feature = "xcp_server")]
-        {
-            unimplemented!();
-        }
+        let a2l_ext = Xcp::XCP_ADDR_EXT_ABS;
+        // @@@@ Unsafe - C library call
+        let a2l_addr = unsafe { xcplib::ApplXcpGetAddr(addr as *const u8) };
+        (a2l_ext, a2l_addr)
     }
 
     // new
     // Lazy static initialization of the Xcp singleton
     fn new() -> Xcp {
-        #[cfg(not(feature = "xcp_server"))]
         unsafe {
             // Initialize the XCP protocol layer
             // @@@@ Unsafe - C library calls
@@ -497,26 +454,6 @@ impl Xcp {
                 Some(cb_flush),
             );
         }
-        #[cfg(feature = "xcp_server")]
-        {
-            // Initialize the XCP protocol layer
-            xcplib_rs::init();
-
-            // Register the callbacks from xcplib
-            xcplib_rs::register_callbacks(
-                Some(cb_connect),
-                Some(cb_prepare_daq),
-                Some(cb_start_daq),
-                Some(cb_stop_daq),
-                Some(cb_get_cal_page),
-                Some(cb_set_cal_page),
-                Some(cb_freeze_cal),
-                Some(cb_init_cal),
-                Some(cb_read),
-                Some(cb_write),
-                Some(cb_flush),
-            );
-        }
 
         Xcp {
             ecu_cal_page: AtomicU8::new(XcpCalPage::Ram as u8), // ECU page defaults on RAM
@@ -525,6 +462,8 @@ impl Xcp {
             registry: Arc::new(Mutex::new(Registry::new())),
             calseg_list: Arc::new(Mutex::new(CalSegList::new())),
             epk: Mutex::new("DEFAULT_EPK"),
+            #[cfg(feature = "xcp_appl")]
+            daq_lists: std::sync::atomic::AtomicPtr::new(std::ptr::null_mut()),
         }
     }
 
@@ -532,32 +471,26 @@ impl Xcp {
     #[inline]
     #[must_use]
     pub fn get() -> &'static Xcp {
-        // XCP_SINGLETON will be initialized by lazy_static
-        &XCP_SINGLETON
+        // XCP will be initialized by lazy_static
+        &XCP
     }
 
     #[allow(clippy::unused_self)]
-    /// Set the log level for XCP protocol layer
-    #[cfg(not(feature = "xcp_server"))]
-    pub fn set_log_level(&self, _level: u8) {
+    /// Set the log level for XCP library
+    pub fn set_log_level(&self, level: u8) {
         unsafe {
             // @@@@ Unsafe - C library call
-            xcplib::ApplXcpSetLogLevel(_level);
+            xcplib::ApplXcpSetLogLevel(level);
         }
     }
 
     /// Print a formated text message to the XCP client tool console
     #[allow(clippy::unused_self)]
     pub fn print(&self, msg: &str) {
-        #[cfg(not(feature = "xcp_server"))]
+        // @@@@ Unsafe - C library call
         unsafe {
             let msg = std::ffi::CString::new(msg).unwrap();
-            // @@@@ Unsafe - C library call
             xcplib::XcpPrint(msg.as_ptr());
-        }
-        #[cfg(feature = "xcp_server")]
-        {
-            xcplib_rs::print(msg);
         }
     }
 
@@ -567,31 +500,29 @@ impl Xcp {
     /// Check if the XCP server is ok and running
     #[allow(clippy::unused_self)]
     pub fn check_server(&self) -> bool {
-        #[cfg(not(feature = "xcp_server"))]
         unsafe {
             // @@@@ Unsafe - C library call
             0 != xcplib::XcpEthServerStatus()
-        }
-        #[cfg(feature = "xcp_server")]
-        {
-            xcplib_rs::server_status()
         }
     }
 
     /// Stop the XCP server
     #[allow(clippy::unused_self)]
     pub fn stop_server(&self) {
-        #[cfg(not(feature = "xcp_server"))]
+        // @@@@ Unsafe - C library calls
         unsafe {
-            // @@@@ Unsafe - C library call
+            xcplib::XcpSendTerminateSessionEvent(); // Send terminate session event, if the XCP client is still connected
             xcplib::XcpDisconnect();
-            // @@@@ Unsafe - C library call
             xcplib::XcpEthServerShutdown();
         }
-        #[cfg(feature = "xcp_server")]
-        {
-            xcplib_rs::disconnect();
-            xcplib_rs::server_shutdown();
+    }
+
+    /// Signal the client to disconnect
+    #[allow(clippy::unused_self)]
+    pub fn disconnect_client(&self) {
+        // @@@@ Unsafe - C library calls
+        unsafe {
+            xcplib::XcpSendTerminateSessionEvent(); // Send terminate session event, if the XCP client is connected
         }
     }
 
@@ -694,7 +625,7 @@ impl Xcp {
 
             // A2L exists and is up to date on disk
             // Set the name of the A2L file in the XCPlite server to enable upload via XCP
-            #[cfg(not(feature = "xcp_server"))]
+
             unsafe {
                 let name = std::ffi::CString::new(self.registry.lock().get_name().unwrap()).unwrap();
                 // @@@@ Unsafe - C library call
@@ -790,8 +721,7 @@ const CAL_PAGE_MODE_ALL: u8 = 0x80; // switch all segments simultaneously
 #[no_mangle]
 extern "C" fn cb_connect() -> u8 {
     log::trace!("cb_connect: generate and write Al2 file");
-    let xcp = Xcp::get();
-    if let Err(e) = xcp.write_a2l() {
+    if let Err(e) = XCP.write_a2l() {
         log::error!("connect refused, A2L file write failed, {}", e);
         return FALSE;
     }
@@ -799,20 +729,26 @@ extern "C" fn cb_connect() -> u8 {
 }
 
 #[no_mangle]
-extern "C" fn cb_prepare_daq(_daq: *const tXcpDaqLists) -> u8 {
+#[allow(unused_variables)]
+extern "C" fn cb_prepare_daq(_daq: *const xcplib::tXcpDaqLists) -> u8 {
     log::trace!("cb_prepare_daq");
     TRUE
 }
 
 #[no_mangle]
-extern "C" fn cb_start_daq() -> u8 {
+#[allow(unused_variables)]
+extern "C" fn cb_start_daq(daq: *const xcplib::tXcpDaqLists) -> u8 {
     log::trace!("cb_start_daq");
+    #[cfg(feature = "xcp_appl")]
+    XCP.daq_lists.store(daq.cast_mut(), Ordering::Relaxed);
     TRUE
 }
 
 #[no_mangle]
 extern "C" fn cb_stop_daq() {
     log::trace!("cb_stop_daq");
+    #[cfg(feature = "xcp_appl")]
+    XCP.daq_lists.store(std::ptr::null_mut(), Ordering::Relaxed);
 }
 
 // Switching individual segments (CANape option CALPAGE_SINGLE_SEGMENT_SWITCHING) not supported, not needed and CANape is buggy
@@ -822,10 +758,10 @@ extern "C" fn cb_get_cal_page(segment: u8, mode: u8) -> u8 {
     log::debug!("cb_get_cal_page: get cal page of segment {}, mode {:02X}", segment, mode);
     let page: u8;
     if (mode & CAL_PAGE_MODE_ECU) != 0 {
-        page = Xcp::get().get_ecu_cal_page() as u8;
+        page = XCP.get_ecu_cal_page() as u8;
         log::debug!("cb_get_cal_page: ECU page = {:?}", XcpCalPage::from(page));
     } else if (mode & CAL_PAGE_MODE_XCP) != 0 {
-        page = Xcp::get().get_xcp_cal_page() as u8;
+        page = XCP.get_xcp_cal_page() as u8;
         log::debug!("cb_get_cal_page: XCP page = {:?}", XcpCalPage::from(page));
     } else {
         return 0xFF; // Invalid page mode
@@ -845,12 +781,11 @@ extern "C" fn cb_set_cal_page(segment: u8, page: u8, mode: u8) -> u8 {
     //     return CRC_SEGMENT_NOT_VALID; // Only one segment supported yet
     // }
 
-    let xcp = Xcp::get();
     if (mode & CAL_PAGE_MODE_ECU) != 0 {
-        xcp.set_ecu_cal_page(XcpCalPage::from(page));
+        XCP.set_ecu_cal_page(XcpCalPage::from(page));
     }
     if (mode & CAL_PAGE_MODE_XCP) != 0 {
-        xcp.set_xcp_cal_page(XcpCalPage::from(page));
+        XCP.set_xcp_cal_page(XcpCalPage::from(page));
     }
 
     CRC_CMD_OK
@@ -859,14 +794,14 @@ extern "C" fn cb_set_cal_page(segment: u8, page: u8, mode: u8) -> u8 {
 #[no_mangle]
 extern "C" fn cb_init_cal(_src_page: u8, _dst_page: u8) -> u8 {
     log::trace!("cb_init_cal");
-    Xcp::get().set_init_request();
+    XCP.set_init_request();
     CRC_CMD_OK
 }
 
 #[no_mangle]
 extern "C" fn cb_freeze_cal() -> u8 {
     log::trace!("cb_freeze_cal");
-    Xcp::get().set_freeze_request();
+    XCP.set_freeze_request();
     CRC_CMD_OK
 }
 
@@ -890,7 +825,7 @@ unsafe extern "C" fn cb_read(addr: u32, len: u8, dst: *mut u8) -> u8 {
     // This might be more elegantlty solved with a EPK segment in the registry, but this is a simple solution
     // Otherwise we would have to introduce a read only CalSeg
     if index == 0 {
-        let m = Xcp::get().epk.lock();
+        let m = XCP.epk.lock();
         let epk = *m;
         let epk_len = epk.len();
 
@@ -910,7 +845,7 @@ unsafe extern "C" fn cb_read(addr: u32, len: u8, dst: *mut u8) -> u8 {
     }
     // Calibration segment read
     // read_from is Unsafe function
-    else if !Xcp::get().calseg_list.lock().read_from((index - 1) as usize, offset, len, dst) {
+    else if !XCP.calseg_list.lock().read_from((index - 1) as usize, offset, len, dst) {
         CRC_ACCESS_DENIED
     } else {
         CRC_CMD_OK
@@ -934,7 +869,7 @@ unsafe extern "C" fn cb_write(addr: u32, len: u8, src: *const u8, delay: u8) -> 
 
     // Write to calibration segment
     // read_from is Unsafe function
-    if !Xcp::get().calseg_list.lock().write_to((index - 1) as usize, offset, len, src, delay) {
+    if !XCP.calseg_list.lock().write_to((index - 1) as usize, offset, len, src, delay) {
         CRC_ACCESS_DENIED
     } else {
         CRC_CMD_OK
@@ -944,7 +879,7 @@ unsafe extern "C" fn cb_write(addr: u32, len: u8, src: *const u8, delay: u8) -> 
 #[no_mangle]
 extern "C" fn cb_flush() -> u8 {
     log::trace!("cb_flush");
-    Xcp::get().calseg_list.lock().flush();
+    XCP.calseg_list.lock().flush();
     CRC_CMD_OK
 }
 
@@ -978,8 +913,7 @@ pub mod xcp_test {
 
     // Reinit XCP singleton before the next test
     pub fn test_reinit() -> &'static Xcp {
-        let xcp = Xcp::get();
-        #[cfg(not(feature = "xcp_server"))]
+        let xcp = &XCP;
         xcp.set_log_level(2);
         {
             let mut l = xcp.event_list.lock();

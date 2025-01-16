@@ -54,7 +54,7 @@
 #define XCP_ADDR_EXT_PTR 0xFE
 
 // Undefined address extension
-#define XCP_ADDR_EXT_UNDEFINED 0xFF // Undefined address extension
+#define XCP_UNDEFINED_ADDR_EXT 0xFF // Undefined address extension
 
 // Make XcpEvent thread safe for same CAL event coming from different threads
 // Needed for xcp-lite, because CalSeg cal sync events may come from different threads
@@ -93,7 +93,21 @@
 /*----------------------------------------------------------------------------*/
 /* DAQ features and parameters */
 
-// No event list - Rust xcp-lite has its own event handling
+// Maximum number of DAQ events
+#define XCP_MAX_EVENT_COUNT 256 // 0-255
+
+// Maximum number of DAQ lists
+// Numbers smaller than 256 will switch to 2 byte transport layer header DAQ_HDR_ODT_DAQB
+#define XCP_MAX_DAQ_COUNT 1024
+
+// Static allocated memory for DAQ tables
+// Amount of memory for DAQ tables, each ODT entry (e.g. measurement variable) needs 5 bytes
+#ifdef OPTION_DAQ_MEM_SIZE
+#define XCP_DAQ_MEM_SIZE OPTION_DAQ_MEM_SIZE 
+#else
+#define XCP_DAQ_MEM_SIZE (1024*5) // Amount of memory for DAQ tables, each ODT entry (e.g. measurement variable or memory block) needs 5 bytes
+#endif
+
 
 // #define XCP_ENABLE_DAQ_EVENT_LIST // Enable event list
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
@@ -105,7 +119,6 @@
   // This should be very unusual, XcpEvent performance will be decreased
   // Requires event list, additional mutex is located in XcpEvent
 
-  // #define XCP_MAX_EVENT_COUNT 32 // 0-31, 0xFFFF is reserved for undefined event
   // #define XCP_MAX_EVENT_NAME 16
 
   // Enable checking for clock monotony (no decreasing timestamp), use for debugging only, performance and memory impact
@@ -113,25 +126,12 @@
 
 #endif 
 
-
 // Overrun indication via PID
 // Not needed for Ethernet, client detects data loss via transport layer counters
 //#define XCP_ENABLE_OVERRUN_INDICATION_PID
 
 // Enable packed mode - not supported by xcp-lite
 // #define XCP_ENABLE_PACKED_MODE 
-
-// Static allocated memory for DAQ tables
-// Amount of memory for DAQ tables, each ODT entry (e.g. measurement variable) needs 5 bytes
-#ifdef OPTION_DAQ_MEM_SIZE
-#define XCP_DAQ_MEM_SIZE OPTION_DAQ_MEM_SIZE 
-#else
-#define XCP_DAQ_MEM_SIZE (1024*5) // Amount of memory for DAQ tables, each ODT entry (e.g. measurement variable or memory block) needs 5 bytes
-#endif
-
-// Maximum number of DAQ lists
-// Numbers smaller than 256 will switch to 2 byte transport layer header DAQ_HDR_ODT_DAQB
-#define XCP_MAX_DAQ_COUNT 1024
 
 // Clock resolution
 //#define XCP_DAQ_CLOCK_32BIT  // Use 32 Bit time stamps

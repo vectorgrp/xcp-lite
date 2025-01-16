@@ -38,6 +38,7 @@ pub struct tXcpDaqList {
     pub last_odt: u16,
     pub first_odt: u16,
     pub event_channel: u16,
+    pub next: u16,
     pub mode: u8,
     pub state: u8,
     pub priority: u8,
@@ -47,7 +48,7 @@ pub struct tXcpDaqList {
 fn bindgen_test_layout_tXcpDaqList() {
     const UNINIT: ::std::mem::MaybeUninit<tXcpDaqList> = ::std::mem::MaybeUninit::uninit();
     let ptr = UNINIT.as_ptr();
-    assert_eq!(::std::mem::size_of::<tXcpDaqList>(), 10usize, concat!("Size of: ", stringify!(tXcpDaqList)));
+    assert_eq!(::std::mem::size_of::<tXcpDaqList>(), 12usize, concat!("Size of: ", stringify!(tXcpDaqList)));
     assert_eq!(::std::mem::align_of::<tXcpDaqList>(), 2usize, concat!("Alignment of ", stringify!(tXcpDaqList)));
     assert_eq!(
         unsafe { ::std::ptr::addr_of!((*ptr).last_odt) as usize - ptr as usize },
@@ -65,23 +66,28 @@ fn bindgen_test_layout_tXcpDaqList() {
         concat!("Offset of field: ", stringify!(tXcpDaqList), "::", stringify!(event_channel))
     );
     assert_eq!(
-        unsafe { ::std::ptr::addr_of!((*ptr).mode) as usize - ptr as usize },
+        unsafe { ::std::ptr::addr_of!((*ptr).next) as usize - ptr as usize },
         6usize,
+        concat!("Offset of field: ", stringify!(tXcpDaqList), "::", stringify!(next))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).mode) as usize - ptr as usize },
+        8usize,
         concat!("Offset of field: ", stringify!(tXcpDaqList), "::", stringify!(mode))
     );
     assert_eq!(
         unsafe { ::std::ptr::addr_of!((*ptr).state) as usize - ptr as usize },
-        7usize,
+        9usize,
         concat!("Offset of field: ", stringify!(tXcpDaqList), "::", stringify!(state))
     );
     assert_eq!(
         unsafe { ::std::ptr::addr_of!((*ptr).priority) as usize - ptr as usize },
-        8usize,
+        10usize,
         concat!("Offset of field: ", stringify!(tXcpDaqList), "::", stringify!(priority))
     );
     assert_eq!(
         unsafe { ::std::ptr::addr_of!((*ptr).addr_ext) as usize - ptr as usize },
-        9usize,
+        11usize,
         concat!("Offset of field: ", stringify!(tXcpDaqList), "::", stringify!(addr_ext))
     );
 }
@@ -92,6 +98,7 @@ pub struct tXcpDaqLists {
     pub odt_count: u16,
     pub daq_count: u16,
     pub res: u16,
+    pub daq_first: [u16; 256usize],
     pub odt_entry_addr: *mut i32,
     pub odt_entry_size: *mut u8,
     pub odt: *mut tXcpOdt,
@@ -100,7 +107,7 @@ pub struct tXcpDaqLists {
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub union tXcpDaqLists__bindgen_ty_1 {
-    pub daq_list: [tXcpDaqList; 1500usize],
+    pub daq_list: [tXcpDaqList; 1250usize],
     pub odt: [tXcpOdt; 2500usize],
     pub odt_entry_addr: [u32; 3750usize],
     pub odt_entry_size: [u8; 15000usize],
@@ -150,7 +157,9 @@ fn bindgen_test_layout_tXcpDaqLists__bindgen_ty_1() {
 fn bindgen_test_layout_tXcpDaqLists() {
     const UNINIT: ::std::mem::MaybeUninit<tXcpDaqLists> = ::std::mem::MaybeUninit::uninit();
     let ptr = UNINIT.as_ptr();
+
     assert_eq!(::std::mem::size_of::<tXcpDaqLists>(), 15032usize, concat!("Size of: ", stringify!(tXcpDaqLists)));
+
     assert_eq!(::std::mem::align_of::<tXcpDaqLists>(), 8usize, concat!("Alignment of ", stringify!(tXcpDaqLists)));
     assert_eq!(
         unsafe { ::std::ptr::addr_of!((*ptr).odt_entry_count) as usize - ptr as usize },
@@ -173,23 +182,28 @@ fn bindgen_test_layout_tXcpDaqLists() {
         concat!("Offset of field: ", stringify!(tXcpDaqLists), "::", stringify!(res))
     );
     assert_eq!(
-        unsafe { ::std::ptr::addr_of!((*ptr).odt_entry_addr) as usize - ptr as usize },
+        unsafe { ::std::ptr::addr_of!((*ptr).daq_first) as usize - ptr as usize },
         8usize,
+        concat!("Offset of field: ", stringify!(tXcpDaqLists), "::", stringify!(daq_first))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).odt_entry_addr) as usize - ptr as usize },
+        520usize,
         concat!("Offset of field: ", stringify!(tXcpDaqLists), "::", stringify!(odt_entry_addr))
     );
     assert_eq!(
         unsafe { ::std::ptr::addr_of!((*ptr).odt_entry_size) as usize - ptr as usize },
-        16usize,
+        528usize,
         concat!("Offset of field: ", stringify!(tXcpDaqLists), "::", stringify!(odt_entry_size))
     );
     assert_eq!(
         unsafe { ::std::ptr::addr_of!((*ptr).odt) as usize - ptr as usize },
-        24usize,
+        536usize,
         concat!("Offset of field: ", stringify!(tXcpDaqLists), "::", stringify!(odt))
     );
     assert_eq!(
         unsafe { ::std::ptr::addr_of!((*ptr).u) as usize - ptr as usize },
-        32usize,
+        544usize,
         concat!("Offset of field: ", stringify!(tXcpDaqLists), "::", stringify!(u))
     );
 }
@@ -200,10 +214,16 @@ extern "C" {
     pub fn XcpDisconnect();
 }
 extern "C" {
-    pub fn XcpEvent(event: u16);
+    pub fn XcpTriggerDaqEventAt(daq_lists: *const tXcpDaqLists, event: u16, base: *const u8, clock: u64);
 }
 extern "C" {
     pub fn XcpEventExt(event: u16, base: *const u8) -> u8;
+}
+extern "C" {
+    pub fn XcpEvent(event: u16);
+}
+extern "C" {
+    pub fn XcpSendTerminateSessionEvent();
 }
 extern "C" {
     pub fn XcpPrint(str_: *const ::std::os::raw::c_char);
@@ -218,7 +238,7 @@ extern "C" {
     pub fn ApplXcpRegisterCallbacks(
         cb_connect: ::std::option::Option<unsafe extern "C" fn() -> u8>,
         cb_prepare_daq: ::std::option::Option<unsafe extern "C" fn(daq: *const tXcpDaqLists) -> u8>,
-        cb_start_daq: ::std::option::Option<unsafe extern "C" fn() -> u8>,
+        cb_start_daq: ::std::option::Option<unsafe extern "C" fn(daq: *const tXcpDaqLists) -> u8>,
         cb_stop_daq: ::std::option::Option<unsafe extern "C" fn()>,
         cb_get_cal_page: ::std::option::Option<unsafe extern "C" fn(segment: u8, mode: u8) -> u8>,
         cb_set_cal_page: ::std::option::Option<unsafe extern "C" fn(segment: u8, page: u8, mode: u8) -> u8>,

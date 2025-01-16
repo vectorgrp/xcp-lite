@@ -62,19 +62,24 @@ typedef struct {
 /* DAQ information                                                          */
 /****************************************************************************/
 
+#define XCP_UNDEFINED_DAQ_LIST 0xFFFF
+
 /* ODT */
 /* Size must be even !!! */
 typedef struct {
     uint16_t first_odt_entry;       /* Absolute odt entry number */
     uint16_t last_odt_entry;        /* Absolute odt entry number */
-    uint16_t size;                /* Number of bytes */
+    uint16_t size;                  /* Number of bytes */
 } tXcpOdt;
 
 /* DAQ list */
 typedef struct {
-    uint16_t last_odt;             /* Absolute odt number */
-    uint16_t first_odt;            /* Absolute odt number */
-    uint16_t event_channel;
+    uint16_t last_odt;        /* Absolute odt number */
+    uint16_t first_odt;       /* Absolute odt number */
+    uint16_t event_channel;   /* Associated event */
+#ifdef XCP_MAX_EVENT_COUNT
+    uint16_t next;            /* Next DAQ list asociated to event_channel */
+#endif
 #ifdef XCP_ENABLE_PACKED_MODE
     uint16_t sampleCount;         /* Packed mode */
 #endif
@@ -87,11 +92,13 @@ typedef struct {
 
 /* Dynamic DAQ list structure in a linear memory block with size XCP_DAQ_MEM_SIZE + 8 */
 typedef struct {
-
     uint16_t odt_entry_count; // Total number of ODT entries in ODT entry addr and size arrays
     uint16_t odt_count; // Total number of ODTs in ODT array
     uint16_t daq_count; // Number of DAQ lists in DAQ list array
     uint16_t res;
+#ifdef XCP_MAX_EVENT_COUNT
+    uint16_t daq_first[XCP_MAX_EVENT_COUNT]; // Event channel to DAQ list mapping
+#endif
 
     // Pointers to optimze access to DAQ lists, ODT and ODT entry array pointers
     int32_t* odt_entry_addr; // ODT entry addr array
@@ -135,13 +142,18 @@ extern uint8_t XcpCommand( const uint32_t* pCommand, uint8_t len );
 /* Disconnect, stop DAQ, flush queue */
 extern void XcpDisconnect();
 
-/* Trigger a XCP data acquisition or stimulation event */
-extern void XcpEvent(uint16_t event);
+/* Trigger a XCP data acquisition event */
+extern void XcpTriggerDaqEventAt(const tXcpDaqLists* daq_lists, uint16_t event, const uint8_t* base, uint64_t clock);
+extern uint8_t XcpEventExtAt(uint16_t event, const uint8_t* base, uint64_t clock);
 extern uint8_t XcpEventExt(uint16_t event, const uint8_t* base);
-extern void XcpEventAt(uint16_t event, uint64_t clock);
+extern void XcpEventAt(uint16_t event, uint64_t clock); 
+extern void XcpEvent(uint16_t event); 
 
 /* Send an XCP event message */
-extern void XcpSendEvent(uint8_t ev, uint8_t evc, const uint8_t* d, uint8_t l);
+extern void XcpSendEvent(uint8_t evc, const uint8_t* d, uint8_t l);
+
+/* Send terminate session signal event */
+extern void XcpSendTerminateSessionEvent();
 
 /* Print log message via XCP */
 #ifdef XCP_ENABLE_SERV_TEXT
@@ -193,7 +205,7 @@ extern void ApplXcpDisconnect();
 #if XCP_PROTOCOL_LAYER_VERSION >= 0x0104
 extern BOOL ApplXcpPrepareDaq(const tXcpDaqLists *daq);
 #endif
-extern BOOL ApplXcpStartDaq();
+extern void ApplXcpStartDaq(const tXcpDaqLists *daq);
 extern void ApplXcpStopDaq();
 
 /* Address conversions from A2L address to pointer and vice versa in absolute addressing mode */

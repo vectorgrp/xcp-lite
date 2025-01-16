@@ -318,7 +318,6 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
     daq_register!(counter_option_u16, event, "wrapping counter optional: u8", "");
     daq_register_array!(array1, event);
 
-    
     while RUN.load(Ordering::Relaxed) {
         // Stop task if calibration parameter run1 is false
         if !calseg.read_lock().run1 {
@@ -351,7 +350,6 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
             counter_option_u16 = None;
         }
         array1[counter_usize.0 % array1.len()] = counter as f64;
-
 
         // Trigger single instance event "task1" for data acquisition
         // Capture variables from stack happens here
@@ -504,7 +502,7 @@ fn main() {
         // Measure static variables
         static_vars.test_u32 += 1;
         static_vars.test_f64 += 0.1;
-        static_event.trigger();
+        static_event.trigger_abs();
 
         // Check if the XCP server is still alive
         // Optional

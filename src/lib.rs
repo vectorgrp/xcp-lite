@@ -4,13 +4,18 @@
 
 //
 // Note that the tests can not be executed in parallel
-// Use cargo test -- --test-threads=1 --features=serde --nocapture
+// Use cargo test --features=a2l_reader --features=serde -- --test-threads=1 --nocapture
 
 // This crate is a library
 #![crate_type = "lib"]
 // The library crate is named "xcp"
 #![crate_name = "xcp"]
+//
+//
 // Disabled clippy lints
+#![allow(non_snake_case)]
+#![allow(dead_code)]
+//
 #![warn(clippy::pedantic)]
 #![allow(clippy::doc_markdown)]
 #![allow(clippy::missing_errors_doc)]

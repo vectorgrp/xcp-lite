@@ -687,6 +687,7 @@ impl Registry {
 
     // Add a calibration segment
     pub fn add_cal_seg(&mut self, name: &'static str, index: u16, size: u32) {
+        // Panic if registry is closed
         assert!(!self.is_frozen(), "Registry is closed");
 
         // Length of calseg should be %4 to avoid problems with CANape and checksum calculations
@@ -826,7 +827,7 @@ impl Registry {
         }
 
         // Sort measurement and calibration lists to get deterministic order
-        // Event and CalSeg lists stay in the order the were added
+        // Event and CalSeg lists stay in the order they were added
         self.measurement_list.sort();
         self.characteristic_list.sort();
 
