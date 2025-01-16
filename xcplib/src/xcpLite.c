@@ -149,9 +149,6 @@
 #define DaqListEventChannel(i)  gXcp.Daq.u.daq_list[i].event_channel
 #define DaqListAddrExt(i)       gXcp.Daq.u.daq_list[i].addr_ext
 #define DaqListPriority(i)      gXcp.Daq.u.daq_list[i].priority
-#ifdef XCP_ENABLE_PACKED_MODE
-#define DaqListSampleCount(i)   gXcp.Daq.u.daq_list[i].sampleCount
-#endif
 
 #ifdef XCP_MAX_EVENT_COUNT
 #define DaqListFirst(event)     gXcp.Daq.daq_first[event]
@@ -498,9 +495,15 @@ static uint8_t XcpAllocMemory() {
   if (s>=XCP_DAQ_MEM_SIZE) return CRC_MEMORY_OVERFLOW;
 
   // Recalculate the pointers
+  assert(sizeof(tXcpDaqList) == 12); // Check size
+  assert(sizeof(tXcpOdt) == 8); // Check size
+  assert((uint64_t)&gXcp.Daq % 4 == 0); // Check alignment
   gXcp.Daq.odt = (tXcpOdt*)&gXcp.Daq.u.daq_list[gXcp.Daq.daq_count];
+  assert((uint64_t)&gXcp.Daq.odt % 4 == 0); // Check alignment
   gXcp.Daq.odt_entry_addr = (int32_t*)&gXcp.Daq.odt[gXcp.Daq.odt_count];
+  assert((uint64_t)&gXcp.Daq.odt_entry_addr % 4 == 0); // Check alignment
   gXcp.Daq.odt_entry_size = (uint8_t*)&gXcp.Daq.odt_entry_addr[gXcp.Daq.odt_entry_count];
+  assert((uint64_t)&gXcp.Daq.odt_entry_size % 4 == 0); // Check alignment
   
   DBG_PRINTF5("[XcpAllocMemory] %u of %u Bytes used\n",s,XCP_DAQ_MEM_SIZE );
   return 0;
@@ -548,15 +551,10 @@ static uint8_t XcpAllocOdt( uint16_t daq, uint8_t odtCount ) {
 }
 
 // Adjust ODT size by size
-static BOOL  XcpAdjustOdtSize(uint16_t daq, uint16_t odt, uint8_t size) {
-#ifdef XCP_ENABLE_PACKED_MODE
-    uint16_t sc = DaqListSampleCount(daq);
-    if (sc == 0) sc = 1;
-    DaqListOdtSize(odt) = (uint16_t)(DaqListOdtSize(odt) + size*sc);
-#else
-    (void)daq;
+static BOOL  XcpAdjustOdtSize(uint16_t odt, uint8_t size) {
+
     DaqListOdtSize(odt) = (uint16_t)(DaqListOdtSize(odt) + size);
-#endif
+
 #ifdef XCP_ENABLE_TEST_CHECKS
     if (DaqListOdtSize(odt) > (XCPTL_MAX_DTO_SIZE-2)-(odt==0?4:0)) { // -6/2 bytes for odt+daq+timestamp 
         DBG_PRINTF_ERROR("ERROR: ODT size %u exceed XCPTL_MAX_DTO_SIZE %u!\n", DaqListOdtSize(odt), XCPTL_MAX_DTO_SIZE);
@@ -643,7 +641,7 @@ static uint8_t XcpAddOdtEntry(uint32_t addr, uint8_t ext, uint8_t size) {
 
     OdtEntrySize(gXcp.WriteDaqOdtEntry) = size;
     OdtEntryAddr(gXcp.WriteDaqOdtEntry) = base_offset; // Signed 32 bit offset relative to base pointer given to XcpEvent_
-    if (!XcpAdjustOdtSize(gXcp.WriteDaqDaq, gXcp.WriteDaqOdt, size)) return CRC_DAQ_CONFIG;
+    if (!XcpAdjustOdtSize(gXcp.WriteDaqOdt, size)) return CRC_DAQ_CONFIG;
     gXcp.WriteDaqOdtEntry++; // Autoincrement to next ODT entry, no autoincrementing over ODTs
     return 0;
 }
@@ -857,13 +855,6 @@ static void XcpTriggerDaqList(const tXcpDaqLists* daq_lists, uint16_t daq, const
       uint8_t *d0;
       uint32_t e, el, odt, hs, n;
       void* handle = NULL;
-#ifdef XCP_ENABLE_PACKED_MODE
-      uint32_t sc;
-#endif
-
-#ifdef XCP_ENABLE_PACKED_MODE
-      sc = _DaqListSampleCount(daq); // Packed mode sample count, 0 if not packed
-#endif
 
       // Loop over all ODTs of the current DAQ list
       for (hs=ODT_HEADER_SIZE+ODT_TIMESTAMP_SIZE,odt=_DaqListFirstOdt(daq);odt<=_DaqListLastOdt(daq);hs=ODT_HEADER_SIZE,odt++)  {
@@ -942,9 +933,6 @@ static void XcpTriggerDaqList(const tXcpDaqLists* daq_lists, uint16_t daq, const
             while (e <= el) { // inner DAQ loop
                 n = _OdtEntrySize(e);
                 if (n == 0) break;
-#ifdef XCP_ENABLE_PACKED_MODE
-                if (sc>1) n *= sc; // packed mode
-#endif
 
               if (n==8) {
                 *(uint64_t*)d = *(const uint64_t*)&base[_OdtEntryAddr(e)];
@@ -1560,9 +1548,6 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint8_t cmdL
             if (event==NULL) error(CRC_OUT_OF_RANGE);
             CRM_LEN = CRM_GET_DAQ_EVENT_INFO_LEN;
             CRM_GET_DAQ_EVENT_INFO_PROPERTIES = DAQ_EVENT_PROPERTIES_DAQ | DAQ_EVENT_PROPERTIES_EVENT_CONSISTENCY;
-  #ifdef XCP_ENABLE_PACKED_MODE
-            if (XcpEventList[event].sampleCount) CRM_GET_DAQ_EVENT_INFO_PROPERTIES |= DAQ_EVENT_PROPERTIES_PACKED;
-  #endif
             CRM_GET_DAQ_EVENT_INFO_MAX_DAQ_LIST = 0xFF;
             CRM_GET_DAQ_EVENT_INFO_NAME_LENGTH = (uint8_t)strlen(event->name);
             CRM_GET_DAQ_EVENT_INFO_TIME_CYCLE = event->timeCycle;
@@ -1896,18 +1881,6 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint8_t cmdL
                 CRM_GET_VERSION_TRANSPORT_VERSION_MINOR = (uint8_t)(XCP_TRANSPORT_LAYER_VERSION & 0xFF);
                 break;
 
-  #ifdef XCP_ENABLE_PACKED_MODE
-              case CC_SET_DAQ_LIST_PACKED_MODE:
-              {
-                  uint16_t daq = CRO_SET_DAQ_LIST_PACKED_MODE_DAQ;
-                  if (daq >= gXcp.Daq.daq_count) error(CRC_OUT_OF_RANGE);
-                  if (CRO_SET_DAQ_LIST_PACKED_MODE_MODE!=0x01) error(CRC_DAQ_CONFIG); // only element grouped implemented
-                  if (CRO_SET_DAQ_LIST_PACKED_MODE_TIMEMODE != DPM_TIMESTAMP_MODE_LAST) error(CRC_DAQ_CONFIG); // only late timestamp supported
-                  DaqListSampleCount(daq) = CRO_SET_DAQ_LIST_PACKED_MODE_SAMPLECOUNT;
-              }
-              break;
-  #endif
-
               default: /* unknown command */
                   error(CRC_CMD_UNKNOWN);
               }
@@ -2052,9 +2025,6 @@ void XcpStart()
   #endif
   #ifdef XCP_ENABLE_PTP // Enable server clock synchronized to PTP grandmaster clock
     DBG_PRINT3("GM_CLK_INFO,");
-  #endif
-  #ifdef XCP_ENABLE_PACKED_MODE  // Enable packed DAQ events
-    DBG_PRINT3("PACKED_MODE,");
   #endif
   #ifdef XCP_ENABLE_IDT_A2L_UPLOAD // Enable A2L upload to host
     DBG_PRINT3("A2L_UPLOAD,");
@@ -2309,14 +2279,7 @@ static void XcpPrintCmd(const tXcpCto* cmdBuf) {
            case CC_GET_VERSION:
                printf("GET_VERSION\n");
                break;
-#ifdef XCP_ENABLE_PACKED_MODE
-           case CC_GET_DAQ_LIST_PACKED_MODE:
-               printf("GET_DAQ_LIST_PACKED_MODE daq=%u\n", CRO_GET_DAQ_LIST_PACKED_MODE_DAQ);
-               break;
-           case CC_SET_DAQ_LIST_PACKED_MODE:
-               printf("SET_DAQ_LIST_PACKED_MODE daq=%u, sampleCount=%u\n", CRO_SET_DAQ_LIST_PACKED_MODE_DAQ,CRO_SET_DAQ_LIST_PACKED_MODE_SAMPLECOUNT);
-               break;
-#endif
+
             default:  printf("UNKNOWN LEVEL 1 COMMAND %02X\n", CRO_LEVEL_1_COMMAND_CODE); break;
          } // switch (CRO_LEVEL_1_COMMAND_CODE)
          break;
@@ -2464,12 +2427,6 @@ static void XcpPrintRes(const tXcpCto* crm) {
                     CRM_GET_VERSION_TRANSPORT_VERSION_MAJOR,
                     CRM_GET_VERSION_TRANSPORT_VERSION_MINOR);
                 break;
-
-#ifdef XCP_ENABLE_PACKED_MODE
-            case CC_GET_DAQ_LIST_PACKED_MODE:
-                printf("<- mode = %u\n", CRM_GET_DAQ_LIST_PACKED_MODE_MODE);
-                break;
-#endif
             }
             break;
 #endif
@@ -2533,9 +2490,7 @@ static void XcpPrintDaqList( uint16_t daq )
   printf(" lastOdt=%u,",DaqListLastOdt(daq));
   printf(" mode=%02Xh,", DaqListMode(daq));
   printf(" state=%02Xh,", DaqListState(daq));
-#ifdef XCP_ENABLE_PACKED_MODE
-  printf(" sampleCount=%u\n",DaqListSampleCount(daq));
-#endif
+
   for (i=DaqListFirstOdt(daq);i<=DaqListLastOdt(daq);i++) {
     printf("  ODT %u (%u):",i-DaqListFirstOdt(daq),i);
     printf(" firstOdtEntry=%u, lastOdtEntry=%u, size=%u:\n", DaqListOdtFirstEntry(i), DaqListOdtLastEntry(i), DaqListOdtSize(i));

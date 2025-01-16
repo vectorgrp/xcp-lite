@@ -94,14 +94,18 @@
 /* DAQ features and parameters */
 
 // Maximum number of DAQ events
-#define XCP_MAX_EVENT_COUNT 256 // 0-255
+// If XCP_MAX_EVENT_COUNT is defined, DAQ list to event association lookup will be optimized 
+// Requires XCP_MAX_EVENT_COUNT * 2 bytes of memory
+// XCP_MAX_EVENT_COUNT must be even
+// #define XCP_MAX_EVENT_COUNT 256 // For available event numbers from 0 to 255
 
 // Maximum number of DAQ lists
+// Must be <= 0xFFFE
 // Numbers smaller than 256 will switch to 2 byte transport layer header DAQ_HDR_ODT_DAQB
 #define XCP_MAX_DAQ_COUNT 1024
 
 // Static allocated memory for DAQ tables
-// Amount of memory for DAQ tables, each ODT entry (e.g. measurement variable) needs 5 bytes
+// Amount of memory for DAQ tables, each ODT entry (e.g. measurement variable) needs 5 bytes, each DAQ list 12 bytes and each ODT 8 bytes
 #ifdef OPTION_DAQ_MEM_SIZE
 #define XCP_DAQ_MEM_SIZE OPTION_DAQ_MEM_SIZE 
 #else
@@ -129,9 +133,6 @@
 // Overrun indication via PID
 // Not needed for Ethernet, client detects data loss via transport layer counters
 //#define XCP_ENABLE_OVERRUN_INDICATION_PID
-
-// Enable packed mode - not supported by xcp-lite
-// #define XCP_ENABLE_PACKED_MODE 
 
 // Clock resolution
 //#define XCP_DAQ_CLOCK_32BIT  // Use 32 Bit time stamps

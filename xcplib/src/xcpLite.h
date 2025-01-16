@@ -64,33 +64,41 @@ typedef struct {
 
 #define XCP_UNDEFINED_DAQ_LIST 0xFFFF
 
-/* ODT */
-/* Size must be even !!! */
+// ODT
+// size = 8 byte
+#pragma pack(push, 1)
 typedef struct {
     uint16_t first_odt_entry;       /* Absolute odt entry number */
     uint16_t last_odt_entry;        /* Absolute odt entry number */
     uint16_t size;                  /* Number of bytes */
+    uint16_t res;
 } tXcpOdt;
+#pragma pack(pop)
 
 /* DAQ list */
+// size = 12 byte
+#pragma pack(push, 1)
 typedef struct {
     uint16_t last_odt;        /* Absolute odt number */
     uint16_t first_odt;       /* Absolute odt number */
     uint16_t event_channel;   /* Associated event */
 #ifdef XCP_MAX_EVENT_COUNT
-    uint16_t next;            /* Next DAQ list asociated to event_channel */
-#endif
-#ifdef XCP_ENABLE_PACKED_MODE
-    uint16_t sampleCount;         /* Packed mode */
+  #if XCP_MAX_EVENT_COUNT & 1 != 0
+    #error "XCP_MAX_EVENT_COUNT must be even!"
+  #endif
+    uint16_t next;            /* Next DAQ list associated to event_channel */
+#else
+    uint16_t res1;
 #endif
     uint8_t mode;
     uint8_t state;
     uint8_t priority;
     uint8_t addr_ext;
 } tXcpDaqList;
+#pragma pack(pop)
 
-
-/* Dynamic DAQ list structure in a linear memory block with size XCP_DAQ_MEM_SIZE + 8 */
+/* Dynamic DAQ list structure in a linear memory block with size XCP_DAQ_MEM_SIZE + 8  */
+#pragma pack(push, 1)
 typedef struct {
     uint16_t odt_entry_count; // Total number of ODT entries in ODT entry addr and size arrays
     uint16_t odt_count; // Total number of ODTs in ODT array
@@ -100,31 +108,34 @@ typedef struct {
     uint16_t daq_first[XCP_MAX_EVENT_COUNT]; // Event channel to DAQ list mapping
 #endif
 
-    // Pointers to optimze access to DAQ lists, ODT and ODT entry array pointers
+    // Pointers to optimize access to DAQ lists, ODT and ODT entry array pointers
     int32_t* odt_entry_addr; // ODT entry addr array
     uint8_t* odt_entry_size; // ODT entry size array
     tXcpOdt* odt; // ODT array
+    void *res2;
 
     // DAQ array
+    // size and alignment % 8 
+    // memory layout:
+    //  tXcpDaqList[] - DAQ list array
+    //  tXcpOdt[]     - ODT array
+    //  uint32_t[]    - ODT entry addr array
+    //  uint8_t[]     - ODT entry size array
     union {
         // DAQ array
         tXcpDaqList daq_list[XCP_DAQ_MEM_SIZE / sizeof(tXcpDaqList)];
         // ODT array
         tXcpOdt odt[XCP_DAQ_MEM_SIZE / sizeof(tXcpOdt)];
         // ODT entry addr array
-        uint32_t odt_entry_addr[XCP_DAQ_MEM_SIZE / sizeof(4)];
+        uint32_t odt_entry_addr[XCP_DAQ_MEM_SIZE / 4];
         // ODT entry size array
-        uint8_t odt_entry_size[XCP_DAQ_MEM_SIZE];        
+        uint8_t odt_entry_size[XCP_DAQ_MEM_SIZE / 1];        
 
-        // DAQ memory layout:
-        //  tXcpDaqList[] - DAQ list array
-        //  tXcpOdt[] - ODT array
-        //  uint32_t[] - ODT entry addr array
-        //  uint8_t[] - ODT entry size array
-        uint8_t b[XCP_DAQ_MEM_SIZE];        
+        uint64_t b[XCP_DAQ_MEM_SIZE/8+1];        
     } u;
 
 } tXcpDaqLists;
+#pragma pack(pop)
 
 
 /****************************************************************************/
