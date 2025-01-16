@@ -708,7 +708,7 @@ impl Xcp {
 const FALSE: u8 = 0;
 const TRUE: u8 = 1;
 const CRC_CMD_OK: u8 = 0;
-const CRC_PAGE_MODE_NOT_VALID: u8 = 0x27;
+const CRC_MODE_NOT_VALID: u8 = 0x27;
 //const CRC_SEGMENT_NOT_VALID: u8 = 0x28;
 const CRC_ACCESS_DENIED: u8 = 0x24;
 
@@ -773,7 +773,7 @@ extern "C" fn cb_get_cal_page(segment: u8, mode: u8) -> u8 {
 extern "C" fn cb_set_cal_page(segment: u8, page: u8, mode: u8) -> u8 {
     log::debug!("cb_set_cal_page: set cal page to segment={}, page={:?}, mode={:02X}", segment, XcpCalPage::from(page), mode);
     if (mode & CAL_PAGE_MODE_ALL) == 0 {
-        return CRC_PAGE_MODE_NOT_VALID; // Switching individual segments not supported yet
+        return CRC_MODE_NOT_VALID; // Switching individual segments not supported yet
     }
 
     // Ignore segment number

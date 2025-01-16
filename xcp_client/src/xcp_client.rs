@@ -46,7 +46,7 @@ pub const CRC_CMD_PENDING: u8 = 0x01;
 pub const CRC_CMD_IGNORED: u8 = 0x02;
 pub const CRC_CMD_BUSY: u8 = 0x10;
 pub const CRC_DAQ_ACTIVE: u8 = 0x11;
-pub const CRC_PRM_ACTIVE: u8 = 0x12;
+pub const CRC_PGM_ACTIVE: u8 = 0x12;
 pub const CRC_CMD_UNKNOWN: u8 = 0x20;
 pub const CRC_CMD_SYNTAX: u8 = 0x21;
 pub const CRC_OUT_OF_RANGE: u8 = 0x22;
@@ -54,7 +54,7 @@ pub const CRC_WRITE_PROTECTED: u8 = 0x23;
 pub const CRC_ACCESS_DENIED: u8 = 0x24;
 pub const CRC_ACCESS_LOCKED: u8 = 0x25;
 pub const CRC_PAGE_NOT_VALID: u8 = 0x26;
-pub const CRC_PAGE_MODE_NOT_VALID: u8 = 0x27;
+pub const CRC_MODE_NOT_VALID: u8 = 0x27;
 pub const CRC_SEGMENT_NOT_VALID: u8 = 0x28;
 pub const CRC_SEQUENCE: u8 = 0x29;
 pub const CRC_DAQ_CONFIG: u8 = 0x2A;
@@ -128,8 +128,8 @@ impl std::fmt::Display for XcpError {
             CRC_DAQ_ACTIVE => {
                 write!(f, "{cmd:?}: XCP DAQ ACTIVE")
             }
-            CRC_PRM_ACTIVE => {
-                write!(f, "{cmd:?}: XCP PRM ACTIVE")
+            CRC_PGM_ACTIVE => {
+                write!(f, "{cmd:?}: XCP PGM ACTIVE")
             }
             CRC_CMD_UNKNOWN => {
                 write!(f, "Unknown XCP command: {cmd:?} ")
@@ -152,8 +152,8 @@ impl std::fmt::Display for XcpError {
             CRC_PAGE_NOT_VALID => {
                 write!(f, "{cmd:?}: Invalid page")
             }
-            CRC_PAGE_MODE_NOT_VALID => {
-                write!(f, "{cmd:?}: Invalide page mode")
+            CRC_MODE_NOT_VALID => {
+                write!(f, "{cmd:?}: Invalide mode")
             }
             CRC_SEGMENT_NOT_VALID => {
                 write!(f, "{cmd:?}: Invalid segment")

@@ -138,7 +138,7 @@
 #define CRC_CMD_IGNORED                         0x02
 #define CRC_CMD_BUSY                            0x10
 #define CRC_DAQ_ACTIVE                          0x11
-#define CRC_PRM_ACTIVE                          0x12
+#define CRC_PGM_ACTIVE                          0x12
 #define CRC_CMD_UNKNOWN                         0x20
 #define CRC_CMD_SYNTAX                          0x21
 #define CRC_OUT_OF_RANGE                        0x22
@@ -146,7 +146,7 @@
 #define CRC_ACCESS_DENIED                       0x24
 #define CRC_ACCESS_LOCKED                       0x25
 #define CRC_PAGE_NOT_VALID                      0x26
-#define CRC_PAGE_MODE_NOT_VALID                 0x27
+#define CRC_MODE_NOT_VALID                      0x27
 #define CRC_SEGMENT_NOT_VALID                   0x28
 #define CRC_SEQUENCE                            0x29
 #define CRC_DAQ_CONFIG                          0x2A
