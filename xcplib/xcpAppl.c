@@ -112,15 +112,19 @@ void ApplXcpDisconnect() {
 #if XCP_PROTOCOL_LAYER_VERSION >= 0x0104
 BOOL ApplXcpPrepareDaq(const tXcpDaqLists* daq) { 
     DBG_PRINT3("XCP prepare DAQ\n");
-    if (callback_prepare_daq!=NULL) return callback_prepare_daq(daq);
+    if (callback_prepare_daq!=NULL) {
+        if (!callback_prepare_daq(daq)) {
+            DBG_PRINT3("  DAQ start canceled by AppXcpPrepareDaq\n");
+            return FALSE;
+        };
+    }
     return TRUE;
 }
 #endif
 
-BOOL ApplXcpStartDaq(const tXcpDaqLists* daq) {
+void ApplXcpStartDaq(const tXcpDaqLists* daq) {
     DBG_PRINT3("XCP start DAQ\n");
-    if (callback_start_daq!=NULL) return callback_start_daq(daq);
-    return TRUE;
+    if (callback_start_daq!=NULL) callback_start_daq(daq);
 }
 
 void ApplXcpStopDaq() {

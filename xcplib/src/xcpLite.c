@@ -691,91 +691,120 @@ static uint8_t XcpSetDaqListMode(uint16_t daq, uint16_t event, uint8_t mode, uin
     return 0;
 }
 
-// Start DAQ list
-// Start event processing
-static void XcpStartDaq( uint16_t daq ) {
+// Start DAQ
+static void XcpStartDaq() {
 
-  DaqListState(daq) |= DAQ_STATE_RUNNING;
-  gXcp.SessionStatus |= SS_DAQ;
+  // If not already running 
+  if ((gXcp.SessionStatus & SS_DAQ) == 0) {
+
+    gXcp.DaqStartClock64 = ApplXcpGetClock64();
+    gXcp.DaqOverflowCount = 0;
+
+    // Reset event time stamps
+  #ifdef XCP_ENABLE_DAQ_EVENT_LIST
+    #ifdef XCP_ENABLE_TIMESTAMP_CHECK
+    for (uint16_t e = 0; e < gXcp.EventCount; e++) {
+        gXcp.EventList[e].time = 0;
+    }
+    #endif
+  #endif
+    
+  #ifdef DBG_LEVEL
+    if (DBG_LEVEL >= 4) {
+      char ts[64];
+      clockGetString(ts, sizeof(ts), gXcp.DaqStartClock64);
+      printf("DAQ processing start at t=%s\n", ts);
+    }
+  #endif
+
+  }
+  else {
+    assert(0); // @@@@
+  }
+
+  // XcpStartDaq might be called multiple times, if DAQ lists are started individually 
+  // CANape never does this
+  ApplXcpStartDaq((const tXcpDaqLists*)&gXcp.Daq);
+
+  gXcp.SessionStatus |= SS_DAQ; // Start processing DAQ events
 }
 
-// Start all selected DAQs
-// Start event processing
-static void XcpStartAllSelectedDaq() {
+// Stop DAQ
+static void XcpStopDaq() {
+
+  // Reset all DAQ list states
+  for (uint16_t daq=0; daq<gXcp.Daq.daq_count; daq++) {
+    DaqListState(daq) = DAQ_STATE_STOPPED_UNSELECTED;
+  }
+
+  gXcp.SessionStatus &= ~SS_DAQ; // Stop processing DAQ events
+
+  ApplXcpStopDaq();
+
+  #ifdef DBG_LEVEL
+    if (DBG_LEVEL >= 4) {
+      printf("DAQ processing stop\n");
+    }
+  #endif
+}
+
+// Start DAQ list
+// Do not start DAQ event processing yet 
+static void XcpStartDaqList( uint16_t daq ) {
+
+  DaqListState(daq) |= DAQ_STATE_RUNNING;
+
+#ifdef DBG_LEVEL
+  if (DBG_LEVEL >= 4) {
+      XcpPrintDaqList(daq);
+  }
+#endif
+}
+
+// Start all selected DAQ lists
+// Do not start DAQ event processing yet 
+static void XcpStartSelectedDaqLists() {
 
   uint16_t daq;
   
-  gXcp.DaqStartClock64 = ApplXcpGetClock64();
-  gXcp.DaqOverflowCount = 0;
-
-  // Reset event time stamps
-#ifdef XCP_ENABLE_DAQ_EVENT_LIST
-  #ifdef XCP_ENABLE_TIMESTAMP_CHECK
-  for (uint16_t e = 0; e < gXcp.EventCount; e++) {
-      gXcp.EventList[e].time = 0;
-  }
-  #endif
-#endif
-
-  // Start all selected DAQs
+  // Start all selected DAQ lists
   for (daq=0;daq<gXcp.Daq.daq_count;daq++)  {
     if ( (DaqListState(daq) & DAQ_STATE_SELECTED) != 0 ) {
-      DaqListState(daq) |= DAQ_STATE_RUNNING;
       DaqListState(daq) &= (uint8_t)~DAQ_STATE_SELECTED;
-#ifdef DBG_LEVEL
-      if (DBG_LEVEL >= 4) {
-          XcpPrintDaqList(daq);
-      }
-#endif
+      XcpStartDaqList(daq);
     }
   }
-#ifdef DBG_LEVEL
-  if (DBG_LEVEL >= 4) {
-    char ts[64];
-    clockGetString(ts, sizeof(ts), gXcp.DaqStartClock64);
-    printf("DAQ start at t=%s\n", ts);
-  }
-#endif
-  gXcp.SessionStatus |= SS_DAQ;
 }
 
-// Stop DAQ list
-// Returns TRUE if all DAQ lists are stopped and event procession has stopped
-static uint8_t XcpStopDaq( uint16_t daq ) {
+// Stop individual DAQ list
+// If all DAQ lists are stopped, stop event processing
+static void XcpStopDaqList( uint16_t daq ) {
 
   DaqListState(daq) &= (uint8_t)(~(DAQ_STATE_OVERRUN|DAQ_STATE_RUNNING));
 
   /* Check if all DAQ lists are stopped */
   for (daq=0; daq<gXcp.Daq.daq_count; daq++)  {
     if ( (DaqListState(daq) & DAQ_STATE_RUNNING) != 0 )  {
-      return 0;
+      return; // Not all DAQ lists stopped yet
     }
   }
-  gXcp.SessionStatus &= ~SS_DAQ; // Stop processing DAQ events
-  return 1;
+
+  // All DAQ lists are stopped, stop DAQ event processing
+  XcpStopDaq();
 }
 
-// Stop all selected DAQs
-// Does not stop event processing
-static void XcpStopAllSelectedDaq() {
+// Stop all selected DAQ lists
+// If all DAQ lists are stopped, stop event processing
+static void XcpStopSelectedDaqLists() {
 
   uint16_t daq;
 
   for (daq=0;daq<gXcp.Daq.daq_count;daq++) {
     if ( (DaqListState(daq) & DAQ_STATE_SELECTED) != 0 ) {
-      XcpStopDaq(daq);
+      XcpStopDaqList(daq);
       DaqListState(daq) = DAQ_STATE_STOPPED_UNSELECTED;
     }
   }
-}
-
-// Stop all DAQs
-static void XcpStopAllDaq() {
-
-  for (uint16_t daq=0; daq<gXcp.Daq.daq_count; daq++) {
-    DaqListState(daq) = DAQ_STATE_STOPPED_UNSELECTED;
-  }
-  gXcp.SessionStatus &= ~SS_DAQ; // Stop processing DAQ events
 }
 
 
@@ -1063,8 +1092,7 @@ void XcpDisconnect()
   if (isConnected()) {
 
     if (isDaqRunning()) {
-      ApplXcpStopDaq();
-      XcpStopAllDaq();
+      XcpStopDaq();
       XcpTlWaitForTransmitQueueEmpty(200);
     }
     
@@ -1641,17 +1669,19 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint8_t cmdL
           {
             check_len(CRO_START_STOP_DAQ_LIST_LEN);
             uint16_t daq = CRO_START_STOP_DAQ_LIST_DAQ;
-            if (daq >= gXcp.Daq.daq_count) error(CRC_OUT_OF_RANGE);
-            if ( (CRO_START_STOP_DAQ_LIST_MODE==1 ) || (CRO_START_STOP_DAQ_LIST_MODE==2) )  { // start or select
+            uint8_t mode = CRO_START_STOP_DAQ_LIST_MODE;
+            if (daq >= gXcp.Daq.daq_count || mode>2) error(CRC_OUT_OF_RANGE);
+            if ( (mode==1 ) || (mode==2) )  { // start or select
               DaqListState(daq) |= DAQ_STATE_SELECTED;
-              if (CRO_START_STOP_DAQ_LIST_MODE == 1) { 
-                  XcpStartDaq(daq);
+              if (CRO_START_STOP_DAQ_LIST_MODE == 1) { // start
+                  XcpStartDaqList(daq); // start DAQ list 
+                  XcpStartDaq(); // start event processing, if not already running 
               }
               CRM_LEN = CRM_START_STOP_DAQ_LIST_LEN;
               CRM_START_STOP_DAQ_LIST_FIRST_PID = 0; // Absolute DAQ, Relative ODT - DaqListFirstPid(daq);
             }
-            else {
-              XcpStopDaq(daq);  // stop individual daq list
+            else { // stop
+              XcpStopDaqList(daq);  // stop individual daq list, stop event processing if all DAQ lists are stopped
             }
 
           }
@@ -1668,16 +1698,15 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint8_t cmdL
                 break;
 #endif
             case 2: /* stop selected */
-                XcpStopAllSelectedDaq();
+                XcpStopSelectedDaqLists(); // stop event processing, if all DAQ lists are stopped
                 break;
             case 1: /* start selected */
-                if (!ApplXcpStartDaq((const tXcpDaqLists*)&gXcp.Daq)) error(CRC_RESOURCE_TEMPORARY_NOT_ACCESSIBLE);
                 XcpSendResponse(&CRM, CRM_LEN); // Transmit response first and then start DAQ
-                XcpStartAllSelectedDaq();
+                XcpStartSelectedDaqLists();
+                XcpStartDaq(); // start DAQ event processing, if not already running 
                 goto no_response; // Do not send response again
             case 0: /* stop all */
-                ApplXcpStopDaq();
-                XcpStopAllDaq();
+                XcpStopDaq();
                 if (!XcpTlWaitForTransmitQueueEmpty(1000 /* timeout_ms */)) { // Wait until transmit queue empty before sending command response
                   DBG_PRINT_WARNING("Queue flush timeout!\n");
                 }
