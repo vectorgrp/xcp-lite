@@ -983,7 +983,7 @@ void XcpTriggerDaqEventAt(const tXcpDaqLists* daq_lists, uint16_t event, const u
 
   assert(daq_lists!=NULL && daq_lists->res == 0xBEAC);
 
-  if (clock==0) ApplXcpGetClock64();
+  if (clock==0) clock = ApplXcpGetClock64();
   if (base==NULL) base = ApplXcpGetBaseAddr();
 
 #ifndef XCP_MAX_EVENT_COUNT

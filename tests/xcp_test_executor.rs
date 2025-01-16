@@ -139,7 +139,7 @@ impl XcpDaqDecoder for DaqDecoder {
         }
 
         // Decode raw timestamp as u64
-        // Check declining timestamps
+        // Check declining and stuck timestamps
         if odt == 0 {
             let t_last = self.daq_timestamp[daq as usize];
             let tl = (t_last & 0xFFFFFFFF) as u32;
@@ -150,6 +150,9 @@ impl XcpDaqDecoder for DaqDecoder {
             let t = timestamp_raw as u64 | (th as u64) << 32;
             if t < t_last {
                 warn!("Timestamp of daq {} declining {} -> {}", daq, t_last, t);
+            }
+            if t == t_last {
+                warn!("Timestamp of daq {} stuck at {}", daq, t);
             }
             self.daq_timestamp[daq as usize] = t;
         }
