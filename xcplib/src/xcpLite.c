@@ -131,10 +131,8 @@
 /* Shortcuts for gXcp.Daq... */
 
 /* j is absolute odt number */
-#define DaqListOdtEntryCount(j) ((gXcp.Daq.odt_ptr[j].last_odt_entry-gXcp.Daq.odt_ptr[j].first_odt_entry)+1)
-#define DaqListOdtLastEntry(j)  (gXcp.Daq.odt_ptr[j].last_odt_entry)
-#define DaqListOdtFirstEntry(j) (gXcp.Daq.odt_ptr[j].first_odt_entry)
-#define DaqListOdtSize(j)       (gXcp.Daq.odt_ptr[j].size)
+#define DaqListOdtTable         ((tXcpOdt*)&gXcp.Daq.u.daq_list[gXcp.Daq.daq_count])
+#define DaqListOdtEntryCount(j) ((DaqListOdtTable[j].last_odt_entry-DaqListOdtTable[j].first_odt_entry)+1)
 
 /* n is absolute odtEntry number */
 #define OdtEntrySize(n)         (gXcp.Daq.odt_entry_size_ptr[n])
@@ -469,7 +467,6 @@ static void  XcpFreeDaq() {
   gXcp.Daq.odt_count= 0;
   gXcp.Daq.odt_entry_count = 0;
   gXcp.Daq.res = 0xBEAC;
-  gXcp.Daq.odt_ptr = NULL;
   gXcp.Daq.odt_entry_addr_ptr = NULL;
   gXcp.Daq.odt_entry_size_ptr = NULL;
   memset((uint8_t*)&gXcp.Daq.u.b[0], 0, XCP_DAQ_MEM_SIZE);
@@ -498,9 +495,8 @@ static uint8_t XcpAllocMemory() {
   assert(sizeof(tXcpDaqList) == 12); // Check size
   assert(sizeof(tXcpOdt) == 8); // Check size
   assert((uint64_t)&gXcp.Daq % 4 == 0); // Check alignment
-  gXcp.Daq.odt_ptr = (tXcpOdt*)&gXcp.Daq.u.daq_list[gXcp.Daq.daq_count];
-  assert((uint64_t)&gXcp.Daq.odt_ptr % 4 == 0); // Check alignment
-  gXcp.Daq.odt_entry_addr_ptr = (int32_t*)&gXcp.Daq.odt_ptr[gXcp.Daq.odt_count];
+  assert((uint64_t)&DaqListOdtTable[0] % 4 == 0); // Check alignment
+  gXcp.Daq.odt_entry_addr_ptr = (int32_t*)&DaqListOdtTable[gXcp.Daq.odt_count];
   assert((uint64_t)&gXcp.Daq.odt_entry_addr_ptr % 4 == 0); // Check alignment
   gXcp.Daq.odt_entry_size_ptr = (uint8_t*)&gXcp.Daq.odt_entry_addr_ptr[gXcp.Daq.odt_entry_count];
   assert((uint64_t)&gXcp.Daq.odt_entry_size_ptr % 4 == 0); // Check alignment
@@ -553,11 +549,11 @@ static uint8_t XcpAllocOdt( uint16_t daq, uint8_t odtCount ) {
 // Adjust ODT size by size
 static BOOL  XcpAdjustOdtSize(uint16_t odt, uint8_t size) {
 
-    DaqListOdtSize(odt) = (uint16_t)(DaqListOdtSize(odt) + size);
+    DaqListOdtTable[odt].size = (uint16_t)(DaqListOdtTable[odt].size + size);
 
 #ifdef XCP_ENABLE_TEST_CHECKS
-    if (DaqListOdtSize(odt) > (XCPTL_MAX_DTO_SIZE-2)-(odt==0?4:0)) { // -6/2 bytes for odt+daq+timestamp 
-        DBG_PRINTF_ERROR("ERROR: ODT size %u exceed XCPTL_MAX_DTO_SIZE %u!\n", DaqListOdtSize(odt), XCPTL_MAX_DTO_SIZE);
+    if (DaqListOdtTable[odt].size > (XCPTL_MAX_DTO_SIZE-2)-(odt==0?4:0)) { // -6/2 bytes for odt+daq+timestamp 
+        DBG_PRINTF_ERROR("ERROR: ODT size %u exceed XCPTL_MAX_DTO_SIZE %u!\n", DaqListOdtTable[odt].size, XCPTL_MAX_DTO_SIZE);
         return FALSE;
     }
 #endif
@@ -578,10 +574,10 @@ static uint8_t XcpAllocOdtEntry( uint16_t daq, uint8_t odt, uint8_t odtEntryCoun
   if (n>0xFFFF) return CRC_MEMORY_OVERFLOW;
 
   xcpFirstOdt = gXcp.Daq.u.daq_list[daq].first_odt;
-  gXcp.Daq.odt_ptr[xcpFirstOdt+odt].first_odt_entry = gXcp.Daq.odt_entry_count;
+  DaqListOdtTable[xcpFirstOdt+odt].first_odt_entry = gXcp.Daq.odt_entry_count;
   gXcp.Daq.odt_entry_count = (uint16_t)n;
-  gXcp.Daq.odt_ptr[xcpFirstOdt + odt].last_odt_entry = (uint16_t)(gXcp.Daq.odt_entry_count - 1);
-  gXcp.Daq.odt_ptr[xcpFirstOdt + odt].size = 0;
+  DaqListOdtTable[xcpFirstOdt + odt].last_odt_entry = (uint16_t)(gXcp.Daq.odt_entry_count - 1);
+  DaqListOdtTable[xcpFirstOdt + odt].size = 0;
   return XcpAllocMemory();
 }
 
@@ -591,7 +587,7 @@ static uint8_t XcpSetDaqPtr(uint16_t daq, uint8_t odt, uint8_t idx) {
     uint16_t odt0 = (uint16_t)(DaqListFirstOdt(daq) + odt); // Absolute odt index
     if ((daq >= gXcp.Daq.daq_count) || (odt >= DaqListOdtCount(daq)) || (idx >= DaqListOdtEntryCount(odt0))) return CRC_OUT_OF_RANGE;
     // Save info for XcpAddOdtEntry from WRITE_DAQ and WRITE_DAQ_MULTIPLE
-    gXcp.WriteDaqOdtEntry = (uint16_t)(DaqListOdtFirstEntry(odt0) + idx); // Absolute odt entry index
+    gXcp.WriteDaqOdtEntry = (uint16_t)(DaqListOdtTable[odt0].first_odt_entry + idx); // Absolute odt entry index
     gXcp.WriteDaqOdt = odt0; // Absolute odt index
     gXcp.WriteDaqDaq = daq;
     return 0;
@@ -605,7 +601,7 @@ static uint8_t XcpAddOdtEntry(uint32_t addr, uint8_t ext, uint8_t size) {
 
     if ((size == 0) || size > XCP_MAX_ODT_ENTRY_SIZE) return CRC_OUT_OF_RANGE;
     if (0 == gXcp.Daq.daq_count || 0 == gXcp.Daq.odt_count|| 0 == gXcp.Daq.odt_entry_count) return CRC_DAQ_CONFIG;
-    if (gXcp.WriteDaqOdtEntry-DaqListOdtFirstEntry(gXcp.WriteDaqOdt) >= DaqListOdtEntryCount(gXcp.WriteDaqOdt)) return CRC_OUT_OF_RANGE;
+    if (gXcp.WriteDaqOdtEntry-DaqListOdtTable[gXcp.WriteDaqOdt].first_odt_entry >= DaqListOdtEntryCount(gXcp.WriteDaqOdt)) return CRC_OUT_OF_RANGE;
 
     uint8_t daq_ext = DaqListAddrExt(gXcp.WriteDaqDaq);
     if (daq_ext != XCP_UNDEFINED_ADDR_EXT && ext != daq_ext) return CRC_DAQ_CONFIG; // Error not unique address extension
@@ -824,10 +820,8 @@ static void XcpStopSelectedDaqLists() {
 /* Shortcuts for DAQ lists as parameter daq_lists */
 
 /* j is absolute odt number */
-#define _DaqListOdtEntryCount(j) (daq_lists->odt[j].last_odt_entry-daq_lists->odt[j].first_odt_entry)+1)
-#define _DaqListOdtLastEntry(j)  (daq_lists->odt_ptr[j].last_odt_entry)
-#define _DaqListOdtFirstEntry(j) (daq_lists->odt_ptr[j].first_odt_entry)
-#define _DaqListOdtSize(j)       (daq_lists->odt_ptr[j].size)
+#define _DaqListOdtTable ((tXcpOdt*)&daq_lists->u.daq_list[gXcp.Daq.daq_count])
+#define _DaqListOdtEntryCount(j) (_DaqListOdtTable[j].last_odt_entry-_DaqListOdtTable[j].first_odt_entry)+1)
 
 /* n is absolute odtEntry number */
 #define _OdtEntrySize(n)         (daq_lists->odt_entry_size_ptr[n])
@@ -865,7 +859,7 @@ static void XcpTriggerDaqList(const tXcpDaqLists* daq_lists, uint16_t daq, const
 #endif
           
           // Get DTO buffer
-          d0 = XcpTlGetTransmitBuffer(&handle, (uint16_t)(_DaqListOdtSize(odt) + hs));
+          d0 = XcpTlGetTransmitBuffer(&handle, (uint16_t)(_DaqListOdtTable[odt].size + hs));
 
 #if defined(XCP_ENABLE_MULTITHREAD_DAQ_EVENTS) && defined(XCP_ENABLE_DAQ_EVENT_LIST)
           mutexUnlock(&ev->mutex);
@@ -925,11 +919,11 @@ static void XcpTriggerDaqList(const tXcpDaqLists* daq_lists, uint16_t daq, const
 
         // Copy data 
         /* This is the inner loop, optimize here */
-        e = _DaqListOdtFirstEntry(odt);
+        e = _DaqListOdtTable[odt].first_odt_entry;
         // Static length
         if (_OdtEntrySize(e) != 0) {
             uint8_t *d = &d0[hs];
-            el = _DaqListOdtLastEntry(odt);
+            el = _DaqListOdtTable[odt].last_odt_entry;
             while (e <= el) { // inner DAQ loop
                 n = _OdtEntrySize(e);
                 if (n == 0) break;
@@ -2493,9 +2487,9 @@ static void XcpPrintDaqList( uint16_t daq )
 
   for (i=DaqListFirstOdt(daq);i<=DaqListLastOdt(daq);i++) {
     printf("  ODT %u (%u):",i-DaqListFirstOdt(daq),i);
-    printf(" firstOdtEntry=%u, lastOdtEntry=%u, size=%u:\n", DaqListOdtFirstEntry(i), DaqListOdtLastEntry(i), DaqListOdtSize(i));
-      for (e=DaqListOdtFirstEntry(i);e<=DaqListOdtLastEntry(i);e++) {
-        printf("   ODT_ENTRY %u (%u): %08X,%u\n", e-DaqListOdtFirstEntry(i), e, OdtEntryAddr(e), OdtEntrySize(e));
+    printf(" firstOdtEntry=%u, lastOdtEntry=%u, size=%u:\n", DaqListOdtTable[i].first_odt_entry, DaqListOdtTable[i].last_odt_entry, DaqListOdtTable[i].size);
+      for (e=DaqListOdtTable[i].first_odt_entry;e<=DaqListOdtTable[i].last_odt_entry;e++) {
+        printf("   ODT_ENTRY %u (%u): %08X,%u\n", e-DaqListOdtTable[i].first_odt_entry, e, OdtEntryAddr(e), OdtEntrySize(e));
       }
 
   } /* j */

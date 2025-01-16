@@ -111,7 +111,8 @@ typedef struct {
     // Pointers to optimize access to DAQ lists, ODT and ODT entry array pointers
     int32_t* odt_entry_addr_ptr; // ODT entry addr array
     uint8_t* odt_entry_size_ptr; // ODT entry size array
-    tXcpOdt* odt_ptr; // ODT array
+    
+    void *res1;
     void *res2;
 
     // DAQ array
