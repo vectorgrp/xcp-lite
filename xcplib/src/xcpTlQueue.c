@@ -16,103 +16,8 @@
 #include "dbg_print.h"
 #include "xcpLite.h"   
 
-// Experimental
-// Use spinlock/mutex instead of mutex for producer lock
-// This naiv approach is usually faster compared to a mutex, but can produce higher worst case latencies and hard to predict impact on other threads
-// It might be a better solution for non preemptive tasks
-//#define USE_SPINLOCK
-//#define USE_YIELD
 //#define TEST_LOCK_TIMING
 
-/*
-Test results from test_multi_thread with 32 tasks and 200us sleep time 
-
-Mutex:
-lockCount=742121, maxLockTime=113000ns,  avgLockTime=1332ns
-0us: 707175
-10us: 18274
-20us: 10192
-30us: 4295
-40us: 1471
-50us: 451
-60us: 152
-70us: 63
-80us: 25
-90us: 16
-100us: 4
-110us: 3
-
-Spinlock
-lockCount=741715, maxLockTime=10058000ns,  avgLockTime=343ns
-0us: 739766
-10us: 1633
-20us: 249
-30us: 37
-40us: 12
-50us: 3
-60us: 3
->: 12
-
-Spinlock+Yield
-lockCount=746574, maxLockTime=241000ns,  avgLockTime=517ns
-0us: 734499
-10us: 6553
-20us: 3037
-30us: 1561
-40us: 398
-50us: 153
-60us: 61
-70us: 105
-80us: 128
-90us: 41
-100us: 29
-110us: 7
-140us: 1
->: 1
-
-%32
-lockCount=742068, maxLockTime=99000ns,  avgLockTime=549ns
-0us: 728545
-10us: 7615
-20us: 3728
-30us: 1596
-40us: 394
-50us: 123
-60us: 45
-70us: 13
-80us: 6
-90us: 3
-
-%64
-lockCount=741891, maxLockTime=215000ns,  avgLockTime=488ns
-0us: 730379
-10us: 6460
-20us: 3108
-30us: 1444
-40us: 359
-50us: 100
-60us: 30
-70us: 8
-80us: 1
-180us: 1
->: 1
-
-%64 release
-lockCount=741987, maxLockTime=171000ns,  avgLockTime=488ns
-0us: 730705
-10us: 6154
-20us: 2969
-30us: 1596
-40us: 396
-50us: 112
-60us: 34
-70us: 13
-80us: 6
-140us: 1
-170us: 1
-
-
-*/
 
 
 #ifdef TEST_LOCK_TIMING
@@ -136,7 +41,6 @@ static uint64_t lockTimeHistogram[HISTOGRAM_SIZE] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0
 
 // On Windows 64 we rely on the x86-64 strong memory model and assume atomic 64 bit load/store
 // and a mutex for thread safety when incrementing the tail
-#undef USE_SPINLOCK
 #define atomic_uint_fast64_t uint64_t
 #define atomic_store_explicit(a,b,c) (*(a))=(b)
 #define atomic_load_explicit(a,b) (*(a))
@@ -171,9 +75,6 @@ static struct {
     MUTEX mutex;    // Mutex for queue producers
 } gXcpTlQueue;
 
-#ifdef USE_SPINLOCK
-static atomic_flag lock = ATOMIC_FLAG_INIT;
-#endif
 
 void XcpTlInitTransmitQueue() {
 
@@ -186,10 +87,6 @@ void XcpTlInitTransmitQueue() {
     atomic_store_explicit(&gXcpTlQueue.head, 0, memory_order_relaxed);
     atomic_store_explicit(&gXcpTlQueue.tail, 0, memory_order_relaxed);
     gXcpTlQueue.tail_len = 0;
-#ifdef USE_SPINLOCK
-    assert(atomic_is_lock_free(&lock)!=0);
-    assert(atomic_is_lock_free(&gXcpTlQueue.head)!=0);
-#endif
 }
 
 void XcpTlResetTransmitQueue() {
@@ -241,20 +138,7 @@ uint8_t* XcpTlGetTransmitBuffer(void** handle, uint16_t packet_len) {
 #endif
 
     // Producer lock
-#ifdef USE_SPINLOCK
-    #ifdef USE_YIELD
-    uint32_t n = 1;
-    #endif
-    for (;;) {
-        BOOL locked = atomic_load_explicit(&lock._Value, memory_order_relaxed);
-        if (!locked  && !atomic_flag_test_and_set_explicit(&lock, memory_order_acquire)) break;
-    #ifdef USE_YIELD
-        if (++n%64==0) yield_thread();
-    #endif
-    }
-#else
     mutexLock(&gXcpTlQueue.mutex);
-#endif
 
     uint64_t head = atomic_load_explicit(&gXcpTlQueue.head,memory_order_relaxed);
     uint64_t tail = atomic_load_explicit(&gXcpTlQueue.tail,memory_order_relaxed);
@@ -269,11 +153,7 @@ uint8_t* XcpTlGetTransmitBuffer(void** handle, uint16_t packet_len) {
         atomic_store_explicit(&gXcpTlQueue.head, head+msg_len,memory_order_relaxed);
     }
 
-#ifdef USE_SPINLOCK
-    atomic_flag_clear_explicit(&lock, memory_order_release);
-#else
     mutexUnlock(&gXcpTlQueue.mutex);
-#endif
 
 #ifdef TEST_LOCK_TIMING
     uint64_t d = clockGet() - c;
