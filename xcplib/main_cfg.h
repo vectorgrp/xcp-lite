@@ -36,9 +36,9 @@
 // XCP options
 #define OPTION_ENABLE_TCP
 #define OPTION_ENABLE_UDP
-#define OPTION_MTU 1500 
-#define OPTION_QUEUE_SIZE 200     
-#define OPTION_DAQ_MEM_SIZE (3000*5)  
+#define OPTION_MTU 8000               // UDP MTU size - Jumbo Frames
+#define OPTION_QUEUE_SIZE 200         // Max number of ODTs in transmit queue
+#define OPTION_DAQ_MEM_SIZE (6000*5)  // Memory for DAQ tables - sufficient for about 6000 measurement signals
 #define OPTION_ENABLE_A2L_UPLOAD
 
 #if defined(_LINUX) && !defined(_MACOS)
@@ -51,7 +51,7 @@
 #define OPTION_CLOCK_TICKS_1NS
  
 // Enable socketGetLocalAddr and XcpEthTlGetInfo
-// For convinience to get a correct ip addr in A2L, when bound to ANY 0.0.0.0
+// For convenience to get a correct ip addr in A2L, when bound to ANY 0.0.0.0
 #define PLATFORM_ENABLE_GET_LOCAL_ADDR
  
  

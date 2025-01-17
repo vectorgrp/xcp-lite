@@ -113,7 +113,9 @@
 #endif
 
 
-// #define XCP_ENABLE_DAQ_EVENT_LIST // Enable event list
+// Enable event list
+// Not needed for Rust xcp-lite
+// #define XCP_ENABLE_DAQ_EVENT_LIST 
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
 
   // #define XCP_ENABLE_DAQ_EVENT_INFO // Enable XCP_GET_EVENT_INFO, if this is enabled, A2L file event information will be ignored
@@ -151,6 +153,7 @@
 #define XCP_DAQ_CLOCK_UIID { 0xdc,0xa6,0x32,0xFF,0xFE,0x7e,0x66,0xdc }
 
 // Enable GET_DAQ_CLOCK_MULTICAST 
+// Not recommended
 // #define XCP_ENABLE_DAQ_CLOCK_MULTICAST 
 #ifdef XCP_ENABLE_DAQ_CLOCK_MULTICAST
   // XCP default cluster id (multicast addr 239,255,0,1, group 127,0,1 (mac 01-00-5E-7F-00-01)
@@ -160,9 +163,6 @@
 
 //-------------------------------------------------------------------------------
 // Debug 
-
-// Enable logging
-#define OPTION_ENABLE_DBG_PRINTS
 
 // Enable extended error checks, performance penalty !!!
 #define XCP_ENABLE_TEST_CHECKS

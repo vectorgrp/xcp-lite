@@ -1,6 +1,6 @@
 //-----------------------------------------------------------------------------
 // Module xcp_test_executor
-// Runs various tests agains a XCP server on local host UDP port 5555
+// Runs various tests against a XCP server on local host UDP port 5555
 
 #![allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
@@ -22,14 +22,14 @@ pub const OPTION_LOG_LEVEL: log::LevelFilter = log::LevelFilter::Info;
 pub const OPTION_XCP_LOG_LEVEL: u8 = 3;
 
 // Test parameters
-pub const MULTI_THREAD_TASK_COUNT: usize = 8; // Number of threads
-pub const DAQ_TEST_TASK_SLEEP_TIME_US: u64 = 1000; // Measurement thread task cycle time in us
+pub const MULTI_THREAD_TASK_COUNT: usize = 8; // Number of threads (with 75 threads,125us sleep it passes on a battery powered MacBook Pro M3 -> 250MByte/s)
+pub const DAQ_TEST_TASK_SLEEP_TIME_US: u64 = 1000; // Measurement thread task cycle time (sleep duration) in us
 const DAQ_TEST_DURATION_MS: u64 = 6000; // DAQ test duration, 6s to get a nano second 32 bit overflow while checking timestamp monotony
 const CAL_TEST_MAX_ITER: u32 = 4000; // Number of calibrations
 const CAL_TEST_TASK_SLEEP_TIME_US: u64 = 100; // Checking task cycle time in us
 
 //------------------------------------------------------------------------
-// Handle incomming SERV_TEXT data
+// Handle incoming SERV_TEXT data
 
 #[derive(Debug, Clone, Copy)]
 struct ServTextDecoder;
@@ -56,7 +56,7 @@ impl XcpTextDecoder for ServTextDecoder {
 }
 
 //------------------------------------------------------------------------
-// Handle incomming DAQ data
+// Handle incoming DAQ data
 // Create some test diagnostic data
 
 #[derive(Debug, Clone, Copy)]

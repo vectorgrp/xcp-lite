@@ -493,13 +493,15 @@ static uint8_t XcpCheckMemory() {
   }
 
   // Recalculate the pointers
+#ifdef XCP_ENABLE_TEST_CHECKS
   assert(sizeof(tXcpDaqList) == 12); // Check size
   assert(sizeof(tXcpOdt) == 8); // Check size
   assert((uint64_t)&gXcp.Daq % 4 == 0); // Check alignment
   assert((uint64_t)&DaqListOdtTable[0] % 4 == 0); // Check alignment
   assert((uint64_t)&OdtEntryAddrTable[0] % 4 == 0); // Check alignment
   assert((uint64_t)&OdtEntrySizeTable[0] % 4 == 0); // Check alignment
-  
+#endif
+
   DBG_PRINTF5("[XcpCheckMemory] %u of %u Bytes used\n",s,XCP_DAQ_MEM_SIZE );
   return 0;
 }
@@ -645,7 +647,9 @@ static uint8_t XcpAddOdtEntry(uint32_t addr, uint8_t ext, uint8_t size) {
 // All DAQ lists associaded with an event, must have the same address extension
 static uint8_t XcpSetDaqListMode(uint16_t daq, uint16_t event, uint8_t mode, uint8_t prio ) {
 
+#ifdef XCP_ENABLE_TEST_CHECKS
     assert(daq<gXcp.Daq.daq_count);
+#endif
 
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
     tXcpEvent* e = XcpGetEvent(event); // Check if event exists
@@ -711,9 +715,11 @@ static void XcpStartDaq() {
   #endif
 
   }
+#ifdef XCP_ENABLE_TEST_CHECKS
   else {
     assert(0); // @@@@
   }
+#endif
 
   // XcpStartDaq might be called multiple times, if DAQ lists are started individually 
   // CANape never does this
@@ -845,10 +851,11 @@ static void XcpStopSelectedDaqLists() {
 // Trigger daq list
 static void XcpTriggerDaqList(const tXcpDaqLists* daq_lists, uint16_t daq, const uint8_t* base, uint64_t clock) {
 
-      uint8_t *d0;
-      uint32_t e, el, odt, hs, n;
+      uint8_t* d0;
+      uint32_t odt, hs;
       void* handle = NULL;
 
+      // Outer loop
       // Loop over all ODTs of the current DAQ list
       for (hs=ODT_HEADER_SIZE+ODT_TIMESTAMP_SIZE,odt=_DaqListFirstOdt(daq);odt<=_DaqListLastOdt(daq);hs=ODT_HEADER_SIZE,odt++)  {
 
@@ -916,38 +923,24 @@ static void XcpTriggerDaqList(const tXcpDaqLists* daq_lists, uint16_t daq, const
 #endif
         }
 
-        // Copy data 
-        /* This is the inner loop, optimize here */
-        e = _DaqListOdtTable[odt].first_odt_entry;
-        // Static length
-        if (_OdtEntrySizeTable[e] != 0) {
-            uint8_t *d = &d0[hs];
-            el = _DaqListOdtTable[odt].last_odt_entry;
-            while (e <= el) { // inner DAQ loop
-              n = _OdtEntrySizeTable[e];
-              if (n == 0) break;
-              const uint8_t* s = (const uint8_t*)&base[_OdtEntryAddrTable[e]];
-              if (n==8) {
-                *(uint64_t*)d = *(const uint64_t*)s;
-                d += 8;
-              }
-              else if (n==4) {
-                *(uint32_t*)d = *(const uint32_t*)s;
-                d += 4;
-              }
-              else if (n<4) {
-                do { *d++ = *s++; } while (--n); 
-              } else
-              {
-                memcpy(d, s, n);
-                d += n;
-              }
+        // Inner loop
+        // Loop over all ODT entries in a ODT
+        {
+            uint8_t *dst = &d0[hs];
+            uint32_t e = _DaqListOdtTable[odt].first_odt_entry; // first ODT entry index
+            uint32_t el = _DaqListOdtTable[odt].last_odt_entry; // last ODT entry index
+            int32_t* addr_ptr = &_OdtEntryAddrTable[e]; // pointer to ODT entry addr offset (signed 32 bit)
+            uint8_t* size_ptr = &_OdtEntrySizeTable[e]; // pointer to ODT entry size
+            while (e <= el) { 
+              uint8_t n = *size_ptr++;
+#ifdef XCP_ENABLE_TEST_CHECKS
+              assert(n != 0);
+#endif
+              const uint8_t* src = (const uint8_t*)&base[*addr_ptr++];
+              memcpy(dst, src, n);
+              dst += n;
               e++;
-            } // ODT entry
-        }
-        // Dynamic length
-        else {
-            assert(FALSE);
+            } 
         }
 
         XcpTlCommitTransmitBuffer(handle, _DaqListPriority(daq)!=0 && odt==_DaqListLastOdt(daq));
@@ -961,7 +954,9 @@ void XcpTriggerDaqEventAt(const tXcpDaqLists* daq_lists, uint16_t event, const u
 
   uint16_t daq;
 
+#ifdef XCP_ENABLE_TEST_CHECKS
   assert(daq_lists!=NULL && daq_lists->res == 0xBEAC && (uint64_t)daq_lists % 4 == 0);
+#endif
 
   if (clock==0) clock = ApplXcpGetClock64();
   if (base==NULL) base = ApplXcpGetBaseAddr();
@@ -982,7 +977,9 @@ void XcpTriggerDaqEventAt(const tXcpDaqLists* daq_lists, uint16_t event, const u
   if (event>=XCP_MAX_EVENT_COUNT) return; // Event out of range
   daq = _DaqListFirst(event);
   while (daq!=XCP_UNDEFINED_DAQ_LIST) {
-      assert(daq<daq_lists->daq_count); // @@@@ remove
+#ifdef XCP_ENABLE_TEST_CHECKS
+      assert(daq<daq_lists->daq_count); 
+#endif
       if (_DaqListState(daq) & DAQ_STATE_RUNNING) { // DAQ list active
           XcpTriggerDaqList(daq_lists,daq,base,clock); // Trigger DAQ list
       }
@@ -1926,7 +1923,11 @@ void XcpSendEvent(uint8_t evc, const uint8_t* d, uint8_t l)
 {
   if (!isConnected()) return;
   
+#ifdef XCP_ENABLE_TEST_CHECKS
   assert(l < XCPTL_MAX_CTO_SIZE-2);
+#endif
+
+  if (l >= XCPTL_MAX_CTO_SIZE-2) return;
 
   tXcpCto crm;  
   crm.b[0] = PID_EV; /* Event */
