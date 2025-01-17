@@ -257,7 +257,7 @@ impl<const N: usize> DaqEvent<N> {
 /// Create a DAQ event with unique name and global scope and lifetime
 /// This creates a single instance of this DAQ event once or returns the DAQ event if it already exists by using a lazy static
 /// The DAQ event may have an optional capture buffer with the given capacity
-/// Multiple concurrently runing instances of a task or thread may savely trigger this DAQ event
+/// Multiple concurrently running instances of a task or thread may safely trigger this DAQ event
 #[allow(unused_macros)]
 #[macro_export]
 macro_rules! daq_create_event {
@@ -482,7 +482,7 @@ macro_rules! daq_serialize {
 /// The DAQ event instance lives in thread local storage (TLS)
 /// When the macro is called multiple times, the DAQ event is created once for each thread
 /// This is thread safe, there is no potential race with other threads
-/// Multiple concurrently runing instances of a task use the DAQ event assiated to their thread
+/// Multiple concurrently running instances of a task use the DAQ event associated to their thread
 #[allow(unused_macros)]
 #[macro_export]
 macro_rules! daq_create_event_tli {
