@@ -108,13 +108,6 @@ typedef struct {
     uint16_t daq_first[XCP_MAX_EVENT_COUNT]; // Event channel to DAQ list mapping
 #endif
 
-    // Pointers to optimize access to DAQ lists, ODT and ODT entry array pointers
-    int32_t* odt_entry_addr_ptr; // ODT entry addr array
-    uint8_t* odt_entry_size_ptr; // ODT entry size array
-    
-    void *res1;
-    void *res2;
-
     // DAQ array
     // size and alignment % 8 
     // memory layout:

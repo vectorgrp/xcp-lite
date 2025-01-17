@@ -235,7 +235,7 @@ BOOL socketBind(SOCKET sock, uint8_t* addr, uint16_t port) {
     }
     a.sin_port = htons(port);
     if (bind(sock, (SOCKADDR*)&a, sizeof(a)) < 0) {
-        DBG_PRINTF_ERROR("ERROR %d: cannot bind on %u.%u.%u.%u port %u!\n", socketGetLastError(), addr?addr[0]:0, addr?addr[1]:0, addr? addr[2]:0, addr?addr[3]: 0, port);
+        DBG_PRINTF_ERROR("%d - cannot bind on %u.%u.%u.%u port %u!\n", socketGetLastError(), addr?addr[0]:0, addr?addr[1]:0, addr? addr[2]:0, addr?addr[3]: 0, port);
         return 0;
     }
 
@@ -384,11 +384,11 @@ BOOL socketStartup() {
   wsaVersionRequested = MAKEWORD(2, 2);
   err = WSAStartup(wsaVersionRequested, &wsaData);
   if (err != 0) {
-      DBG_PRINTF_ERROR("ERROR: WSAStartup failed with ERROR: %d!\n", err);
+      DBG_PRINTF_ERROR("WSAStartup failed with error %d!\n", err);
       return FALSE;
   }
   if (LOBYTE(wsaData.wVersion) != 2 || HIBYTE(wsaData.wVersion) != 2) { // Confirm that the WinSock DLL supports 2.2
-      DBG_PRINT_ERROR("ERROR: could not find a usable version of Winsock.dll!\n");
+      DBG_PRINT_ERROR("Could not find a usable version of Winsock.dll!\n");
       WSACleanup();
       return FALSE;
   }
@@ -424,14 +424,14 @@ BOOL socketOpen(SOCKET* sp, BOOL useTCP, BOOL nonBlocking, BOOL reuseaddr, BOOL 
         *sp = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     }
     if (*sp == INVALID_SOCKET) {
-        DBG_PRINTF_ERROR("ERROR %d: could not create socket!\n", socketGetLastError());
+        DBG_PRINTF_ERROR("%d - could not create socket!\n", socketGetLastError());
         return FALSE;
     }
 
     // Set nonblocking mode
     u_long b = nonBlocking ? 1:0;
     if (NO_ERROR != ioctlsocket(*sp, FIONBIO, &b)) {
-        DBG_PRINTF_ERROR("ERROR %d: could not set non blocking mode!\n", socketGetLastError());
+        DBG_PRINTF_ERROR("%d - could not set non blocking mode!\n", socketGetLastError());
         return FALSE;
     }
 
@@ -459,10 +459,10 @@ BOOL socketBind(SOCKET sock, uint8_t *addr, uint16_t port) {
     a.sin_port = htons(port);
     if (bind(sock, (SOCKADDR*)&a, sizeof(a)) < 0) {
         if (socketGetLastError() == WSAEADDRINUSE) {
-            DBG_PRINTF_ERROR("ERROR: Port is already in use!\n");
+            DBG_PRINTF_ERROR("Port is already in use!\n");
         }
         else {
-            DBG_PRINTF_ERROR("ERROR %d: cannot bind on %u.%u.%u.%u port %u!\n", socketGetLastError(), addr?addr[0]:0, addr?addr[1]:0, addr?addr[2]:0, addr?addr[3]:0, port);
+            DBG_PRINTF_ERROR("%d - cannot bind on %u.%u.%u.%u port %u!\n", socketGetLastError(), addr?addr[0]:0, addr?addr[1]:0, addr?addr[2]:0, addr?addr[3]:0, port);
         }
         return FALSE;
     }
@@ -562,7 +562,7 @@ BOOL socketGetLocalAddr(uint8_t* mac, uint8_t* addr) {
 BOOL socketListen(SOCKET sock) {
 
     if (listen(sock, 5)) {
-        DBG_PRINTF_ERROR("ERROR %d: listen failed!\n", socketGetLastError());
+        DBG_PRINTF_ERROR("%d - listen failed!\n", socketGetLastError());
         return 0;
     }
     return 1;
@@ -584,7 +584,7 @@ BOOL socketJoin(SOCKET sock, uint8_t* maddr) {
     group.imr_multiaddr.s_addr = *(uint32_t*)maddr;
     group.imr_interface.s_addr = htonl(INADDR_ANY);
     if (0 > setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP, (const char*)&group, sizeof(group))) {
-        DBG_PRINTF_ERROR("ERROR %d: Failed to set multicast socket option IP_ADD_MEMBERSHIP!\n", socketGetLastError());
+        DBG_PRINTF_ERROR("%d - failed to set multicast socket option IP_ADD_MEMBERSHIP!\n", socketGetLastError());
         return 0;
     }
     return 1;
@@ -607,7 +607,7 @@ int16_t socketRecvFrom(SOCKET sock, uint8_t* buffer, uint16_t bufferSize, uint8_
         if (err == SOCKET_ERROR_ABORT || err == SOCKET_ERROR_RESET || err == SOCKET_ERROR_INTR) {
             return 0; // Socket closed
         }
-        DBG_PRINTF_ERROR("ERROR %u: recvfrom failed (result=%d)!\n", err, n);
+        DBG_PRINTF_ERROR("%u - recvfrom failed (result=%d)!\n", err, n);
         return -1;
     }
     if (time!=NULL) *time = clockGet();
@@ -630,7 +630,7 @@ int16_t socketRecv(SOCKET sock, uint8_t* buffer, uint16_t size, BOOL waitAll) {
         if (err == SOCKET_ERROR_ABORT || err == SOCKET_ERROR_RESET || err == SOCKET_ERROR_INTR) {
             return 0; // Socket closed
         }
-        DBG_PRINTF_ERROR("ERROR %u: recvfrom failed (result=%d)!\n", err, n);
+        DBG_PRINTF_ERROR("%u - recvfrom failed (result=%d)!\n", err, n);
         return -1; // Error
     }
     return n;

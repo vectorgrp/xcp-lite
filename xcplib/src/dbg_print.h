@@ -30,15 +30,15 @@ extern uint8_t gDebugLevel;
 
 
 #define DBG_PRINTF(level, format, ...) if (DBG_LEVEL>=level) printf("[XCP  ] " format, __VA_ARGS__)
-#define DBG_PRINTF_ERROR(format, ...) if (DBG_LEVEL>=1) printf("[XCP  ] " format, __VA_ARGS__)
-#define DBG_PRINTF_WARNING(format, ...) if (DBG_LEVEL>=2) printf("[XCP  ] " format, __VA_ARGS__)
+#define DBG_PRINTF_ERROR(format, ...) if (DBG_LEVEL>=1) printf("[XCP  ] ERROR: " format, __VA_ARGS__)
+#define DBG_PRINTF_WARNING(format, ...) if (DBG_LEVEL>=2) printf("[XCP  ] WARNING: " format, __VA_ARGS__)
 #define DBG_PRINTF3(format, ...) if (DBG_LEVEL>=3) printf("[XCP  ] " format, __VA_ARGS__)
 #define DBG_PRINTF4(format, ...) if (DBG_LEVEL>=4) printf("[XCP  ] " format, __VA_ARGS__)
 #define DBG_PRINTF5(format, ...) if (DBG_LEVEL>=5) printf("[XCP  ] " format, __VA_ARGS__)
 
 #define DBG_PRINT(level, format) if (DBG_LEVEL>=level) printf("[XCP  ] " format)
-#define DBG_PRINT_ERROR(format) if (DBG_LEVEL>=1) printf("[XCP  ] " format)
-#define DBG_PRINT_WARNING(format) if (DBG_LEVEL>=2) printf("[XCP  ] " format)
+#define DBG_PRINT_ERROR(format) if (DBG_LEVEL>=1) printf("[XCP  ] ERROR: " format)
+#define DBG_PRINT_WARNING(format) if (DBG_LEVEL>=2) printf("[XCP  ] WARNING: " format)
 #define DBG_PRINT3(format) if (DBG_LEVEL>=3) printf("[XCP  ] " format)
 #define DBG_PRINT4(format) if (DBG_LEVEL>=4) printf("[XCP  ] " format)
 #define DBG_PRINT5(format) if (DBG_LEVEL>=5) printf("[XCP  ] " format)

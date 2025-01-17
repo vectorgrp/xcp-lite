@@ -439,7 +439,7 @@ uint32_t openA2lFile() {
     assert(gXcpFile == NULL);
     gXcpFile = fopen(filename, "rb");
     if (gXcpFile == NULL) {
-        DBG_PRINTF_ERROR("ERROR: file %s not found!\n", filename);
+        DBG_PRINTF_ERROR("File %s not found!\n", filename);
         return 0;
     }
 

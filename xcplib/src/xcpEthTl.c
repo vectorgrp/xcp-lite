@@ -114,7 +114,7 @@ int XcpEthTlSend(const uint8_t *data, uint16_t size, const uint8_t* addr, uint16
             return -1; // Would block
         }
         else {
-            DBG_PRINTF_ERROR("ERROR: XcpEthTlSend: send failed (result=%d, errno=%d)!\n", r, socketGetLastError());
+            DBG_PRINTF_ERROR("%d - XcpEthTlSend: send failed (result=%d)!\n", socketGetLastError(), r);
             //gXcpTl.lastError = XCPTL_ERROR_SEND_FAILED;
             return 0; // Error
         }
@@ -289,7 +289,7 @@ BOOL XcpEthTlHandleCommands(uint32_t timeout_ms) {
         if (n == 0) return TRUE; // Socket closed, should not happen
         if (n < 0) {  // error
             if (socketGetLastError() == SOCKET_ERROR_WBLOCK) return 1; // Ok, timeout, no command pending
-            DBG_PRINTF_ERROR("ERROR %u: recvfrom failed (result=%d)!\n", socketGetLastError(), n);
+            DBG_PRINTF_ERROR("%d - recvfrom failed (result=%d)!\n", socketGetLastError(), n);
             return FALSE; // Error
         }
         else { // Ok
