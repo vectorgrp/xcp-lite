@@ -25,7 +25,7 @@
 |     - No misra compliance
 |     - Overall number of ODTs limited to 64K
 |     - Overall number of ODT entries is limited to 64K
-|     - Fixed DAQ+ODT 2 byte DTO header
+|     - Fixed DAQ+ODT DTO header
 |     - Fixed 32 bit time stamp
 |     - Only dynamic DAQ list allocation supported
 |     - Resume is not supported
@@ -454,8 +454,20 @@ static uint8_t XcpSetMta( uint8_t ext, uint32_t addr ) {
 
 
 /****************************************************************************/
-/* Data Aquisition Setup                                                    */
+/* Data Acquisition Setup                                                    */
 /****************************************************************************/
+
+// ODT header size is hardcoded to 4 bytes
+// Switch to smaller 2 byte ODT header, if maximum required number of DAQ list is <= 256
+#if XCP_MAX_DAQ_COUNT>256
+  #define ODT_HEADER_SIZE 4 // ODT,align,DAQ_WORD header 
+#else
+  #define ODT_HEADER_SIZE 2 // ODT,DAQ header
+#endif
+
+// Timestamp size is hardcoded to 4 bytes
+#define ODT_TIMESTAMP_SIZE 4
+
 
 // Free all dynamic DAQ lists
 static void  XcpFreeDaq() {
@@ -547,14 +559,16 @@ static uint8_t XcpAllocOdt( uint16_t daq, uint8_t odtCount ) {
   return XcpCheckMemory();
 }
 
-// Adjust ODT size by size
-static BOOL  XcpAdjustOdtSize(uint16_t odt, uint8_t size) {
+// Increase current ODT size (absolute ODT index) size by n
+static BOOL XcpAdjustOdtSize(uint16_t daq, uint16_t odt, uint8_t n) {
 
-    DaqListOdtTable[odt].size = (uint16_t)(DaqListOdtTable[odt].size + size);
+    DaqListOdtTable[odt].size = (uint16_t)(DaqListOdtTable[odt].size + n);
 
 #ifdef XCP_ENABLE_TEST_CHECKS
-    if (DaqListOdtTable[odt].size > (XCPTL_MAX_DTO_SIZE-2)-(odt==0?4:0)) { // -6/2 bytes for odt+daq+timestamp 
-        DBG_PRINTF_ERROR("ODT size %u exceed XCPTL_MAX_DTO_SIZE %u!\n", DaqListOdtTable[odt].size, XCPTL_MAX_DTO_SIZE);
+    assert(odt>=DaqListFirstOdt(daq));
+    uint16_t max_size = (XCPTL_MAX_DTO_SIZE-ODT_HEADER_SIZE)-((odt-DaqListFirstOdt(daq))==0?4:0); // Leave space for ODT header and timestamp in first ODT
+    if (DaqListOdtTable[odt].size > max_size) {  
+        DBG_PRINTF_ERROR("DAQ %u, ODT %u overflow, max ODT = %u!\n", daq, odt-DaqListFirstOdt(daq), max_size);
         return FALSE;
     }
 #endif
@@ -589,7 +603,7 @@ static uint8_t XcpSetDaqPtr(uint16_t daq, uint8_t odt, uint8_t idx) {
     if ((daq >= gXcp.Daq.daq_count) || (odt >= DaqListOdtCount(daq)) || (idx >= DaqListOdtEntryCount(odt0))) return CRC_OUT_OF_RANGE;
     // Save info for XcpAddOdtEntry from WRITE_DAQ and WRITE_DAQ_MULTIPLE
     gXcp.WriteDaqOdtEntry = (uint16_t)(DaqListOdtTable[odt0].first_odt_entry + idx); // Absolute odt entry index
-    gXcp.WriteDaqOdt = odt0; // Absolute odt index
+    gXcp.WriteDaqOdt = odt0; // Absolute ODT index
     gXcp.WriteDaqDaq = daq;
     return 0;
 }
@@ -637,14 +651,14 @@ static uint8_t XcpAddOdtEntry(uint32_t addr, uint8_t ext, uint8_t size) {
     return CRC_ACCESS_DENIED;
 
     OdtEntrySizeTable[gXcp.WriteDaqOdtEntry] = size;
-    OdtEntryAddrTable[gXcp.WriteDaqOdtEntry] = base_offset; // Signed 32 bit offset relative to base pointer given to XcpEvent_
-    if (!XcpAdjustOdtSize(gXcp.WriteDaqOdt, size)) return CRC_DAQ_CONFIG;
+    OdtEntryAddrTable[gXcp.WriteDaqOdtEntry] = base_offset; // Signed 32 bit offset relative to base pointer given to XcpEvent
+    if (!XcpAdjustOdtSize(gXcp.WriteDaqDaq, gXcp.WriteDaqOdt, size)) return CRC_DAQ_CONFIG;
     gXcp.WriteDaqOdtEntry++; // Autoincrement to next ODT entry, no autoincrementing over ODTs
     return 0;
 }
 
 // Set DAQ list mode
-// All DAQ lists associaded with an event, must have the same address extension
+// All DAQ lists associated with an event, must have the same address extension
 static uint8_t XcpSetDaqListMode(uint16_t daq, uint16_t event, uint8_t mode, uint8_t prio ) {
 
 #ifdef XCP_ENABLE_TEST_CHECKS
@@ -836,18 +850,8 @@ static void XcpStopSelectedDaqLists() {
 
 
 /****************************************************************************/
-/* Data Aquisition Processor                                                */
+/* Data Acquisition Event Processor                                         */
 /****************************************************************************/
-
-// Measurement data acquisition, sample and transmit measurement date associated to event
-
-#if XCP_MAX_DAQ_COUNT>256
-  #define ODT_HEADER_SIZE 4 // ODT,align,DAQ_WORD header 
-#else
-  #define ODT_HEADER_SIZE 2 // ODT,DAQ header
-#endif
-
-#define ODT_TIMESTAMP_SIZE 4
 
 
 /* Shortcuts for DAQ lists as parameter daq_lists */
@@ -942,13 +946,12 @@ static void XcpTriggerDaqList(const tXcpDaqLists* daq_lists, uint16_t daq, const
         }
 #endif
 
-        // Timestamp 32 or 64 bit
+        // Timestamp 32 bit
         if (hs == ODT_HEADER_SIZE+ODT_TIMESTAMP_SIZE) { // First ODT always has a 32 bit timestamp
-#if ODT_TIMESTAMP_SIZE==8     
-            *((uint64_t*)&d0[ODT_HEADER_SIZE]) = clock;
-#else
-            *((uint32_t*)&d0[ODT_HEADER_SIZE]) = (uint32_t)clock;
+#if ODT_TIMESTAMP_SIZE!=4
+  #error "Supports only 32 bit timestamps"
 #endif
+            *((uint32_t*)&d0[ODT_HEADER_SIZE]) = (uint32_t)clock;
         }
 
         // Inner loop
@@ -1533,7 +1536,7 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint8_t cmdL
             // DTO identification field type: 
             //   DAQ_HDR_ODT_DAQB: Relative ODT number (BYTE), absolute DAQ list number (BYTE)
             //   DAQ_HDR_ODT_FIL_DAQW: Relative ODT number (BYTE), fill byte, absolute DAQ list number (WORD, aligned)
-#if XCP_MAX_DAQ_COUNT>256
+#if ODT_HEADER_SIZE==4
             CRM_GET_DAQ_PROCESSOR_INFO_DAQ_KEY_BYTE = (uint8_t)(DAQ_HDR_ODT_FIL_DAQW | DAQ_EXT_DAQ); 
 #else
             CRM_GET_DAQ_PROCESSOR_INFO_DAQ_KEY_BYTE = (uint8_t)(DAQ_HDR_ODT_DAQB | DAQ_EXT_DAQ); 
@@ -1551,6 +1554,9 @@ static uint8_t XcpAsyncCommand( BOOL async, const uint32_t* cmdBuf, uint8_t cmdL
             CRM_GET_DAQ_RESOLUTION_INFO_GRANULARITY_STIM = 1;
             CRM_GET_DAQ_RESOLUTION_INFO_MAX_SIZE_DAQ  = (uint8_t)XCP_MAX_ODT_ENTRY_SIZE;
             CRM_GET_DAQ_RESOLUTION_INFO_MAX_SIZE_STIM = (uint8_t)XCP_MAX_ODT_ENTRY_SIZE;
+#if ODT_TIMESTAMP_SIZE!=4
+  #error "Supports only 32 bit timestamps"
+#endif
             CRM_GET_DAQ_RESOLUTION_INFO_TIMESTAMP_MODE = XCP_TIMESTAMP_UNIT | DAQ_TIMESTAMP_FIXED | DAQ_TIMESTAMP_DWORD;
             CRM_GET_DAQ_RESOLUTION_INFO_TIMESTAMP_TICKS = XCP_TIMESTAMP_TICKS;
           }
