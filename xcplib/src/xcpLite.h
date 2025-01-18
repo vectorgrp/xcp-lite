@@ -137,7 +137,7 @@ typedef struct {
 /****************************************************************************/
 
 /* Initialization for the XCP Protocol Layer */
-extern void XcpInit();
+extern void XcpInit(tXcpDaqLists* daq_lists);
 extern void XcpStart();
 extern void XcpReset();
 

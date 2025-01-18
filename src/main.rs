@@ -24,6 +24,9 @@ use std::{
 };
 
 //-----------------------------------------------------------------------------
+// Parameters
+
+const XCP_LOG_LEVEL: u8 = 3;
 
 const TASK1_CYCLE_TIME_US: u32 = 10000; // 10ms
 const TASK2_CYCLE_TIME_US: u32 = 1000; // 1ms
@@ -45,7 +48,7 @@ use clap::Parser;
 #[command(version, about, long_about = None)]
 struct Args {
     /// Log level (Off=0, Error=1, Warn=2, Info=3, Debug=4, Trace=5)
-    #[arg(short, long, default_value_t = 3)]
+    #[arg(short, long, default_value_t = XCP_LOG_LEVEL)]
     log_level: u8,
 
     /// Bind address, default is ANY

@@ -3,6 +3,7 @@
 // Uses the test XCP client in module xcp_client
 
 // cargo test --features=a2l_reader --features=serde -- --test-threads=1 --nocapture  --test test_single_thread
+
 use xcp::*;
 
 mod xcp_test_executor;
@@ -14,6 +15,17 @@ use xcp_test_executor::OPTION_XCP_LOG_LEVEL;
 use log::{debug, error, info, trace, warn};
 use std::{fmt::Debug, thread};
 use tokio::time::Duration;
+
+//-----------------------------------------------------------------------------
+// Test settings
+
+const TEST_CAL: xcp_test_executor::TestModeCal = xcp_test_executor::TestModeCal::Cal; // Execute calibration tests: Cal or None
+
+const TEST_DAQ: xcp_test_executor::TestModeDaq = xcp_test_executor::TestModeDaq::SingleThreadDAQ; // Execute measurement tests: SingleThreadDAQ or None
+
+const TEST_REINIT: bool = true; // Execute reinitialization test
+
+const TEST_UPLOAD_A2L: bool = true; // Upload A2L file
 
 //-----------------------------------------------------------------------------
 // Static Variables
@@ -200,21 +212,14 @@ async fn test_single_thread() {
             }
         });
 
-        xcp_test_executor(
-            xcp,
-            xcp_test_executor::TestModeCal::Cal,
-            xcp_test_executor::TestModeDaq::SingleThreadDAQ,
-            "test_single_thread.a2l",
-            true,
-        )
-        .await; // Start the test executor XCP client
+        xcp_test_executor(xcp, TEST_CAL, TEST_DAQ, "test_single_thread.a2l", TEST_UPLOAD_A2L).await; // Start the test executor XCP client
 
         t1.join().unwrap();
         xcp.stop_server();
     }
 
     // Reinitialize the XCP server a second time, to check correct shutdown behaviour
-    {
+    if TEST_REINIT {
         info!("XCP server initialization 2");
         let _ = std::fs::remove_file("test_single_thread.a2h");
 

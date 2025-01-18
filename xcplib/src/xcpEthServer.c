@@ -72,7 +72,7 @@ BOOL XcpEthServerInit(const uint8_t* addr, uint16_t port, BOOL useTCP)
     gXcpServer.ReceiveThreadRunning = FALSE;
 
     // Initialize XCP protocol layer if not already done
-    XcpInit();
+    XcpInit(NULL);
 
     // Initialize XCP transport layer
     r = XcpEthTlInit(addr, port, useTCP, TRUE /*blocking rx*/);

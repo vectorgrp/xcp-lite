@@ -188,7 +188,7 @@ fn bindgen_test_layout_tXcpDaqLists() {
     );
 }
 extern "C" {
-    pub fn XcpInit();
+    pub fn XcpInit(daq_lists: *mut tXcpDaqLists);
 }
 extern "C" {
     pub fn XcpDisconnect();

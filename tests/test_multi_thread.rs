@@ -21,6 +21,15 @@ use std::{fmt::Debug, thread};
 use tokio::time::Duration;
 
 //-----------------------------------------------------------------------------
+// Test settings
+
+const TEST_CAL: xcp_test_executor::TestModeCal = xcp_test_executor::TestModeCal::Cal; // Execute calibration tests: Cal or None
+
+const TEST_DAQ: xcp_test_executor::TestModeDaq = xcp_test_executor::TestModeDaq::MultiThreadDAQ; // Execute measurement tests: MultiThreadDAQ or None
+
+const TEST_UPLOAD_A2L: bool = true; // Upload A2L file
+
+//-----------------------------------------------------------------------------
 // Calibration Segment
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
@@ -85,70 +94,69 @@ fn task(index: usize, cal_seg: CalSeg<CalPage1>) {
     let mut cal_test: u64 = 0;
     let mut counter_max: u32 = 0;
     let mut test0: u64 = 0;
-
-    let test1: u64 = 0;
-    let test2: u64 = 0;
-    let test3: u64 = 0;
-    let test4: u64 = 0;
-    let test5: u64 = 0;
-    let test6: u64 = 0;
-    let test7: u64 = 0;
-    let test8: u64 = 0;
-    let test9: u64 = 0;
-    let test10: u64 = 0;
-    let test11: u64 = 0;
-    let test12: u64 = 0;
-    let test13: u64 = 0;
-    let test14: u64 = 0;
-    let test15: u64 = 0;
-    let test16: u64 = 0;
-    let test17: u64 = 0;
-    let test18: u64 = 0;
-    let test19: u64 = 0;
-    let test20: u64 = 0;
-    let test21: u64 = 0;
-    let test22: u64 = 0;
-    let test23: u64 = 0;
-    let test24: u64 = 0;
-    let test25: u64 = 0;
-    let test26: u64 = 0;
-    let test27: u64 = 0;
-    let test28: u64 = 0;
-    let test29: u64 = 0;
-    let test30: u64 = 0;
-    let test31: u64 = 0;
-    let test32: u64 = 0;
-    let test33: u64 = 0;
-    let test34: u64 = 0;
-    let test35: u64 = 0;
-    let test36: u64 = 0;
-    let test37: u64 = 0;
-    let test38: u64 = 0;
-    let test39: u64 = 0;
-    let test40: u64 = 0;
-    let test41: u64 = 0;
-    let test42: u64 = 0;
-    let test43: u64 = 0;
-    let test44: u64 = 0;
-    let test45: u64 = 0;
-    let test46: u64 = 0;
-    let test47: u64 = 0;
-    let test48: u64 = 0;
-    let test49: u64 = 0;
-    let test50: u64 = 0;
-    let test51: u64 = 0;
-    let test52: u64 = 0;
-    let test53: u64 = 0;
-    let test54: u64 = 0;
-    let test55: u64 = 0;
-    let test56: u64 = 0;
-    let test57: u64 = 0;
-    let test58: u64 = 0;
-    let test59: u64 = 0;
-    let test60: u64 = 0;
-    let test61: u64 = 0;
-    let test62: u64 = 0;
-    let test63: u64 = 0;
+    let mut test1: u64 = 0;
+    let mut test2: u64 = 0;
+    let mut test3: u64 = 0;
+    let mut test4: u64 = 0;
+    let mut test5: u64 = 0;
+    let mut test6: u64 = 0;
+    let mut test7: u64 = 0;
+    let mut test8: u64 = 0;
+    let mut test9: u64 = 0;
+    let mut test10: u64 = 0;
+    let mut test11: u64 = 0;
+    let mut test12: u64 = 0;
+    let mut test13: u64 = 0;
+    let mut test14: u64 = 0;
+    let mut test15: u64 = 0;
+    let mut test16: u64 = 0;
+    let mut test17: u64 = 0;
+    let mut test18: u64 = 0;
+    let mut test19: u64 = 0;
+    let mut test20: u64 = 0;
+    let mut test21: u64 = 0;
+    let mut test22: u64 = 0;
+    let mut test23: u64 = 0;
+    let mut test24: u64 = 0;
+    let mut test25: u64 = 0;
+    let mut test26: u64 = 0;
+    let mut test27: u64 = 0;
+    let mut test28: u64 = 0;
+    let mut test29: u64 = 0;
+    let mut test30: u64 = 0;
+    let mut test31: u64 = 0;
+    let mut test32: u64 = 0;
+    let mut test33: u64 = 0;
+    let mut test34: u64 = 0;
+    let mut test35: u64 = 0;
+    let mut test36: u64 = 0;
+    let mut test37: u64 = 0;
+    let mut test38: u64 = 0;
+    let mut test39: u64 = 0;
+    let mut test40: u64 = 0;
+    let mut test41: u64 = 0;
+    let mut test42: u64 = 0;
+    let mut test43: u64 = 0;
+    let mut test44: u64 = 0;
+    let mut test45: u64 = 0;
+    let mut test46: u64 = 0;
+    let mut test47: u64 = 0;
+    let mut test48: u64 = 0;
+    let mut test49: u64 = 0;
+    let mut test50: u64 = 0;
+    let mut test51: u64 = 0;
+    let mut test52: u64 = 0;
+    let mut test53: u64 = 0;
+    let mut test54: u64 = 0;
+    let mut test55: u64 = 0;
+    let mut test56: u64 = 0;
+    let mut test57: u64 = 0;
+    let mut test58: u64 = 0;
+    let mut test59: u64 = 0;
+    let mut test60: u64 = 0;
+    let mut test61: u64 = 0;
+    let mut test62: u64 = 0;
+    let mut test63: u64 = 0;
 
     if index == 0 || index == MULTI_THREAD_TASK_COUNT - 1 {
         info!("Task {} started, initial cycle time = {}us ", index, cal_seg.cycle_time_us);
@@ -238,8 +246,72 @@ fn task(index: usize, cal_seg: CalSeg<CalPage1>) {
 
         // Modify measurement variables on stack
         loop_counter += 1;
-        test0 = loop_counter;
-        _ = test0;
+        test0 = loop_counter + 1;
+        test1 = test0 + 1;
+        test2 = test1 + 1;
+        test3 = test2 + 1;
+        test4 = test3 + 1;
+        test5 = test4 + 1;
+        test6 = test5 + 1;
+        test7 = test6 + 1;
+        test8 = test7 + 1;
+        test9 = test8 + 1;
+        test10 = test9 + 1;
+        test11 = test10 + 1;
+        test12 = test11 + 1;
+        test13 = test12 + 1;
+        test14 = test13 + 1;
+        test15 = test14 + 1;
+        test16 = test15 + 1;
+        test17 = test16 + 1;
+        test18 = test17 + 1;
+        test19 = test18 + 1;
+        test20 = test19 + 1;
+        test21 = test20 + 1;
+        test22 = test21 + 1;
+        test23 = test22 + 1;
+        test24 = test23 + 1;
+        test25 = test24 + 1;
+        test26 = test25 + 1;
+        test27 = test26 + 1;
+        test28 = test27 + 1;
+        test29 = test28 + 1;
+        test30 = test29 + 1;
+        test31 = test30 + 1;
+        test32 = test31 + 1;
+        test33 = test32 + 1;
+        test34 = test33 + 1;
+        test35 = test34 + 1;
+        test36 = test35 + 1;
+        test37 = test36 + 1;
+        test38 = test37 + 1;
+        test39 = test38 + 1;
+        test40 = test39 + 1;
+        test41 = test40 + 1;
+        test42 = test41 + 1;
+        test43 = test42 + 1;
+        test44 = test43 + 1;
+        test45 = test44 + 1;
+        test46 = test45 + 1;
+        test47 = test46 + 1;
+        test48 = test47 + 1;
+        test49 = test48 + 1;
+        test50 = test49 + 1;
+        test51 = test50 + 1;
+        test52 = test51 + 1;
+        test53 = test52 + 1;
+        test54 = test53 + 1;
+        test55 = test54 + 1;
+        test56 = test55 + 1;
+        test57 = test56 + 1;
+        test58 = test57 + 1;
+        test59 = test58 + 1;
+        test60 = test59 + 1;
+        test61 = test50 + 1;
+        test61 = test60 + 1;
+        test62 = test61 + 1;
+        test63 = test62 + 1;
+        _ = test63;
 
         // Calculate a counter wrapping at cal_seg.counter_max
         counter_max = cal_seg.counter_max;
@@ -337,14 +409,7 @@ async fn test_multi_thread() {
     }
 
     thread::sleep(Duration::from_millis(250)); // Wait to give all threads a chance to initialize and enter their loop
-    xcp_test_executor(
-        xcp,
-        xcp_test_executor::TestModeCal::Cal,
-        xcp_test_executor::TestModeDaq::MultiThreadDAQ,
-        "test_multi_thread.a2l",
-        true,
-    )
-    .await; // Start the test executor XCP client
+    xcp_test_executor(xcp, TEST_CAL, TEST_DAQ, "test_multi_thread.a2l", TEST_UPLOAD_A2L).await; // Start the test executor XCP client
 
     info!("Test done. Waiting for tasks to terminate");
     for t in v {
