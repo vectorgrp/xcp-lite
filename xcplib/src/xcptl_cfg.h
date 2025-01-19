@@ -34,6 +34,7 @@
 // DTO size
 // Maximum size of a XCP data packet (DAQ,STIM)
 #define XCPTL_MAX_DTO_SIZE (XCPTL_MAX_SEGMENT_SIZE-8) // Segment size - XCP transport layer header size, size must be mod 8 
+//#define XCPTL_MAX_DTO_SIZE (248) // Segment size - XCP transport layer header size, size must be mod 8 
 
 // Segment size is the maximum data buffer size given to sockets send/sendTo, for UDP it is the UDP MTU
 // Jumbo frames are supported, but it might be more efficient to use a smaller segment sizes

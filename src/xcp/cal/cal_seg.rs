@@ -621,6 +621,7 @@ mod cal_tests {
     }
 
     #[test]
+    // #[ignore] // @@@@ fails on Windows!!!!!!!!!!!!!!!!
     fn test_calibration_segment_basics() {
         //
         const CAL_PAGE_TEST1: CalPageTest1 = CalPageTest1 {

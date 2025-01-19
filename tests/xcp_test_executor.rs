@@ -22,8 +22,8 @@ pub const OPTION_LOG_LEVEL: log::LevelFilter = log::LevelFilter::Info;
 pub const OPTION_XCP_LOG_LEVEL: u8 = 3;
 
 // Test parameters
-pub const MULTI_THREAD_TASK_COUNT: usize = 8; // Number of threads (with 75 threads,125us sleep it passes on a battery powered MacBook Pro M3 -> 250MByte/s)
-pub const DAQ_TEST_TASK_SLEEP_TIME_US: u64 = 1000; // Measurement thread task cycle time (sleep duration) in us
+pub const MULTI_THREAD_TASK_COUNT: usize = 32; // Number of threads (with 75 threads,125us sleep it passes on a battery powered MacBook Pro M3 -> 250MByte/s)
+pub const DAQ_TEST_TASK_SLEEP_TIME_US: u64 = 500; // Measurement thread task cycle time (sleep duration) in us
 const DAQ_TEST_DURATION_MS: u64 = 6000; // DAQ test duration, 6s to get a nano second 32 bit overflow while checking timestamp monotony
 const CAL_TEST_MAX_ITER: u32 = 4000; // Number of calibrations
 const CAL_TEST_TASK_SLEEP_TIME_US: u64 = 100; // Checking task cycle time in us
@@ -340,6 +340,8 @@ pub async fn xcp_test_executor(_xcp: &Xcp, test_mode_cal: TestModeCal, test_mode
             .create_calibration_object("CalPage1.cycle_time_us")
             .await
             .expect("could not create calibration object CalPage1.cycle_time_us");
+        let v = xcp_client.get_value_u64(cycle_time_us);
+        assert_eq!(v, 1000); 
 
         // Create a calibration object for CalPage.run
         debug!("Create calibration object CalPage1.run");
@@ -350,21 +352,24 @@ pub async fn xcp_test_executor(_xcp: &Xcp, test_mode_cal: TestModeCal, test_mode
         let v = xcp_client.get_value_u64(run);
         assert_eq!(v, 1);
 
+        // Create a calibration object for CalPage1.counter_max
+        let counter_max = xcp_client
+            .create_calibration_object("CalPage1.counter_max")
+            .await
+            .expect("could not create calibration object CalPage1.counter_max");
+        let v = xcp_client.get_value_u64(counter_max);
+        assert_eq!(v, 0xFFFF);
+
         //-------------------------------------------------------------------------------------------------------------------------------------
         // DAQ test single_thread or multi_thread
         if test_mode_daq == TestModeDaq::SingleThreadDAQ || test_mode_daq == TestModeDaq::MultiThreadDAQ {
             tokio::time::sleep(Duration::from_micros(10000)).await;
 
-            // Create a calibration object for CalPage1.counter_max
             // Set counter_max to 15
-            let counter_max = xcp_client
-                .create_calibration_object("CalPage1.counter_max")
-                .await
-                .expect("could not create calibration object CalPage1.counter_max");
             xcp_client.set_value_u64(counter_max, 15).await.unwrap();
             tokio::time::sleep(Duration::from_micros(100000)).await;
 
-            // Set cycle time
+            // Set cycle time to DAQ_TEST_TASK_SLEEP_TIME_US
             xcp_client.set_value_u64(cycle_time_us, DAQ_TEST_TASK_SLEEP_TIME_US).await.unwrap();
 
             // Check the DAQ clock
@@ -504,13 +509,40 @@ pub async fn xcp_test_executor(_xcp: &Xcp, test_mode_cal: TestModeCal, test_mode
                 .await
                 .expect("could not create calibration object CalPage1.test_i16");
             let v = xcp_client.get_value_i64(test_i32);
-            debug!("test_i32 = {}", v);
+            assert_eq!(v,-1);
             xcp_client.set_value_i64(test_i32, 1).await.unwrap();
             let v = xcp_client.get_value_i64(test_i32);
-            debug!("test_i32 = {}", v);
+            assert_eq!(v,1);
             xcp_client.set_value_i64(test_i32, -1).await.unwrap();
             let v = xcp_client.get_value_i64(test_i32);
-            debug!("test_i32 = {}", v);
+            assert_eq!(v,-1);
+
+            // Test u64
+            debug!("Create calibration object CalPage1.cal_test");
+            let cal_test = xcp_client
+                .create_calibration_object("CalPage1.cal_test")
+                .await
+                .expect("could not create calibration object CalPage1.cal_test");
+            let v = xcp_client.get_value_u64(cal_test);
+            println!("cal_test={:X}",v);
+            assert_eq!(v,0x5555555500000000u64);
+            debug!("Create calibration object CalPage1.TestInts.test_u64");
+            let test_u64 = xcp_client
+                .create_calibration_object("CalPage1.TestInts.test_u64")
+                .await
+                .expect("could not create calibration object CalPage1.test_f64");
+            let v = xcp_client.get_value_u64(test_u64);
+            println!("test_u64={:X}",v);
+            //assert_eq!(v,0x0102030405060708u64); // @@@@ fail !!!!!!!!!!!!!!!!!
+
+            // Test f64
+            debug!("Create calibration object CalPage1.test_f64");
+            let test_f64 = xcp_client
+                .create_calibration_object("CalPage1.TestInts.test_f64")
+                .await
+                .expect("could not create calibration object CalPage1.test_f64");
+            let v = xcp_client.get_value_f64(test_f64);
+            // assert_eq!(v,0.123456789E-100); // @@@@ fail !!!!!!!!!!!!!!!!!
 
             // Test static
             debug!("Create calibration object static_vars.test_u32");
@@ -570,10 +602,10 @@ pub async fn xcp_test_executor(_xcp: &Xcp, test_mode_cal: TestModeCal, test_mode
                 // Speed up task cycle time to CAL_TEST_TASK_SLEEP_TIME_US, this will set the calseg.sync() rate and pattern checking rate
                 xcp_client.set_value_u64(cycle_time_us, CAL_TEST_TASK_SLEEP_TIME_US).await.unwrap();
 
-                // Create calibration variable CalPage1.cal_test
+                // Get address of calibration variable CalPage1.cal_test
                 let res = a2l_reader::a2l_find_characteristic(xcp_client.get_a2l_file().unwrap(), "CalPage1.cal_test").unwrap();
                 let addr_cal_test = res.0.addr;
-                debug!("download cal_test = 0x{:X}\n", res.0.addr);
+                debug!("Address of CalPage1.cal_test = 0x{:X}\n", res.0.addr);
 
                 // Calibration loop
                 // Set calibration variable cal_test to a defined pattern which will be checked by the server application task

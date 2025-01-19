@@ -61,8 +61,8 @@ struct CalPage1 {
 
 // Default values for the calibration parameters
 const CAL_PAR1: CalPage1 = CalPage1 {
-    run: true,             // Stop test task when false
-    cycle_time_us: 100000, // Default cycle time 100ms, will be set by xcp_test_executor
+    run: true, // Stop test task when false
+    cycle_time_us: 1000, // Default 1ms, will be set by test executor 
     counter_max: 0xFFFF,
     cal_test: 0x5555555500000000u64,
     sync_test1: 0,

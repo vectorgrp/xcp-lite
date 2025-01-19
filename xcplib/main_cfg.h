@@ -36,9 +36,9 @@
 // XCP options
 #define OPTION_ENABLE_TCP
 #define OPTION_ENABLE_UDP
-#define OPTION_MTU 8000               // UDP MTU size - Jumbo Frames
-#define OPTION_QUEUE_SIZE 200         // Max number of ODTs in transmit queue
-#define OPTION_DAQ_MEM_SIZE (6000*5)  // Memory for DAQ tables - sufficient for about 6000 measurement signals
+#define OPTION_MTU 8000               // UDP MTU size - Jumbo frames supported
+#define OPTION_QUEUE_SIZE 1024        // Max number of ODTs in transmit queue
+#define OPTION_DAQ_MEM_SIZE (3000*5)  // Max memory for DAQ tables - sufficient for about 3000 measurement signals
 #define OPTION_ENABLE_A2L_UPLOAD
 
 #if defined(_LINUX) && !defined(_MACOS)
