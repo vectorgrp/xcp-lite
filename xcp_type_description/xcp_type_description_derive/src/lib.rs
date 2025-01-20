@@ -30,7 +30,7 @@ fn generate_type_description_impl(data_struct: syn::DataStruct, data_type: &syn:
 
         quote! {
             // Offset is the address of the field relative to the address of the struct
-            let offset = ((&self.#field_name as *const _ as *const u8 as usize) - (self as *const _ as *const u8 as usize)) as u16;
+            let offset = std::mem::offset_of!(#data_type, #field_name) as u16;
 
             // Check if the type of the field implements the XcpTypeDescription trait
             // If this is the case, the type_description is a nested struct and its name must
@@ -40,6 +40,8 @@ fn generate_type_description_impl(data_struct: syn::DataStruct, data_type: &syn:
             if let Some(inner_type_description) = <#field_type as XcpTypeDescription>::type_description(&self.#field_name) {
                 type_description.extend(inner_type_description.into_iter().map(|mut characteristic| {
                     characteristic.set_name(format!("{}.{}", stringify!(#data_type), characteristic.name()));
+                    let new_offset = offset + characteristic.offset();
+                    characteristic.set_offset(new_offset);
                     characteristic
                 }));
             // If the type does not implement the XcpTypeDescription trait, we can simply create a new FieldDescriptor from it

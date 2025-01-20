@@ -84,6 +84,10 @@ impl FieldDescriptor {
         self.offset
     }
 
+    pub fn set_offset(&mut self, offset: u16) {
+        self.offset = offset;
+    }
+
     pub fn set_name(&mut self, name: String) {
         self.name = name;
     }
