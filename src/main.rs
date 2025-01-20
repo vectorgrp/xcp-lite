@@ -139,7 +139,7 @@ const CAL_PAGE: CalPage = CalPage {
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(XcpTypeDescription, Debug, Clone, Copy)]
-struct TestInts {
+struct TestStruct2 {
     test_bool: bool,
     test_u8: u8,
     test_u16: u16,
@@ -155,28 +155,84 @@ struct TestInts {
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(XcpTypeDescription, Debug, Clone, Copy)]
+struct TestStruct1 {
+    test_bool: bool,
+    test_u8: u8,
+    test_u16: u16,
+    test_u32: u32,
+    test_u64: u64,
+    test_i8: i8,
+    test_i16: i16,
+    test_i32: i32,
+    test_i64: i64,
+    test_f32: f32,
+    test_f64: f64,
+    test_struct: TestStruct2,
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(XcpTypeDescription, Debug, Clone, Copy)]
 struct CalPage1 {
     counter_max: u32,
 
     // Other basic types supported
-    test_ints: TestInts,
+    test_bool: bool,
+    test_u8: u8,
+    test_u16: u16,
+    test_u32: u32,
+    test_u64: u64,
+    test_i8: i8,
+    test_i16: i16,
+    test_i32: i32,
+    test_i64: i64,
+    test_f32: f32,
+    test_f64: f64,
+
+    // Nested struct with basic types
+    test_struct: TestStruct1,
 }
 
 const CAL_PAGE1: CalPage1 = CalPage1 {
-    counter_max: 1000,
+    counter_max: 1000u32,
 
-    test_ints: TestInts {
+    test_bool: false,
+    test_u8: 0x12u8,
+    test_u16: 0x1234u16,
+    test_u32: 0x12345678u32,
+    test_u64: 0x0102030405060708u64,
+    test_i8: -1i8,
+    test_i16: -1i16,
+    test_i32: -1i32,
+    test_i64: -1i64,
+    test_f32: 0.123456E-10f32,
+    test_f64: 0.123456789E-100f64,
+
+    test_struct: TestStruct1 {
         test_bool: false,
-        test_u8: 0x12,
-        test_u16: 0x1234,
-        test_u32: 0x12345678,
+        test_u8: 0x12u8,
+        test_u16: 0x1234u16,
+        test_u32: 0x12345678u32,
         test_u64: 0x0102030405060708u64,
-        test_i8: -1,
-        test_i16: -1,
-        test_i32: -1,
-        test_i64: -1,
-        test_f32: 0.123456E-10,
-        test_f64: 0.123456789E-100,
+        test_i8: -1i8,
+        test_i16: -1i16,
+        test_i32: -1i32,
+        test_i64: -1i64,
+        test_f32: 0.123456E-10f32,
+        test_f64: 0.123456789E-100f64,
+
+        test_struct: TestStruct2 {
+            test_bool: true,
+            test_u8: 0x21u8,
+            test_u16: 0x4321u16,
+            test_u32: 0x87654321u32,
+            test_u64: 0x0807060504030201u64,
+            test_i8: -1i8,
+            test_i16: -1i16,
+            test_i32: -1i32,
+            test_i64: -1i64,
+            test_f32: 0.123456E-10f32,
+            test_f64: 0.123456789E-100f64,
+        },
     },
 };
 

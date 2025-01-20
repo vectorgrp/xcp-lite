@@ -8,9 +8,10 @@
 use log::{debug, error, info, trace, warn};
 
 use core::panic;
-use std::{borrow::Cow, net::Ipv4Addr};
+use std::{borrow::Cow, cmp::Ordering, net::Ipv4Addr};
 
 use crate::xcp;
+use xcp::Xcp;
 use xcp::XcpEvent;
 
 mod a2l_writer;
@@ -564,6 +565,18 @@ impl RegistryCharacteristic {
             "VALUE"
         }
     }
+
+    /// Get address extension and address for A2L generation
+    fn get_a2l_addr(&self, registry: &Registry) -> (u8, u32) {
+        if let Some(calseg_name) = self.calseg_name {
+            // Segment relative addressing
+            let index = registry.get_cal_seg_index(calseg_name).expect("unknown calseg");
+            return Xcp::get_calseg_ext_addr(index, self.addr_offset.try_into().expect("offset too large"));
+        } else {
+            // Absolute addressing
+            return Xcp::get_abs_ext_addr(self.addr_offset);
+        };
+    }
 }
 
 #[derive(Debug)]
@@ -578,8 +591,18 @@ impl RegistryCharacteristicList {
         self.0.push(characteristic);
     }
 
-    pub fn sort(&mut self) {
+    pub fn sort_by_name(&mut self) {
         self.0.sort_by(|a, b| a.name.cmp(&b.name));
+    }
+    pub fn sort_by_calseg_and_offset(&mut self) {
+        self.0.sort_by(|a, b| {
+            let ordering = a.calseg_name.cmp(&b.calseg_name);
+            if Ordering::is_eq(ordering) {
+                a.addr_offset.cmp(&b.addr_offset)
+            } else {
+                ordering
+            }
+        });
     }
 
     pub fn iter(&self) -> std::slice::Iter<RegistryCharacteristic> {
@@ -829,7 +852,7 @@ impl Registry {
         // Sort measurement and calibration lists to get deterministic order
         // Event and CalSeg lists stay in the order they were added
         self.measurement_list.sort();
-        self.characteristic_list.sort();
+        self.characteristic_list.sort_by_calseg_and_offset();
 
         // Write to A2L file
         let a2l_name = self.name.unwrap();

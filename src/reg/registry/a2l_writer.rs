@@ -220,22 +220,13 @@ impl GenerateA2l for RegistryCharacteristic {
     fn write_a2l(&self, writer: &mut A2lWriter) -> std::io::Result<()> {
         let characteristic_type = self.get_type_str();
         let datatype = self.datatype.get_deposit_str();
-
-        // Calculate the address extension and address of this Characteristic
-        let (a2l_ext, a2l_addr) = if let Some(calseg_name) = self.calseg_name {
-            // Segment relative addressing
-            let index = writer.registry.get_cal_seg_index(calseg_name).expect("unknown calseg");
-            Xcp::get_calseg_ext_addr(index, self.addr_offset.try_into().expect("offset too large"))
-        } else {
-            // Absolute addressing
-            Xcp::get_abs_ext_addr(self.addr_offset)
-        };
+        let addr = self.get_a2l_addr(writer.registry);
 
         write!(
             writer,
             r#"
 /begin CHARACTERISTIC {} "{}" {} 0x{:X} {} 0 NO_COMPU_METHOD {} {}"#,
-            self.name, self.comment, characteristic_type, a2l_addr, datatype, self.min, self.max,
+            self.name, self.comment, characteristic_type, addr.1, datatype, self.min, self.max,
         )?;
 
         if self.x_dim > 1 || self.y_dim > 1 {
@@ -264,8 +255,8 @@ impl GenerateA2l for RegistryCharacteristic {
             write!(writer, r#" PHYS_UNIT "{}""#, self.unit)?;
         }
 
-        if a2l_ext != 0 {
-            write!(writer, " ECU_ADDRESS_EXTENSION {}", a2l_ext)?;
+        if addr.0 != 0 {
+            write!(writer, " ECU_ADDRESS_EXTENSION {}", addr.0)?;
         }
 
         if let Some(event) = self.event {

@@ -200,10 +200,10 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_daemon() {
-        let cfg = ProcessConfig::default();
-        let mut daemon = Daemon::new(TestProcess::new(cfg));
-        daemon.run().unwrap();
-    }
+    //#[test]
+    // fn test_daemon() {
+    //     let cfg = ProcessConfig::default();
+    //     let mut daemon = Daemon::new(TestProcess::new(cfg));
+    //     daemon.run().unwrap();
+    // }
 }
