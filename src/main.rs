@@ -73,7 +73,7 @@ use xcp_type_description::prelude::*;
 //-----------------------------------------------------------------------------
 // Static measurement variables
 
-// This is the classical address oriented calibration approach for indivual measurement signals
+// This is the classical address oriented calibration approach for individual measurement signals
 
 struct StaticVars {
     test_u32: u32,
@@ -85,13 +85,13 @@ static STATIC_VARS: static_cell::StaticCell<StaticVars> = static_cell::StaticCel
 //-----------------------------------------------------------------------------
 // Static calibration variables
 
-// This is the classical address oriented calibration approach for indivual calibration parameters or structs
+// This is the classical address oriented calibration approach for individual calibration parameters or structs
 // The calibration parameters are defined as static instances with constant memory address
 // Each variable or struct field has to be registered manually in the A2L registry
 // A2L addresses are absolute in the application process memory space (which means relative to the module load address)
 
-// This approach uses a OnceCell to initialize a static instance of calibration data, a mutable static instead would need unnsafe, a static might be in write protected memory and a const has no memory address
-// The inner UnsafeCell allows interiour mutability, but this could theoretically cause undefined behaviour or inconsistencies depending on the nature of the platform
+// This approach uses a OnceCell to initialize a static instance of calibration data, a mutable static instead would need unsafe, a static might be in write protected memory and a const has no memory address
+// The inner UnsafeCell allows interior mutability, but this could theoretically cause undefined behavior or inconsistencies depending on the nature of the platform
 // Many C,C++ implementations of XCP do not care about this, but this approach is not recommended for rust projects
 
 struct StaticCalPage {
@@ -106,8 +106,8 @@ static STATIC_CAL_PAGE: once_cell::sync::OnceCell<StaticCalPage> = once_cell::sy
 
 //-----------------------------------------------------------------------------
 // Dynamic calibration data example
-// This approach uses the segment oriented calibration approach with a calibrastion segment wrapper cell type
-// It provides defined behaviour, thread safety and data consistency
+// This approach uses the segment oriented calibration approach with a calibration segment wrapper cell type
+// It provides defined behavior, thread safety and data consistency
 // Fields may be automatically added to the A2L registry by the #[derive(serde::Serialize, serde::Deserialize)] feature and the XcpTypeDescription derive macro
 // Each page defines a MEMORY_SEGMENT in A2L and CANape
 // A2l addresses are relative to the segment start address, the segment number is coded in the address
@@ -362,7 +362,7 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
     // Create an event with capture capacity of 1024 bytes for point_cloud serialization
     let event = daq_create_event!("task1");
 
-    // Register signals of bassic types or array to be captured directly from stack
+    // Register signals of basic types or array to be captured directly from stack
     daq_register!(counter, event, "", "", 1.0, 0.0);
     daq_register!(counter_i8, event, "wrapping counter: i8", "");
     daq_register!(counter_u8, event, "wrapping counter: u8", "");

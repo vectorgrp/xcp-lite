@@ -14,7 +14,7 @@ cargo.lock
 *.tmp
 *.bin
 
-# Unnessesary CANape artefacts
+# Unnecessary CANape artefacts
 *.hex
 *.HEX
 *.mf4

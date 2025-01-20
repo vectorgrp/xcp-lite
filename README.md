@@ -24,10 +24,10 @@ Requires CANape 22. Example projects are updated to CANape 23.
 
 XCP is a measurement and calibration protocol commonly used in the automotive industry. It is an ASAM standard.  
 
-It provides real time signal acquisition (measurement) and modification of parameter constants (calibrations) in a target microcontroller system (ECU), to help observing and optimizing control algorithms in real time.  
+It provides real time signal acquisition (measurement) and modification of parameter constants (calibrations) in a target micro controller system (ECU), to help observing and optimizing control algorithms in real time.  
   
 Timestamped events, measurement variables and parameter constants are described by an ASAM-A2L description file, another associated ASAM standard. 
-Data objects are identified by an address. In a microcontroller system programmed in C or C++, these addresses are used to directly access the ECUs memory, like a debugger would do. This concept has minimum impact on the target system in terms of memory consumption and runtime. The A2l is a kind of annotated ELF Linker-Address-Map, with rich semantic information on data instances and data types.  
+Data objects are identified by an address. In a micro controller system programmed in C or C++, these addresses are used to directly access the ECUs memory, like a debugger would do. This concept has minimum impact on the target system in terms of memory consumption and runtime. The A2l is a kind of annotated ELF Linker-Address-Map, with rich semantic information on data instances and data types.  
 In a higher abstraction level programming language, XCP can be treated as a serializer/deserializer, where A2L is the schema, which is generated from the target software data types and instances. Measurement signals and calibration parameters must have static lifetime and a defined memory layout, but no predefined memory location. Data acquisition and modification is achieved by appropriate code instrumentation for measurement and wrapper types for calibration parameters and parameter groups.  
 
 The ASAM-XCP standard defines a protocol and a transport layer. There are transport layers for all common communication busses used in the automotive industry, such as CAN, CAN-FD, FLEXRAY, SPI and Ethernet.  
@@ -36,7 +36,7 @@ XCPlite (https://github.com/vectorgrp/XCPlite) is a simplified implementation of
 
 In C or C++ software, A2L data objects are usually created with global or static variables, which means they have a constant memory address. XCPlite for C++ introduced an additional code instrumentation concept to measure and calibrate instances of classes located on heap. It is still using direct memory access, but A2L addresses are relative and the lifetime of measurement variables is associated to events.
 
-An implementation of XCP in Rust, with direct memory access, will get into conflict with the memory and concurrency safety concepts of Rust. In Rust, mutating static variables by using pointers is considered Unsafe code, which might create undefined behaviour in parallel access. Thread safety when accessing any data will be strictly enforced. 
+An implementation of XCP in Rust, with direct memory access, will get into conflict with the memory and concurrency safety concepts of Rust. In Rust, mutating static variables by using pointers is considered Unsafe code, which might create undefined behavior in parallel access. Thread safety when accessing any data will be strictly enforced. 
 
 xcp-lite (https://github.com/vectorgrp/xcp-lite) is an implementation of XCP for Rust. It provides a user friendly concept to wrap structs with calibration parameters in a convenient and thread safe type, to make calibration parameters accessible and safely interior mutable by the XCP client tool. 
 To achieve this, the generation of the A2L description is part of the solution. In XCPlite this was an option. 
@@ -46,7 +46,7 @@ The calibration parameter wrapper type CalSeg enables all advanced calibration f
     
 xcp-lite also implements a concept to measure variables on stack or as thread local instances.   
 
-Currently xcp-lite for Rust uses a C library build from XCPlite sources, which contains the XCP server, an ethernet transport layer with its rx/tx server threads, the protocol layer, time stamp generation and time synchronisation. The C implementation is optimized for speed by minimizing copying and locking data. There are no heap allocations. The Rust layer includes the registry and A2L generation, wrapper types for calibration parameters and macros to capture measurement data on events. 
+Currently xcp-lite for Rust uses a C library build from XCPlite sources, which contains the XCP server, an ethernet transport layer with its rx/tx server threads, the protocol layer, time stamp generation and time synchronization. The C implementation is optimized for speed by minimizing copying and locking data. There are no heap allocations. The Rust layer includes the registry and A2L generation, wrapper types for calibration parameters and macros to capture measurement data on events. 
 
 The code should work on Linux, Windows and Mac, Intel and ARM.  
   
@@ -178,7 +178,7 @@ fn main() -> Result<()> {
     let xcp = XcpBuilder::new("my_module_name").set_log_level(2).set_epk("MY_EPK")
       .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)?;
 
-    // Create a calibration parameter set named "calsseg" (struct CalSeg, a MEMORY_SEGMENT in A2L and CANape)
+    // Create a calibration parameter set named "calseg" (struct CalSeg, a MEMORY_SEGMENT in A2L and CANape)
     // Calibration segments have 2 pages, a constant default "FLASH" page (CAL_PAGE) and a mutable "RAM" page
     // The RAM page can be loaded from a json file (load_json=true)
      let calseg = xcp.create_calseg(
@@ -210,7 +210,7 @@ fn main() -> Result<()> {
 The fundamental functional concept of this XCP implementation is, to mutate the calibration variables in their original binary representation in a thread safe, transparent wrapper type.  
 The implementation restricts memory accesses to the inner calibration page of a calibration segment, but does not check the correctness of modifications inside the calibration page. 
 As usual, the invariants to consider this safe, include the correctness of the A2L file and of the XCP client tool. When the A2L file is uploaded by the XCP tool on changes, this is always guaranteed. 
-The wrapper type is Send, not Sync and implements the Deref trait for convenience. This opens the possibility to get aliases to the inner calibration values, which should be avoided. But this will never cause undefined behaviour, as the values will just not get updated, when the XCP tool does a calibration page switch. 
+The wrapper type is Send, not Sync and implements the Deref trait for convenience. This opens the possibility to get aliases to the inner calibration values, which should be avoided. But this will never cause undefined behavior, as the values will just not get updated, when the XCP tool does a calibration page switch. 
 
 Code in Unsafe blocks exists in the following places:
 
@@ -279,8 +279,8 @@ Use --nocapture because the debug output from the XCPlite C library is via norma
 All measurement and calibration code instrumentation is non blocking and the trigger event and sync methods is optimized for speed and minimal locking.  
 There are no heap allocation during runtime, except for the lazy registrations of and for A2L generation.
   
-build.rs automatically builds a minimum static C library from individually preconfigured core XCPlite sources.   
-On C level, there is a synchronisation mutex for the mpsc transmit queue.  
+build.rs automatically builds a minimum static C library from individually pre configured core XCPlite sources.   
+On C level, there is a synchronization mutex for the mpsc transmit queue.  
 The C code has the option to start the server with 2 normal threads for rx and tx socket handling.
 
 The generated A2L file is finalized on XCP connect and provided for upload via XCP. 
@@ -302,7 +302,7 @@ The EPK version string in the A2L file can be set by the application. It resides
 
 ## Possible improvements
 
-- Create a lock free algorithm to acquire an entry in the MPSC event queue
+- Create a lock free algorithm to acquire an entry in the mpsc event queue
 - Support specialized types of calibration parameters, including types for curves and maps with axis
 - Avoid the mutex lock in CalSeg::Sync when there is no pending parameter modification or switch to a mcu algorithm  
 - Improve the meta data annotations of the A2L serializer

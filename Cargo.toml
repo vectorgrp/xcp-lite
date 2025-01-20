@@ -20,13 +20,11 @@ members = [
     "examples/hello_xcp",
     "examples/single_thread_demo",
     "examples/multi_thread_demo",
-    "examples/protobuf_demo",
     "examples/point_cloud_demo",
     "examples/rayon_demo",
     "examples/tokio_demo",
     "examples/type_description_demo",
-    "examples/xcp_idl_generator_demo",
-    "examples/xcp_daemon"
+    "examples/xcp_idl_generator_demo"
 ]
 
 

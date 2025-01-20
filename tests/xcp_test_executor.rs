@@ -533,7 +533,7 @@ pub async fn xcp_test_executor(_xcp: &Xcp, test_mode_cal: TestModeCal, test_mode
                 .expect("could not create calibration object CalPage1.test_f64");
             let v = xcp_client.get_value_u64(test_u64);
             println!("test_u64={:X}", v);
-            assert_eq!(v, 0x0102030405060708u64); // @@@@ fail !!!!!!!!!!!!!!!!!
+            assert_eq!(v, 0x0102030405060708u64);
 
             // Test f64
             debug!("Create calibration object CalPage1.test_f64");
@@ -542,7 +542,7 @@ pub async fn xcp_test_executor(_xcp: &Xcp, test_mode_cal: TestModeCal, test_mode
                 .await
                 .expect("could not create calibration object CalPage1.test_f64");
             let v = xcp_client.get_value_f64(test_f64);
-            assert_eq!(v, 0.123456789E-100); // @@@@ fail !!!!!!!!!!!!!!!!!
+            assert_eq!(v, 0.123456789E-100);
 
             // Test static
             debug!("Create calibration object static_vars.test_u32");

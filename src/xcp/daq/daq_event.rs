@@ -510,7 +510,7 @@ macro_rules! daq_create_event_tli {
 /// Register the given meta data once for each event instance
 /// The events index number will be appended to the variable name
 /// Append an index to the variable name to distinguish between different threads
-// @@@@ The offset does not need to be stores in thread local storage, sttaic would be sufficient, as it is the same for all instances of a task
+// @@@@ The offset does not need to be stored in thread local storage, static would be sufficient, as it is the same for all instances of a task
 #[allow(unused_macros)]
 #[macro_export]
 macro_rules! daq_capture_tli {

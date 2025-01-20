@@ -716,7 +716,7 @@ impl XcpClient {
 
                                             // Handle DAQ data if DAQ running
                                             if c.running {
-                                                let mut m = decode_daq.lock(); // @@@@ Unnessesary mutex ?????
+                                                let mut m = decode_daq.lock(); // @@@@ Unnecessary mutex ?????
                                                 m.decode(ctr_lost, &buf[i + 4..i + 4 + len]);
                                                 ctr_lost = 0;
                                             } // running
