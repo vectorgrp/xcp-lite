@@ -13,7 +13,7 @@ concurrency:
 jobs:
     lint:
         name: Lint
-        runs-on: [ubuntu-22.04]
+        runs-on: [production]
         steps:
         - uses: actions/checkout@v3
         - uses: moonrepo/setup-rust@v1
@@ -28,7 +28,7 @@ jobs:
       needs: [lint]
       strategy:
         matrix:
-          os: [ubuntu-22.04, macos-13, macos-14, windows-2022]
+          os: [production]
         fail-fast: false
       steps:
         - uses: actions/checkout@v3
@@ -44,7 +44,7 @@ jobs:
         needs: [build]
         strategy:
           matrix:
-            os: [ubuntu-22.04, macos-13, macos-14, windows-2022]
+            os: [production]
           fail-fast: false
         steps:
         - uses: actions/checkout@v3
