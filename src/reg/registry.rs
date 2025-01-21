@@ -572,10 +572,10 @@ impl RegistryCharacteristic {
             // Segment relative addressing
             let index = registry.get_cal_seg_index(calseg_name).expect("unknown calseg");
             return Xcp::get_calseg_ext_addr(index, self.addr_offset.try_into().expect("offset too large"));
-        } else {
-            // Absolute addressing
-            return Xcp::get_abs_ext_addr(self.addr_offset);
-        };
+        }
+        // Absolute addressing
+        Xcp::get_abs_ext_addr(self.addr_offset)
+
     }
 }
 

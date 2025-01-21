@@ -2,6 +2,8 @@
 // Sub Module a2l_writer
 // Export an A2L file from super::registry
 
+#![allow(clippy::needless_raw_string_hashes)]
+
 use std::io::Write;
 
 #[allow(unused_imports)]

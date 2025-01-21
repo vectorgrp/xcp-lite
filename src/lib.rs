@@ -126,11 +126,6 @@ pub use reg::RegistryDataType;
 pub use reg::RegistryDataTypeTrait;
 pub use reg::RegistryMeasurement;
 
-// Submodule daemon
-mod daemon;
-#[cfg(unix)]
-pub use daemon::unix::*;
-
 pub use xcp_idl_generator::prelude::*;
 pub use xcp_type_description::prelude::*;
 

@@ -37,10 +37,6 @@ name = "hello_xcp"
 path = "examples/hello_xcp/src/main.rs"
 
 [[example]]
-name = "xcp_daemon"
-path = "examples/xcp_daemon/src/main.rs"
-
-[[example]]
 name = "single_thread_demo"
 path = "examples/single_thread_demo/src/main.rs"
 
@@ -71,12 +67,10 @@ path = "examples/protobuf_demo/src/main.rs"
 
 [features]
 
-# Feature xcp_daemon, xcp_appl enable multi-app/daemon mode
+# Feature xcp_appl enable multi-app
 # Unimplemented yet
 xcp_appl = []
-xcp_daemon = []
 # default = ["xcp_appl"] 
-# default = ["xcp_daemon"] 
 
 # Feature load, save and freeze calibration segment to json
 serde = ["dep:serde","dep:serde_json"]
@@ -135,15 +129,6 @@ serde_json = { version = "1.0" , optional = true}
 
 # A2L checker
 a2lfile = { version="2.2.0", optional = true}
-
-# Unix Only, dependencies required for daemonization
-[target.'cfg(unix)'.dependencies]
-# Unix Signal Handling
-signal-hook = "0.3.17"
-# Syslog logging
-syslog = "7.0.0"
-# Bindings to unix APIs
-nix = { version = "0.29.0", features = ["process", "fs"] }
 
 [dev-dependencies]
 

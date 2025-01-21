@@ -59,7 +59,7 @@ fn main() -> Result<()> {
     // Logging
     env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(log::LevelFilter::Info).init();
 
-    // XCP: Initalize the XCP server
+    // XCP: Initialize the XCP server
     let xcp = XcpBuilder::new("hello_xcp")
         .set_log_level(3)
         .set_epk("EPK_")
