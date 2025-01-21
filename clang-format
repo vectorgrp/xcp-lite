@@ -1,0 +1,12 @@
+---
+BasedOnStyle: LLVM
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 120
+
+# NOTE: Cpp is used for both C and C++
+Language: Cpp
+SortIncludes: false
+...
+

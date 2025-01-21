@@ -13,7 +13,6 @@
 |   Parameter configuration for XCP protocol layer parameters
  ----------------------------------------------------------------------------*/
 
-
 /*----------------------------------------------------------------------------*/
 /* Version */
 
@@ -24,18 +23,18 @@
 #define XCP_ENABLE_PROTOCOL_LAYER_ETH
 
 // Protocol layer version
-//#define XCP_PROTOCOL_LAYER_VERSION 0x0101
-//#define XCP_PROTOCOL_LAYER_VERSION 0x0103  // GET_DAQ_CLOCK_MULTICAST, GET_TIME_CORRELATION_PROPERTIES
-#define XCP_PROTOCOL_LAYER_VERSION 0x0104  // PACKED_MODE, CC_START_STOP_SYNCH prepare
+// #define XCP_PROTOCOL_LAYER_VERSION 0x0101
+// #define XCP_PROTOCOL_LAYER_VERSION 0x0103  // GET_DAQ_CLOCK_MULTICAST, GET_TIME_CORRELATION_PROPERTIES
+#define XCP_PROTOCOL_LAYER_VERSION 0x0104 // PACKED_MODE, CC_START_STOP_SYNCH prepare
 
 /*----------------------------------------------------------------------------*/
 /* Adress, address extension coding */
 
-// Use addr_ext XCP_ADDR_EXT_ABS to indicate absulute addr format (ApplXcpGetBaseAddr()+(uint32_t)addr) 
+// Use addr_ext XCP_ADDR_EXT_ABS to indicate absulute addr format (ApplXcpGetBaseAddr()+(uint32_t)addr)
 #define XCP_ENABLE_ABS_ADDRESSING
-#define XCP_ADDR_EXT_ABS 0x01 // Absolute address format 
+#define XCP_ADDR_EXT_ABS 0x01 // Absolute address format
 
-// Use addr_ext XCP_ADDR_EXT_DYN to indicate relative addr format (event<<16)|offset 
+// Use addr_ext XCP_ADDR_EXT_DYN to indicate relative addr format (event<<16)|offset
 #define XCP_ENABLE_DYN_ADDRESSING
 #define XCP_ADDR_EXT_DYN 0x02 // Relative address format
 
@@ -50,7 +49,7 @@
 // Use addr_ext XCP_ADDR_EXT_A2L to indicate A2L upload memory space
 #define XCP_ADDR_EXT_A2L 0xFD
 #define XCP_ADDR_A2l 0x00000000
-// Use addr_ext XCP_ADDR_EXT_PTR to indicate gXcp.MtaPtr is valid 
+// Use addr_ext XCP_ADDR_EXT_PTR to indicate gXcp.MtaPtr is valid
 #define XCP_ADDR_EXT_PTR 0xFE
 
 // Undefined address extension
@@ -59,7 +58,7 @@
 // Make XcpEvent thread safe for same CAL event coming from different threads
 // Needed for xcp-lite, because CalSeg cal sync events may come from different threads
 #ifdef XCP_ENABLE_DYN_ADDRESSING
-  #define XCP_ENABLE_MULTITHREAD_CAL_EVENTS 
+#define XCP_ENABLE_MULTITHREAD_CAL_EVENTS
 #endif
 
 /*----------------------------------------------------------------------------*/
@@ -67,8 +66,8 @@
 
 #define XCP_ENABLE_CAL_PAGE // Enable calibration page switching commands
 #ifdef XCP_ENABLE_CAL_PAGE
-  #define XCP_ENABLE_COPY_CAL_PAGE // // Enable calibration page initialization (FLASH->RAM copy)
-  #define XCP_ENABLE_FREEZE_CAL_PAGE // Enable calibration freeze command
+#define XCP_ENABLE_COPY_CAL_PAGE   // // Enable calibration page initialization (FLASH->RAM copy)
+#define XCP_ENABLE_FREEZE_CAL_PAGE // Enable calibration freeze command
 #endif
 
 #define XCP_ENABLE_CHECKSUM // Enable checksum calculation command
@@ -81,7 +80,7 @@
 /* GET_ID command */
 
 #ifdef OPTION_ENABLE_A2L_UPLOAD
-#define XCP_ENABLE_IDT_A2L_UPLOAD // Enable upload A2L via XCP 
+#define XCP_ENABLE_IDT_A2L_UPLOAD // Enable upload A2L via XCP
 #endif
 
 /*----------------------------------------------------------------------------*/
@@ -94,7 +93,7 @@
 /* DAQ features and parameters */
 
 // Maximum number of DAQ events
-// If XCP_MAX_EVENT_COUNT is defined, DAQ list to event association lookup will be optimized 
+// If XCP_MAX_EVENT_COUNT is defined, DAQ list to event association lookup will be optimized
 // Requires XCP_MAX_EVENT_COUNT * 2 bytes of memory
 // XCP_MAX_EVENT_COUNT must be even
 // #define XCP_MAX_EVENT_COUNT 256 // For available event numbers from 0 to 255
@@ -107,63 +106,60 @@
 // Static allocated memory for DAQ tables
 // Amount of memory for DAQ tables, each ODT entry (e.g. measurement variable) needs 5 bytes, each DAQ list 12 bytes and each ODT 8 bytes
 #ifdef OPTION_DAQ_MEM_SIZE
-#define XCP_DAQ_MEM_SIZE OPTION_DAQ_MEM_SIZE 
+#define XCP_DAQ_MEM_SIZE OPTION_DAQ_MEM_SIZE
 #else
-#define XCP_DAQ_MEM_SIZE (1024*5) // Amount of memory for DAQ tables, each ODT entry (e.g. measurement variable or memory block) needs 5 bytes
+#define XCP_DAQ_MEM_SIZE (1024 * 5) // Amount of memory for DAQ tables, each ODT entry (e.g. measurement variable or memory block) needs 5 bytes
 #endif
-
 
 // Enable event list
 // Not needed for Rust xcp-lite
-// #define XCP_ENABLE_DAQ_EVENT_LIST 
+// #define XCP_ENABLE_DAQ_EVENT_LIST
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
 
-  // #define XCP_ENABLE_DAQ_EVENT_INFO // Enable XCP_GET_EVENT_INFO, if this is enabled, A2L file event information will be ignored
+// #define XCP_ENABLE_DAQ_EVENT_INFO // Enable XCP_GET_EVENT_INFO, if this is enabled, A2L file event information will be ignored
 
-  // Make XcpEventExt thread safe for same DAQ event coming from different threads
-  // #define XCP_ENABLE_MULTITHREAD_DAQ_EVENTS 
-  // This should be very unusual, XcpEvent performance will be decreased
-  // Requires event list, additional mutex is located in XcpEvent
+// Make XcpEventExt thread safe for same DAQ event coming from different threads
+// #define XCP_ENABLE_MULTITHREAD_DAQ_EVENTS
+// This should be very unusual, XcpEvent performance will be decreased
+// Requires event list, additional mutex is located in XcpEvent
 
-  // #define XCP_MAX_EVENT_NAME 16
+// #define XCP_MAX_EVENT_NAME 16
 
-  // Enable checking for clock monotony (no decreasing timestamp), use for debugging only, performance and memory impact
-  // #define XCP_ENABLE_TIMESTAMP_CHECK
+// Enable checking for clock monotony (no decreasing timestamp), use for debugging only, performance and memory impact
+// #define XCP_ENABLE_TIMESTAMP_CHECK
 
-#endif 
+#endif
 
 // Overrun indication via PID
 // Not needed for Ethernet, client detects data loss via transport layer counters
-//#define XCP_ENABLE_OVERRUN_INDICATION_PID
+// #define XCP_ENABLE_OVERRUN_INDICATION_PID
 
 // Clock resolution
-//#define XCP_DAQ_CLOCK_32BIT  // Use 32 Bit time stamps
-#define XCP_DAQ_CLOCK_64BIT // Use 64 Bit time stamps
-#if CLOCK_TICKS_PER_S == 1000000  //  us 
-  #define XCP_TIMESTAMP_UNIT DAQ_TIMESTAMP_UNIT_1US // unit
-  #define XCP_TIMESTAMP_TICKS 1  // ticks per unit
+// #define XCP_DAQ_CLOCK_32BIT  // Use 32 Bit time stamps
+#define XCP_DAQ_CLOCK_64BIT                       // Use 64 Bit time stamps
+#if CLOCK_TICKS_PER_S == 1000000                  //  us
+#define XCP_TIMESTAMP_UNIT DAQ_TIMESTAMP_UNIT_1US // unit
+#define XCP_TIMESTAMP_TICKS 1                     // ticks per unit
 #endif
-#if CLOCK_TICKS_PER_S == 1000000000  // ns
-  #define XCP_TIMESTAMP_UNIT DAQ_TIMESTAMP_UNIT_1NS // unit
-  #define XCP_TIMESTAMP_TICKS 1  // ticks per unit
+#if CLOCK_TICKS_PER_S == 1000000000               // ns
+#define XCP_TIMESTAMP_UNIT DAQ_TIMESTAMP_UNIT_1NS // unit
+#define XCP_TIMESTAMP_TICKS 1                     // ticks per unit
 #endif
 
 // Grandmaster clock (optional, use XcpSetGrandmasterClockInfo, implement ApplXcpGetClockInfoGrandmaster)
 #define XCP_ENABLE_PTP
-#define XCP_DAQ_CLOCK_UIID { 0xdc,0xa6,0x32,0xFF,0xFE,0x7e,0x66,0xdc }
+#define XCP_DAQ_CLOCK_UIID {0xdc, 0xa6, 0x32, 0xFF, 0xFE, 0x7e, 0x66, 0xdc}
 
-// Enable GET_DAQ_CLOCK_MULTICAST 
+// Enable GET_DAQ_CLOCK_MULTICAST
 // Not recommended
-// #define XCP_ENABLE_DAQ_CLOCK_MULTICAST 
+// #define XCP_ENABLE_DAQ_CLOCK_MULTICAST
 #ifdef XCP_ENABLE_DAQ_CLOCK_MULTICAST
-  // XCP default cluster id (multicast addr 239,255,0,1, group 127,0,1 (mac 01-00-5E-7F-00-01)
-  #define XCP_MULTICAST_CLUSTER_ID 1
+// XCP default cluster id (multicast addr 239,255,0,1, group 127,0,1 (mac 01-00-5E-7F-00-01)
+#define XCP_MULTICAST_CLUSTER_ID 1
 #endif
 
-
 //-------------------------------------------------------------------------------
-// Debug 
+// Debug
 
 // Enable extended error checks, performance penalty !!!
 #define XCP_ENABLE_TEST_CHECKS
-

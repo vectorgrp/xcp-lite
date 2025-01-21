@@ -8,33 +8,31 @@
 
 // Windows or Linux/macOS ?
 #if defined(_WIN32) || defined(_WIN64)
-  #define _WIN
-  #if defined(_WIN32) && defined(_WIN64)
-    #undef _WIN32
-  #endif
-  #if defined(_LINUX) || defined(_LINUX64)|| defined(_LINUX32)
-    #error
-  #endif
-#else
-  #define _LINUX
-  #if defined (_ix64_) || defined (__x86_64__) || defined (__aarch64__)
-    #define _LINUX64
-    #ifdef __APPLE__
-      #define _MACOS64
-    #endif
-  #else
-    #error "32 Bit OS not supported"
-    #define _LINUX32
-    #ifdef __APPLE__
-      #define _MACOS32
-    #endif
-  #endif
-  #if defined(_WIN) || defined(_WIN64)|| defined(_WIN32)
-    #error
-  #endif
+#define _WIN
+#if defined(_WIN32) && defined(_WIN64)
+#undef _WIN32
 #endif
-
-
+#if defined(_LINUX) || defined(_LINUX64) || defined(_LINUX32)
+#error
+#endif
+#else
+#define _LINUX
+#if defined(_ix64_) || defined(__x86_64__) || defined(__aarch64__)
+#define _LINUX64
+#ifdef __APPLE__
+#define _MACOS64
+#endif
+#else
+#error "32 Bit OS not supported"
+#define _LINUX32
+#ifdef __APPLE__
+#define _MACOS32
+#endif
+#endif
+#if defined(_WIN) || defined(_WIN64) || defined(_WIN32)
+#error
+#endif
+#endif
 
 #ifdef _WIN
 #define WIN32_LEAN_AND_MEAN
@@ -42,7 +40,6 @@
 #else
 #define _DEFAULT_SOURCE
 #endif
-
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,7 +68,6 @@
 
 #endif
 
-
 #ifdef __cplusplus
 #include <typeinfo>
 #include <thread>
@@ -84,4 +80,3 @@
 #define TRUE 1
 
 #include "main_cfg.h"
-

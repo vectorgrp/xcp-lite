@@ -15,7 +15,7 @@
 #include "main.h"
 #include "platform.h"
 #include "dbg_print.h"
-#include "xcpLite.h"   
+#include "xcpLite.h"
 #include "xcpEthServer.h"
 
 #ifndef __MAIN_CFG_H__
@@ -27,18 +27,18 @@
 #if defined(_WIN) // Windows
 static DWORD WINAPI XcpServerReceiveThread(LPVOID lpParameter);
 #elif defined(_LINUX) // Linux
-static void* XcpServerReceiveThread(void* par);
+static void *XcpServerReceiveThread(void *par);
 #endif
 #if defined(_WIN) // Windows
 static DWORD WINAPI XcpServerTransmitThread(LPVOID lpParameter);
 #elif defined(_LINUX) // Linux
-static void* XcpServerTransmitThread(void* par);
+static void *XcpServerTransmitThread(void *par);
 #endif
 
+static struct
+{
 
-static struct {
-
-    BOOL isInit; 
+    BOOL isInit;
 
     // Threads
     THREAD TransmitThreadHandle;
@@ -46,28 +46,29 @@ static struct {
     THREAD ReceiveThreadHandle;
     volatile BOOL ReceiveThreadRunning;
 
-    MUTEX TransmitQueueMutex; 
+    MUTEX TransmitQueueMutex;
 
 } gXcpServer;
 
-
 // Check XCP server status
-BOOL XcpEthServerStatus() {
+BOOL XcpEthServerStatus()
+{
     return gXcpServer.isInit && gXcpServer.TransmitThreadRunning && gXcpServer.ReceiveThreadRunning;
 }
 
-
 // XCP server init
-BOOL XcpEthServerInit(const uint8_t* addr, uint16_t port, BOOL useTCP)
+BOOL XcpEthServerInit(const uint8_t *addr, uint16_t port, BOOL useTCP)
 {
     int r = 0;
 
-    if (gXcpServer.isInit) return FALSE;
+    if (gXcpServer.isInit)
+        return FALSE;
     DBG_PRINT3("Start XCP server\n");
 
     // Init network sockets
-    if (!socketStartup()) return FALSE;
-    
+    if (!socketStartup())
+        return FALSE;
+
     gXcpServer.TransmitThreadRunning = FALSE;
     gXcpServer.ReceiveThreadRunning = FALSE;
 
@@ -76,7 +77,8 @@ BOOL XcpEthServerInit(const uint8_t* addr, uint16_t port, BOOL useTCP)
 
     // Initialize XCP transport layer
     r = XcpEthTlInit(addr, port, useTCP, TRUE /*blocking rx*/);
-    if (!r) return 0;
+    if (!r)
+        return 0;
 
     // Start XCP protocol layer
     XcpStart();
@@ -90,11 +92,13 @@ BOOL XcpEthServerInit(const uint8_t* addr, uint16_t port, BOOL useTCP)
     return TRUE;
 }
 
-BOOL XcpEthServerShutdown() {
+BOOL XcpEthServerShutdown()
+{
 
 #ifdef XCP_SERVER_FORCEFULL_TERMINATION
     // Forcefull termination
-    if (gXcpServer.isInit) {
+    if (gXcpServer.isInit)
+    {
         DBG_PRINT3("Disconnect, cancel threads and shutdown XCP!\n");
         XcpDisconnect();
         cancel_thread(gXcpServer.ReceiveThreadHandle);
@@ -107,7 +111,8 @@ BOOL XcpEthServerShutdown() {
     }
 #else
     // Gracefull termination
-    if (gXcpServer.isInit) {
+    if (gXcpServer.isInit)
+    {
         XcpDisconnect();
         gXcpServer.ReceiveThreadRunning = FALSE;
         gXcpServer.TransmitThreadRunning = FALSE;
@@ -123,12 +128,11 @@ BOOL XcpEthServerShutdown() {
     return TRUE;
 }
 
-
 // XCP server unicast command receive thread
 #if defined(_WIN) // Windows
 DWORD WINAPI XcpServerReceiveThread(LPVOID par)
 #elif defined(_LINUX) // Linux
-extern void* XcpServerReceiveThread(void* par)
+extern void *XcpServerReceiveThread(void *par)
 #endif
 {
     (void)par;
@@ -136,21 +140,25 @@ extern void* XcpServerReceiveThread(void* par)
 
     // Receive XCP unicast commands loop
     gXcpServer.ReceiveThreadRunning = TRUE;
-    while (gXcpServer.ReceiveThreadRunning) { 
-      if (!XcpEthTlHandleCommands(XCPTL_TIMEOUT_INFINITE)) { // Timeout Blocking
-        DBG_PRINT_ERROR("ERROR: XcpTlHandleCommands failed!\n");
-        break; // error -> terminate thread
-      }
-      else {
-        // Handle transmit queue after each command, to keep the command latency short
-        mutexLock(&gXcpServer.TransmitQueueMutex);
-        int32_t n = XcpTlHandleTransmitQueue();
-        mutexUnlock(&gXcpServer.TransmitQueueMutex);
-        if (n<0) {
-          DBG_PRINT_ERROR("ERROR: XcpTlHandleTransmitQueue failed!\n");
-          break; // error - terminate thread
+    while (gXcpServer.ReceiveThreadRunning)
+    {
+        if (!XcpEthTlHandleCommands(XCPTL_TIMEOUT_INFINITE))
+        { // Timeout Blocking
+            DBG_PRINT_ERROR("ERROR: XcpTlHandleCommands failed!\n");
+            break; // error -> terminate thread
         }
-      }
+        else
+        {
+            // Handle transmit queue after each command, to keep the command latency short
+            mutexLock(&gXcpServer.TransmitQueueMutex);
+            int32_t n = XcpTlHandleTransmitQueue();
+            mutexUnlock(&gXcpServer.TransmitQueueMutex);
+            if (n < 0)
+            {
+                DBG_PRINT_ERROR("ERROR: XcpTlHandleTransmitQueue failed!\n");
+                break; // error - terminate thread
+            }
+        }
     }
     gXcpServer.ReceiveThreadRunning = FALSE;
 
@@ -158,12 +166,11 @@ extern void* XcpServerReceiveThread(void* par)
     return 0;
 }
 
-
 // XCP server transmit thread
 #if defined(_WIN) // Windows
 DWORD WINAPI XcpServerTransmitThread(LPVOID par)
 #elif defined(_LINUX) // Linux
-extern void* XcpServerTransmitThread(void* par)
+extern void *XcpServerTransmitThread(void *par)
 #endif
 {
     (void)par;
@@ -173,18 +180,21 @@ extern void* XcpServerTransmitThread(void* par)
 
     // Transmit loop
     gXcpServer.TransmitThreadRunning = TRUE;
-    while (gXcpServer.TransmitThreadRunning) {
+    while (gXcpServer.TransmitThreadRunning)
+    {
 
         // Wait for transmit data available, time out at least for required flush cycle
-        if (!XcpTlWaitForTransmitData(XCPTL_QUEUE_FLUSH_CYCLE_MS)) XcpTlFlushTransmitBuffer(); // Flush after timeout to keep data visualization going
+        if (!XcpTlWaitForTransmitData(XCPTL_QUEUE_FLUSH_CYCLE_MS))
+            XcpTlFlushTransmitBuffer(); // Flush after timeout to keep data visualization going
 
         // Transmit all completed messages from the transmit queue
         mutexLock(&gXcpServer.TransmitQueueMutex);
         n = XcpTlHandleTransmitQueue();
         mutexUnlock(&gXcpServer.TransmitQueueMutex);
-        if (n<0) {
-          DBG_PRINT_ERROR("ERROR: XcpTlHandleTransmitQueue failed!\n");
-          break; // error - terminate thread
+        if (n < 0)
+        {
+            DBG_PRINT_ERROR("ERROR: XcpTlHandleTransmitQueue failed!\n");
+            break; // error - terminate thread
         }
 
     } // for (;;)
@@ -193,6 +203,5 @@ extern void* XcpServerTransmitThread(void* par)
     DBG_PRINT3("XCP transmit thread terminated!\n");
     return 0;
 }
-
 
 #endif
