@@ -67,8 +67,8 @@
 // Use multicast time synchronisation to improve synchronisation of multiple XCP slaves
 // This option is available since XCP V1.3, but using it, needs to create an additional thread and socket for multicast reception
 // There is no benefit if PTP time synchronized is used or if there is only one XCP device
-// Older CANape versions expect this option is on by default -> turn it off in device/protocol/event/TIME_CORRELATION_GETDAQCLOCK by changing from "multicast" to "extended response"
-// #define XCPTL_ENABLE_MULTICAST
+// Older CANape versions expect this option is on by default -> turn it off in device/protocol/event/TIME_CORRELATION_GETDAQCLOCK by changing from "multicast" to "extended
+// response" #define XCPTL_ENABLE_MULTICAST
 #if defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)
 #ifdef XCPTL_ENABLE_MULTICAST
 // #define XCLTL_RESTRICT_MULTICAST

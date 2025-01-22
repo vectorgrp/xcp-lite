@@ -1036,12 +1036,10 @@
 
 /* TRIGGER_INITIATOR:
     0 = HW trigger, i.e.Vector Syncline
-    1 = Event derived from XCP - independent time synchronization event - e.g.globally synchronized pulse per second signal
-    2 = GET_DAQ_CLOCK_MULTICAST
-    3 = GET_DAQ_CLOCK_MULTICAST via Time Sync Bridge
-    4 = State change in syntonization / synchronization to grandmaster clock(either established or lost, additional information is provided by the SYNCH_STATE field - see Table 236)
-    5 = Leap second occurred on grandmaster clock
-    6 = release of ECU reset
+    1 = Event derived from XCP - independent time synchronization event - e.g.globally synchronized pulse per second
+   signal 2 = GET_DAQ_CLOCK_MULTICAST 3 = GET_DAQ_CLOCK_MULTICAST via Time Sync Bridge 4 = State change in syntonization
+   / synchronization to grandmaster clock(either established or lost, additional information is provided by the
+   SYNCH_STATE field - see Table 236) 5 = Leap second occurred on grandmaster clock 6 = release of ECU reset
 */
 #define TRIG_INITIATOR_SYNCH_LINE 0UL
 #define TRIG_INITIATOR_XCP_INDEPENDENT 1UL
@@ -1071,8 +1069,7 @@
 
 #pragma pack(push, 1)
 
-typedef struct
-{
+typedef struct {
     uint8_t UUID[8];
     uint16_t timestampTicks;
     uint8_t timestampUnit;
@@ -1084,8 +1081,7 @@ typedef struct
 
 #ifdef XCP_ENABLE_PTP
 
-typedef struct
-{
+typedef struct {
     uint8_t UUID[8];
     uint16_t timestampTicks;
     uint8_t timestampUnit;
@@ -1096,8 +1092,7 @@ typedef struct
     uint64_t valueBeforeWrapAround;
 } T_CLOCK_INFO_GRANDMASTER;
 
-typedef struct
-{
+typedef struct {
     uint64_t timestampOrigin;
     uint64_t timestampLocal;
 } T_CLOCK_INFO_RELATION;

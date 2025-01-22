@@ -38,7 +38,8 @@
 #define XCP_ENABLE_DYN_ADDRESSING
 #define XCP_ADDR_EXT_DYN 0x02 // Relative address format
 
-// Use addr_ext XCP_ADDR_EXT_APP to indicate application specific addr format and use ApplXcpReadMemory and ApplXcpWriteMemory
+// Use addr_ext XCP_ADDR_EXT_APP to indicate application specific addr format and use ApplXcpReadMemory and
+// ApplXcpWriteMemory
 #define XCP_ENABLE_APP_ADDRESSING
 #define XCP_ADDR_EXT_APP 0x00 // Address format handled by application
 
@@ -104,7 +105,8 @@
 #define XCP_MAX_DAQ_COUNT 1024
 
 // Static allocated memory for DAQ tables
-// Amount of memory for DAQ tables, each ODT entry (e.g. measurement variable) needs 5 bytes, each DAQ list 12 bytes and each ODT 8 bytes
+// Amount of memory for DAQ tables, each ODT entry (e.g. measurement variable) needs 5 bytes, each DAQ list 12 bytes and
+// each ODT 8 bytes
 #ifdef OPTION_DAQ_MEM_SIZE
 #define XCP_DAQ_MEM_SIZE OPTION_DAQ_MEM_SIZE
 #else
@@ -116,7 +118,8 @@
 // #define XCP_ENABLE_DAQ_EVENT_LIST
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
 
-// #define XCP_ENABLE_DAQ_EVENT_INFO // Enable XCP_GET_EVENT_INFO, if this is enabled, A2L file event information will be ignored
+// #define XCP_ENABLE_DAQ_EVENT_INFO // Enable XCP_GET_EVENT_INFO, if this is enabled, A2L file event information will
+// be ignored
 
 // Make XcpEventExt thread safe for same DAQ event coming from different threads
 // #define XCP_ENABLE_MULTITHREAD_DAQ_EVENTS

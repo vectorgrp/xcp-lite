@@ -21,8 +21,9 @@ extern BOOL XcpEthTlHandleCommands(uint32_t timeout_ms); // Handle all incoming 
 
 /* ETH transport Layer functions called by protocol layer */
 #ifdef XCPTL_ENABLE_MULTICAST
-extern void XcpEthTlSendMulticastCrm(const uint8_t *data, uint16_t n, const uint8_t *addr, uint16_t port); // Send multicast command response
-extern void XcpEthTlSetClusterId(uint16_t clusterId);                                                      // Set cluster id for GET_DAQ_CLOCK_MULTICAST reception
+extern void XcpEthTlSendMulticastCrm(const uint8_t *data, uint16_t n, const uint8_t *addr,
+                                     uint16_t port);  // Send multicast command response
+extern void XcpEthTlSetClusterId(uint16_t clusterId); // Set cluster id for GET_DAQ_CLOCK_MULTICAST reception
 #endif
 
 #endif

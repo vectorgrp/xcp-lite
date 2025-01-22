@@ -16,8 +16,7 @@
 #endif
 
 #pragma pack(push, 1)
-typedef struct
-{
+typedef struct {
     uint16_t dlc; // XCP TL header lenght
     uint16_t ctr; // XCP TL Header message counter
     uint8_t data[];
@@ -25,8 +24,7 @@ typedef struct
 #pragma pack(pop)
 
 #pragma pack(push, 1)
-typedef struct
-{
+typedef struct {
     uint16_t dlc;
     uint16_t ctr;
     uint8_t packet[XCPTL_MAX_CTO_SIZE];
