@@ -113,6 +113,9 @@
 #define XCP_DAQ_MEM_SIZE (1024 * 5) // Amount of memory for DAQ tables, each ODT entry (e.g. measurement variable or memory block) needs 5 bytes
 #endif
 
+// Enable DAQ resume mode
+#define XCP_ENABLE_DAQ_RESUME
+
 // Enable event list
 // Not needed for Rust xcp-lite
 // #define XCP_ENABLE_DAQ_EVENT_LIST

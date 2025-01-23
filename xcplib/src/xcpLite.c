@@ -745,7 +745,7 @@ static uint8_t XcpSetDaqListMode(uint16_t daq, uint16_t event, uint8_t mode, uin
 
 // Check if DAQ lists are fully and consistently initialized
 #ifdef XCP_ENABLE_TEST_CHECKS
-BOOL XcpCheckPreparedDaqListsCheck() {
+BOOL XcpCheckPreparedDaqLists() {
 
     for (uint16_t daq = 0; daq < gXcpDaqLists->daq_count; daq++) {
         if (DaqListState(daq) & DAQ_STATE_SELECTED) {
@@ -1367,12 +1367,46 @@ static uint8_t XcpAsyncCommand(BOOL async, const uint32_t *cmdBuf, uint8_t cmdLe
             CRM_LEN = CRM_GET_STATUS_LEN;
             CRM_GET_STATUS_STATUS = (uint8_t)(gXcp.SessionStatus & 0xFF);
             CRM_GET_STATUS_PROTECTION = 0;
-            CRM_GET_STATUS_CONFIG_ID = 0; /* Session configuration ID not available. */
+#ifdef XCP_ENABLE_DAQ_RESUME
+            /* Return the session configuration id */
+            CRM_GET_STATUS_CONFIG_ID = gXcpDaqLists->config_id;
+#else
+            CRM_GET_STATUS_CONFIG_ID = 0x00;
+#endif
         } break;
 
         case CC_SET_MTA: {
             check_len(CRO_SET_MTA_LEN);
             check_error(XcpSetMta(CRO_SET_MTA_EXT, CRO_SET_MTA_ADDR));
+        } break;
+
+        case CC_SET_REQUEST: {
+            check_len(CRO_SET_REQUEST_LEN);
+            CRM_LEN = CRM_SET_REQUEST_LEN;
+            switch (CRO_SET_REQUEST_MODE) {
+#ifdef XCP_ENABLE_DAQ_RESUME
+            case SS_STORE_DAQ_REQ:
+                gXcpDaqLists->config_id = CRO_SET_REQUEST_CONFIG_ID;
+                // gXcp.SessionStatus |= SS_STORE_DAQ_REQ;
+                check_error(ApplXcpDaqResumeStore());
+                /* @@@@ Send an event message */
+                // gXcp.SessionStatus &= ~SS_STORE_DAQ_REQ;
+                break;
+            case SS_CLEAR_DAQ_REQ:
+                // gXcp.SessionStatus |= SS_CLEAR_DAQ_REQ;
+                check_error(ApplXcpDaqResumeClear());
+                /* @@@@ Send an event message */
+                // gXcp.SessionStatus &= ~SS_CLEAR_DAQ_REQ;
+                break;
+#endif /* XCP_ENABLE_DAQ_RESUME */
+#ifdef XCP_ENABLE_FREEZE_CAL_PAGE
+            case SET_REQUEST_MODE_STORE_CAL:
+                check_error(ApplXcpFreezeCalPage(0));
+                break;
+#endif // XCP_ENABLE_FREEZE_CAL_PAGE
+            default:
+                error(CRC_OUT_OF_RANGE) /* SS_STORE_CAL_REQ is not implemented */
+            }
         } break;
 
         case CC_DOWNLOAD: {
@@ -1490,12 +1524,6 @@ static uint8_t XcpAsyncCommand(BOOL async, const uint32_t *cmdBuf, uint8_t cmdLe
             CRM_GET_SEGMENT_MODE_MODE = gXcp.SegmentMode;
         } break;
 
-        case CC_SET_REQUEST: {
-            check_len(CRO_SET_REQUEST_LEN);
-            CRM_LEN = CRM_SET_REQUEST_LEN;
-            if ((CRO_SET_REQUEST_MODE & SET_REQUEST_MODE_STORE_CAL) != 0)
-                check_error(ApplXcpFreezeCalPage(0));
-        } break;
 #endif // XCP_ENABLE_FREEZE_CAL_PAGE
 #endif // XCP_ENABLE_CAL_PAGE
 
@@ -1552,9 +1580,22 @@ static uint8_t XcpAsyncCommand(BOOL async, const uint32_t *cmdBuf, uint8_t cmdLe
 #else
             CRM_GET_DAQ_PROCESSOR_INFO_DAQ_KEY_BYTE = (uint8_t)(DAQ_HDR_ODT_DAQB | DAQ_EXT_DAQ);
 #endif
-            // Dynamic DAQ list configuration, Time-stamped mode supported, Overload indication is MSB of PID
-            // Identification field can not be switched off, bitwise data stimulation not supported, DAQ lists can not be set to RESUME mode, Prescaler not supported
-            CRM_GET_DAQ_PROCESSOR_INFO_PROPERTIES = (uint8_t)(DAQ_PROPERTY_CONFIG_TYPE | DAQ_PROPERTY_TIMESTAMP | DAQ_OVERLOAD_INDICATION_PID);
+            // Dynamic DAQ list configuration, timestamps, resume and overload indication supported
+            // Identification field can not be switched off, bitwise data stimulation not supported, Prescaler not supported
+            CRM_GET_DAQ_PROCESSOR_INFO_PROPERTIES = (uint8_t)(
+                DAQ_PROPERTY_CONFIG_TYPE | 
+                DAQ_PROPERTY_TIMESTAMP |
+#ifdef XCP_ENABLE_OVERRUN_INDICATION_PID
+                DAQ_OVERLOAD_INDICATION_PID) |
+#endif
+#ifdef XCP_ENABLE_OVERRUN_INDICATION_EVENT
+                DAQ_OVERLOAD_INDICATION_EVENT |
+#endif
+#ifdef XCP_ENABLE_DAQ_RESUME
+                DAQ_PROPERTY_RESUME |
+#endif
+                0);
+
         } break;
 
         case CC_GET_DAQ_RESOLUTION_INFO: {
@@ -1716,7 +1757,7 @@ static uint8_t XcpAsyncCommand(BOOL async, const uint32_t *cmdBuf, uint8_t cmdLe
 #if XCP_PROTOCOL_LAYER_VERSION >= 0x0104
             case 3: /* prepare for start selected */
 #ifdef XCP_ENABLE_TEST_CHECKS
-                assert(XcpCheckPreparedDaqListsCheck());
+                assert(XcpCheckPreparedDaqLists());
 #endif
                 if (!ApplXcpPrepareDaq((const tXcpDaqLists *)gXcpDaqLists))
                     error(CRC_RESOURCE_TEMPORARY_NOT_ACCESSIBLE);
@@ -1941,7 +1982,7 @@ static uint8_t XcpAsyncCommand(BOOL async, const uint32_t *cmdBuf, uint8_t cmdLe
     XcpSendResponse(&CRM, CRM_LEN);
     return CRC_CMD_OK;
 
-    // Transmit error response
+// Transmit error response
 negative_response:
     CRM_LEN = 2;
     CRM_CMD = PID_ERR;
@@ -1949,8 +1990,8 @@ negative_response:
     XcpSendResponse(&CRM, CRM_LEN);
     return err;
 
-    // Transmit busy response, if another command is already pending
-    // Interleaved mode is not supported
+// Transmit busy response, if another command is already pending
+// Interleaved mode is not supported
 #ifdef XCP_ENABLE_DYN_ADDRESSING
 busy_response:
     CRM_LEN = 2;
@@ -1960,9 +2001,9 @@ busy_response:
     return CRC_CMD_BUSY;
 #endif
 
-    // No responce in these cases:
-    // - Transmit multicast command response
-    // - Command will be executed delayed, during execution of the associated synchronisation event
+// No responce in these cases:
+// - Transmit multicast command response
+// - Command will be executed delayed, during execution of the associated synchronisation event
 no_response:
     return CRC_CMD_OK;
 }
@@ -2166,6 +2207,31 @@ void XcpStart(BOOL resumeMode) {
     DBG_PRINT3("Start XCP protocol layer\n");
 
     gXcp.SessionStatus |= SS_STARTED;
+
+    // Resume DAQ
+#ifdef XCP_ENABLE_DAQ_RESUME
+    if (resumeMode) {
+        if (XcpCheckPreparedDaqLists()) {
+            /* Goto temporary disconnected mode and start all selected DAQ lists */
+            gXcp.SessionStatus |= SS_RESUME;
+            /* Start DAQ */
+            XcpStartSelectedDaqLists();
+
+            /* @@@@ Send an event message to indicate resume mode */
+
+#ifdef DBG_LEVEL
+            if (DBG_LEVEL != 0) {
+                printf("Started in resume mode\n");
+                for (uint16_t daq = 0; daq < gXcpDaqLists->daq_count; daq++) {
+                    if (DaqListState(daq) & DAQ_STATE_SELECTED) {
+                        XcpPrintDaqList(daq);
+                    }
+                }
+            }
+#endif
+        }
+    }
+#endif /* XCP_ENABLE_DAQ_RESUME */
 }
 
 // Reset XCP protocol layer back to not init state

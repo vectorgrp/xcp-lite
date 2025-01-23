@@ -382,6 +382,31 @@ uint8_t ApplXcpGetCalPageMode(uint8_t segment) {
 #endif
 
 /**************************************************************************/
+// DAQ resume
+/**************************************************************************/
+
+#ifdef XCP_ENABLE_DAQ_RESUME
+
+uint8_t ApplXcpDaqResumeStore() {
+
+    //   FILE *f = fopen("XCPsim.DAQ","wb");
+    //   if (f) {
+    //     fwrite(&xcp.Daq,sizeof(xcp.Daq),1,f);
+    //     fwrite(&gRemoteAddr,sizeof(gRemoteAddr),1,f);
+    //     fclose(f);
+    //   }
+    return CRC_CMD_IGNORED;
+}
+
+uint8_t ApplXcpDaqResumeClear() {
+
+    // remove("XCPsim.DAQ");
+    return CRC_CMD_IGNORED;
+}
+
+#endif
+
+/**************************************************************************/
 // Functions for upload of A2L file
 /**************************************************************************/
 

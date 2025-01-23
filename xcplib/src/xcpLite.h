@@ -104,6 +104,10 @@ typedef struct {
     uint16_t odt_count;       // Total number of ODTs in ODT array
     uint16_t daq_count;       // Number of DAQ lists in DAQ list array
     uint16_t res;
+#ifdef XCP_ENABLE_DAQ_RESUME
+    uint16_t config_id;
+    uint16_t res1;
+#endif
 #ifdef XCP_MAX_EVENT_COUNT
     uint16_t daq_first[XCP_MAX_EVENT_COUNT]; // Event channel to DAQ list mapping
 #endif
@@ -270,6 +274,13 @@ extern uint8_t ApplXcpGetClockState();
 #define CLOCK_EPOCH_UTC 1          // Universal Coordinated Time (with leap seconds) since 1.1.1970 (UTC)
 #define CLOCK_EPOCH_ARB 2          // Arbitrary (epoch unknown)
 extern BOOL ApplXcpGetClockInfoGrandmaster(uint8_t *uuid, uint8_t *epoch, uint8_t *stratum);
+#endif
+
+/* DAQ resume */
+#ifdef XCP_ENABLE_DAQ_RESUME
+uint8_t ApplXcpDaqResumeStore();
+uint8_t ApplXcpDaqResumeClear();
+
 #endif
 
 /* Get info for GET_ID command (pointer to and length of data) */
