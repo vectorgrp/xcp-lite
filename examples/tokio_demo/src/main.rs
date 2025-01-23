@@ -107,7 +107,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let xcp = XcpBuilder::new("tokio_demo")
         .set_log_level(2)
         .set_epk("EPK_12345678")
-        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)?;
+        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555, 1024 * 64)?;
 
     // Create and register a static calibration parameter set
     let calpage = CAL_PAGE.get().unwrap();

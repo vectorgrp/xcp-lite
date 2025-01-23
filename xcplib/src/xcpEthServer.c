@@ -53,11 +53,21 @@ static struct {
 BOOL XcpEthServerStatus() { return gXcpServer.isInit && gXcpServer.TransmitThreadRunning && gXcpServer.ReceiveThreadRunning; }
 
 // XCP server init
-BOOL XcpEthServerInit(const uint8_t *addr, uint16_t port, BOOL useTCP) {
+BOOL XcpEthServerInit(const uint8_t *addr, uint16_t port, BOOL useTCP, void *queue, uint32_t queueSize) {
     int r = 0;
 
-    if (gXcpServer.isInit)
+    // Check that the XCP singleton has been explicitly initialized
+    if (!XcpIsInitialized()) {
+        DBG_PRINT_ERROR("XCP not initialized!\n");
         return FALSE;
+    }
+
+    // Check if already initialized and running
+    if (gXcpServer.isInit) {
+        DBG_PRINT_WARNING("XCP server already running!\n");
+        return FALSE;
+    }
+
     DBG_PRINT3("Start XCP server\n");
 
     // Init network sockets
@@ -67,16 +77,13 @@ BOOL XcpEthServerInit(const uint8_t *addr, uint16_t port, BOOL useTCP) {
     gXcpServer.TransmitThreadRunning = FALSE;
     gXcpServer.ReceiveThreadRunning = FALSE;
 
-    // Initialize XCP protocol layer if not already done
-    XcpInit(NULL);
-
     // Initialize XCP transport layer
-    r = XcpEthTlInit(addr, port, useTCP, TRUE /*blocking rx*/);
+    r = XcpEthTlInit(addr, port, useTCP, TRUE /*blocking rx*/, queue, queueSize);
     if (!r)
         return 0;
 
     // Start XCP protocol layer
-    XcpStart();
+    XcpStart(FALSE);
 
     // Create threads
     mutexInit(&gXcpServer.TransmitQueueMutex, FALSE, 0);

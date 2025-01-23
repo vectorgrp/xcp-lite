@@ -23,9 +23,9 @@ static struct {
 } gXcpTl;
 #endif
 
-BOOL XcpTlInit() {
+BOOL XcpTlInit(void *queue, uint32_t queueSize) {
 
-    XcpTlInitTransmitQueue();
+    XcpTlInitTransmitQueue(queue, queueSize);
 
     DBG_PRINT3("Init XCP transport layer\n");
     DBG_PRINTF3("  MAX_CTO_SIZE=%u\n", XCPTL_MAX_CTO_SIZE);

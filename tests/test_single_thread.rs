@@ -192,11 +192,12 @@ async fn test_single_thread() {
         let _ = std::fs::remove_file("test_single_thread.a2h");
 
         // Initialize the XCPserver, transport layer and protocoll layer
-        let xcp = match XcpBuilder::new("test_single_thread")
-            .set_log_level(OPTION_XCP_LOG_LEVEL)
-            .set_epk("EPK_TEST")
-            .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
-        {
+        let xcp = match XcpBuilder::new("test_single_thread").set_log_level(OPTION_XCP_LOG_LEVEL).set_epk("EPK_TEST").start_server(
+            XcpTransportLayer::Udp,
+            [127, 0, 0, 1],
+            5555,
+            1024 * 64,
+        ) {
             Err(res) => {
                 error!("XCP initialization failed: {:?}", res);
                 return;
@@ -224,11 +225,12 @@ async fn test_single_thread() {
         let _ = std::fs::remove_file("test_single_thread.a2h");
 
         // Initialize the XCPserver, transport layer and protocoll layer a second time
-        let xcp = match XcpBuilder::new("test_single_thread")
-            .set_log_level(OPTION_XCP_LOG_LEVEL)
-            .set_epk("EPK_TEST")
-            .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
-        {
+        let xcp = match XcpBuilder::new("test_single_thread").set_log_level(OPTION_XCP_LOG_LEVEL).set_epk("EPK_TEST").start_server(
+            XcpTransportLayer::Udp,
+            [127, 0, 0, 1],
+            5555,
+            1024 * 64,
+        ) {
             Err(res) => {
                 error!("XCP initialization failed: {:?}", res);
                 return;

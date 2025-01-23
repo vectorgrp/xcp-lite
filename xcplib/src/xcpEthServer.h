@@ -6,7 +6,7 @@
 
 #if defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)
 
-extern BOOL XcpEthServerInit(const uint8_t *addr, uint16_t port, BOOL useTCP);
+extern BOOL XcpEthServerInit(const uint8_t *addr, uint16_t port, BOOL useTCP, void *queue, uint32_t queueSize);
 extern BOOL XcpEthServerShutdown();
 extern BOOL XcpEthServerStatus();
 

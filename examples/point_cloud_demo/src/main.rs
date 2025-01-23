@@ -128,7 +128,7 @@ fn main() -> Result<()> {
 
     let xcp = XcpBuilder::new("point_cloud")
         .set_log_level(XCP_LOG_LEVEL)
-        .start_server(XcpTransportLayer::Udp, BIND_ADDR, 5555)?;
+        .start_server(XcpTransportLayer::Udp, BIND_ADDR, 5555, 1024 * 64)?;
 
     let params: CalSeg<Params> = xcp.create_calseg("Params", &PARAMS);
     params.register_fields();

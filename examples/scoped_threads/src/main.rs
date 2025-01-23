@@ -62,7 +62,7 @@ fn main() -> Result<()> {
     let xcp = XcpBuilder::new("xcp_demo")
         .set_log_level(3)
         .set_epk("EPK_")
-        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)?;
+        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555, 1024 * 64)?;
 
     let calseg = xcp.create_calseg("calseg", &CAL_PAGE);
     calseg.register_fields();

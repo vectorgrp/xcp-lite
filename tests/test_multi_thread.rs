@@ -61,8 +61,8 @@ struct CalPage1 {
 
 // Default values for the calibration parameters
 const CAL_PAR1: CalPage1 = CalPage1 {
-    run: true, // Stop test task when false
-    cycle_time_us: 1000, // Default 1ms, will be set by test executor 
+    run: true,           // Stop test task when false
+    cycle_time_us: 1000, // Default 1ms, will be set by test executor
     counter_max: 0xFFFF,
     cal_test: 0x5555555500000000u64,
     sync_test1: 0,
@@ -382,17 +382,18 @@ async fn test_multi_thread() {
         .init();
 
     // Initialize XCP driver singleton, the transport layer server and enable the A2L writer
-    let xcp = match XcpBuilder::new("test_multi_thread")
-        .set_log_level(OPTION_XCP_LOG_LEVEL)
-        .set_epk("EPK_TEST")
-        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
-    {
-        Err(res) => {
-            error!("XCP initialization failed: {:?}", res);
-            return;
-        }
-        Ok(xcp) => xcp,
-    };
+    let xcp =
+        match XcpBuilder::new("test_multi_thread")
+            .set_log_level(OPTION_XCP_LOG_LEVEL)
+            .set_epk("EPK_TEST")
+            .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555, 1024 * 256)
+        {
+            Err(res) => {
+                error!("XCP initialization failed: {:?}", res);
+                return;
+            }
+            Ok(xcp) => xcp,
+        };
 
     // Create a calibration segment
     let cal_seg = xcp.create_calseg("cal_seg", &CAL_PAR1);

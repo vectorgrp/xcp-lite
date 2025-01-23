@@ -447,7 +447,7 @@ fn main() {
     let xcp = XcpBuilder::new("xcp_lite")
         .set_log_level(args.log_level)
         .set_epk(epk) // Create new EPK from build info timestamp
-        .start_server(if args.tcp { XcpTransportLayer::Tcp } else { XcpTransportLayer::Udp }, args.bind, args.port)
+        .start_server(if args.tcp { XcpTransportLayer::Tcp } else { XcpTransportLayer::Udp }, args.bind, args.port, 1024 * 64)
         .expect("could not start XCP server");
 
     // Option1: Create and register static calibration variables (from a OnceCell<StaticCalPage>)

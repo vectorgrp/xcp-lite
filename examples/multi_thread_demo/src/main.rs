@@ -102,7 +102,7 @@ fn main() -> Result<()> {
     let xcp = XcpBuilder::new("multi_thread_demo")
         .set_log_level(2)
         .set_epk("EPK_12345678")
-        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)?;
+        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555, 1024 * 64)?;
 
     // Create a calibration parameter set (CalSeg in rust, MEMORY_SEGMENT in A2L) from a struct
     // Calibration segments have 2 pages, a constant default "FLASH" page and a mutable "RAM" page

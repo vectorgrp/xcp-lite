@@ -128,35 +128,7 @@
 #endif
 
 /****************************************************************************/
-/* DAQ list access helper macros                                            */
-/****************************************************************************/
-
-/* Shortcuts for gXcpDaqLists->.. */
-
-#define OdtEntryAddrTable ((int32_t *)&DaqListOdtTable[gXcpDaqLists->odt_count])
-#define OdtEntrySizeTable ((uint8_t *)&OdtEntryAddrTable[gXcpDaqLists->odt_entry_count])
-
-/* j is absolute odt number */
-#define DaqListOdtTable ((tXcpOdt *)&gXcpDaqLists->u.daq_list[gXcpDaqLists->daq_count])
-#define DaqListOdtEntryCount(j) ((DaqListOdtTable[j].last_odt_entry - DaqListOdtTable[j].first_odt_entry) + 1)
-
-/* i is daq number */
-#define DaqListOdtCount(i) ((gXcpDaqLists->u.daq_list[i].last_odt - gXcpDaqLists->u.daq_list[i].first_odt) + 1)
-#define DaqListLastOdt(i) gXcpDaqLists->u.daq_list[i].last_odt
-#define DaqListFirstOdt(i) gXcpDaqLists->u.daq_list[i].first_odt
-#define DaqListMode(i) gXcpDaqLists->u.daq_list[i].mode
-#define DaqListState(i) gXcpDaqLists->u.daq_list[i].state
-#define DaqListEventChannel(i) gXcpDaqLists->u.daq_list[i].event_channel
-#define DaqListAddrExt(i) gXcpDaqLists->u.daq_list[i].addr_ext
-#define DaqListPriority(i) gXcpDaqLists->u.daq_list[i].priority
-
-#ifdef XCP_MAX_EVENT_COUNT
-#define DaqListFirst(event) gXcpDaqLists->daq_first[event]
-#define DaqListNext(daq) gXcpDaqLists->u.daq_list[daq].next
-#endif
-
-/****************************************************************************/
-/* XCP Packet                                                               */
+/* XCP packet                                                               */
 /****************************************************************************/
 
 typedef union {
@@ -238,6 +210,7 @@ typedef struct {
 
 } tXcpData;
 
+// XCP singleton
 // Some compilers complain about this initialization
 // Calling XCP functions (e.g. XcpEvent()) before XcpInit() is forbidden
 // Static initialization of gXcp.SessionStatus to 0 allows to check this condition
@@ -245,7 +218,33 @@ static tXcpData gXcp = {0};
 
 // DAQ setup data
 static tXcpDaqLists *gXcpDaqLists = NULL;
+static BOOL gXcpDaqListsExternal = FALSE;
 
+/****************************************************************************/
+/* Macros                                                                   */
+/****************************************************************************/
+
+/* Shortcuts for gXcpDaqLists */
+/* j is absolute odt number */
+/* i is daq number */
+#define OdtEntryAddrTable ((int32_t *)&DaqListOdtTable[gXcpDaqLists->odt_count])
+#define OdtEntrySizeTable ((uint8_t *)&OdtEntryAddrTable[gXcpDaqLists->odt_entry_count])
+#define DaqListOdtTable ((tXcpOdt *)&gXcpDaqLists->u.daq_list[gXcpDaqLists->daq_count])
+#define DaqListOdtEntryCount(j) ((DaqListOdtTable[j].last_odt_entry - DaqListOdtTable[j].first_odt_entry) + 1)
+#define DaqListOdtCount(i) ((gXcpDaqLists->u.daq_list[i].last_odt - gXcpDaqLists->u.daq_list[i].first_odt) + 1)
+#define DaqListLastOdt(i) gXcpDaqLists->u.daq_list[i].last_odt
+#define DaqListFirstOdt(i) gXcpDaqLists->u.daq_list[i].first_odt
+#define DaqListMode(i) gXcpDaqLists->u.daq_list[i].mode
+#define DaqListState(i) gXcpDaqLists->u.daq_list[i].state
+#define DaqListEventChannel(i) gXcpDaqLists->u.daq_list[i].event_channel
+#define DaqListAddrExt(i) gXcpDaqLists->u.daq_list[i].addr_ext
+#define DaqListPriority(i) gXcpDaqLists->u.daq_list[i].priority
+#ifdef XCP_MAX_EVENT_COUNT
+#define DaqListFirst(event) gXcpDaqLists->daq_first[event]
+#define DaqListNext(daq) gXcpDaqLists->u.daq_list[daq].next
+#endif
+
+/* Shortcuts for gXcpCrm */
 #define CRM (gXcp.Crm)
 #define CRM_LEN (gXcp.CrmLen)
 #define CRM_BYTE(x) (gXcp.Crm.b[x])
@@ -254,10 +253,7 @@ static tXcpDaqLists *gXcpDaqLists = NULL;
 
 static uint8_t XcpAsyncCommand(BOOL async, const uint32_t *cmdBuf, uint8_t cmdLen);
 
-/****************************************************************************/
-/* Macros                                                                   */
-/****************************************************************************/
-
+/* Error handling */
 #define error(e)                                                                                                                                                                   \
     {                                                                                                                                                                              \
         err = (e);                                                                                                                                                                 \
@@ -270,7 +266,7 @@ static uint8_t XcpAsyncCommand(BOOL async, const uint32_t *cmdBuf, uint8_t cmdLe
             goto negative_response;                                                                                                                                                \
     }
 
-// BOOL type macros
+/* State checking */
 #define isInitialized() (0 != (gXcp.SessionStatus & SS_INITIALIZED))
 #define isStarted() (0 != (gXcp.SessionStatus & SS_STARTED))
 #define isConnected() (0 != (gXcp.SessionStatus & SS_CONNECTED))
@@ -303,6 +299,8 @@ static void XcpPrintDaqList(uint16_t daq);
 /****************************************************************************/
 
 uint16_t XcpGetSessionStatus() { return gXcp.SessionStatus; }
+
+BOOL XcpIsInitialized() { return isInitialized(); }
 
 BOOL XcpIsStarted() { return isStarted(); }
 
@@ -1196,6 +1194,7 @@ static uint8_t XcpPushCommand(const tXcpCto *cmdBuf, uint8_t cmdLen) {
 
 //  Handles incoming XCP commands
 uint8_t XcpCommand(const uint32_t *cmdBuf, uint8_t cmdLen) { return XcpAsyncCommand(FALSE, cmdBuf, cmdLen); }
+
 //  Handles incoming or asyncronous XCP commands
 static uint8_t XcpAsyncCommand(BOOL async, const uint32_t *cmdBuf, uint8_t cmdLen) {
 #define CRO ((tXcpCto *)cmdBuf)
@@ -2023,13 +2022,16 @@ void XcpPrint(const char *str) {
 #endif // XCP_ENABLE_SERV_TEXT
 
 /****************************************************************************/
-/* Initialization of the XCP Protocol Layer                                 */
+/* Initialization and start of the XCP Protocol Layer                       */
 /****************************************************************************/
 
-// Init XCP protocol layer
+// Init XCP protocol layer singleton once
+// This is a once initialization of the static gXcp singleton data structure
+// Memory for the DAQ lists are provided by the caller if daq_lists != NULL
 void XcpInit(tXcpDaqLists *daq_lists) {
     // Once
-    if (gXcp.SessionStatus != 0) {
+    if (isInitialized()) {         // Already initialized, just ignore
+        assert(daq_lists == NULL); // Assert only if there might have been an intention to provide DAQ list memory with this call
         assert(gXcpDaqLists != NULL);
         return;
     }
@@ -2037,11 +2039,17 @@ void XcpInit(tXcpDaqLists *daq_lists) {
     // Clear XCP state
     memset((uint8_t *)&gXcp, 0, sizeof(gXcp));
 
-    // Initialize DAQ lists
-    gXcpDaqLists = daq_lists;
-    if (gXcpDaqLists == NULL) { // @@@@ remove memory allocation
+    // Allocate DAQ list memory
+    if (gXcpDaqLists == NULL) {
         gXcpDaqLists = malloc(sizeof(tXcpDaqLists));
+        gXcpDaqListsExternal = FALSE;
         assert(gXcpDaqLists != NULL);
+    }
+
+    // DAQ list memory is provided by the application
+    else {
+        gXcpDaqLists = daq_lists;
+        gXcpDaqListsExternal = TRUE;
     }
     XcpClearDaq();
 
@@ -2061,7 +2069,12 @@ void XcpInit(tXcpDaqLists *daq_lists) {
 }
 
 // Start XCP protocol layer
-void XcpStart() {
+// Assume the transport layer is running
+void XcpStart(BOOL resumeMode) {
+
+    (void)resumeMode; // Start in resume mode
+
+    assert(isInitialized());
     if (!isInitialized())
         return;
 
@@ -2155,8 +2168,21 @@ void XcpStart() {
     gXcp.SessionStatus |= SS_STARTED;
 }
 
-// Reset XCP protocol layer
-void XcpReset() { memset(&gXcp, 0, sizeof(gXcp)); }
+// Reset XCP protocol layer back to not init state
+void XcpReset() {
+
+    assert(isInitialized());
+    if (isInitialized())
+        return;
+
+    if (!gXcpDaqListsExternal) {
+        free(gXcpDaqLists);
+        gXcpDaqListsExternal = FALSE;
+    }
+    gXcpDaqLists = NULL;
+
+    memset(&gXcp, 0, sizeof(gXcp));
+}
 
 /**************************************************************************/
 /* Eventlist                                                              */
@@ -2166,8 +2192,10 @@ void XcpReset() { memset(&gXcp, 0, sizeof(gXcp)); }
 
 // Get a pointer to and the size of the XCP event list
 tXcpEvent *XcpGetEventList(uint16_t *eventCount) {
+
     if (!isInitialized())
         return NULL;
+
     if (eventCount != NULL)
         *eventCount = gXcp.EventCount;
     return gXcp.EventList;

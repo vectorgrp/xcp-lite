@@ -203,8 +203,7 @@ static int handleXcpCommand(tXcpCtoMessage *p, uint8_t *srcAddr, uint16_t srcPor
 #ifdef XCPTL_ENABLE_UDP
     if (!isTCP() && !connected) { // not connected before
         if (XcpIsConnected()) {
-            DBG_PRINTF3("XCP master connected on UDP addr=%u.%u.%u.%u, port=%u\n", gXcpTl.MasterAddr[0], gXcpTl.MasterAddr[1], gXcpTl.MasterAddr[2], gXcpTl.MasterAddr[3],
-                        gXcpTl.MasterPort);
+            DBG_PRINTF3("XCP client on UDP addr=%u.%u.%u.%u, port=%u\n", gXcpTl.MasterAddr[0], gXcpTl.MasterAddr[1], gXcpTl.MasterAddr[2], gXcpTl.MasterAddr[3], gXcpTl.MasterPort);
         } else {                            // Is not in connected state
             gXcpTl.MasterAddrValid = FALSE; // Any client can connect
         }
@@ -359,9 +358,9 @@ extern void *XcpTlMulticastThread(void *par)
 
 //-------------------------------------------------------------------------------------------------------
 
-BOOL XcpEthTlInit(const uint8_t *addr, uint16_t port, BOOL useTCP, BOOL blockingRx) {
+BOOL XcpEthTlInit(const uint8_t *addr, uint16_t port, BOOL useTCP, BOOL blockingRx, void *queue, uint32_t queueSize) {
 
-    if (!XcpTlInit())
+    if (!XcpTlInit(queue, queueSize))
         return FALSE;
 
     uint8_t bind_addr[4] = {0, 0, 0, 0}; // Bind to ANY(0.0.0.0)

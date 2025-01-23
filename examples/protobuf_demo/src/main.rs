@@ -155,7 +155,7 @@ fn main() -> Result<()> {
     let xcp = XcpBuilder::new("xcp_demo")
         .set_log_level(3)
         .set_epk("EPK_")
-        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)?;
+        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555, 1024 * 64)?;
 
     // Data struct to be measured
     let mut test_data = TestData { counter: 0, signal: 0.0 };

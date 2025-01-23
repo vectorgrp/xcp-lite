@@ -33,6 +33,10 @@
 #elif XCP_MAX_EVENT_COUNT > 16
 #warning "Memory consumption of event list is high, consider reducing XCP_MAX_EVENT_COUNT or XCP_MAX_EVENT_NAME"
 #endif
+#if XCP_MAX_EVENT_COUNT & 1 != 0
+#error "XCP_MAX_EVENT_COUNT must be even!"
+#endif
+
 #ifndef XCP_MAX_EVENT_NAME
 #define XCP_MAX_EVENT_NAME 8
 #endif
@@ -41,11 +45,10 @@ typedef struct {
     char shortName[XCP_MAX_EVENT_NAME + 1]; // A2L XCP IF_DATA short event name, long name not supported
     uint32_t size;                          // ext event size
     uint8_t timeUnit;                       // timeCycle unit, 1ns=0, 10ns=1, 100ns=2, 1us=3, ..., 1ms=6, ...
-    uint8_t timeCycle;                      // cycletime in units, 0 = sporadic or unknown
+    uint8_t timeCycle;                      // cycle time in units, 0 = sporadic or unknown
     uint16_t sampleCount;                   // packed event sample count
     uint16_t daqList;                       // associated DAQ list
     uint8_t priority;                       // priority 0 = queued, 1 = pushing, 2 = realtime
-
 #ifdef XCP_ENABLE_MULTITHREAD_DAQ_EVENTS
     MUTEX mutex;
 #endif
@@ -72,6 +75,7 @@ typedef struct {
     uint16_t res;
 } tXcpOdt;
 #pragma pack(pop)
+// static_assert(sizeof(tXcpOdt) == 8, "Error: size of tXcpOdt is not equal to 8");
 
 /* DAQ list */
 // size = 12 byte
@@ -81,9 +85,6 @@ typedef struct {
     uint16_t first_odt;     /* Absolute odt number */
     uint16_t event_channel; /* Associated event */
 #ifdef XCP_MAX_EVENT_COUNT
-#if XCP_MAX_EVENT_COUNT & 1 != 0
-#error "XCP_MAX_EVENT_COUNT must be even!"
-#endif
     uint16_t next; /* Next DAQ list associated to event_channel */
 #else
     uint16_t res1;
@@ -94,6 +95,7 @@ typedef struct {
     uint8_t addr_ext;
 } tXcpDaqList;
 #pragma pack(pop)
+// static_assert(sizeof(tXcpDaqList) == 12, "Error: size of tXcpDaqList is not equal to 12");
 
 /* Dynamic DAQ list structure in a linear memory block with size XCP_DAQ_MEM_SIZE + 8  */
 #pragma pack(push, 1)
@@ -135,7 +137,8 @@ typedef struct {
 
 /* Initialization for the XCP Protocol Layer */
 extern void XcpInit(tXcpDaqLists *daq_lists);
-extern void XcpStart();
+extern BOOL XcpIsInitialized();
+extern void XcpStart(BOOL resumeMode);
 extern void XcpReset();
 
 /* XCP command processor */

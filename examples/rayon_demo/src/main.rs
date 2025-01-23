@@ -170,7 +170,7 @@ fn main() -> Result<()> {
     let xcp = XcpBuilder::new("mandelbrot")
         .set_log_level(3)
         .set_epk("EPK")
-        .start_server(XcpTransportLayer::Udp, BIND_ADDR, 5555)?;
+        .start_server(XcpTransportLayer::Udp, BIND_ADDR, 5555, 1024 * 64)?;
 
     let mandelbrot = xcp.create_calseg("mandelbrot", &MANDELBROT);
     mandelbrot.register_fields();

@@ -231,7 +231,7 @@ fn xcp_benchmark(c: &mut Criterion) {
     let xcp = XcpBuilder::new("xcp_benchmark")
         .set_log_level(3)
         .set_epk("EPK_")
-        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555)
+        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555, 1024 * 64)
         .unwrap();
 
     // Create a calibration segment

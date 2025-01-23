@@ -345,7 +345,7 @@ impl XcpBuilder {
     }
 
     /// Start the XCP on Ethernet Server
-    pub fn start_server<A>(self, tl: XcpTransportLayer, addr: A, port: u16) -> Result<&'static Xcp, XcpError>
+    pub fn start_server<A>(self, tl: XcpTransportLayer, addr: A, port: u16, queue_size: u32) -> Result<&'static Xcp, XcpError>
     where
         A: Into<Ipv4Addr>,
     {
@@ -367,11 +367,21 @@ impl XcpBuilder {
 
         // Initialize the XCP Server and ETH transport layer
         unsafe {
-            let a: [u8; 4] = ipv4_addr.octets();
+            // Allocate memory for the transmit queue
+            let mut queue = vec![0u8; queue_size as usize].into_boxed_slice(); // Allocate a Box<[u8]> with the given size
+
             // @@@@ Unsafe - C library call
-            if 0 == xcplib::XcpEthServerInit(&a as *const u8, port, (tl == XcpTransportLayer::Tcp) as u8) {
+            if 0 == xcplib::XcpEthServerInit(
+                &ipv4_addr.octets() as *const u8,
+                port,
+                (tl == XcpTransportLayer::Tcp) as u8,
+                queue.as_mut_ptr() as *mut std::ffi::c_void,
+                queue_size,
+            ) {
                 return Err(XcpError::XcpLib("Error: XcpEthServerInit() failed"));
             }
+
+            std::mem::forget(queue);
         }
 
         // Register transport layer parameters and actual ip addr of the server to make the A2L plug&play

@@ -71,7 +71,7 @@
 //! };
 //!
 //! // Initialize XCP
-//! let xcp = XcpBuilder::new("xcp_lite").start_server(XcpTransportLayer::Tcp, [127,0,0,1], 5555)?;
+//! let xcp = XcpBuilder::new("xcp_lite").start_server(XcpTransportLayer::Tcp, [127,0,0,1], 5555, 1024*64)?;
 //!
 //! // Create a calibration segment and auto register its fields as calibration variables
 //! let cal_page = xcp.create_calseg("CalPage", &CAL_PAGE);
