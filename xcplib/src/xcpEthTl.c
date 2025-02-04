@@ -440,7 +440,7 @@ BOOL XcpEthTlInit(const uint8_t *addr, uint16_t port, BOOL useTCP, BOOL blocking
     return TRUE;
 }
 
-void XcpEthTlShutdown() {
+void XcpEthTlShutdown(void) {
 
     // Close all sockets to enable all threads to terminate
 #ifdef XCPTL_ENABLE_MULTICAST

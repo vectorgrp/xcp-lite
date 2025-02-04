@@ -44,24 +44,25 @@ void ApplXcpSetLogLevel(uint8_t level) {
 // Callbacks
 /**************************************************************************/
 
-static uint8_t (*callback_connect)() = NULL;
+static uint8_t (*callback_connect)(void) = NULL;
 static uint8_t (*callback_prepare_daq)(const tXcpDaqLists *daq) = NULL;
 static uint8_t (*callback_start_daq)(const tXcpDaqLists *daq) = NULL;
-static void (*callback_stop_daq)() = NULL;
+static void (*callback_stop_daq)(void) = NULL;
 static uint8_t (*callback_get_cal_page)(uint8_t segment, uint8_t mode) = NULL;
 static uint8_t (*callback_set_cal_page)(uint8_t segment, uint8_t page, uint8_t mode) = NULL;
 static uint8_t (*callback_init_cal)(uint8_t src_page, uint8_t dst_page) = NULL;
-static uint8_t (*callback_freeze_cal)() = NULL;
+static uint8_t (*callback_freeze_cal)(void) = NULL;
 static uint8_t (*callback_read)(uint32_t src, uint8_t size, uint8_t *dst) = NULL;
 static uint8_t (*callback_write)(uint32_t dst, uint8_t size, const uint8_t *src, uint8_t delay) = NULL;
-static uint8_t (*callback_flush)() = NULL;
+static uint8_t (*callback_flush)(void) = NULL;
 
-void ApplXcpRegisterCallbacks(uint8_t (*cb_connect)(), uint8_t (*cb_prepare_daq)(const tXcpDaqLists *daq), uint8_t (*cb_start_daq)(const tXcpDaqLists *daq), void (*cb_stop_daq)(),
-                              uint8_t (*cb_get_cal_page)(uint8_t segment, uint8_t mode), uint8_t (*cb_set_cal_page)(uint8_t segment, uint8_t page, uint8_t mode),
-                              uint8_t (*cb_freeze_cal)(), uint8_t (*cb_init_cal)(uint8_t src_page, uint8_t dst_page),
+void ApplXcpRegisterCallbacks(uint8_t (*cb_connect)(void), uint8_t (*cb_prepare_daq)(const tXcpDaqLists *daq), uint8_t (*cb_start_daq)(const tXcpDaqLists *daq),
+                              void (*cb_stop_daq)(void), uint8_t (*cb_get_cal_page)(uint8_t segment, uint8_t mode),
+                              uint8_t (*cb_set_cal_page)(uint8_t segment, uint8_t page, uint8_t mode), uint8_t (*cb_freeze_cal)(void),
+                              uint8_t (*cb_init_cal)(uint8_t src_page, uint8_t dst_page),
 #ifdef XCP_ENABLE_APP_ADDRESSING
                               uint8_t (*cb_read)(uint32_t src, uint8_t size, uint8_t *dst), uint8_t (*cb_write)(uint32_t dst, uint8_t size, const uint8_t *src, uint8_t delay),
-                              uint8_t (*cb_flush)()
+                              uint8_t (*cb_flush)(void)
 #endif
 ) {
 
@@ -84,7 +85,7 @@ void ApplXcpRegisterCallbacks(uint8_t (*cb_connect)(), uint8_t (*cb_prepare_daq)
 // General notifications from XCPlite.c
 /**************************************************************************/
 
-BOOL ApplXcpConnect() {
+BOOL ApplXcpConnect(void) {
     DBG_PRINT4("ApplXcpConnect\n");
 #ifdef XCP_ENABLE_USER_COMMAND
     write_delay = FALSE;
@@ -94,7 +95,7 @@ BOOL ApplXcpConnect() {
     return TRUE;
 }
 
-void ApplXcpDisconnect() { DBG_PRINT4("ApplXcpDisconnect\n"); }
+void ApplXcpDisconnect(void) { DBG_PRINT4("ApplXcpDisconnect\n"); }
 
 #if XCP_PROTOCOL_LAYER_VERSION >= 0x0104
 BOOL ApplXcpPrepareDaq(const tXcpDaqLists *daq) {
@@ -115,7 +116,7 @@ void ApplXcpStartDaq(const tXcpDaqLists *daq) {
         callback_start_daq(daq);
 }
 
-void ApplXcpStopDaq() {
+void ApplXcpStopDaq(void) {
     DBG_PRINT4("ApplXcpStartDaq\n");
     if (callback_stop_daq != NULL)
         callback_stop_daq();
@@ -129,9 +130,9 @@ void ApplXcpStopDaq() {
 // XCP server clock timestamp resolution defined in xcp_cfg.h
 // Clock must be monotonic !!!
 
-uint64_t ApplXcpGetClock64() { return clockGet(); }
+uint64_t ApplXcpGetClock64(void) { return clockGet(); }
 
-uint8_t ApplXcpGetClockState() {
+uint8_t ApplXcpGetClockState(void) {
 
     return CLOCK_STATE_FREE_RUNNING; // Clock is a free running counter
 }
@@ -182,7 +183,7 @@ static uint8_t baseAddrValid = 0;
 
 // Get base pointer for the XCP address range
 // This function is time sensitive, as it is called once on every XCP event
-uint8_t *ApplXcpGetBaseAddr() {
+uint8_t *ApplXcpGetBaseAddr(void) {
 
     if (!baseAddrValid) {
         baseAddr = (uint8_t *)GetModuleHandle(NULL);
@@ -194,7 +195,7 @@ uint8_t *ApplXcpGetBaseAddr() {
 
 uint32_t ApplXcpGetAddr(const uint8_t *p) {
 
-    assert(p >= ApplXcpGetBaseAddr());
+    assert(p >= ApplXcpGetBaseAddr(void));
 #ifdef _WIN64
     assert(((uint64_t)p - (uint64_t)ApplXcpGetBaseAddr()) <= 0xffffffff); // be sure that XCP address range is sufficient
 #endif
@@ -226,7 +227,7 @@ static int dump_phdr(struct dl_phdr_info *pinfo, size_t size, void *data) {
     return 0;
 }
 
-uint8_t *ApplXcpGetBaseAddr() {
+uint8_t *ApplXcpGetBaseAddr(void) {
 
     if (!baseAddrValid) {
         dl_iterate_phdr(dump_phdr, NULL);
@@ -267,7 +268,7 @@ static int dump_so(void) {
 static uint8_t *baseAddr = NULL;
 static uint8_t baseAddrValid = 0;
 
-uint8_t *ApplXcpGetBaseAddr() {
+uint8_t *ApplXcpGetBaseAddr(void) {
 
     if (!baseAddrValid) {
         // dump_so();
@@ -293,7 +294,7 @@ uint32_t ApplXcpGetAddr(const uint8_t *p) {
 
 #ifdef _LINUX32
 
-uint8_t *ApplXcpGetBaseAddr() { return ((uint8_t *)0); }
+uint8_t *ApplXcpGetBaseAddr(void) { return ((uint8_t *)0); }
 
 uint32_t ApplXcpGetAddr(const uint8_t *p) { return ((uint32_t)(p)); }
 
@@ -387,7 +388,7 @@ uint8_t ApplXcpGetCalPageMode(uint8_t segment) {
 
 #ifdef XCP_ENABLE_DAQ_RESUME
 
-uint8_t ApplXcpDaqResumeStore() {
+uint8_t ApplXcpDaqResumeStore(void) {
 
     //   FILE *f = fopen("XCPsim.DAQ","wb");
     //   if (f) {
@@ -398,7 +399,7 @@ uint8_t ApplXcpDaqResumeStore() {
     return CRC_CMD_IGNORED;
 }
 
-uint8_t ApplXcpDaqResumeClear() {
+uint8_t ApplXcpDaqResumeClear(void) {
 
     // remove("XCPsim.DAQ");
     return CRC_CMD_IGNORED;
@@ -428,14 +429,14 @@ void ApplXcpSetEpk(const char *epk) {
 static FILE *gXcpFile = NULL;       // A2l file content
 static uint32_t gXcpFileLength = 0; // A2L file length
 
-void closeA2lFile() {
+void closeA2lFile(void) {
     assert(gXcpFile != NULL);
     fclose(gXcpFile);
     gXcpFile = NULL;
     DBG_PRINT3("Close A2L file\n");
 }
 
-uint32_t openA2lFile() {
+uint32_t openA2lFile(void) {
     char filename[256];
     if (gXcpA2lName == NULL)
         return 0; // A2L file is not available

@@ -298,15 +298,15 @@ static void XcpPrintDaqList(uint16_t daq);
 /* Status                                                                   */
 /****************************************************************************/
 
-uint16_t XcpGetSessionStatus() { return gXcp.SessionStatus; }
+uint16_t XcpGetSessionStatus(void) { return gXcp.SessionStatus; }
 
-BOOL XcpIsInitialized() { return isInitialized(); }
+BOOL XcpIsInitialized(void) { return isInitialized(); }
 
-BOOL XcpIsStarted() { return isStarted(); }
+BOOL XcpIsStarted(void) { return isStarted(); }
 
-BOOL XcpIsConnected() { return isConnected(); }
+BOOL XcpIsConnected(void) { return isConnected(); }
 
-BOOL XcpIsDaqRunning() { return isDaqRunning(); }
+BOOL XcpIsDaqRunning(void) { return isDaqRunning(); }
 
 BOOL XcpIsDaqEventRunning(uint16_t event) {
 
@@ -324,12 +324,12 @@ BOOL XcpIsDaqEventRunning(uint16_t event) {
 }
 
 #ifdef XCP_ENABLE_DAQ_CLOCK_MULTICAST
-uint16_t XcpGetClusterId() { return gXcp.ClusterId; }
+uint16_t XcpGetClusterId(void) { return gXcp.ClusterId; }
 #endif
 
-uint64_t XcpGetDaqStartTime() { return gXcp.DaqStartClock64; }
+uint64_t XcpGetDaqStartTime(void) { return gXcp.DaqStartClock64; }
 
-uint32_t XcpGetDaqOverflowCount() { return gXcp.DaqOverflowCount; }
+uint32_t XcpGetDaqOverflowCount(void) { return gXcp.DaqOverflowCount; }
 
 /****************************************************************************/
 /* Calibration                                                              */
@@ -472,7 +472,7 @@ static uint8_t XcpSetMta(uint8_t ext, uint32_t addr) {
 #define ODT_TIMESTAMP_SIZE 4
 
 // Free all dynamic DAQ lists
-static void XcpClearDaq() {
+static void XcpClearDaq(void) {
 
     gXcp.SessionStatus &= ~SS_DAQ;
 
@@ -491,7 +491,7 @@ static void XcpClearDaq() {
 
 // Check if there is sufficient memory for the values of DaqCount, OdtCount and OdtEntryCount
 // Return CRC_MEMORY_OVERFLOW if not
-static uint8_t XcpCheckMemory() {
+static uint8_t XcpCheckMemory(void) {
 
     uint32_t s;
 
@@ -745,7 +745,7 @@ static uint8_t XcpSetDaqListMode(uint16_t daq, uint16_t event, uint8_t mode, uin
 
 // Check if DAQ lists are fully and consistently initialized
 #ifdef XCP_ENABLE_TEST_CHECKS
-BOOL XcpCheckPreparedDaqLists() {
+BOOL XcpCheckPreparedDaqLists(void) {
 
     for (uint16_t daq = 0; daq < gXcpDaqLists->daq_count; daq++) {
         if (DaqListState(daq) & DAQ_STATE_SELECTED) {
@@ -774,7 +774,7 @@ BOOL XcpCheckPreparedDaqLists() {
 #endif
 
 // Start DAQ
-static void XcpStartDaq() {
+static void XcpStartDaq(void) {
 
     // If not already running
     if ((gXcp.SessionStatus & SS_DAQ) == 0) {
@@ -813,7 +813,7 @@ static void XcpStartDaq() {
 }
 
 // Stop DAQ
-static void XcpStopDaq() {
+static void XcpStopDaq(void) {
 
     gXcp.SessionStatus &= ~SS_DAQ; // Stop processing DAQ events
     if (gXcpDaqLists == NULL)
@@ -846,7 +846,7 @@ static void XcpStartDaqList(uint16_t daq) {
 
 // Start all selected DAQ lists
 // Do not start DAQ event processing yet
-static void XcpStartSelectedDaqLists() {
+static void XcpStartSelectedDaqLists(void) {
 
     uint16_t daq;
 
@@ -883,7 +883,7 @@ static void XcpStopDaqList(uint16_t daq) {
 
 // Stop all selected DAQ lists
 // If all DAQ lists are stopped, stop event processing
-static void XcpStopSelectedDaqLists() {
+static void XcpStopSelectedDaqLists(void) {
 
     uint16_t daq;
 
@@ -1083,8 +1083,8 @@ uint8_t XcpEventExtAt(uint16_t event, const uint8_t *base, uint64_t clock) {
     if (!isStarted())
         return CRC_CMD_OK;
 
-        // Check if a pending command can be executed in this context
-        // @@@@ ToDo: Optimize with atomics, this is performance critical as cal events may come from different threads
+    // Check if a pending command can be executed in this context
+    // @@@@ ToDo: Optimize with atomics, this is performance critical as cal events may come from different threads
 #if defined(XCP_ENABLE_MULTITHREAD_CAL_EVENTS)
     mutexLock(&gXcp.CmdPendingMutex);
 #endif
@@ -1125,7 +1125,7 @@ uint8_t XcpEventExt(uint16_t event, const uint8_t *base) { return XcpEventExtAt(
 /****************************************************************************/
 
 // Stops DAQ and goes to disconnected state
-void XcpDisconnect() {
+void XcpDisconnect(void) {
     if (!isStarted())
         return;
 
@@ -2235,7 +2235,7 @@ void XcpStart(BOOL resumeMode) {
 }
 
 // Reset XCP protocol layer back to not init state
-void XcpReset() {
+void XcpReset(void) {
 
     assert(isInitialized());
     if (isInitialized())

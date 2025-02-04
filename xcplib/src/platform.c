@@ -38,7 +38,7 @@
 
 #include <fcntl.h>
 
-int _getch() {
+int _getch(void) {
     struct termios oldt, newt;
     int ch;
     tcgetattr(STDIN_FILENO, &oldt);
@@ -52,7 +52,7 @@ int _getch() {
     return ch;
 }
 
-int _kbhit() {
+int _kbhit(void) {
     struct termios oldt, newt;
     int ch;
     int oldf;
@@ -181,9 +181,9 @@ void mutexDestroy(MUTEX *m) { DeleteCriticalSection(m); }
 
 #ifdef _LINUX
 
-BOOL socketStartup() { return TRUE; }
+BOOL socketStartup(void) { return TRUE; }
 
-void socketCleanup() {}
+void socketCleanup(void) {}
 
 BOOL socketOpen(SOCKET *sp, BOOL useTCP, BOOL nonBlocking, BOOL reuseaddr, BOOL timestamps) {
     (void)nonBlocking;
@@ -348,9 +348,9 @@ BOOL socketSetTimestampMode(uint8_t m) {
     return TRUE;
 }
 
-int32_t socketGetLastError() { return WSAGetLastError(); }
+int32_t socketGetLastError(void) { return WSAGetLastError(); }
 
-BOOL socketStartup() {
+BOOL socketStartup(void) {
 
     int err;
     WORD wsaVersionRequested;
@@ -647,7 +647,7 @@ static uint64_t sClock = 0;
 // Save CPU load, clockGet may take resonable run time, depending on platform
 // For slow timeouts and timers, it is sufficient to rely on the relatively high call frequency of clockGet() by other
 // parts of the application
-uint64_t clockGetLast() { return sClock; }
+uint64_t clockGetLast(void) { return sClock; }
 
 // Not used, might be faster on macOS
 // #ifdef _MACOS64
@@ -716,7 +716,7 @@ char *clockGetString(char *s, uint32_t l, uint64_t c) {
     return s;
 }
 
-BOOL clockInit() {
+BOOL clockInit(void) {
     DBG_PRINT3("Init clock\n");
 #ifdef OPTION_CLOCK_EPOCH_PTP
     DBG_PRINT3("  epoch = OPTION_CLOCK_EPOCH_PTP\n");
@@ -762,7 +762,7 @@ BOOL clockInit() {
 }
 
 // Get 64 bit clock
-uint64_t clockGet() {
+uint64_t clockGet(void) {
 
     struct timespec ts;
     clock_gettime(CLOCK_TYPE, &ts);
@@ -821,7 +821,7 @@ char *clockGetTimeString(char *str, uint32_t l, int64_t t) {
 
 #include <sys/timeb.h>
 
-BOOL clockInit() {
+BOOL clockInit(void) {
 
     DBG_PRINT4("Init clock\n  ");
 #ifdef OPTION_CLOCK_EPOCH_PTP
@@ -920,7 +920,7 @@ BOOL clockInit() {
 }
 
 // Get 64 bit clock
-uint64_t clockGet() {
+uint64_t clockGet(void) {
 
     LARGE_INTEGER tp;
     uint64_t t;

@@ -50,7 +50,7 @@ static struct {
 } gXcpServer;
 
 // Check XCP server status
-BOOL XcpEthServerStatus() { return gXcpServer.isInit && gXcpServer.TransmitThreadRunning && gXcpServer.ReceiveThreadRunning; }
+BOOL XcpEthServerStatus(void) { return gXcpServer.isInit && gXcpServer.TransmitThreadRunning && gXcpServer.ReceiveThreadRunning; }
 
 // XCP server init
 BOOL XcpEthServerInit(const uint8_t *addr, uint16_t port, BOOL useTCP, void *queue, uint32_t queueSize) {
@@ -94,7 +94,7 @@ BOOL XcpEthServerInit(const uint8_t *addr, uint16_t port, BOOL useTCP, void *que
     return TRUE;
 }
 
-BOOL XcpEthServerShutdown() {
+BOOL XcpEthServerShutdown(void) {
 
 #ifdef XCP_SERVER_FORCEFULL_TERMINATION
     // Forcefull termination

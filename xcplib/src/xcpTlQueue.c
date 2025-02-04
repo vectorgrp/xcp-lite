@@ -115,7 +115,7 @@ void XcpTlInitTransmitQueue(void *queue, uint32_t queueSize) {
     gXcpTlQueue->h.tail_len = 0;
 }
 
-void XcpTlResetTransmitQueue() {
+void XcpTlResetTransmitQueue(void) {
     assert(gXcpTlQueue != NULL);
     gXcpTlQueue->h.tail_len = 0;
     gXcpTlQueue->h.overruns = 0;
@@ -123,7 +123,7 @@ void XcpTlResetTransmitQueue() {
     atomic_store_explicit(&gXcpTlQueue->h.tail, 0, memory_order_relaxed);
 }
 
-void XcpTlFreeTransmitQueue() {
+void XcpTlFreeTransmitQueue(void) {
     assert(gXcpTlQueue != NULL);
 
 #ifdef TEST_LOCK_TIMING
@@ -238,7 +238,7 @@ void XcpTlCommitTransmitBuffer(void *handle, BOOL flush) {
 }
 
 // Empy the queue, even if a message is not completely used
-void XcpTlFlushTransmitBuffer() {
+void XcpTlFlushTransmitBuffer(void) {
     assert(gXcpTlQueue != NULL);
     gXcpTlQueue->h.flush = TRUE;
 }
@@ -250,7 +250,7 @@ void XcpTlFlushTransmitBuffer() {
 
 // Get transmit queue level in bytes
 // This function is thread safe, any thread can ask for the queue level
-static uint32_t XcpTlGetTransmitQueueLevel() {
+static uint32_t XcpTlGetTransmitQueueLevel(void) {
     if (gXcpTlQueue == NULL)
         return 0;
     uint64_t head = atomic_load_explicit(&gXcpTlQueue->h.head, memory_order_relaxed);
@@ -279,7 +279,7 @@ BOOL XcpTlWaitForTransmitQueueEmpty(uint16_t timeout_ms) {
 }
 
 // Check if the queu has enough packets to consider transmitting a message
-BOOL XcpTlTransmitQueueHasMsg() {
+BOOL XcpTlTransmitQueueHasMsg(void) {
 
     uint32_t n = XcpTlGetTransmitQueueLevel();
     if (n == 0)
@@ -365,7 +365,7 @@ const uint8_t *XcpTlTransmitQueuePeekMsg(uint16_t *msg_len) {
 }
 
 // Advance the transmit queue tail by the message lentgh obtained from the last peek
-void XcpTlTransmitQueueNextMsg() {
+void XcpTlTransmitQueueNextMsg(void) {
     assert(gXcpTlQueue != NULL);
     DBG_PRINTF5("XcpTlTransmitQueueNext: msg_len = %u\n", gXcpTlQueue->h.tail_len);
     if (gXcpTlQueue->h.tail_len == 0)

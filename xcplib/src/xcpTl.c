@@ -42,7 +42,7 @@ BOOL XcpTlInit(void *queue, uint32_t queueSize) {
     return TRUE;
 }
 
-void XcpTlShutdown() {
+void XcpTlShutdown(void) {
 
     XcpTlFreeTransmitQueue();
 
@@ -99,7 +99,7 @@ uint8_t XcpTlCommand(uint16_t msgLen, const uint8_t *msgBuf) {
 
 // Transmit all completed and fully commited UDP frames
 // Returns number of bytes sent or -1 on error
-int32_t XcpTlHandleTransmitQueue() {
+int32_t XcpTlHandleTransmitQueue(void) {
 
     const uint32_t max_loops = 20; // maximum number of packets to send without sleep(0)
 
@@ -143,7 +143,7 @@ int32_t XcpTlHandleTransmitQueue() {
 //-------------------------------------------------------------------------------------------------------
 
 // Notify transmit queue handler thread
-BOOL XcpTlNotifyTransmitQueueHandler() {
+BOOL XcpTlNotifyTransmitQueueHandler(void) {
 
     // Windows only, Linux version uses polling
 #if defined(_WIN) // Windows

@@ -16,8 +16,8 @@
 
 #include <termios.h>
 
-extern int _getch();
-extern int _kbhit();
+extern int _getch(void);
+extern int _kbhit(void);
 
 #endif
 #endif // PLATFORM_ENABLE_KEYBOARD
@@ -88,7 +88,7 @@ typedef pthread_t THREAD;
         pthread_detach(h);                                                                                                                                                         \
         pthread_cancel(h);                                                                                                                                                         \
     }
-#define yield_thread() sched_yield()
+#define yield_thread(void) sched_yield(void)
 
 #endif
 
@@ -113,7 +113,7 @@ typedef pthread_t THREAD;
 #undef htonll
 #define htonll(val) ((((uint64_t)htonl((uint32_t)val)) << 32) + htonl((uint32_t)(val >> 32)))
 
-#define socketGetLastError() errno
+#define socketGetLastError(void) errno
 
 #endif
 
@@ -140,9 +140,9 @@ typedef pthread_t THREAD;
 #define SOCKET_TIMESTAMP_FREE_RUNNING 0
 #define SOCKET_TIMESTAMP_SOFTWARE_SYNC 1
 
-extern BOOL socketStartup();
-extern int32_t socketGetLastError();
-extern void socketCleanup();
+extern BOOL socketStartup(void);
+extern int32_t socketGetLastError(void);
+extern void socketCleanup(void);
 extern BOOL socketOpen(SOCKET *sp, BOOL useTCP, BOOL nonBlocking, BOOL reuseaddr, BOOL timestamps);
 extern BOOL socketBind(SOCKET sock, uint8_t *addr, uint16_t port);
 extern BOOL socketJoin(SOCKET sock, uint8_t *maddr);
@@ -184,8 +184,8 @@ extern BOOL socketGetLocalAddr(uint8_t *mac, uint8_t *addr);
 #endif
 
 // Clock
-extern BOOL clockInit();
-extern uint64_t clockGet();
-extern uint64_t clockGetLast();
+extern BOOL clockInit(void);
+extern uint64_t clockGet(void);
+extern uint64_t clockGetLast(void);
 extern char *clockGetString(char *s, uint32_t l, uint64_t c);
 extern char *clockGetTimeString(char *s, uint32_t l, int64_t c);

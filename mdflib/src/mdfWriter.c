@@ -12,7 +12,6 @@
 #define fseek(f, o, m) _fseeki64(f, (__int64)o, m)
 #endif
 
-
 #include "mdf4.h"
 #include "mdfWriter.h"
 
@@ -21,13 +20,9 @@
 #define CC_UNIT_LEN 32
 #define CN_NAME_LEN 32
 
-
-
-
 #pragma pack(push, 1)
 
-struct mdfHeaderBlock
-{
+struct mdfHeaderBlock {
     IDBLOCK64 id;
     BLOCK_HEADER hdHeader;
     HDBLOCK_LINKS hdLinks;
@@ -45,15 +40,13 @@ struct mdfHeaderBlock
     DGBLOCK_DATA dgData;
 };
 
-struct mdfChannelGroupBlock
-{
+struct mdfChannelGroupBlock {
     BLOCK_HEADER cgHeader;
     CGBLOCK_LINKS cgLinks;
     CGBLOCK_DATA cgData;
 };
 
-struct mdfChannelBlock
-{
+struct mdfChannelBlock {
     BLOCK_HEADER cnHeader;
     CNBLOCK_LINKS cnLinks;
     CNBLOCK_DATA cnData;
@@ -69,9 +62,7 @@ struct mdfChannelBlock
     char name[CN_NAME_LEN];
 };
 
-
-struct mdfArrayBlock
-{
+struct mdfArrayBlock {
     BLOCK_HEADER cnHeader;
     CNBLOCK_LINKS cnLinks;
     CNBLOCK_DATA cnData;
@@ -94,13 +85,11 @@ struct mdfArrayBlock
 
 #pragma pack(pop)
 
-struct mdfDataBlock
-{
+struct mdfDataBlock {
     BLOCK_HEADER dtHeader;
 };
 
-struct mdfChannelGroup
-{
+struct mdfChannelGroup {
 
     struct mdfChannelGroupBlock b;
 
@@ -119,11 +108,9 @@ struct mdfChannelGroup
     mdf_link_t pos;
 };
 
-struct mdfChannel
-{
+struct mdfChannel {
 
-    union
-    {
+    union {
         struct mdfChannelBlock c;
         struct mdfArrayBlock a;
     } b;
@@ -149,8 +136,7 @@ static uint64_t mdfDataBlockLen = 0;
 static uint64_t mdfCycleCount = 0;
 
 // Header
-static struct mdfHeaderBlock *mdfCreateHeaderBlock(int unfin, mdf_link_t dataLink, uint32_t recordIdSize)
-{
+static struct mdfHeaderBlock *mdfCreateHeaderBlock(int unfin, mdf_link_t dataLink, uint32_t recordIdSize) {
 
     printf("mdfCreateHeaderBlock data=%" PRIu64 "\n", dataLink);
 
@@ -162,14 +148,11 @@ static struct mdfHeaderBlock *mdfCreateHeaderBlock(int unfin, mdf_link_t dataLin
         return NULL;
     memset(h, 0, sizeof(struct mdfHeaderBlock));
 
-    if (unfin)
-    {
+    if (unfin) {
         memcpy(h->id.id_file, MDF4_ID_UNFINALIZED, MDF4_ID_FILE); /* 8*/ /* file identification     (always MDF4_ID_FILE,  no \0 termination, always SBC string) */
         h->id.id_unfin_flags = MDF4_ID_UNFIN_FLAG_INVAL_CYCLE_COUNT_CG | MDF4_ID_UNFIN_FLAG_INVAL_LEN_LAST_DT;
         h->id.id_custom_unfin_flags = 0;
-    }
-    else
-    {
+    } else {
         memcpy(h->id.id_file, MDF4_ID_FILE_STRING, MDF4_ID_FILE); /* 8*/ /* file identification     (always MDF4_ID_FILE,  no \0 termination, always SBC string) */
         h->id.id_unfin_flags = 0;
         h->id.id_custom_unfin_flags = 0;
@@ -182,25 +165,31 @@ static struct mdfHeaderBlock *mdfCreateHeaderBlock(int unfin, mdf_link_t dataLin
     h->hdHeader.length = MDF4_HD_MIN_LENGTH;
     h->hdHeader.link_count = MDF4_HD_MIN_LINK_COUNT;
     h->hdLinks.hd_dg_first = MDF4_ID_LENGTH + MDF4_HD_MIN_LENGTH + MDF4_FH_MIN_LENGTH + MDF4_MD_MIN_LENGTH + MD_COMMENT_LEN; /* pointer to (first) data group block (DGBLOCK) */
-    h->hdLinks.hd_fh_first = MDF4_ID_LENGTH + MDF4_HD_MIN_LENGTH;                                                            /* pointer to (first) file history block      (FHBLOCK) */
-    h->hdLinks.hd_ch_tree = 0;                                                                                               /* pointer to (first) channel hierarchy block (CHBLOCK) (can be 0) */
-    h->hdLinks.hd_at_first = 0;                                                                                              /* pointer to (first) attachment              (ATBLOCK) (can be 0) */
-    h->hdLinks.hd_ev_first = 0;                                                                                              /* pointer to (first) event block             (EVBLOCK) (can be 0) */
-    h->hdLinks.hd_md_comment = 0;                                                                                            /* pointer to measurement file comment        (MDBLOCK or TXBLOCK) (can be 0) */
-    h->hdData.hd_start_time_ns = 0;                                                                                          // @@@@ localTime; /*8*/  /* start of measurement in ns elapsed since 00:00 Jan 1, 1970 UTC time or local time (if MDF4_TIME_FLAG_LOCAL_TIME flag set) */
-    h->hdData.hd_tz_offset_min = 0; /*2*/                                                                                    /* time zone offset in minutes (only valid if MDF4_TIME_FLAG_OFFSETS_VALID is set) i.e. local_time_ns = hd_start_time_ns + MDF4_MIN_TO_NS(hd_tz_offset_min) */
-    h->hdData.hd_dst_offset_min = 0; /*2*/                                                                                   /* DST offset for local time in minutes used at start time (only valid if MDF4_TIME_FLAG_OFFSETS_VALID is set) i.e. local_DST_time_ns = hd_start_time_ns + MDF4_MIN_TO_NS(hd_tz_offset_min) + MDF4_MIN_TO_NS(hd_dst_offset_min) */
-    h->hdData.hd_time_flags = MDF4_TIME_FLAG_LOCAL_TIME; /*1*/                                                               /* time flags are bit combination of [MDF4_TIME_FLAG_xxx] */
-    h->hdData.hd_time_class = MDF4_HD_TIME_SRC_PC; /*1*/                                                                     /* time quality class [MDF4_HD_TIME_SRC_xxx] */
-    h->hdData.hd_flags = 0; /*1*/                                                                                            /* flags are bit combination of [MDF4_HD_FLAG_xxx] */
+    h->hdLinks.hd_fh_first = MDF4_ID_LENGTH + MDF4_HD_MIN_LENGTH; /* pointer to (first) file history block      (FHBLOCK) */
+    h->hdLinks.hd_ch_tree = 0;                                    /* pointer to (first) channel hierarchy block (CHBLOCK) (can be 0) */
+    h->hdLinks.hd_at_first = 0;                                   /* pointer to (first) attachment              (ATBLOCK) (can be 0) */
+    h->hdLinks.hd_ev_first = 0;                                   /* pointer to (first) event block             (EVBLOCK) (can be 0) */
+    h->hdLinks.hd_md_comment = 0;                                 /* pointer to measurement file comment        (MDBLOCK or TXBLOCK) (can be 0) */
+    h->hdData.hd_start_time_ns =
+        0; // @@@@ localTime; /*8*/  /* start of measurement in ns elapsed since 00:00 Jan 1, 1970 UTC time or local time (if MDF4_TIME_FLAG_LOCAL_TIME flag set) */
+    h->hdData.hd_tz_offset_min = 0;
+        /*2*/ /* time zone offset in minutes (only valid if MDF4_TIME_FLAG_OFFSETS_VALID is set) i.e. local_time_ns = hd_start_time_ns + MDF4_MIN_TO_NS(hd_tz_offset_min) */
+    h->hdData.hd_dst_offset_min = 0; /*2*/ /* DST offset for local time in minutes used at start time (only valid if MDF4_TIME_FLAG_OFFSETS_VALID is set) i.e. local_DST_time_ns =
+                                              hd_start_time_ns + MDF4_MIN_TO_NS(hd_tz_offset_min) + MDF4_MIN_TO_NS(hd_dst_offset_min) */
+    h->hdData.hd_time_flags = MDF4_TIME_FLAG_LOCAL_TIME; /*1*/ /* time flags are bit combination of [MDF4_TIME_FLAG_xxx] */
+    h->hdData.hd_time_class = MDF4_HD_TIME_SRC_PC; /*1*/       /* time quality class [MDF4_HD_TIME_SRC_xxx] */
+    h->hdData.hd_flags = 0; /*1*/                              /* flags are bit combination of [MDF4_HD_FLAG_xxx] */
 
     h->fhHeader.id = GENERATE_ID('F', 'H'); /*4*/          /* identification, Bytes are interpreted as ASCII code */
     h->fhHeader.length = MDF4_FH_MIN_LENGTH; /*8*/         /* total number of Bytes contained in block (block header + link list + block data */
     h->fhHeader.link_count = MDF4_FH_MIN_LINK_COUNT; /*8*/ /* number of elements in link list = number of links following the block header */
     h->fhLinks.fh_md_comment = MDF4_ID_LENGTH + MDF4_HD_MIN_LENGTH + MDF4_FH_MIN_LENGTH;
-    h->fhData.fh_time_ns = 0;                                  // localTime @@@@;           /*8*/  /* Time stamp at which the file has been changed/created in ns elapsed since 00:00 Jan 1, 1970 UTC time or local time (if MDF4_TIME_FLAG_LOCAL_TIME flag set) */
-    h->fhData.fh_tz_offset_min = 0; /*2*/                      /* time zone offset in minutes (only valid if MDF4_TIME_FLAG_OFFSETS_VALID is set) i.e. local_time_ns = fh_change_time_ns + MDF4_MIN_TO_NS(fh_tz_offset_min) */
-    h->fhData.fh_dst_offset_min = 0; /*2*/                     /* DST offset for local time in minutes used at start time (only valid if MDF4_TIME_FLAG_OFFSETS_VALID is set) i.e. local_DST_time_ns = fh_change_time_ns + MDF4_MIN_TO_NS(fh_tz_offset_min) + MDF4_MIN_TO_NS(fh_dst_offset_min) */
+    h->fhData.fh_time_ns = 0; // localTime @@@@;           /*8*/  /* Time stamp at which the file has been changed/created in ns elapsed since 00:00 Jan 1, 1970 UTC time or local
+                              // time (if MDF4_TIME_FLAG_LOCAL_TIME flag set) */
+    h->fhData.fh_tz_offset_min = 0;
+        /*2*/ /* time zone offset in minutes (only valid if MDF4_TIME_FLAG_OFFSETS_VALID is set) i.e. local_time_ns = fh_change_time_ns + MDF4_MIN_TO_NS(fh_tz_offset_min) */
+    h->fhData.fh_dst_offset_min = 0; /*2*/ /* DST offset for local time in minutes used at start time (only valid if MDF4_TIME_FLAG_OFFSETS_VALID is set) i.e. local_DST_time_ns =
+                                              fh_change_time_ns + MDF4_MIN_TO_NS(fh_tz_offset_min) + MDF4_MIN_TO_NS(fh_dst_offset_min) */
     h->fhData.fh_time_flags = MDF4_TIME_FLAG_LOCAL_TIME; /*1*/ /* time flags are bit combination of [MDF4_TIME_FLAG_xxx] */
 
     h->mdHeader.id = GENERATE_ID('M', 'D'); /*4*/                   /* identification, Bytes are interpreted as ASCII code */
@@ -212,21 +201,21 @@ static struct mdfHeaderBlock *mdfCreateHeaderBlock(int unfin, mdf_link_t dataLin
             "<common_properties> <e name = \"author\">visza</e> <e name = \"project\">xcp-lite</e> </common_properties> </FHcomment>\r\n",
             MD_COMMENT_LEN);
 
-    h->dgHeader.id = GENERATE_ID('D', 'G'); /*4*/                                                                                                 /* identification, Bytes are interpreted as ASCII code */
-    h->dgHeader.length = MDF4_DG_MIN_LENGTH; /*8*/                                                                                                /* total number of Bytes contained in block (block header + link list + block data */
-    h->dgHeader.link_count = MDF4_DG_MIN_LINK_COUNT; /*8*/                                                                                        /* number of elements in link list = number of links following the block header */
-    h->dgLinks.dg_dg_next = 0;                                                                                                                    /* pointer to (next)  data group block    (DGBLOCK) (can be 0) */
-    h->dgLinks.dg_cg_first = MDF4_ID_LENGTH + MDF4_HD_MIN_LENGTH + MDF4_FH_MIN_LENGTH + MDF4_MD_MIN_LENGTH + MD_COMMENT_LEN + MDF4_DG_MIN_LENGTH; /* pointer to (first) channel group block (CGBLOCK)              */
-    h->dgLinks.dg_data = dataLink;                                                                                                                /* pointer to         data list block (DLBLOCK/HZBLOCK/LDBLOCK) or a data block (DTBLOCK, DVBLOCK or respective DZBLOCK) (can be 0) */
-    h->dgLinks.dg_md_comment = 0;                                                                                                                 /* pointer to         TXBLOCK/MDBLOCK with additional comments (can be 0) */
-    h->dgData.dg_rec_id_size = recordIdSize; /*1*/                                                                                                /* Number of Bytes used for record ID [0,1,2,4,8] (at start of record) */
+    h->dgHeader.id = GENERATE_ID('D', 'G'); /*4*/          /* identification, Bytes are interpreted as ASCII code */
+    h->dgHeader.length = MDF4_DG_MIN_LENGTH; /*8*/         /* total number of Bytes contained in block (block header + link list + block data */
+    h->dgHeader.link_count = MDF4_DG_MIN_LINK_COUNT; /*8*/ /* number of elements in link list = number of links following the block header */
+    h->dgLinks.dg_dg_next = 0;                             /* pointer to (next)  data group block    (DGBLOCK) (can be 0) */
+    h->dgLinks.dg_cg_first =
+        MDF4_ID_LENGTH + MDF4_HD_MIN_LENGTH + MDF4_FH_MIN_LENGTH + MDF4_MD_MIN_LENGTH + MD_COMMENT_LEN + MDF4_DG_MIN_LENGTH; /* pointer to (first) channel group block (CGBLOCK) */
+    h->dgLinks.dg_data = dataLink; /* pointer to         data list block (DLBLOCK/HZBLOCK/LDBLOCK) or a data block (DTBLOCK, DVBLOCK or respective DZBLOCK) (can be 0) */
+    h->dgLinks.dg_md_comment = 0;  /* pointer to         TXBLOCK/MDBLOCK with additional comments (can be 0) */
+    h->dgData.dg_rec_id_size = recordIdSize; /*1*/ /* Number of Bytes used for record ID [0,1,2,4,8] (at start of record) */
 
     return h;
 }
 
 // Channelgroup
-static struct mdfChannelGroup *mdfCreateChannelGroupBlock(uint64_t recordCount, uint16_t recordId, uint32_t recordLen, mdf_link_t channelLink)
-{
+static struct mdfChannelGroup *mdfCreateChannelGroupBlock(uint64_t recordCount, uint16_t recordId, uint32_t recordLen, mdf_link_t channelLink) {
 
     printf("mdfCreateChannelGroupBlock recordCount=%" PRIu64 " id=%u len=%u firstChannel=%" PRIu64 "\n", recordCount, recordId, recordLen, channelLink);
 
@@ -248,7 +237,7 @@ static struct mdfChannelGroup *mdfCreateChannelGroupBlock(uint64_t recordCount, 
     h->b.cgLinks.cg_sr_first = 0;
     ; /* pointer to first sample reduction block (SRBLOCK)   (can be 0, must be 0 if MDF4_CG_FLAG_VLSD flag is set) */
     h->b.cgLinks.cg_md_comment = 0;
-    ;                                                      /* pointer to TXBLOCK/MDBLOCK with additional comments (can be 0, must be 0 if MDF4_CG_FLAG_VLSD flag is set) XML schema for contents of MDBLOCK see cg_comment.xsd */
+    ; /* pointer to TXBLOCK/MDBLOCK with additional comments (can be 0, must be 0 if MDF4_CG_FLAG_VLSD flag is set) XML schema for contents of MDBLOCK see cg_comment.xsd */
     h->b.cgData.cg_record_id = recordId;                   /* Record identification, can be up to 8 Bytes long */
     h->b.cgData.cg_cycle_count = recordCount;              /* Number of cycles, i.e. number of samples for this channel group */
     h->b.cgData.cg_flags = 0;                              /* Flags are bit combination of [MDF4_CG_FLAG_xxx] */
@@ -260,10 +249,8 @@ static struct mdfChannelGroup *mdfCreateChannelGroupBlock(uint64_t recordCount, 
 }
 
 // Channel
-static struct mdfChannel *mdfCreateChannelBlock(
-    int timeChannel, const char *name, int type, uint32_t dim, uint32_t byteOffset, uint32_t bitCount,
-    mdf_link_t next, double factor, double offset, const char *unit)
-{
+static struct mdfChannel *mdfCreateChannelBlock(int timeChannel, const char *name, int type, uint32_t dim, uint32_t byteOffset, uint32_t bitCount, mdf_link_t next, double factor,
+                                                double offset, const char *unit) {
 
     /* type = MDF4_CN_VAL_UNSIGN_INTEL, MDF4_CN_VAL_UNSIGN_INTEL, MDF4_CN_VAL_SIGNED_INTEL, MDF4_CN_VAL_REAL_INTEL */
 
@@ -278,20 +265,18 @@ static struct mdfChannel *mdfCreateChannelBlock(
     c->b.c.cnHeader.length = MDF4_CN_MIN_LENGTH;
     c->b.c.cnHeader.link_count = MDF4_CN_MIN_LINK_COUNT;
     c->b.c.cnLinks.cn_cn_next = next; /* pointer to next CNBLOCK of group (can be 0) */
-    if (dim > 1)
-    {
+    if (dim > 1) {
         c->b.c.cnLinks.cn_composition = (char *)&c->b.a.caHeader - (char *)c; /* pointer to CABLOCK/CNBLOCK to describe components of this signal (can be 0) */
-    }
-    else
-    {
+    } else {
         c->b.c.cnLinks.cn_composition = 0;
     }
-    c->b.c.cnLinks.cn_tx_name = (char *)&c->b.c.txHeader - (char *)c;               /* relative pointer to TXBLOCK for name of this signal (can be 0, must not be 0 for data channels) */
-    c->b.c.cnLinks.cn_si_source = 0;                                              /* pointer to SIBLOCK for name of this signal (can be 0, must not be 0 for data channels) */
-    c->b.c.cnLinks.cn_cc_conversion = (char *)&c->b.c.ccHeader - (char *)c;         // relative pointer to conversion rule (CCBLOCK) of this signal (can be 0) */
-    c->b.c.cnLinks.cn_data = 0;                                                     /* pointer to DLBLOCK/HLBLOCK/SDBLOCK/DZBLOCK/ATBLOCK/CGBLOCK defining the signal data for this signal (can be 0) */
-    c->b.c.cnLinks.cn_md_unit = 0;                                                  /* pointer to MD/TXBLOCK with string for physical unit after conversion (can be 0). If 0, the unit from the conversion rule applies. If empty string, no unit should be displayed. */
-    c->b.c.cnLinks.cn_md_comment = 0;                                               /* pointer to TXBLOCK/MDBLOCK with comment/description of this signal and other information (can be 0) */
+    c->b.c.cnLinks.cn_tx_name = (char *)&c->b.c.txHeader - (char *)c;       /* relative pointer to TXBLOCK for name of this signal (can be 0, must not be 0 for data channels) */
+    c->b.c.cnLinks.cn_si_source = 0;                                        /* pointer to SIBLOCK for name of this signal (can be 0, must not be 0 for data channels) */
+    c->b.c.cnLinks.cn_cc_conversion = (char *)&c->b.c.ccHeader - (char *)c; // relative pointer to conversion rule (CCBLOCK) of this signal (can be 0) */
+    c->b.c.cnLinks.cn_data = 0;       /* pointer to DLBLOCK/HLBLOCK/SDBLOCK/DZBLOCK/ATBLOCK/CGBLOCK defining the signal data for this signal (can be 0) */
+    c->b.c.cnLinks.cn_md_unit = 0;    /* pointer to MD/TXBLOCK with string for physical unit after conversion (can be 0). If 0, the unit from the conversion rule applies. If empty
+                                         string, no unit should be displayed. */
+    c->b.c.cnLinks.cn_md_comment = 0; /* pointer to TXBLOCK/MDBLOCK with comment/description of this signal and other information (can be 0) */
     c->b.c.cnData.cn_type = timeChannel ? MDF4_CN_TYPE_MASTER : MDF4_CN_TYPE_VALUE; /* channel type [MDF4_CN_TYPE_xxx] */
     c->b.c.cnData.cn_sync_type = timeChannel ? MDF4_SYNC_TIME : MDF4_SYNC_NONE;
     c->b.c.cnData.cn_data_type = type;
@@ -300,26 +285,26 @@ static struct mdfChannel *mdfCreateChannelBlock(
     c->b.c.cnData.cn_bit_count = bitCount;     /* Number of bits for the value in record (also relevant for MDF4_CN_VAL_FLOAT / MDF4_CN_VAL_DOUBLE!)   */
     c->b.c.cnData.cn_flags = 0;                /* flags are bit combination of [MDF4_CN_FLAG_xxx] */
     c->b.c.cnData.cn_inval_bit_pos = 0;        /* position of invalidation bit (starting after cg_data_bytes!)    */
-    c->b.c.cnData.cn_precision = 0xff;         /* precision of value to use for display (for floating-point values) decimal places to use for display of float value (0xFF => infinite)      */
-    c->b.c.cnData.cn_attachment_count = 0;     /* number of attachments related to this channel, i.e. size of cn_at_references. Can be 0. (since MDF 4.1) */
-    c->b.c.cnData.cn_val_range_min = 0;        /* minimum value of raw value range */
-    c->b.c.cnData.cn_val_range_max = 0;        /* maximum value of raw value range */
-    c->b.c.cnData.cn_limit_min = 0;            /* minimum phys value of limit range */
-    c->b.c.cnData.cn_limit_max = 0;            /* maximum phys value of limit range */
-    c->b.c.cnData.cn_limit_ext_min = 0;        /* minimum phys value of extended limit range */
-    c->b.c.cnData.cn_limit_ext_max = 0;        /* maximum phys value of extended limit range */
+    c->b.c.cnData.cn_precision = 0xff; /* precision of value to use for display (for floating-point values) decimal places to use for display of float value (0xFF => infinite) */
+    c->b.c.cnData.cn_attachment_count = 0; /* number of attachments related to this channel, i.e. size of cn_at_references. Can be 0. (since MDF 4.1) */
+    c->b.c.cnData.cn_val_range_min = 0;    /* minimum value of raw value range */
+    c->b.c.cnData.cn_val_range_max = 0;    /* maximum value of raw value range */
+    c->b.c.cnData.cn_limit_min = 0;        /* minimum phys value of limit range */
+    c->b.c.cnData.cn_limit_max = 0;        /* maximum phys value of limit range */
+    c->b.c.cnData.cn_limit_ext_min = 0;    /* minimum phys value of extended limit range */
+    c->b.c.cnData.cn_limit_ext_max = 0;    /* maximum phys value of extended limit range */
 
     c->b.c.ccHeader.id = GENERATE_ID('C', 'C');
     c->b.c.ccHeader.length = MDF4_CC_LENGTH_LIN;
     c->b.c.ccHeader.link_count = MDF4_CC_MIN_LINK_COUNT;
     c->b.c.ccLinks.cc_md_unit = (char *)&c->b.c.txHeaderUnit - (char *)c; /* relative pointer to TX/MDBLOCK with string for physical unit after conversion (can be 0) */
     c->b.c.ccData.cc_type = MDF4_CC_FRM_LIN; /* 1*/                       /* conversion type identifier [MDF4_CC_FRM_xxx] */
-    c->b.c.ccData.cc_precision = 0xFF; /* 1*/                             /* number of decimal places to use for display of float value (0xFF => infinite) only valid if MDF4_CC_FLAG_PRECISION flag is set */
-    c->b.c.ccData.cc_flags = 0; /* 2*/                                    /* flags are bit combination of [MDF4_CC_FLAG_xxx] */
-    c->b.c.ccData.cc_ref_count = 0; /* 2*/                                /* length of cc_ref list */
-    c->b.c.ccData.cc_val_count = 2; /* 2*/                                /* length of cc_val list */
-    c->b.c.ccData.cc_phy_range_min = 0; /* 8*/                            /* minimum value of physical value range */
-    c->b.c.ccData.cc_phy_range_max = 0; /* 8*/                            /* maximum value of physical value range */
+    c->b.c.ccData.cc_precision = 0xFF; /* 1*/  /* number of decimal places to use for display of float value (0xFF => infinite) only valid if MDF4_CC_FLAG_PRECISION flag is set */
+    c->b.c.ccData.cc_flags = 0; /* 2*/         /* flags are bit combination of [MDF4_CC_FLAG_xxx] */
+    c->b.c.ccData.cc_ref_count = 0; /* 2*/     /* length of cc_ref list */
+    c->b.c.ccData.cc_val_count = 2; /* 2*/     /* length of cc_val list */
+    c->b.c.ccData.cc_phy_range_min = 0; /* 8*/ /* minimum value of physical value range */
+    c->b.c.ccData.cc_phy_range_max = 0; /* 8*/ /* maximum value of physical value range */
     c->b.c.ccData.cc_val[0] = offset;
     c->b.c.ccData.cc_val[1] = factor;
 
@@ -349,8 +334,7 @@ static struct mdfChannel *mdfCreateChannelBlock(
 }
 
 // Data
-static struct mdfDataBlock *mdfCreateDataBlock()
-{
+static struct mdfDataBlock *mdfCreateDataBlock(void) {
 
     printf("mdfCreateDataBlock\n");
 
@@ -365,31 +349,24 @@ static struct mdfDataBlock *mdfCreateDataBlock()
     return d;
 }
 
-static void mdfAdjustBlockLinks(BLOCK_HEADER *b, BLOCK_HEADER *root, mdf_link_t offset, mdf_link_t limit)
-{
+static void mdfAdjustBlockLinks(BLOCK_HEADER *b, BLOCK_HEADER *root, mdf_link_t offset, mdf_link_t limit) {
 
     printf(" Adjust %c%c\n", 0xFF & (b->id >> 16), 0xFF & (b->id >> 24));
     BLOCK_LINKS *l = (BLOCK_LINKS *)((char *)b + sizeof(BLOCK_HEADER));
-    for (uint32_t i = 0; i < b->link_count; i++)
-    {
-        if (l->link[i] != 0)
-        {
-            if (l->link[i] < limit)
-            {
+    for (uint32_t i = 0; i < b->link_count; i++) {
+        if (l->link[i] != 0) {
+            if (l->link[i] < limit) {
                 mdfAdjustBlockLinks((BLOCK_HEADER *)((char *)root + l->link[i]), root, offset, limit);
                 l->link[i] += offset;
                 printf("  %u: %" PRIu64 " -> %" PRIu64 "\n", i, l->link[i] - offset, l->link[i]);
-            }
-            else
-            {
+            } else {
                 printf("  %u: %" PRIu64 "\n", i, l->link[i]);
             }
         }
     }
 }
 
-static int mdfWriteBlock(FILE *f, BLOCK_HEADER *b, uint32_t len, int update)
-{
+static int mdfWriteBlock(FILE *f, BLOCK_HEADER *b, uint32_t len, int update) {
 
     mdf_link_t pos = ftell(f);
     printf("mdfWriteBlock %c%c at %" PRIu64 " len=%u\n", 0xFF & (b->id >> 16), 0xFF & (b->id >> 24), pos, len);
@@ -400,12 +377,10 @@ static int mdfWriteBlock(FILE *f, BLOCK_HEADER *b, uint32_t len, int update)
 
 //------------------------------------------------------------------------------------------------------------------------
 
-int mdfOpen(const char *filename)
-{
+int mdfOpen(const char *filename) {
 
     printf("mdfOpen %s\n", filename);
-    if (NULL == (mdfFile = fopen(filename, "wb")))
-    {
+    if (NULL == (mdfFile = fopen(filename, "wb"))) {
         printf("error: Could not open file %s\n", filename);
         return 0;
     }
@@ -424,8 +399,7 @@ int mdfOpen(const char *filename)
     return 1;
 }
 
-int mdfCreateChannelGroup(uint32_t recordId, uint32_t recordLen, uint32_t timeChannelSize, double timeChannelConv)
-{
+int mdfCreateChannelGroup(uint32_t recordId, uint32_t recordLen, uint32_t timeChannelSize, double timeChannelConv) {
 
     printf("mdfCreateChannelGroup %u\n", recordId);
 
@@ -447,12 +421,9 @@ int mdfCreateChannelGroup(uint32_t recordId, uint32_t recordLen, uint32_t timeCh
     g->recordLen = recordLen;                                    /* including recordIdLen, 0=unknown yet */
     g->actualRecordLen = mdfRecordIdLen + MDF_TIME_CHANNEL_SIZE; /* including recordIdLen */
 
-    if (mdfChannelGroupLast == NULL)
-    {
+    if (mdfChannelGroupLast == NULL) {
         mdfChannelGroupFirst = mdfChannelGroupLast = g;
-    }
-    else
-    {
+    } else {
         mdfChannelGroupLast->next = g;
         mdfChannelGroupLast = g;
     }
@@ -460,14 +431,12 @@ int mdfCreateChannelGroup(uint32_t recordId, uint32_t recordLen, uint32_t timeCh
     return 1;
 }
 
-int mdfCreateChannel(const char *name, uint8_t msize, int8_t encoding, uint32_t dim, uint32_t byteOffset, double factor, double offset, const char *unit)
-{
+int mdfCreateChannel(const char *name, uint8_t msize, int8_t encoding, uint32_t dim, uint32_t byteOffset, double factor, double offset, const char *unit) {
 
     printf(" mdfCreateChannel %s size=%u signed=%d dim=%u byteOffset=%u\n", name, msize, encoding, dim, byteOffset);
 
     uint32_t mtype;
-    switch (encoding)
-    {
+    switch (encoding) {
     case 1:
         mtype = MDF4_CN_VAL_UNSIGN_INTEL;
         break;
@@ -497,12 +466,9 @@ int mdfCreateChannel(const char *name, uint8_t msize, int8_t encoding, uint32_t 
     if (c == NULL)
         return 0;
 
-    if (g->dataChannelLast == NULL)
-    {
+    if (g->dataChannelLast == NULL) {
         g->dataChannelFirst = g->dataChannelLast = c;
-    }
-    else
-    {
+    } else {
         g->dataChannelLast->next = c;
         g->dataChannelLast = c;
     }
@@ -510,40 +476,30 @@ int mdfCreateChannel(const char *name, uint8_t msize, int8_t encoding, uint32_t 
     return 1;
 }
 
-int mdfWriteHeader()
-{
+int mdfWriteHeader(void) {
 
     mdf_link_t pos = 0;
 
     // Eliminate empty channel group groups
     struct mdfChannelGroup *g, **gp;
-    for (g = mdfChannelGroupFirst, gp = &mdfChannelGroupFirst; g != NULL; g = g->next)
-    {
-        if (g->dataChannelCount == 0)
-        {
+    for (g = mdfChannelGroupFirst, gp = &mdfChannelGroupFirst; g != NULL; g = g->next) {
+        if (g->dataChannelCount == 0) {
             *gp = g->next; // eliminate g
             mdfChannelGroupCount--;
-        }
-        else
-        {
+        } else {
             gp = &g->next;
         }
     }
 
     // Calculate header sizes
     uint64_t headerSize = sizeof(struct mdfHeaderBlock);
-    for (struct mdfChannelGroup *g = mdfChannelGroupFirst; g != NULL; g = g->next)
-    {
+    for (struct mdfChannelGroup *g = mdfChannelGroupFirst; g != NULL; g = g->next) {
         assert(g->dataChannelCount != 0);
         g->groupHeaderSize = sizeof(struct mdfChannelGroupBlock) + sizeof(struct mdfChannelBlock);
-        for (struct mdfChannel *c = g->dataChannelFirst; c != NULL; c = c->next)
-        {
-            if (c->b.c.cnLinks.cn_composition != 0)
-            {
+        for (struct mdfChannel *c = g->dataChannelFirst; c != NULL; c = c->next) {
+            if (c->b.c.cnLinks.cn_composition != 0) {
                 c->channelHeaderSize = sizeof(struct mdfArrayBlock);
-            }
-            else
-            {
+            } else {
                 c->channelHeaderSize = sizeof(struct mdfChannelBlock);
             }
             g->groupHeaderSize += c->channelHeaderSize;
@@ -558,10 +514,9 @@ int mdfWriteHeader()
     pos += sizeof(struct mdfHeaderBlock);
 
     // Channel groups
-    for (struct mdfChannelGroup *g = mdfChannelGroupFirst; g != NULL; g = g->next)
-    {
+    for (struct mdfChannelGroup *g = mdfChannelGroupFirst; g != NULL; g = g->next) {
 
-        g->b.cgLinks.cg_cn_first = pos + sizeof(struct mdfChannelGroupBlock);         // First channel
+        g->b.cgLinks.cg_cn_first = pos + sizeof(struct mdfChannelGroupBlock);       // First channel
         g->b.cgLinks.cg_cg_next = (g->next == NULL) ? 0 : pos + g->groupHeaderSize; // Next group
         if (g->b.cgData.cg_record_bytes.cg_data_bytes == 0)
             g->b.cgData.cg_record_bytes.cg_data_bytes = g->actualRecordLen - mdfRecordIdLen; /* Length of record in Bytes without id */
@@ -578,18 +533,14 @@ int mdfWriteHeader()
         pos += sizeof(struct mdfChannelBlock);
 
         // Data channels
-        for (struct mdfChannel *c = g->dataChannelFirst; c != NULL; c = c->next)
-        {
-            if (c->b.c.cnLinks.cn_composition != 0)
-            {
+        for (struct mdfChannel *c = g->dataChannelFirst; c != NULL; c = c->next) {
+            if (c->b.c.cnLinks.cn_composition != 0) {
 
                 c->b.c.cnLinks.cn_cn_next = (c->next == NULL) ? 0 : pos + sizeof(struct mdfArrayBlock);
                 if (!mdfWriteBlock(mdfFile, (BLOCK_HEADER *)&c->b.a, sizeof(struct mdfArrayBlock), TRUE))
                     return 0;
                 pos += sizeof(struct mdfArrayBlock);
-            }
-            else
-            {
+            } else {
 
                 c->b.c.cnLinks.cn_cn_next = (c->next == NULL) ? 0 : pos + sizeof(struct mdfChannelBlock);
                 if (!mdfWriteBlock(mdfFile, (BLOCK_HEADER *)&c->b.c, sizeof(struct mdfChannelBlock), TRUE))
@@ -611,8 +562,7 @@ int mdfWriteHeader()
     return 1;
 }
 
-int mdfWriteRecord(const uint8_t *record, uint32_t recordLen)
-{
+int mdfWriteRecord(const uint8_t *record, uint32_t recordLen) {
 
     // Increment data group cycle count
     // @@@@@@@@@@@@@@@@
@@ -622,8 +572,7 @@ int mdfWriteRecord(const uint8_t *record, uint32_t recordLen)
     return s == recordLen;
 }
 
-int mdfClose()
-{
+int mdfClose(void) {
 
     // uint64_t dataBlockLen = 0;
 
@@ -631,12 +580,10 @@ int mdfClose()
         return 1;
 
     // Finalize
-    if (mdfHeader != NULL && mdfDataBlock != NULL && mdfChannelGroupLast != NULL)
-    {
+    if (mdfHeader != NULL && mdfDataBlock != NULL && mdfChannelGroupLast != NULL) {
 
         // Update channel group cycle count
-        for (struct mdfChannelGroup *g = mdfChannelGroupFirst; g != NULL; g = g->next)
-        {
+        for (struct mdfChannelGroup *g = mdfChannelGroupFirst; g != NULL; g = g->next) {
             g->b.cgData.cg_cycle_count = mdfCycleCount;
             if (fseek(mdfFile, g->pos, SEEK_SET) != 0)
                 return 0;

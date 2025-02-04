@@ -141,15 +141,15 @@ typedef struct {
 
 /* Initialization for the XCP Protocol Layer */
 extern void XcpInit(tXcpDaqLists *daq_lists);
-extern BOOL XcpIsInitialized();
+extern BOOL XcpIsInitialized(void);
 extern void XcpStart(BOOL resumeMode);
-extern void XcpReset();
+extern void XcpReset(void);
 
 /* XCP command processor */
 extern uint8_t XcpCommand(const uint32_t *pCommand, uint8_t len);
 
 /* Disconnect, stop DAQ, flush queue */
-extern void XcpDisconnect();
+extern void XcpDisconnect(void);
 
 /* Trigger a XCP data acquisition event */
 extern void XcpTriggerDaqEventAt(const tXcpDaqLists *daq_lists, uint16_t event, const uint8_t *base, uint64_t clock);
@@ -162,7 +162,7 @@ extern void XcpEvent(uint16_t event);
 extern void XcpSendEvent(uint8_t evc, const uint8_t *d, uint8_t l);
 
 /* Send terminate session signal event */
-extern void XcpSendTerminateSessionEvent();
+extern void XcpSendTerminateSessionEvent(void);
 
 /* Print log message via XCP */
 #ifdef XCP_ENABLE_SERV_TEXT
@@ -170,27 +170,27 @@ extern void XcpPrint(const char *str);
 #endif
 
 /* Check status */
-extern BOOL XcpIsStarted();
-extern BOOL XcpIsConnected();
-extern uint16_t XcpGetSessionStatus();
-extern BOOL XcpIsDaqRunning();
+extern BOOL XcpIsStarted(void);
+extern BOOL XcpIsConnected(void);
+extern uint16_t XcpGetSessionStatus(void);
+extern BOOL XcpIsDaqRunning(void);
 extern BOOL XcpIsDaqEventRunning(uint16_t event);
-extern uint64_t XcpGetDaqStartTime();
-extern uint32_t XcpGetDaqOverflowCount();
+extern uint64_t XcpGetDaqStartTime(void);
+extern uint32_t XcpGetDaqOverflowCount(void);
 
 /* Time synchronisation */
 #ifdef XCP_ENABLE_DAQ_CLOCK_MULTICAST
 #if XCP_PROTOCOL_LAYER_VERSION < 0x0103
 #error "Protocol layer version must be >=0x0103"
 #endif
-extern uint16_t XcpGetClusterId();
+extern uint16_t XcpGetClusterId(void);
 #endif
 
 /* Event list */
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
 
 // Clear event list
-extern void XcpClearEventList();
+extern void XcpClearEventList(void);
 // Add a measurement event to event list, return event number (0..MAX_EVENT-1)
 extern uint16_t XcpCreateEvent(const char *name, uint32_t cycleTimeNs /* ns */, uint8_t priority /* 0-normal, >=1 realtime*/, uint16_t sampleCount, uint32_t size);
 // Get event list
@@ -208,19 +208,19 @@ extern tXcpEvent *XcpGetEvent(uint16_t event);
 // Must be thread save
 
 /* Callbacks on connect, disconnect, measurement prepare, start and stop */
-extern BOOL ApplXcpConnect();
-extern void ApplXcpDisconnect();
+extern BOOL ApplXcpConnect(void);
+extern void ApplXcpDisconnect(void);
 #if XCP_PROTOCOL_LAYER_VERSION >= 0x0104
 extern BOOL ApplXcpPrepareDaq(const tXcpDaqLists *daq);
 #endif
 extern void ApplXcpStartDaq(const tXcpDaqLists *daq);
-extern void ApplXcpStopDaq();
+extern void ApplXcpStopDaq(void);
 
 /* Address conversions from A2L address to pointer and vice versa in absolute addressing mode */
 #ifdef XCP_ENABLE_ABS_ADDRESSING
 extern uint8_t *ApplXcpGetPointer(uint8_t xcpAddrExt, uint32_t xcpAddr); /* Create a pointer (uint8_t*) from xcpAddrExt and xcpAddr, returns NULL if no access */
 extern uint32_t ApplXcpGetAddr(const uint8_t *p);                        // Calculate the xcpAddr address from a pointer
-extern uint8_t *ApplXcpGetBaseAddr();                                    // Get the base address for DAQ data access */
+extern uint8_t *ApplXcpGetBaseAddr(void);                                // Get the base address for DAQ data access */
 #endif
 
 /* Read and write memory */
@@ -237,8 +237,8 @@ extern uint8_t ApplXcpUserCommand(uint8_t cmd);
 /*
  Note 1:
    For DAQ performance and memory optimization:
-   XCPlite DAQ tables do not store address extensions and do not use ApplXcpGetPointer(), addr is stored as 32 Bit value and access is hardcoded by *(baseAddr+xcpAddr)
-   All accesible DAQ data is within a 4GByte range starting at ApplXcpGetBaseAddr()
+   XCPlite DAQ tables do not store address extensions and do not use ApplXcpGetPointer(void), addr is stored as 32 Bit value and access is hardcoded by *(baseAddr+xcpAddr)
+   All accesible DAQ data is within a 4GByte range starting at ApplXcpGetBaseAddr(void)
    Attempting to setup an ODT entry with address extension != XCP_ADDR_EXT_ABS or XCP_ADDR_EXT_DYN gives a CRC_ACCESS_DENIED error message
 
  Note 2:
@@ -259,12 +259,12 @@ extern uint8_t ApplXcpFreezeCalPage(uint8_t segment);
 #endif
 
 /* DAQ clock */
-extern uint64_t ApplXcpGetClock64();
+extern uint64_t ApplXcpGetClock64(void);
 #define CLOCK_STATE_SYNCH_IN_PROGRESS (0)
 #define CLOCK_STATE_SYNCH (1)
 #define CLOCK_STATE_FREE_RUNNING (7)
 #define CLOCK_STATE_GRANDMASTER_STATE_SYNCH (1 << 3)
-extern uint8_t ApplXcpGetClockState();
+extern uint8_t ApplXcpGetClockState(void);
 
 #ifdef XCP_ENABLE_PTP
 #define CLOCK_STRATUM_LEVEL_UNKNOWN 255
@@ -278,8 +278,8 @@ extern BOOL ApplXcpGetClockInfoGrandmaster(uint8_t *uuid, uint8_t *epoch, uint8_
 
 /* DAQ resume */
 #ifdef XCP_ENABLE_DAQ_RESUME
-uint8_t ApplXcpDaqResumeStore();
-uint8_t ApplXcpDaqResumeClear();
+uint8_t ApplXcpDaqResumeStore(void);
+uint8_t ApplXcpDaqResumeClear(void);
 
 #endif
 
