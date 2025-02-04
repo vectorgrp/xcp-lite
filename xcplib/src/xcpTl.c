@@ -23,7 +23,7 @@ static struct {
 } gXcpTl;
 #endif
 
-BOOL XcpTlInit(void *queue, uint32_t queueSize) {
+bool XcpTlInit(void *queue, uint32_t queueSize) {
 
     XcpTlInitTransmitQueue(queue, queueSize);
 
@@ -34,12 +34,12 @@ BOOL XcpTlInit(void *queue, uint32_t queueSize) {
 #endif
 
 #if defined(_WIN) // Windows
-    gXcpTl.queue_event = CreateEvent(NULL, TRUE, FALSE, NULL);
+    gXcpTl.queue_event = CreateEvent(NULL, true, false, NULL);
     assert(gXcpTl.queue_event != NULL);
     gXcpTl.queue_event_time = 0;
 #endif
 
-    return TRUE;
+    return true;
 }
 
 void XcpTlShutdown(void) {
@@ -62,7 +62,7 @@ void XcpTlSendCrm(const uint8_t *packet, uint16_t packet_size) {
     // Queue the response packet
     if ((p = XcpTlGetTransmitBuffer(&handle, packet_size)) != NULL) {
         memcpy(p, packet, packet_size);
-        XcpTlCommitTransmitBuffer(handle, TRUE /* flush */);
+        XcpTlCommitTransmitBuffer(handle, true /* flush */);
     } else { // Buffer overflow
         DBG_PRINT_WARNING("WARNING: queue overflow\n");
         // Ignore, handled by tool
@@ -73,7 +73,7 @@ void XcpTlSendCrm(const uint8_t *packet, uint16_t packet_size) {
 // Returns XCP error code
 uint8_t XcpTlCommand(uint16_t msgLen, const uint8_t *msgBuf) {
 
-    BOOL connected = XcpIsConnected();
+    bool connected = XcpIsConnected();
     tXcpCtoMessage *p = (tXcpCtoMessage *)msgBuf;
     assert(msgLen >= p->dlc + XCPTL_TRANSPORT_LAYER_HEADER_SIZE);
 
@@ -143,7 +143,7 @@ int32_t XcpTlHandleTransmitQueue(void) {
 //-------------------------------------------------------------------------------------------------------
 
 // Notify transmit queue handler thread
-BOOL XcpTlNotifyTransmitQueueHandler(void) {
+bool XcpTlNotifyTransmitQueueHandler(void) {
 
     // Windows only, Linux version uses polling
 #if defined(_WIN) // Windows
@@ -155,24 +155,24 @@ BOOL XcpTlNotifyTransmitQueueHandler(void) {
     if (XcpTlTransmitQueueHasMsg() && clock >= gXcpTl.queue_event_time + XCPTL_QUEUE_TRANSMIT_CYCLE_TIME) {
         gXcpTl.queue_event_time = clock;
         SetEvent(gXcpTl.queue_event);
-        return TRUE;
+        return true;
     }
 #endif
-    return FALSE;
+    return false;
 }
 
 // Wait for outgoing data or timeout after timeout_us
-// Return FALSE in case of timeout
-BOOL XcpTlWaitForTransmitData(uint32_t timeout_ms) {
+// Return false in case of timeout
+bool XcpTlWaitForTransmitData(uint32_t timeout_ms) {
 
 #if defined(_WIN) // Windows
 
     // Use event triggered for Windows
     if (WAIT_OBJECT_0 == WaitForSingleObject(gXcpTl.queue_event, timeout_ms)) {
         ResetEvent(gXcpTl.queue_event);
-        return TRUE;
+        return true;
     }
-    return FALSE;
+    return false;
 
 #elif defined(_LINUX) // Linux
 
@@ -183,9 +183,9 @@ BOOL XcpTlWaitForTransmitData(uint32_t timeout_ms) {
         sleepMs(XCPTL_QUEUE_TRANSMIT_POLLING_TIME_MS);
         t = t + XCPTL_QUEUE_TRANSMIT_POLLING_TIME_MS;
         if (t >= timeout_ms)
-            return FALSE;
+            return false;
     }
-    return TRUE;
+    return true;
 
 #endif
 }

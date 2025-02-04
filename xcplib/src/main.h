@@ -44,6 +44,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <inttypes.h>
 #include <math.h>
 #include <assert.h>
@@ -74,9 +75,5 @@
 #include <string>
 #include <vector>
 #endif
-
-#define BOOL uint8_t
-#define FALSE 0
-#define TRUE 1
 
 #include "main_cfg.h"

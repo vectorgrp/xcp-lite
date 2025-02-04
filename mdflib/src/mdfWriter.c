@@ -173,7 +173,7 @@ static struct mdfHeaderBlock *mdfCreateHeaderBlock(int unfin, mdf_link_t dataLin
     h->hdData.hd_start_time_ns =
         0; // @@@@ localTime; /*8*/  /* start of measurement in ns elapsed since 00:00 Jan 1, 1970 UTC time or local time (if MDF4_TIME_FLAG_LOCAL_TIME flag set) */
     h->hdData.hd_tz_offset_min = 0;
-        /*2*/ /* time zone offset in minutes (only valid if MDF4_TIME_FLAG_OFFSETS_VALID is set) i.e. local_time_ns = hd_start_time_ns + MDF4_MIN_TO_NS(hd_tz_offset_min) */
+    /*2*/ /* time zone offset in minutes (only valid if MDF4_TIME_FLAG_OFFSETS_VALID is set) i.e. local_time_ns = hd_start_time_ns + MDF4_MIN_TO_NS(hd_tz_offset_min) */
     h->hdData.hd_dst_offset_min = 0; /*2*/ /* DST offset for local time in minutes used at start time (only valid if MDF4_TIME_FLAG_OFFSETS_VALID is set) i.e. local_DST_time_ns =
                                               hd_start_time_ns + MDF4_MIN_TO_NS(hd_tz_offset_min) + MDF4_MIN_TO_NS(hd_dst_offset_min) */
     h->hdData.hd_time_flags = MDF4_TIME_FLAG_LOCAL_TIME; /*1*/ /* time flags are bit combination of [MDF4_TIME_FLAG_xxx] */
@@ -187,7 +187,7 @@ static struct mdfHeaderBlock *mdfCreateHeaderBlock(int unfin, mdf_link_t dataLin
     h->fhData.fh_time_ns = 0; // localTime @@@@;           /*8*/  /* Time stamp at which the file has been changed/created in ns elapsed since 00:00 Jan 1, 1970 UTC time or local
                               // time (if MDF4_TIME_FLAG_LOCAL_TIME flag set) */
     h->fhData.fh_tz_offset_min = 0;
-        /*2*/ /* time zone offset in minutes (only valid if MDF4_TIME_FLAG_OFFSETS_VALID is set) i.e. local_time_ns = fh_change_time_ns + MDF4_MIN_TO_NS(fh_tz_offset_min) */
+    /*2*/ /* time zone offset in minutes (only valid if MDF4_TIME_FLAG_OFFSETS_VALID is set) i.e. local_time_ns = fh_change_time_ns + MDF4_MIN_TO_NS(fh_tz_offset_min) */
     h->fhData.fh_dst_offset_min = 0; /*2*/ /* DST offset for local time in minutes used at start time (only valid if MDF4_TIME_FLAG_OFFSETS_VALID is set) i.e. local_DST_time_ns =
                                               fh_change_time_ns + MDF4_MIN_TO_NS(fh_tz_offset_min) + MDF4_MIN_TO_NS(fh_dst_offset_min) */
     h->fhData.fh_time_flags = MDF4_TIME_FLAG_LOCAL_TIME; /*1*/ /* time flags are bit combination of [MDF4_TIME_FLAG_xxx] */
@@ -414,7 +414,7 @@ int mdfCreateChannelGroup(uint32_t recordId, uint32_t recordLen, uint32_t timeCh
     g->dataChannelLast = NULL;
     g->dataChannelCount = 0;
 
-    g->timeChannel = mdfCreateChannelBlock(TRUE, "Time", MDF4_CN_VAL_UNSIGN_INTEL, 1 /* dim*/, 0 /*byteoffset*/, timeChannelSize, 0 /*next*/, timeChannelConv, 0.0, "s");
+    g->timeChannel = mdfCreateChannelBlock(true, "Time", MDF4_CN_VAL_UNSIGN_INTEL, 1 /* dim*/, 0 /*byteoffset*/, timeChannelSize, 0 /*next*/, timeChannelConv, 0.0, "s");
     if (g->timeChannel == NULL)
         return 0;
 
@@ -462,7 +462,7 @@ int mdfCreateChannel(const char *name, uint8_t msize, int8_t encoding, uint32_t 
 
     g->actualRecordLen += msize * dim;
 
-    struct mdfChannel *c = mdfCreateChannelBlock(FALSE, name, mtype, dim, byteOffset, msize * 8, 0 /*next*/, factor, offset, unit);
+    struct mdfChannel *c = mdfCreateChannelBlock(false, name, mtype, dim, byteOffset, msize * 8, 0 /*next*/, factor, offset, unit);
     if (c == NULL)
         return 0;
 
@@ -508,8 +508,8 @@ int mdfWriteHeader(void) {
     }
 
     // Header
-    mdfHeader = mdfCreateHeaderBlock(TRUE, headerSize /* LINK to data group*/, mdfRecordIdLen);
-    if (!mdfWriteBlock(mdfFile, (BLOCK_HEADER *)mdfHeader, sizeof(struct mdfHeaderBlock), FALSE))
+    mdfHeader = mdfCreateHeaderBlock(true, headerSize /* LINK to data group*/, mdfRecordIdLen);
+    if (!mdfWriteBlock(mdfFile, (BLOCK_HEADER *)mdfHeader, sizeof(struct mdfHeaderBlock), false))
         return 0;
     pos += sizeof(struct mdfHeaderBlock);
 
@@ -521,14 +521,14 @@ int mdfWriteHeader(void) {
         if (g->b.cgData.cg_record_bytes.cg_data_bytes == 0)
             g->b.cgData.cg_record_bytes.cg_data_bytes = g->actualRecordLen - mdfRecordIdLen; /* Length of record in Bytes without id */
         g->pos = pos;
-        if (!mdfWriteBlock(mdfFile, (BLOCK_HEADER *)&g->b, sizeof(struct mdfChannelGroupBlock), FALSE))
+        if (!mdfWriteBlock(mdfFile, (BLOCK_HEADER *)&g->b, sizeof(struct mdfChannelGroupBlock), false))
             return 0;
         pos += sizeof(struct mdfChannelGroupBlock);
 
         // Time channel
         struct mdfChannel *tc = g->timeChannel;
         tc->b.c.cnLinks.cn_cn_next = pos + sizeof(struct mdfChannelBlock);
-        if (!mdfWriteBlock(mdfFile, (BLOCK_HEADER *)&tc->b.c, sizeof(struct mdfChannelBlock), TRUE))
+        if (!mdfWriteBlock(mdfFile, (BLOCK_HEADER *)&tc->b.c, sizeof(struct mdfChannelBlock), true))
             return 0;
         pos += sizeof(struct mdfChannelBlock);
 
@@ -537,13 +537,13 @@ int mdfWriteHeader(void) {
             if (c->b.c.cnLinks.cn_composition != 0) {
 
                 c->b.c.cnLinks.cn_cn_next = (c->next == NULL) ? 0 : pos + sizeof(struct mdfArrayBlock);
-                if (!mdfWriteBlock(mdfFile, (BLOCK_HEADER *)&c->b.a, sizeof(struct mdfArrayBlock), TRUE))
+                if (!mdfWriteBlock(mdfFile, (BLOCK_HEADER *)&c->b.a, sizeof(struct mdfArrayBlock), true))
                     return 0;
                 pos += sizeof(struct mdfArrayBlock);
             } else {
 
                 c->b.c.cnLinks.cn_cn_next = (c->next == NULL) ? 0 : pos + sizeof(struct mdfChannelBlock);
-                if (!mdfWriteBlock(mdfFile, (BLOCK_HEADER *)&c->b.c, sizeof(struct mdfChannelBlock), TRUE))
+                if (!mdfWriteBlock(mdfFile, (BLOCK_HEADER *)&c->b.c, sizeof(struct mdfChannelBlock), true))
                     return 0;
                 pos += sizeof(struct mdfChannelBlock);
             }
@@ -553,7 +553,7 @@ int mdfWriteHeader(void) {
     // Data block
     mdfDataBlock = mdfCreateDataBlock();
     mdfDataBlockPos = ftell(mdfFile);
-    if (!mdfWriteBlock(mdfFile, (BLOCK_HEADER *)mdfDataBlock, sizeof(struct mdfDataBlock), FALSE))
+    if (!mdfWriteBlock(mdfFile, (BLOCK_HEADER *)mdfDataBlock, sizeof(struct mdfDataBlock), false))
         return 0;
     assert(pos == headerSize);
     pos += sizeof(struct mdfDataBlock);
@@ -587,7 +587,7 @@ int mdfClose(void) {
             g->b.cgData.cg_cycle_count = mdfCycleCount;
             if (fseek(mdfFile, g->pos, SEEK_SET) != 0)
                 return 0;
-            if (!mdfWriteBlock(mdfFile, (BLOCK_HEADER *)g, sizeof(struct mdfChannelGroupBlock), FALSE))
+            if (!mdfWriteBlock(mdfFile, (BLOCK_HEADER *)g, sizeof(struct mdfChannelGroupBlock), false))
                 return 0;
         }
 
@@ -596,7 +596,7 @@ int mdfClose(void) {
         // fsetpos(mdfFile, &mdfDataBlockPos);
         if (fseek(mdfFile, mdfDataBlockPos, SEEK_SET) != 0)
             return 0;
-        if (!mdfWriteBlock(mdfFile, (BLOCK_HEADER *)mdfDataBlock, sizeof(struct mdfDataBlock), FALSE))
+        if (!mdfWriteBlock(mdfFile, (BLOCK_HEADER *)mdfDataBlock, sizeof(struct mdfDataBlock), false))
             return 0;
 
         // Update header unfin flags
@@ -605,7 +605,7 @@ int mdfClose(void) {
         mdfHeader->id.id_custom_unfin_flags = 0;
         if (fseek(mdfFile, 0, SEEK_SET) != 0)
             return 0;
-        if (!mdfWriteBlock(mdfFile, (BLOCK_HEADER *)mdfHeader, sizeof(struct mdfHeaderBlock), FALSE))
+        if (!mdfWriteBlock(mdfFile, (BLOCK_HEADER *)mdfHeader, sizeof(struct mdfHeaderBlock), false))
             return 0;
     }
 

@@ -60,7 +60,7 @@ extern void sleepMs(uint32_t ms);
 
 #endif
 
-void mutexInit(MUTEX *m, BOOL recursive, uint32_t spinCount);
+void mutexInit(MUTEX *m, bool recursive, uint32_t spinCount);
 void mutexDestroy(MUTEX *m);
 
 //-------------------------------------------------------------------------------
@@ -140,22 +140,22 @@ typedef pthread_t THREAD;
 #define SOCKET_TIMESTAMP_FREE_RUNNING 0
 #define SOCKET_TIMESTAMP_SOFTWARE_SYNC 1
 
-extern BOOL socketStartup(void);
+extern bool socketStartup(void);
 extern int32_t socketGetLastError(void);
 extern void socketCleanup(void);
-extern BOOL socketOpen(SOCKET *sp, BOOL useTCP, BOOL nonBlocking, BOOL reuseaddr, BOOL timestamps);
-extern BOOL socketBind(SOCKET sock, uint8_t *addr, uint16_t port);
-extern BOOL socketJoin(SOCKET sock, uint8_t *maddr);
-extern BOOL socketListen(SOCKET sock);
+extern bool socketOpen(SOCKET *sp, bool useTCP, bool nonBlocking, bool reuseaddr, bool timestamps);
+extern bool socketBind(SOCKET sock, uint8_t *addr, uint16_t port);
+extern bool socketJoin(SOCKET sock, uint8_t *maddr);
+extern bool socketListen(SOCKET sock);
 extern SOCKET socketAccept(SOCKET sock, uint8_t *addr);
-extern int16_t socketRecv(SOCKET sock, uint8_t *buffer, uint16_t bufferSize, BOOL waitAll);
+extern int16_t socketRecv(SOCKET sock, uint8_t *buffer, uint16_t bufferSize, bool waitAll);
 extern int16_t socketRecvFrom(SOCKET sock, uint8_t *buffer, uint16_t bufferSize, uint8_t *srcAddr, uint16_t *srcPort, uint64_t *time);
 extern int16_t socketSend(SOCKET sock, const uint8_t *buffer, uint16_t bufferSize);
 extern int16_t socketSendTo(SOCKET sock, const uint8_t *buffer, uint16_t bufferSize, const uint8_t *addr, uint16_t port, uint64_t *time);
-extern BOOL socketShutdown(SOCKET sock);
-extern BOOL socketClose(SOCKET *sp);
+extern bool socketShutdown(SOCKET sock);
+extern bool socketClose(SOCKET *sp);
 #ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
-extern BOOL socketGetLocalAddr(uint8_t *mac, uint8_t *addr);
+extern bool socketGetLocalAddr(uint8_t *mac, uint8_t *addr);
 #endif
 
 #endif
@@ -184,7 +184,7 @@ extern BOOL socketGetLocalAddr(uint8_t *mac, uint8_t *addr);
 #endif
 
 // Clock
-extern BOOL clockInit(void);
+extern bool clockInit(void);
 extern uint64_t clockGet(void);
 extern uint64_t clockGetLast(void);
 extern char *clockGetString(char *s, uint32_t l, uint64_t c);

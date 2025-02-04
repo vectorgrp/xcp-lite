@@ -18,7 +18,7 @@
 
 // @@@@ improve
 #ifdef XCP_ENABLE_USER_COMMAND
-static BOOL write_delay = FALSE;
+static bool write_delay = false;
 #endif
 
 /**************************************************************************/
@@ -85,28 +85,28 @@ void ApplXcpRegisterCallbacks(uint8_t (*cb_connect)(void), uint8_t (*cb_prepare_
 // General notifications from XCPlite.c
 /**************************************************************************/
 
-BOOL ApplXcpConnect(void) {
+bool ApplXcpConnect(void) {
     DBG_PRINT4("ApplXcpConnect\n");
 #ifdef XCP_ENABLE_USER_COMMAND
-    write_delay = FALSE;
+    write_delay = false;
 #endif
     if (callback_connect != NULL)
         return callback_connect();
-    return TRUE;
+    return true;
 }
 
 void ApplXcpDisconnect(void) { DBG_PRINT4("ApplXcpDisconnect\n"); }
 
 #if XCP_PROTOCOL_LAYER_VERSION >= 0x0104
-BOOL ApplXcpPrepareDaq(const tXcpDaqLists *daq) {
+bool ApplXcpPrepareDaq(const tXcpDaqLists *daq) {
     DBG_PRINT4("ApplXcpPrepareDaq\n");
     if (callback_prepare_daq != NULL) {
         if (!callback_prepare_daq(daq)) {
             DBG_PRINT_WARNING("DAQ start canceled by AppXcpPrepareDaq!\n");
-            return FALSE;
+            return false;
         };
     }
-    return TRUE;
+    return true;
 }
 #endif
 
@@ -137,13 +137,13 @@ uint8_t ApplXcpGetClockState(void) {
     return CLOCK_STATE_FREE_RUNNING; // Clock is a free running counter
 }
 
-BOOL ApplXcpGetClockInfoGrandmaster(uint8_t *uuid, uint8_t *epoch, uint8_t *stratum) {
+bool ApplXcpGetClockInfoGrandmaster(uint8_t *uuid, uint8_t *epoch, uint8_t *stratum) {
 
     (void)uuid;
     (void)epoch;
     (void)stratum;
 
-    return FALSE; // No PTP support implemented
+    return false; // No PTP support implemented
 }
 
 /**************************************************************************/
@@ -309,10 +309,10 @@ uint32_t ApplXcpGetAddr(const uint8_t *p) { return ((uint32_t)(p)); }
 uint8_t ApplXcpUserCommand(uint8_t cmd) {
     switch (cmd) {
     case 0x01: // Begin atomic calibration operation
-        write_delay = TRUE;
+        write_delay = true;
         break;
     case 0x02: // End atomic calibration operation;
-        write_delay = FALSE;
+        write_delay = false;
         if (callback_flush != NULL)
             return callback_flush();
         break;
@@ -458,16 +458,16 @@ uint32_t openA2lFile(void) {
     return gXcpFileLength;
 }
 
-BOOL ApplXcpReadA2L(uint8_t size, uint32_t addr, uint8_t *data) {
+bool ApplXcpReadA2L(uint8_t size, uint32_t addr, uint8_t *data) {
     if (gXcpFile == NULL)
-        return FALSE;
+        return false;
     if (addr + size > gXcpFileLength)
-        return FALSE;
+        return false;
     if (size != fread(data, 1, (uint32_t)size, gXcpFile))
-        return FALSE;
+        return false;
     if (addr + size == gXcpFileLength)
         closeA2lFile(); // Close file after complete sequential read
-    return TRUE;
+    return true;
 }
 
 #endif // XCP_ENABLE_IDT_A2L_UPLOAD

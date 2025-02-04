@@ -80,7 +80,7 @@ typedef struct {
 } tXcpTlQueue;
 
 static tXcpTlQueue *gXcpTlQueue = NULL;
-static BOOL gXcpTlQueueExternal = FALSE;
+static bool gXcpTlQueueExternal = false;
 
 void XcpTlInitTransmitQueue(void *queue, uint32_t queueSize) {
 
@@ -90,14 +90,14 @@ void XcpTlInitTransmitQueue(void *queue, uint32_t queueSize) {
     if (queue == NULL) {
         gXcpTlQueue = (tXcpTlQueue *)malloc(sizeof(tXcpTlQueue));
         assert(gXcpTlQueue != NULL);
-        gXcpTlQueueExternal = FALSE;
+        gXcpTlQueueExternal = false;
         gXcpTlQueue->h.buffer_size = BUFFER_SIZE;
         gXcpTlQueue->h.queue_size = BUFFER_SIZE - ENTRY_SIZE;
     }
     // Queue memory is provided by the application
     else {
         gXcpTlQueue = (tXcpTlQueue *)queue;
-        gXcpTlQueueExternal = TRUE;
+        gXcpTlQueueExternal = true;
         gXcpTlQueue->h.buffer_size = queueSize - sizeof(tXcpTlQueueHeader);
         gXcpTlQueue->h.queue_size = queueSize - sizeof(tXcpTlQueueHeader) - ENTRY_SIZE;
     }
@@ -108,8 +108,8 @@ void XcpTlInitTransmitQueue(void *queue, uint32_t queueSize) {
 
     gXcpTlQueue->h.overruns = 0;
     gXcpTlQueue->h.ctr = 0;
-    gXcpTlQueue->h.flush = FALSE;
-    mutexInit(&gXcpTlQueue->h.mutex, FALSE, 1000);
+    gXcpTlQueue->h.flush = false;
+    mutexInit(&gXcpTlQueue->h.mutex, false, 1000);
     atomic_store_explicit(&gXcpTlQueue->h.head, 0, memory_order_relaxed);
     atomic_store_explicit(&gXcpTlQueue->h.tail, 0, memory_order_relaxed);
     gXcpTlQueue->h.tail_len = 0;
@@ -141,7 +141,7 @@ void XcpTlFreeTransmitQueue(void) {
     mutexDestroy(&gXcpTlQueue->h.mutex);
 
     if (gXcpTlQueueExternal) {
-        gXcpTlQueueExternal = FALSE;
+        gXcpTlQueueExternal = false;
     } else {
         free(gXcpTlQueue);
     }
@@ -223,11 +223,11 @@ uint8_t *XcpTlGetTransmitBuffer(void **handle, uint16_t packet_len) {
 }
 
 // Commit a buffer (by handle returned from XcpTlGetTransmitBuffer)
-void XcpTlCommitTransmitBuffer(void *handle, BOOL flush) {
+void XcpTlCommitTransmitBuffer(void *handle, bool flush) {
 
     tXcpDtoMessage *entry = (tXcpDtoMessage *)handle;
     if (flush)
-        gXcpTlQueue->h.flush = TRUE;
+        gXcpTlQueue->h.flush = true;
     entry->ctr = COMMITTED;
 
 #if defined(_WIN) // Windows has event driven transmit queue handler, Linux uses transmit queue polling
@@ -240,7 +240,7 @@ void XcpTlCommitTransmitBuffer(void *handle, BOOL flush) {
 // Empy the queue, even if a message is not completely used
 void XcpTlFlushTransmitBuffer(void) {
     assert(gXcpTlQueue != NULL);
-    gXcpTlQueue->h.flush = TRUE;
+    gXcpTlQueue->h.flush = true;
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -261,37 +261,37 @@ static uint32_t XcpTlGetTransmitQueueLevel(void) {
 // Wait (sleep) until transmit queue is empty
 // This function is thread safe, any thread can wait for transmit queue empty
 // Timeout after 1s
-BOOL XcpTlWaitForTransmitQueueEmpty(uint16_t timeout_ms) {
+bool XcpTlWaitForTransmitQueueEmpty(uint16_t timeout_ms) {
 
     if (gXcpTlQueue == NULL)
-        return TRUE;
+        return true;
 
     do {
         XcpTlFlushTransmitBuffer(); // Flush the current message
         sleepMs(20);
         if (timeout_ms < 20) { // Wait max timeout_ms until the transmit queue is empty
             DBG_PRINTF_ERROR("XcpTlWaitForTransmitQueueEmpty: timeout! (level=%u)\n", XcpTlGetTransmitQueueLevel());
-            return FALSE;
+            return false;
         };
         timeout_ms -= 20;
     } while (XcpTlGetTransmitQueueLevel() != 0);
-    return TRUE;
+    return true;
 }
 
 // Check if the queu has enough packets to consider transmitting a message
-BOOL XcpTlTransmitQueueHasMsg(void) {
+bool XcpTlTransmitQueueHasMsg(void) {
 
     uint32_t n = XcpTlGetTransmitQueueLevel();
     if (n == 0)
-        return FALSE;
+        return false;
 
     DBG_PRINTF5("XcpTlTransmitHasMsg: level=%u, flush=%u\n", n, gXcpTlQueue->h.flush);
 
     if (gXcpTlQueue->h.flush)
-        return TRUE; // Flush or high priority data in the queue
+        return true; // Flush or high priority data in the queue
     if (n > MPSC_QUEUE_TRANSMIT_THRESHOLD)
-        return TRUE; // Enough data for a efficient message
-    return FALSE;
+        return true; // Enough data for a efficient message
+    return false;
 }
 
 // Check if there is a message segment in the transmit queue with at least one committed packet
@@ -372,5 +372,5 @@ void XcpTlTransmitQueueNextMsg(void) {
         return;
     atomic_fetch_add_explicit(&gXcpTlQueue->h.tail, gXcpTlQueue->h.tail_len, memory_order_relaxed);
     gXcpTlQueue->h.tail_len = 0;
-    gXcpTlQueue->h.flush = FALSE;
+    gXcpTlQueue->h.flush = false;
 }

@@ -141,8 +141,8 @@ typedef struct {
 
 /* Initialization for the XCP Protocol Layer */
 extern void XcpInit(tXcpDaqLists *daq_lists);
-extern BOOL XcpIsInitialized(void);
-extern void XcpStart(BOOL resumeMode);
+extern bool XcpIsInitialized(void);
+extern void XcpStart(bool resumeMode);
 extern void XcpReset(void);
 
 /* XCP command processor */
@@ -170,11 +170,11 @@ extern void XcpPrint(const char *str);
 #endif
 
 /* Check status */
-extern BOOL XcpIsStarted(void);
-extern BOOL XcpIsConnected(void);
+extern bool XcpIsStarted(void);
+extern bool XcpIsConnected(void);
 extern uint16_t XcpGetSessionStatus(void);
-extern BOOL XcpIsDaqRunning(void);
-extern BOOL XcpIsDaqEventRunning(uint16_t event);
+extern bool XcpIsDaqRunning(void);
+extern bool XcpIsDaqEventRunning(uint16_t event);
 extern uint64_t XcpGetDaqStartTime(void);
 extern uint32_t XcpGetDaqOverflowCount(void);
 
@@ -208,10 +208,10 @@ extern tXcpEvent *XcpGetEvent(uint16_t event);
 // Must be thread save
 
 /* Callbacks on connect, disconnect, measurement prepare, start and stop */
-extern BOOL ApplXcpConnect(void);
+extern bool ApplXcpConnect(void);
 extern void ApplXcpDisconnect(void);
 #if XCP_PROTOCOL_LAYER_VERSION >= 0x0104
-extern BOOL ApplXcpPrepareDaq(const tXcpDaqLists *daq);
+extern bool ApplXcpPrepareDaq(const tXcpDaqLists *daq);
 #endif
 extern void ApplXcpStartDaq(const tXcpDaqLists *daq);
 extern void ApplXcpStopDaq(void);
@@ -273,7 +273,7 @@ extern uint8_t ApplXcpGetClockState(void);
 #define CLOCK_EPOCH_TAI 0          // Atomic monotonic time since 1.1.1970 (TAI)
 #define CLOCK_EPOCH_UTC 1          // Universal Coordinated Time (with leap seconds) since 1.1.1970 (UTC)
 #define CLOCK_EPOCH_ARB 2          // Arbitrary (epoch unknown)
-extern BOOL ApplXcpGetClockInfoGrandmaster(uint8_t *uuid, uint8_t *epoch, uint8_t *stratum);
+extern bool ApplXcpGetClockInfoGrandmaster(uint8_t *uuid, uint8_t *epoch, uint8_t *stratum);
 #endif
 
 /* DAQ resume */
@@ -289,7 +289,7 @@ uint8_t ApplXcpDaqResumeClear(void);
 extern uint32_t ApplXcpGetId(uint8_t id, uint8_t *buf, uint32_t bufLen);
 
 /* Read a chunk (offset,size) of the A2L file for upload */
-/* Return FALSE if out of bounds */
+/* Return false if out of bounds */
 #ifdef XCP_ENABLE_IDT_A2L_UPLOAD // Enable A2L content upload to host (IDT_ASAM_UPLOAD)
-extern BOOL ApplXcpReadA2L(uint8_t size, uint32_t offset, uint8_t *data);
+extern bool ApplXcpReadA2L(uint8_t size, uint32_t offset, uint8_t *data);
 #endif

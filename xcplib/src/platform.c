@@ -147,7 +147,7 @@ void sleepMs(uint32_t ms) {
 
 #if defined(_LINUX)
 
-void mutexInit(MUTEX *m, BOOL recursive, uint32_t spinCount) {
+void mutexInit(MUTEX *m, bool recursive, uint32_t spinCount) {
     (void)spinCount;
     if (recursive) {
         pthread_mutexattr_t ma;
@@ -163,7 +163,7 @@ void mutexDestroy(MUTEX *m) { pthread_mutex_destroy(m); }
 
 #elif defined(_WIN)
 
-void mutexInit(MUTEX *m, BOOL recursive, uint32_t spinCount) {
+void mutexInit(MUTEX *m, bool recursive, uint32_t spinCount) {
     (void)recursive;
     // Window critical sections are always recursive
     (void)InitializeCriticalSectionAndSpinCount(m, spinCount);
@@ -181,11 +181,11 @@ void mutexDestroy(MUTEX *m) { DeleteCriticalSection(m); }
 
 #ifdef _LINUX
 
-BOOL socketStartup(void) { return TRUE; }
+bool socketStartup(void) { return true; }
 
 void socketCleanup(void) {}
 
-BOOL socketOpen(SOCKET *sp, BOOL useTCP, BOOL nonBlocking, BOOL reuseaddr, BOOL timestamps) {
+bool socketOpen(SOCKET *sp, bool useTCP, bool nonBlocking, bool reuseaddr, bool timestamps) {
     (void)nonBlocking;
     (void)timestamps;
     // Create a socket
@@ -200,10 +200,10 @@ BOOL socketOpen(SOCKET *sp, BOOL useTCP, BOOL nonBlocking, BOOL reuseaddr, BOOL 
         setsockopt(*sp, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
     }
 
-    return TRUE;
+    return true;
 }
 
-BOOL socketBind(SOCKET sock, uint8_t *addr, uint16_t port) {
+bool socketBind(SOCKET sock, uint8_t *addr, uint16_t port) {
 
     // Bind the socket to any address and the specified port
     SOCKADDR_IN a;
@@ -219,26 +219,26 @@ BOOL socketBind(SOCKET sock, uint8_t *addr, uint16_t port) {
         return 0;
     }
 
-    return TRUE;
+    return true;
 }
 
 // Shutdown socket
 // Block rx and tx direction
-BOOL socketShutdown(SOCKET sock) {
+bool socketShutdown(SOCKET sock) {
     if (sock != INVALID_SOCKET) {
         shutdown(sock, SHUT_RDWR);
     }
-    return TRUE;
+    return true;
 }
 
 // Close socket
 // Make addr reusable
-BOOL socketClose(SOCKET *sp) {
+bool socketClose(SOCKET *sp) {
     if (*sp != INVALID_SOCKET) {
         close(*sp);
         *sp = INVALID_SOCKET;
     }
-    return TRUE;
+    return true;
 }
 
 #ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
@@ -253,7 +253,7 @@ BOOL socketClose(SOCKET *sp) {
 #include <ifaddrs.h>
 #endif
 
-static BOOL GetMAC(char *ifname, uint8_t *mac) {
+static bool GetMAC(char *ifname, uint8_t *mac) {
     struct ifaddrs *ifaddrs, *ifa;
     if (getifaddrs(&ifaddrs) == 0) {
         for (ifa = ifaddrs; ifa != NULL; ifa = ifa->ifa_next) {
@@ -276,10 +276,10 @@ static BOOL GetMAC(char *ifname, uint8_t *mac) {
         freeifaddrs(ifaddrs);
         return (ifa != NULL);
     }
-    return FALSE;
+    return false;
 }
 
-BOOL socketGetLocalAddr(uint8_t *mac, uint8_t *addr) {
+bool socketGetLocalAddr(uint8_t *mac, uint8_t *addr) {
     static uint32_t addr1 = 0;
     static uint8_t mac1[6] = {0, 0, 0, 0, 0, 0};
 #ifdef DBG_LEVEL
@@ -320,9 +320,9 @@ BOOL socketGetLocalAddr(uint8_t *mac, uint8_t *addr) {
             memcpy(mac, mac1, 6);
         if (addr)
             memcpy(addr, &addr1, 4);
-        return TRUE;
+        return true;
     } else {
-        return FALSE;
+        return false;
     }
 }
 
@@ -339,18 +339,18 @@ uint32_t socketGetTimestampMode(uint8_t *clockType) {
     return SOCKET_TIMESTAMP_PC;
 }
 
-BOOL socketSetTimestampMode(uint8_t m) {
+bool socketSetTimestampMode(uint8_t m) {
 
     if (m != SOCKET_TIMESTAMP_NONE && m != SOCKET_TIMESTAMP_PC) {
         DBG_PRINT_ERROR("ERROR: unsupported timestamp mode!\n");
-        return FALSE;
+        return false;
     }
-    return TRUE;
+    return true;
 }
 
 int32_t socketGetLastError(void) { return WSAGetLastError(); }
 
-BOOL socketStartup(void) {
+bool socketStartup(void) {
 
     int err;
     WORD wsaVersionRequested;
@@ -361,22 +361,22 @@ BOOL socketStartup(void) {
     err = WSAStartup(wsaVersionRequested, &wsaData);
     if (err != 0) {
         DBG_PRINTF_ERROR("WSAStartup failed with error %d!\n", err);
-        return FALSE;
+        return false;
     }
     if (LOBYTE(wsaData.wVersion) != 2 || HIBYTE(wsaData.wVersion) != 2) { // Confirm that the WinSock DLL supports 2.2
         DBG_PRINT_ERROR("Could not find a usable version of Winsock.dll!\n");
         WSACleanup();
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 void socketCleanup(void) { WSACleanup(); }
 
 // Create a socket, TCP or UDP
 // Note: Enabling HW timestamps may have impact on throughput
-BOOL socketOpen(SOCKET *sp, BOOL useTCP, BOOL nonBlocking, BOOL reuseaddr, BOOL timestamps) {
+bool socketOpen(SOCKET *sp, bool useTCP, bool nonBlocking, bool reuseaddr, bool timestamps) {
 
     (void)timestamps;
 
@@ -387,7 +387,7 @@ BOOL socketOpen(SOCKET *sp, BOOL useTCP, BOOL nonBlocking, BOOL reuseaddr, BOOL 
 // Avoid send to UDP nowhere problem (ignore ICMP host unreachable - server has no open socket on master port)
 // (stack-overflow 34242622)
 #define SIO_UDP_CONNRESET _WSAIOW(IOC_VENDOR, 12)
-        BOOL bNewBehavior = FALSE;
+        bool bNewBehavior = false;
         DWORD dwBytesReturned = 0;
         if (*sp != INVALID_SOCKET) {
             WSAIoctl(*sp, SIO_UDP_CONNRESET, &bNewBehavior, sizeof bNewBehavior, NULL, 0, &dwBytesReturned, NULL, NULL);
@@ -397,14 +397,14 @@ BOOL socketOpen(SOCKET *sp, BOOL useTCP, BOOL nonBlocking, BOOL reuseaddr, BOOL 
     }
     if (*sp == INVALID_SOCKET) {
         DBG_PRINTF_ERROR("%d - could not create socket!\n", socketGetLastError());
-        return FALSE;
+        return false;
     }
 
     // Set nonblocking mode
     u_long b = nonBlocking ? 1 : 0;
     if (NO_ERROR != ioctlsocket(*sp, FIONBIO, &b)) {
         DBG_PRINTF_ERROR("%d - could not set non blocking mode!\n", socketGetLastError());
-        return FALSE;
+        return false;
     }
 
     // Make addr reusable
@@ -413,10 +413,10 @@ BOOL socketOpen(SOCKET *sp, BOOL useTCP, BOOL nonBlocking, BOOL reuseaddr, BOOL 
         setsockopt(*sp, SOL_SOCKET, SO_REUSEADDR, (const char *)&one, sizeof(one));
     }
 
-    return TRUE;
+    return true;
 }
 
-BOOL socketBind(SOCKET sock, uint8_t *addr, uint16_t port) {
+bool socketBind(SOCKET sock, uint8_t *addr, uint16_t port) {
 
     // Bind the socket to any address and the specified port
     SOCKADDR_IN a;
@@ -434,30 +434,30 @@ BOOL socketBind(SOCKET sock, uint8_t *addr, uint16_t port) {
             DBG_PRINTF_ERROR("%d - cannot bind on %u.%u.%u.%u port %u!\n", socketGetLastError(), addr ? addr[0] : 0, addr ? addr[1] : 0, addr ? addr[2] : 0, addr ? addr[3] : 0,
                              port);
         }
-        return FALSE;
+        return false;
     }
-    return TRUE;
+    return true;
 }
 
 // Shutdown socket
 // Block rx and tx direction
-BOOL socketShutdown(SOCKET sock) {
+bool socketShutdown(SOCKET sock) {
 
     if (sock != INVALID_SOCKET) {
         shutdown(sock, SD_BOTH);
     }
-    return TRUE;
+    return true;
 }
 
 // Close socket
 // Make addr reusable
-BOOL socketClose(SOCKET *sockp) {
+bool socketClose(SOCKET *sockp) {
 
     if (*sockp != INVALID_SOCKET) {
         closesocket(*sockp);
         *sockp = INVALID_SOCKET;
     }
-    return TRUE;
+    return true;
 }
 
 #ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
@@ -466,7 +466,7 @@ BOOL socketClose(SOCKET *sockp) {
 #pragma comment(lib, "IPHLPAPI.lib")
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 
-BOOL socketGetLocalAddr(uint8_t *mac, uint8_t *addr) {
+bool socketGetLocalAddr(uint8_t *mac, uint8_t *addr) {
 
     static uint8_t addr1[4] = {0, 0, 0, 0};
     static uint8_t mac1[6] = {0, 0, 0, 0, 0, 0};
@@ -524,16 +524,16 @@ BOOL socketGetLocalAddr(uint8_t *mac, uint8_t *addr) {
             memcpy(mac, mac1, 6);
         if (addr)
             memcpy(addr, addr1, 4);
-        return TRUE;
+        return true;
     }
-    return FALSE;
+    return false;
 }
 
 #endif // PLATFORM_ENABLE_GET_LOCAL_ADDR
 
 #endif // _WIN
 
-BOOL socketListen(SOCKET sock) {
+bool socketListen(SOCKET sock) {
 
     if (listen(sock, 5)) {
         DBG_PRINTF_ERROR("%d - listen failed!\n", socketGetLastError());
@@ -552,7 +552,7 @@ SOCKET socketAccept(SOCKET sock, uint8_t *addr) {
     return s;
 }
 
-BOOL socketJoin(SOCKET sock, uint8_t *maddr) {
+bool socketJoin(SOCKET sock, uint8_t *maddr) {
 
     struct ip_mreq group;
     group.imr_multiaddr.s_addr = *(uint32_t *)maddr;
@@ -594,7 +594,7 @@ int16_t socketRecvFrom(SOCKET sock, uint8_t *buffer, uint16_t bufferSize, uint8_
 
 // Receive from socket
 // Return number of bytes received, 0 when socket closed, would block or empty UDP packet received, -1 on error
-int16_t socketRecv(SOCKET sock, uint8_t *buffer, uint16_t size, BOOL waitAll) {
+int16_t socketRecv(SOCKET sock, uint8_t *buffer, uint16_t size, bool waitAll) {
 
     int16_t n = (int16_t)recv(sock, (char *)buffer, size, waitAll ? MSG_WAITALL : 0);
     if (n == 0) {
@@ -716,7 +716,7 @@ char *clockGetString(char *s, uint32_t l, uint64_t c) {
     return s;
 }
 
-BOOL clockInit(void) {
+bool clockInit(void) {
     DBG_PRINT3("Init clock\n");
 #ifdef OPTION_CLOCK_EPOCH_PTP
     DBG_PRINT3("  epoch = OPTION_CLOCK_EPOCH_PTP\n");
@@ -758,7 +758,7 @@ BOOL clockInit(void) {
     }
 #endif
 
-    return TRUE;
+    return true;
 }
 
 // Get 64 bit clock
@@ -821,7 +821,7 @@ char *clockGetTimeString(char *str, uint32_t l, int64_t t) {
 
 #include <sys/timeb.h>
 
-BOOL clockInit(void) {
+bool clockInit(void) {
 
     DBG_PRINT4("Init clock\n  ");
 #ifdef OPTION_CLOCK_EPOCH_PTP
@@ -846,11 +846,11 @@ BOOL clockInit(void) {
     uint64_t tp;
     if (!QueryPerformanceFrequency(&tF)) {
         DBG_PRINT_ERROR("ERROR: Performance counter not available on this system!\n");
-        return FALSE;
+        return false;
     }
     if (tF.u.HighPart) {
         DBG_PRINT_ERROR("ERROR: Unexpected performance counter frequency!\n");
-        return FALSE;
+        return false;
     }
 
     if (CLOCK_TICKS_PER_S > tF.u.LowPart) {
@@ -916,7 +916,7 @@ BOOL clockInit(void) {
     }
 #endif
 
-    return TRUE;
+    return true;
 }
 
 // Get 64 bit clock

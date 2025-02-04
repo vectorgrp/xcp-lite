@@ -30,11 +30,11 @@ static struct {
     uint8_t ServerAddr[4];
 #endif
     uint16_t ServerPort;
-    BOOL ServerUseTCP;
-    BOOL blockingRx;
+    bool ServerUseTCP;
+    bool blockingRx;
     uint8_t MasterAddr[4];
     uint16_t MasterPort;
-    BOOL MasterAddrValid;
+    bool MasterAddrValid;
 
     // Multicast
 #ifdef XCPTL_ENABLE_MULTICAST
@@ -49,9 +49,9 @@ static struct {
 #define isTCP() (gXcpTl.ListenSock != INVALID_SOCKET)
 #else
 #ifdef XCPTL_ENABLE_TCP
-#define isTCP() TRUE
+#define isTCP() true
 #else
-#define isTCP() FALSE
+#define isTCP() false
 #endif
 #endif
 
@@ -163,7 +163,7 @@ static int handleXcpCommand(tXcpCtoMessage *p, uint8_t *srcAddr, uint16_t srcPor
             if (memcmp(&gXcpTl.MasterAddr, srcAddr, sizeof(gXcpTl.MasterAddr)) != 0) { // Message from different master received
                 DBG_PRINTF_WARNING("WARNING: message from unknown new master %u.%u.%u.%u, disconnecting!\n", srcAddr[0], srcAddr[1], srcAddr[2], srcAddr[3]);
                 XcpDisconnect();
-                gXcpTl.MasterAddrValid = FALSE;
+                gXcpTl.MasterAddrValid = false;
                 return 1; // Disconnect
             }
 
@@ -171,7 +171,7 @@ static int handleXcpCommand(tXcpCtoMessage *p, uint8_t *srcAddr, uint16_t srcPor
             if (gXcpTl.MasterPort != srcPort) {
                 DBG_PRINTF_WARNING("WARNING: master port changed from %u to %u, disconnecting!\n", gXcpTl.MasterPort, srcPort);
                 XcpDisconnect();
-                gXcpTl.MasterAddrValid = FALSE;
+                gXcpTl.MasterAddrValid = false;
                 return 1; // Disconnect
             }
         }
@@ -190,7 +190,7 @@ static int handleXcpCommand(tXcpCtoMessage *p, uint8_t *srcAddr, uint16_t srcPor
                 memcpy(gXcpTl.MasterAddr, srcAddr,
                        sizeof(gXcpTl.MasterAddr)); // Save master address, so XcpCommand can send the CONNECT response
                 gXcpTl.MasterPort = srcPort;
-                gXcpTl.MasterAddrValid = TRUE;
+                gXcpTl.MasterAddrValid = true;
             }
 #endif // UDP
             XcpTlResetTransmitQueue();
@@ -205,7 +205,7 @@ static int handleXcpCommand(tXcpCtoMessage *p, uint8_t *srcAddr, uint16_t srcPor
         if (XcpIsConnected()) {
             DBG_PRINTF3("XCP client on UDP addr=%u.%u.%u.%u, port=%u\n", gXcpTl.MasterAddr[0], gXcpTl.MasterAddr[1], gXcpTl.MasterAddr[2], gXcpTl.MasterAddr[3], gXcpTl.MasterPort);
         } else {                            // Is not in connected state
-            gXcpTl.MasterAddrValid = FALSE; // Any client can connect
+            gXcpTl.MasterAddrValid = false; // Any client can connect
         }
     } // not connected before
 #endif // UDP
@@ -215,8 +215,8 @@ static int handleXcpCommand(tXcpCtoMessage *p, uint8_t *srcAddr, uint16_t srcPor
 
 // Handle incoming XCP commands
 // Blocking for timeout_ms, currently XCPTL_TIMEOUT_INFINITE only (blocking)
-// returns FALSE on error
-BOOL XcpEthTlHandleCommands(uint32_t timeout_ms) {
+// returns false on error
+bool XcpEthTlHandleCommands(uint32_t timeout_ms) {
 
     tXcpCtoMessage msgBuf;
     int16_t n;
@@ -235,7 +235,7 @@ BOOL XcpEthTlHandleCommands(uint32_t timeout_ms) {
             gXcpTl.Sock = socketAccept(gXcpTl.ListenSock, gXcpTl.MasterAddr); // Wait here for incoming connection
             if (gXcpTl.Sock == INVALID_SOCKET) {
                 DBG_PRINT_ERROR("ERROR: accept failed!\n");
-                return TRUE; // Ignore error from accept, when in non blocking mode
+                return true; // Ignore error from accept, when in non blocking mode
             } else {
                 DBG_PRINTF3("XCP master %u.%u.%u.%u accepted!\n", gXcpTl.MasterAddr[0], gXcpTl.MasterAddr[1], gXcpTl.MasterAddr[2], gXcpTl.MasterAddr[3]);
                 DBG_PRINT3("Listening for XCP commands\n");
@@ -244,15 +244,15 @@ BOOL XcpEthTlHandleCommands(uint32_t timeout_ms) {
 
         // Receive TCP transport layer message
         n = socketRecv(gXcpTl.Sock, (uint8_t *)&msgBuf.dlc, (uint16_t)XCPTL_TRANSPORT_LAYER_HEADER_SIZE,
-                       TRUE); // header, recv blocking
+                       true); // header, recv blocking
         if (n == XCPTL_TRANSPORT_LAYER_HEADER_SIZE) {
-            n = socketRecv(gXcpTl.Sock, (uint8_t *)&msgBuf.packet, msgBuf.dlc, TRUE); // packet, recv blocking
+            n = socketRecv(gXcpTl.Sock, (uint8_t *)&msgBuf.packet, msgBuf.dlc, true); // packet, recv blocking
             if (n > 0) {
                 if (n == msgBuf.dlc) {
                     return handleXcpCommand(&msgBuf, NULL, 0);
                 } else {
                     socketShutdown(gXcpTl.Sock); // Let the receive thread terminate without error message
-                    return FALSE;                // Should not happen
+                    return false;                // Should not happen
                 }
             }
         }
@@ -262,7 +262,7 @@ BOOL XcpEthTlHandleCommands(uint32_t timeout_ms) {
             sleepMs(100);
             socketShutdown(gXcpTl.Sock); // Let the receive thread terminate without error message
             socketClose(&gXcpTl.Sock);
-            return TRUE; // Ok, TCP socket closed
+            return true; // Ok, TCP socket closed
         }
     }
 #endif // TCP
@@ -273,23 +273,23 @@ BOOL XcpEthTlHandleCommands(uint32_t timeout_ms) {
         uint8_t srcAddr[4];
         n = socketRecvFrom(gXcpTl.Sock, (uint8_t *)&msgBuf, (uint16_t)sizeof(msgBuf), srcAddr, &srcPort, NULL);
         if (n == 0)
-            return TRUE; // Socket closed, should not happen
+            return true; // Socket closed, should not happen
         if (n < 0) {     // error
             if (socketGetLastError() == SOCKET_ERROR_WBLOCK)
                 return 1; // Ok, timeout, no command pending
             DBG_PRINTF_ERROR("%d - recvfrom failed (result=%d)!\n", socketGetLastError(), n);
-            return FALSE; // Error
+            return false; // Error
         } else {          // Ok
             if (msgBuf.dlc != n - XCPTL_TRANSPORT_LAYER_HEADER_SIZE) {
                 DBG_PRINT_ERROR("ERROR: corrupt message received!\n");
-                return FALSE; // Error
+                return false; // Error
             }
             return handleXcpCommand(&msgBuf, srcAddr, srcPort);
         }
     }
 #endif // UDP
 
-    return FALSE;
+    return false;
 }
 
 //-------------------------------------------------------------------------------------------------------
@@ -358,10 +358,10 @@ extern void *XcpTlMulticastThread(void *par)
 
 //-------------------------------------------------------------------------------------------------------
 
-BOOL XcpEthTlInit(const uint8_t *addr, uint16_t port, BOOL useTCP, BOOL blockingRx, void *queue, uint32_t queueSize) {
+bool XcpEthTlInit(const uint8_t *addr, uint16_t port, bool useTCP, bool blockingRx, void *queue, uint32_t queueSize) {
 
     if (!XcpTlInit(queue, queueSize))
-        return FALSE;
+        return false;
 
     uint8_t bind_addr[4] = {0, 0, 0, 0}; // Bind to ANY(0.0.0.0)
     if (addr != NULL) {                  // Bind to given addr
@@ -371,32 +371,32 @@ BOOL XcpEthTlInit(const uint8_t *addr, uint16_t port, BOOL useTCP, BOOL blocking
     gXcpTl.ServerPort = port;
     gXcpTl.ServerUseTCP = useTCP;
     gXcpTl.blockingRx = blockingRx;
-    gXcpTl.MasterAddrValid = FALSE;
+    gXcpTl.MasterAddrValid = false;
     gXcpTl.Sock = INVALID_SOCKET;
 
     // Unicast UDP or TCP commands
 #ifdef XCPTL_ENABLE_TCP
     gXcpTl.ListenSock = INVALID_SOCKET;
     if (useTCP) { // TCP
-        if (!socketOpen(&gXcpTl.ListenSock, TRUE /* useTCP */, !blockingRx, TRUE /*reuseAddr*/, FALSE /* timestamps*/))
-            return FALSE;
+        if (!socketOpen(&gXcpTl.ListenSock, true /* useTCP */, !blockingRx, true /*reuseAddr*/, false /* timestamps*/))
+            return false;
         if (!socketBind(gXcpTl.ListenSock, bind_addr, gXcpTl.ServerPort))
-            return FALSE;
+            return false;
         if (!socketListen(gXcpTl.ListenSock))
-            return FALSE; // Put socket in listen mode
+            return false; // Put socket in listen mode
         DBG_PRINTF3("  Listening for TCP connections on %u.%u.%u.%u port %u\n", bind_addr[0], bind_addr[1], bind_addr[2], bind_addr[3], port);
     } else
 #else
     if (useTCP) { // TCP
         DBG_PRINT_ERROR("ERROR: #define XCPTL_ENABLE_TCP for TCP support\n");
-        return FALSE;
+        return false;
     } else
 #endif
     { // UDP
-        if (!socketOpen(&gXcpTl.Sock, FALSE /* useTCP */, !blockingRx, TRUE /*reuseAddr*/, FALSE /* timestamps*/))
-            return FALSE;
+        if (!socketOpen(&gXcpTl.Sock, false /* useTCP */, !blockingRx, true /*reuseAddr*/, false /* timestamps*/))
+            return false;
         if (!socketBind(gXcpTl.Sock, bind_addr, port))
-            return FALSE; // Bind on ANY, when serverAddr=255.255.255.255
+            return false; // Bind on ANY, when serverAddr=255.255.255.255
         DBG_PRINTF3("  Listening for XCP commands on UDP %u.%u.%u.%u port %u\n", bind_addr[0], bind_addr[1], bind_addr[2], bind_addr[3], port);
     }
 
@@ -419,17 +419,17 @@ BOOL XcpEthTlInit(const uint8_t *addr, uint16_t port, BOOL useTCP, BOOL blocking
 #ifdef XCPTL_ENABLE_MULTICAST
 
     // Open a socket for GET_DAQ_CLOCK_MULTICAST and join its multicast group
-    if (!socketOpen(&gXcpTl.MulticastSock, FALSE /*useTCP*/, FALSE /*nonblocking*/, TRUE /*reusable*/, FALSE /* timestamps*/))
-        return FALSE;
+    if (!socketOpen(&gXcpTl.MulticastSock, false /*useTCP*/, false /*nonblocking*/, true /*reusable*/, false /* timestamps*/))
+        return false;
     DBG_PRINTF3("  Bind XCP multicast socket to %u.%u.%u.%u:%u\n", bind_addr[0], bind_addr[1], bind_addr[2], bind_addr[3], XCPTL_MULTICAST_PORT);
     if (!socketBind(gXcpTl.MulticastSock, bind_addr, XCPTL_MULTICAST_PORT))
-        return FALSE; // Bind to ANY, when serverAddr=255.255.255.255
+        return false; // Bind to ANY, when serverAddr=255.255.255.255
     uint16_t cid = XcpGetClusterId();
     uint8_t maddr[4] = {239, 255, 0, 0}; // XCPTL_MULTICAST_ADDR = 0xEFFFiiii;
     maddr[2] = (uint8_t)(cid >> 8);
     maddr[3] = (uint8_t)(cid);
     if (!socketJoin(gXcpTl.MulticastSock, maddr))
-        return FALSE;
+        return false;
     DBG_PRINTF3("  Listening for XCP GET_DAQ_CLOCK multicast on %u.%u.%u.%u\n", maddr[0], maddr[1], maddr[2], maddr[3]);
 
     DBG_PRINT3("  Start XCP multicast thread\n");
@@ -437,7 +437,7 @@ BOOL XcpEthTlInit(const uint8_t *addr, uint16_t port, BOOL useTCP, BOOL blocking
 
 #endif
 
-    return TRUE;
+    return true;
 }
 
 void XcpEthTlShutdown(void) {
@@ -459,7 +459,7 @@ void XcpEthTlShutdown(void) {
 
 //-------------------------------------------------------------------------------------------------------
 #ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
-void XcpEthTlGetInfo(BOOL *isTcp, uint8_t *mac, uint8_t *addr, uint16_t *port) {
+void XcpEthTlGetInfo(bool *isTcp, uint8_t *mac, uint8_t *addr, uint16_t *port) {
 
     if (isTcp != NULL)
         *isTcp = gXcpTl.ServerUseTCP;

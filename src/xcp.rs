@@ -371,10 +371,10 @@ impl XcpBuilder {
             let mut queue = vec![0u8; queue_size as usize].into_boxed_slice(); // Allocate a Box<[u8]> with the given size
 
             // @@@@ Unsafe - C library call
-            if 0 == xcplib::XcpEthServerInit(
+            if !xcplib::XcpEthServerInit(
                 &ipv4_addr.octets() as *const u8,
                 port,
-                (tl == XcpTransportLayer::Tcp) as u8,
+                tl == XcpTransportLayer::Tcp,
                 queue.as_mut_ptr() as *mut std::ffi::c_void,
                 queue_size,
             ) {
@@ -512,7 +512,7 @@ impl Xcp {
     pub fn check_server(&self) -> bool {
         unsafe {
             // @@@@ Unsafe - C library call
-            0 != xcplib::XcpEthServerStatus()
+            xcplib::XcpEthServerStatus()
         }
     }
 
