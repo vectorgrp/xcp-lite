@@ -20,10 +20,9 @@ fn main() {
             .generate()
             .expect("Unable to generate bindings");
         bindings.write_to_file("src/mdflib.rs").expect("Couldn't write bindings!");
-    */
 
-    // Build a XCP on ETH version of XCPlite as a library
-    cc::Build::new()
+        // Build MDFlib
+        cc::Build::new()
         .include("../mdflib/src/")
         .include("../mdflib/")
         .file("../mdflib/src/mdfWriter.c")
@@ -36,4 +35,5 @@ fn main() {
     println!("cargo:rerun-if-changed=mdflib/src/mdf4.h");
     println!("cargo:rerun-if-changed=mdflib/src/mdfWriter.h");
     println!("cargo:rerun-if-changed=mdflib/src/mdfWriter.c");
+    */
 }

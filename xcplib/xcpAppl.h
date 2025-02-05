@@ -1,7 +1,12 @@
 #pragma once
-/* xcpAppl.h */
+#define __XCP_APPL_H__
 
 // Additional functions for users of the XCP library xcplib
+
+#include <stdbool.h> // for bool
+#include <stdint.h>  // for uint32_t, uint64_t, uint8_t, int64_t
+
+#include "src/xcpLite.h" // for tXcpDaqLists
 
 extern void ApplXcpSetLogLevel(uint8_t level);
 

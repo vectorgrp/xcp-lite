@@ -575,7 +575,6 @@ impl RegistryCharacteristic {
         }
         // Absolute addressing
         Xcp::get_abs_ext_addr(self.addr_offset)
-
     }
 }
 

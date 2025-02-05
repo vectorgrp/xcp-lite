@@ -1,8 +1,12 @@
 /*  mdfWriter.c */
 
-#include "main.h"
+#include "platform.h" // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
 
 #define mdf_link_t uint64_t
+
+#if !defined(_WIN) && !defined(_LINUX)
+#error "Please define platform _WIN or _LINUX"
+#endif
 
 #ifndef _WIN
 #define ftell (mdf_link_t) ftello

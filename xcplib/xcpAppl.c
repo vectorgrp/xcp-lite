@@ -3,18 +3,32 @@
 |   xcpAppl.c
 |
 | Description:
-|   Platform specific functions and callbacks for XCP
+|   Application specific functions and callbacks for XCP
+|   Additional functions for xcplib interface
 |
 | Copyright (c) Vector Informatik GmbH. All rights reserved.
 | Licensed under the MIT license. See LICENSE file in the project root for details.
 |
  ----------------------------------------------------------------------------*/
 
-#include "main.h"
-#include "platform.h"
-#include "dbg_print.h"
-#include "xcpLite.h"
 #include "xcpAppl.h"
+
+#include <assert.h> // for assert
+#include <stdbool.h>
+#include <stdint.h> // for uint8_t, uint32_t, uint64_t
+#include <stdio.h>  // for fclose, fopen, fread, fseek, ftell
+#include <string.h> // for strlen, strncpy
+
+#include "main_cfg.h"      // for OPTION_xxx
+#include "src/dbg_print.h" // for DBG_PRINTF3, DBG_PRINT4, DBG_PRINTF4, DBG...
+#include "src/platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
+#include "src/xcp.h"       // for CRC_XXX
+#include "src/xcpLite.h"   // for tXcpDaqLists, XcpXxx, ApplXcpXxx, ...
+#include "src/xcp_cfg.h"   // for XCP_ENABLE_xxx
+
+#if !defined(_WIN) && !defined(_LINUX) && !defined(_MACOS)
+#error "Please define platform _WIN, _MACOS or _LINUX"
+#endif
 
 // @@@@  TODO improve
 #ifdef XCP_ENABLE_USER_COMMAND
@@ -204,7 +218,7 @@ uint32_t ApplXcpGetAddr(const uint8_t *p) {
 
 #endif
 
-#if defined(_LINUX64) && !defined(_MACOS64)
+#if defined(_LINUX64) && !defined(_MACOS)
 
 #ifndef __USE_GNU
 #define __USE_GNU
@@ -248,7 +262,7 @@ uint32_t ApplXcpGetAddr(const uint8_t *p) {
 
 #endif
 
-#ifdef _MACOS64
+#ifdef _MACOS
 
 #include <mach-o/dyld.h>
 

@@ -1,25 +1,14 @@
 #pragma once
-/* xcpLite.h */
+#define __XCP_LITE_H__
 
 /* Copyright(c) Vector Informatik GmbH.All rights reserved.
    Licensed under the MIT license.See LICENSE file in the project root for details. */
 
-#ifdef __XCPTL_CFG_H__
-#error "Include dependency error!"
-#endif
-#ifdef __XCP_CFG_H__
-#error "Include dependency error!"
-#endif
+#include <stdbool.h> // for bool
+#include <stdint.h>  // for uint16_t, uint32_t, uint8_t
 
-#include "xcptl_cfg.h" // Transport layer configuration
-
-// Transport layer definitions and configuration
-#include "xcpTl.h"
-#include "xcpEthTl.h" // Ethernet transport layer specific functions
-
-// Protocol layer definitions and configuration
-#include "xcp_cfg.h" // Protocol layer configuration
-#include "xcp.h"     // XCP protocol defines
+// #include "src/queue.h"
+#include "src/xcp_cfg.h" // for XCP_PROTOCOL_LAYER_VERSION, XCP_ENABLE_DY...
 
 /****************************************************************************/
 /* DAQ event channel information                                            */

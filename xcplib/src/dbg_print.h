@@ -1,10 +1,11 @@
 #pragma once
 #define __DBG_PRINT_H__
 
-/* dbg_print.h */
 /*
 | Code released into public domain, no attribution required
 */
+
+#include "main_cfg.h" // for OPTION_xxx
 
 //-------------------------------------------------------------------------------
 // Debug print
@@ -22,6 +23,7 @@
 4 - Trace
 5 - Debug
 */
+
 extern uint8_t gDebugLevel;
 #define DBG_LEVEL gDebugLevel
 

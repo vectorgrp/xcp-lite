@@ -11,10 +11,19 @@
 |
  ----------------------------------------------------------------------------*/
 
-#include "main.h"
-#include "platform.h"
-#include "dbg_print.h"
-#include "xcpLite.h"
+#include <assert.h>   // for assert
+#include <stdbool.h>  // for bool
+#include <stdint.h>   // for uint32_t, uint64_t, uint8_t, int64_t
+#include <stdio.h>    // for NULL, snprintf
+#include <inttypes.h> // for PRIu64
+#include <stdlib.h>   // for free, malloc
+#include <string.h>   // for memcpy, strcmp
+#include <stdatomic.h>
+
+#include "src/platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
+#include "src/dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
+
+#include "src/xcpTl.h" // for tXcpCtoMessage, tXcpDtoMessage, xcpTlXxxx
 
 // #define TEST_LOCK_TIMING
 
@@ -25,6 +34,10 @@ static uint64_t lockCount = 0;
 #define HISTOGRAM_SIZE 20 // 200us in 10us steps
 #define HISTOGRAM_STEP 10
 static uint64_t lockTimeHistogram[HISTOGRAM_SIZE] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+#endif
+
+#if !defined(_WIN) && !defined(_LINUX) && !defined(_MACOS)
+#error "Please define platform _WIN, _MACOS or _LINUX"
 #endif
 
 #ifndef _WIN

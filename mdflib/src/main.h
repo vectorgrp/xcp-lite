@@ -1,7 +1,6 @@
 #pragma once
 #define __MAIN_CFG_H__
 
-/* main.h */
 /*
 | Code released into public domain, no attribution required
 */

@@ -3,7 +3,7 @@
 |   xcpEthTl.c
 |
 | Description:
-|   XCP on UDP transport layer
+|   XCP on UDP/TCP transport layer
 |   Linux and Windows version
 |   Supports Winsock and Linux Sockets
 |
@@ -12,11 +12,22 @@
 |
  ----------------------------------------------------------------------------*/
 
-#include "main.h"
-#include "platform.h"
-#include "dbg_print.h"
-#include "xcpLite.h"
-#include "xcpTlQueue.h"
+#include <assert.h>   // for assert
+#include <stdbool.h>  // for bool
+#include <stdint.h>   // for uint32_t, uint64_t, uint8_t, int64_t
+#include <stdio.h>    // for printf
+#include <inttypes.h> // for PRIu64
+#include <string.h>   // for memcpy, strcmp
+
+#include "src/platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
+#include "src/dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
+
+#include "src/xcp.h"       // for CRC_XXX
+#include "src/xcpLite.h"   // for tXcpDaqLists, XcpXxx, ApplXcpXxx, ...
+#include "src/xcptl_cfg.h" // for XCPTL_xxx
+#include "src/xcpEthTl.h"  // for xcpEthTlxxx
+#include "src/xcpTl.h"     // for tXcpCtoMessage, tXcpDtoMessage, xcpTlXxxx
+#include "src/xcpTlQueue.h"
 
 #if defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)
 static struct {
@@ -320,6 +331,10 @@ void XcpEthTlSetClusterId(uint16_t clusterId) {
     (void)clusterId;
     // Not implemented
 }
+
+#if !defined(_WIN) && !defined(_LINUX) && !defined(_MACOS)
+#error "Please define platform _WIN, _MACOS or _LINUX"
+#endif
 
 #if defined(_WIN) // Windows
 DWORD WINAPI XcpTlMulticastThread(LPVOID par)

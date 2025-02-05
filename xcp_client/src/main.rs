@@ -7,7 +7,7 @@ use std::{error::Error, sync::Arc};
 mod xcp_client;
 use xcp_client::*;
 mod a2l;
-mod mdflib;
+// mod mdflib;
 
 //----------------------------------------------------------------------------------------------
 // Logging

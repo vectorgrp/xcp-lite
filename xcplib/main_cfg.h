@@ -1,8 +1,9 @@
 #pragma once
 #define __MAIN_CFG_H__
 
-/* main.h */
 /*
+| Build options for XCP or xcpliv
+|
 | Code released into public domain, no attribution required
 */
 
@@ -40,9 +41,7 @@
 #define OPTION_DAQ_MEM_SIZE (3000 * 5) // Max memory for DAQ tables - sufficient for about 3000 measurement signals
 #define OPTION_ENABLE_A2L_UPLOAD
 
-#if defined(_LINUX) && !defined(_MACOS)
-#define XCP_SERVER_FORCEFULL_TERMINATION // @@@@
-#endif
+#define XCP_SERVER_FORCEFULL_TERMINATION // @@@@ TODO
 
 // Platform options
 // Clock

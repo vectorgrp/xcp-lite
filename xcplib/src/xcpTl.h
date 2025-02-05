@@ -1,8 +1,13 @@
 #pragma once
-/* xcpTl.h */
+#define __XCP_TL_H__
 
 /* Copyright(c) Vector Informatik GmbH.All rights reserved.
    Licensed under the MIT license.See LICENSE file in the project root for details. */
+
+#include <stdbool.h>
+#include <stdint.h>
+
+#include "src/xcptl_cfg.h" // for XCPTL_xxx
 
 // Parameter checks
 #if XCPTL_TRANSPORT_LAYER_HEADER_SIZE != 4

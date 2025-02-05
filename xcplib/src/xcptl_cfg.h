@@ -1,10 +1,6 @@
 #pragma once
 #define __XCPTL_CFG_H__
 
-#ifndef __MAIN_CFG_H__
-#error "Include dependency error! options not set"
-#endif
-
 /*----------------------------------------------------------------------------
 | File:
 |   xcptl_cfg.h
@@ -14,6 +10,8 @@
 |
 | Code released into public domain, no attribution required
  ----------------------------------------------------------------------------*/
+
+#include "main_cfg.h" // for OPTION_xxx ...
 
 #if defined(OPTION_ENABLE_UDP)
 #define XCPTL_ENABLE_UDP

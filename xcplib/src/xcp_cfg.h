@@ -1,17 +1,20 @@
 #pragma once
 #define __XCP_CFG_H__
 
-#ifndef __MAIN_CFG_H__
-#error "Include dependency error! options not set"
-#endif
-
 /*----------------------------------------------------------------------------
 | File:
 |   xcp_cfg.h
 |
 | Description:
 |   Parameter configuration for XCP protocol layer parameters
+|
+| Code released into public domain, no attribution required
  ----------------------------------------------------------------------------*/
+
+#include "main_cfg.h" // for OPTION_xxx
+
+// Clock resolution defined in platform.h
+#include "src/platform.h" // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
 
 /*----------------------------------------------------------------------------*/
 /* Version */
@@ -146,10 +149,13 @@
 #if CLOCK_TICKS_PER_S == 1000000                  //  us
 #define XCP_TIMESTAMP_UNIT DAQ_TIMESTAMP_UNIT_1US // unit
 #define XCP_TIMESTAMP_TICKS 1                     // ticks per unit
-#endif
-#if CLOCK_TICKS_PER_S == 1000000000               // ns
+#elif CLOCK_TICKS_PER_S == 1000000000             // ns
 #define XCP_TIMESTAMP_UNIT DAQ_TIMESTAMP_UNIT_1NS // unit
 #define XCP_TIMESTAMP_TICKS 1                     // ticks per unit
+#else
+#ifndef __WRAPPER_H__ // Rust bindgen
+#error "Please define clock resolution"
+#endif
 #endif
 
 // Grandmaster clock (optional, use XcpSetGrandmasterClockInfo, implement ApplXcpGetClockInfoGrandmaster)

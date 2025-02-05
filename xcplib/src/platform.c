@@ -14,13 +14,26 @@
 |   Code released into public domain, no attribution required
  ----------------------------------------------------------------------------*/
 
-#include "main.h"
-#include "platform.h"
-#include "dbg_print.h"
+#include <assert.h>   // for assert
+#include <stdbool.h>  // for bool
+#include <stdint.h>   // for uint32_t, uint64_t, uint8_t, int64_t
+#include <stdio.h>    // for printf
+#include <inttypes.h> // for PRIu64
+#include <string.h>   // for memcpy, strcmp
+#include <time.h>     // for timespec, nanosleep, CLOCK_MONOTONIC_RAW
+#include <unistd.h>   // for sleep
 
-#ifndef __MAIN_CFG_H__
-#error "Include dependency error!"
+#include "main_cfg.h"      // for OPTION_xxx ...
+#include "src/platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
+#include "src/dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
+
+#if !defined(_WIN) && !defined(_LINUX) && !defined(_MACOS)
+#error "Please define platform _WIN, _MACOS or _LINUX"
 #endif
+
+/**************************************************************************/
+// Winsock
+/**************************************************************************/
 
 #if defined(_WIN) // Windows // Windows needs to link with Ws2_32.lib
 
@@ -243,7 +256,7 @@ bool socketClose(SOCKET *sp) {
 
 #ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
 
-#ifndef _MACOS64
+#ifndef _MACOS
 #include <linux/if_packet.h>
 #else
 #include <ifaddrs.h>
@@ -258,7 +271,7 @@ static bool GetMAC(char *ifname, uint8_t *mac) {
     if (getifaddrs(&ifaddrs) == 0) {
         for (ifa = ifaddrs; ifa != NULL; ifa = ifa->ifa_next) {
             if (!strcmp(ifa->ifa_name, ifname)) {
-#ifdef _MACOS64
+#ifdef _MACOS
                 if (ifa->ifa_addr->sa_family == AF_LINK) {
                     memcpy(mac, (uint8_t *)LLADDR((struct sockaddr_dl *)ifa->ifa_addr), 6);
                     DBG_PRINTF4("  %s: MAC = %02X-%02X-%02X-%02X-%02X-%02X\n", ifa->ifa_name, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
@@ -650,7 +663,7 @@ static uint64_t sClock = 0;
 uint64_t clockGetLast(void) { return sClock; }
 
 // Not used, might be faster on macOS
-// #ifdef _MACOS64
+// #ifdef _MACOS
 // #include <mach/mach_time.h>
 // uint64_t getMachineTime() {
 //     uint64_t tm = mach_absolute_time();

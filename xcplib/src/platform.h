@@ -1,25 +1,98 @@
 #pragma once
-/* platform.h */
+#define __PLATFORM_H__
+
 /*
 | Code released into public domain, no attribution required
 */
 
-#ifndef __MAIN_CFG_H__
-#error "Include dependency error! options not set"
+#ifndef __WRAPPER_H__ // Rust bindgen
+
+// Windows or Linux/macOS ?
+#if defined(_WIN32) || defined(_WIN64)
+#define _WIN
+#if defined(_WIN32) && defined(_WIN64)
+#undef _WIN32
+#endif
+#if defined(_LINUX) || defined(_LINUX64) || defined(_LINUX32)
+#error
+#endif
+#else
+#define _LINUX
+#if defined(_ix64_) || defined(__x86_64__) || defined(__aarch64__)
+#define _LINUX64
+#ifdef __APPLE__
+#define _MACOS
+#endif
+#else
+#error "32 Bit OS not supported"
+#define _LINUX32
+#ifdef __APPLE__
+#define _MACOS32
+#endif
+#endif
+#if defined(_WIN) || defined(_WIN64) || defined(_WIN32)
+#error
+#endif
+#endif
+
+#ifdef _WIN
+#define WIN32_LEAN_AND_MEAN
+#define _CRT_SECURE_NO_WARNINGS
+#else
+#define _DEFAULT_SOURCE
+#endif
+
+/*
+| Code released into public domain, no attribution required
+*/
+
+#include <stdbool.h> // for bool
+#include <stdint.h>  // for uint32_t, uint64_t, uint8_t, int64_t
+
+#if !defined(_WIN) && !defined(_LINUX) && !defined(_MACOS)
+#error "Please define platform _WIN or _MACOS or _LINUX"
+#endif
+
+#if defined(_WIN) // Windows
+
+#include <windows.h>
+#include <time.h>
+
+#elif defined(_LINUX) || defined(_MACOS) // Linux
+
+#include <pthread.h>
+
+#include <errno.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+
+#else
+
+#error "Please define platform _WIN or _MACOS or _LINUX"
+
+#endif
+
+#include "main_cfg.h" // for OPTION_xxx, PLATFORM_ENABLE_xxx, ...
+
+#if !defined(_WIN) && !defined(_LINUX) && !defined(_MACOS)
+#error "Please define platform _WIN, _MACOS or _LINUX"
 #endif
 
 //-------------------------------------------------------------------------------
 // Keyboard
 
 #ifdef PLATFORM_ENABLE_KEYBOARD
+
 #ifdef _LINUX
-
 #include <termios.h>
-
 extern int _getch(void);
 extern int _kbhit(void);
-
 #endif
+
+#ifdef _WIN
+#include <conio.h>
+#endif
+
 #endif // PLATFORM_ENABLE_KEYBOARD
 
 //-------------------------------------------------------------------------------
@@ -189,3 +262,5 @@ extern uint64_t clockGet(void);
 extern uint64_t clockGetLast(void);
 extern char *clockGetString(char *s, uint32_t l, uint64_t c);
 extern char *clockGetTimeString(char *s, uint32_t l, int64_t c);
+
+#endif
