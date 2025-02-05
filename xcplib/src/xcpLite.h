@@ -7,8 +7,8 @@
 #include <stdbool.h> // for bool
 #include <stdint.h>  // for uint16_t, uint32_t, uint8_t
 
-// #include "src/queue.h"
 #include "src/xcp_cfg.h" // for XCP_PROTOCOL_LAYER_VERSION, XCP_ENABLE_DY...
+#include "src/xcpQueue.h"
 
 /****************************************************************************/
 /* DAQ event channel information                                            */
@@ -38,12 +38,6 @@ typedef struct {
     uint16_t sampleCount;                   // packed event sample count
     uint16_t daqList;                       // associated DAQ list
     uint8_t priority;                       // priority 0 = queued, 1 = pushing, 2 = realtime
-#ifdef XCP_ENABLE_MULTITHREAD_DAQ_EVENTS
-    MUTEX mutex;
-#endif
-#ifdef XCP_ENABLE_TIMESTAMP_CHECK
-    uint64_t time; // last event time stamp
-#endif
 } tXcpEvent;
 
 #endif
@@ -131,7 +125,7 @@ typedef struct {
 /* Initialization for the XCP Protocol Layer */
 extern void XcpInit(tXcpDaqLists *daq_lists);
 extern bool XcpIsInitialized(void);
-extern void XcpStart(bool resumeMode);
+extern void XcpStart(tQueueHandle queueHandle, bool resumeMode);
 extern void XcpReset(void);
 
 /* XCP command processor */
@@ -141,7 +135,7 @@ extern uint8_t XcpCommand(const uint32_t *pCommand, uint8_t len);
 extern void XcpDisconnect(void);
 
 /* Trigger a XCP data acquisition event */
-extern void XcpTriggerDaqEventAt(const tXcpDaqLists *daq_lists, uint16_t event, const uint8_t *base, uint64_t clock);
+extern void XcpTriggerDaqEventAt(const tXcpDaqLists *daq_lists, tQueueHandle queueHandle, uint16_t event, const uint8_t *base, uint64_t clock);
 extern uint8_t XcpEventExtAt(uint16_t event, const uint8_t *base, uint64_t clock);
 extern uint8_t XcpEventExt(uint16_t event, const uint8_t *base);
 extern void XcpEventAt(uint16_t event, uint64_t clock);

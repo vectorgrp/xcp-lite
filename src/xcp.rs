@@ -367,21 +367,10 @@ impl XcpBuilder {
 
         // Initialize the XCP Server and ETH transport layer
         unsafe {
-            // Allocate memory for the transmit queue
-            let mut queue = vec![0u8; queue_size as usize].into_boxed_slice(); // Allocate a Box<[u8]> with the given size
-
             // @@@@ Unsafe - C library call
-            if !xcplib::XcpEthServerInit(
-                &ipv4_addr.octets() as *const u8,
-                port,
-                tl == XcpTransportLayer::Tcp,
-                queue.as_mut_ptr() as *mut std::ffi::c_void,
-                queue_size,
-            ) {
+            if !xcplib::XcpEthServerInit(&ipv4_addr.octets() as *const u8, port, tl == XcpTransportLayer::Tcp, queue_size) {
                 return Err(XcpError::XcpLib("Error: XcpEthServerInit() failed"));
             }
-
-            std::mem::forget(queue);
         }
 
         // Register transport layer parameters and actual ip addr of the server to make the A2L plug&play

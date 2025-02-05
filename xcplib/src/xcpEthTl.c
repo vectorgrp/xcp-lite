@@ -27,7 +27,7 @@
 #include "src/xcptl_cfg.h" // for XCPTL_xxx
 #include "src/xcpEthTl.h"  // for xcpEthTlxxx
 #include "src/xcpTl.h"     // for tXcpCtoMessage, tXcpDtoMessage, xcpTlXxxx
-#include "src/xcpTlQueue.h"
+#include "src/xcpQueue.h"
 
 #if defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)
 static struct {
@@ -204,7 +204,8 @@ static int handleXcpCommand(tXcpCtoMessage *p, uint8_t *srcAddr, uint16_t srcPor
                 gXcpTl.MasterAddrValid = true;
             }
 #endif // UDP
-            XcpTlResetTransmitQueue();
+       // @@@@ gQueueHandle
+            QueueClear(gQueueHandle);
             XcpCommand((const uint32_t *)&p->packet[0], (uint8_t)p->dlc); // Handle CONNECT command
         } else {
             DBG_PRINT_WARNING("WARNING: handleXcpCommand: no valid CONNECT command\n");
@@ -373,9 +374,9 @@ extern void *XcpTlMulticastThread(void *par)
 
 //-------------------------------------------------------------------------------------------------------
 
-bool XcpEthTlInit(const uint8_t *addr, uint16_t port, bool useTCP, bool blockingRx, void *queue, uint32_t queueSize) {
+bool XcpEthTlInit(const uint8_t *addr, uint16_t port, bool useTCP, bool blockingRx, uint32_t queueSize) {
 
-    if (!XcpTlInit(queue, queueSize))
+    if (!XcpTlInit(queueSize))
         return false;
 
     uint8_t bind_addr[4] = {0, 0, 0, 0}; // Bind to ANY(0.0.0.0)

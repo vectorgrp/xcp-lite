@@ -5,13 +5,14 @@
 | Code released into public domain, no attribution required
 */
 
-#ifndef __WRAPPER_H__ // Rust bindgen
+//-------------------------------------------------------------------------------------------------
+// Platform defines
 
 // Windows or Linux/macOS ?
 #if defined(_WIN32) || defined(_WIN64)
 #define _WIN
 #if defined(_WIN32) && defined(_WIN64)
-#undef _WIN32
+// #undef _WIN32 @@@@@@@@@@@@@@@@@@@
 #endif
 #if defined(_LINUX) || defined(_LINUX64) || defined(_LINUX32)
 #error
@@ -39,21 +40,22 @@
 #define WIN32_LEAN_AND_MEAN
 #define _CRT_SECURE_NO_WARNINGS
 #else
+#ifndef _DEFAULT_SOURCE
 #define _DEFAULT_SOURCE
 #endif
-
-/*
-| Code released into public domain, no attribution required
-*/
-
-#include <stdbool.h> // for bool
-#include <stdint.h>  // for uint32_t, uint64_t, uint8_t, int64_t
+#endif
 
 #if !defined(_WIN) && !defined(_LINUX) && !defined(_MACOS)
 #error "Please define platform _WIN or _MACOS or _LINUX"
 #endif
 
-#if defined(_WIN) // Windows
+//-------------------------------------------------------------------------------------------------
+// Platform specific functions
+
+#include <stdbool.h> // for bool
+#include <stdint.h>  // for uint32_t, uint64_t, uint8_t, int64_t
+
+#if defined(_WIN)
 
 #include <windows.h>
 #include <time.h>
@@ -262,5 +264,3 @@ extern uint64_t clockGet(void);
 extern uint64_t clockGetLast(void);
 extern char *clockGetString(char *s, uint32_t l, uint64_t c);
 extern char *clockGetTimeString(char *s, uint32_t l, int64_t c);
-
-#endif

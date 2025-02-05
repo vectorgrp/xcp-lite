@@ -5,7 +5,8 @@ fn main() {
 
     let bindings = bindgen::Builder::default()
         .header("xcplib/wrapper.h")
-        .clang_args(&["-target", "x86_64-pc-windows-msvc"])
+        //
+        //.clang_args(&["-target", "x86_64-pc-windows-msvc"])
         .clang_arg("-Ixcplib/src")
         .clang_arg("-Ixcplib")
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
@@ -46,11 +47,17 @@ fn main() {
         .file("xcplib/xcpAppl.c")
         .file("xcplib/src/platform.c")
         .file("xcplib/src/xcpLite.c")
-        .file("xcplib/src/xcpTlQueue.c")
+        .file("xcplib/src/xcpQueue.c")
         .file("xcplib/src/xcpTl.c")
         .file("xcplib/src/xcpEthTl.c")
         .file("xcplib/src/xcpEthServer.c")
+        // C11
+        .flag("-std=c11")
+        // Optimizations
+        // @@@@ Enable optimization in release mode
         .flag("-O2")
+        // .flag("-O0")
+        // .flag("-g")
         .compile("xcplib");
 
     // Tell cargo to invalidate the built crate whenever any of these files changed.
@@ -62,8 +69,8 @@ fn main() {
     println!("cargo:rerun-if-changed=xcplib/src/main.h");
     println!("cargo:rerun-if-changed=xcplib/src/platform.h");
     println!("cargo:rerun-if-changed=xcplib/src/platform.c");
-    println!("cargo:rerun-if-changed=xcplib/src/xcpTlQueue.h");
-    println!("cargo:rerun-if-changed=xcplib/src/xcpTlQueue.c");
+    println!("cargo:rerun-if-changed=xcplib/src/Queue.h");
+    println!("cargo:rerun-if-changed=xcplib/src/Queue.c");
     println!("cargo:rerun-if-changed=xcplib/src/xcpTl.h");
     println!("cargo:rerun-if-changed=xcplib/src/xcpTl.c");
     println!("cargo:rerun-if-changed=xcplib/src/xcpEthTl.h");

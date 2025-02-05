@@ -10,7 +10,7 @@
 /* ETH transport Layer functions called by server */
 #if defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)
 
-extern bool XcpEthTlInit(const uint8_t *addr, uint16_t port, bool useTCP, bool blockingRx, void *queue, uint32_t queueSize); // Start transport layer
+extern bool XcpEthTlInit(const uint8_t *addr, uint16_t port, bool useTCP, bool blockingRx, uint32_t queueSize); // Start transport layer
 extern void XcpEthTlShutdown(void);
 #ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
 extern void XcpEthTlGetInfo(bool *isTCP, uint8_t *mac, uint8_t *addr, uint16_t *port);

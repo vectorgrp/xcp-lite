@@ -27,7 +27,7 @@
 #include "src/xcpLite.h"  // for tXcpDaqLists, XcpXxx, ApplXcpXxx, ...
 #include "src/xcpTl.h"    // for tXcpCtoMessage, tXcpDtoMessage, xcpTlXxxx
 #include "src/xcpEthTl.h" // for xcpEthTlxxx
-#include "xcpTlQueue.h"
+#include "src/xcpQueue.h"
 
 #if !defined(_WIN) && !defined(_LINUX) && !defined(_MACOS)
 #error "Please define platform _WIN, _MACOS or _LINUX"
@@ -40,9 +40,11 @@ static struct {
 } gXcpTl;
 #endif
 
-bool XcpTlInit(void *queue, uint32_t queueSize) {
+tQueueHandle gQueueHandle = NULL;
 
-    XcpTlInitTransmitQueue(queue, queueSize);
+bool XcpTlInit(uint32_t queueSize) {
+
+    gQueueHandle = QueueInit(queueSize);
 
     DBG_PRINT3("Init XCP transport layer\n");
     DBG_PRINTF3("  MAX_CTO_SIZE=%u\n", XCPTL_MAX_CTO_SIZE);
@@ -61,29 +63,13 @@ bool XcpTlInit(void *queue, uint32_t queueSize) {
 
 void XcpTlShutdown(void) {
 
-    XcpTlFreeTransmitQueue();
+    // @@@@ gQueueHandle
+    QueueDeinit(gQueueHandle);
+    gQueueHandle = NULL;
 
 #if defined(_WIN) // Windows
     CloseHandle(gXcpTl.queue_event);
 #endif
-}
-
-// Queue a response or event packet
-// If transmission fails, when queue is full, tool times out, retries or take appropriate action
-// Note: CANape cancels measurement, when answer to GET_DAQ_CLOCK times out
-void XcpTlSendCrm(const uint8_t *packet, uint16_t packet_size) {
-
-    void *handle = NULL;
-    uint8_t *p;
-
-    // Queue the response packet
-    if ((p = XcpTlGetTransmitBuffer(&handle, packet_size)) != NULL) {
-        memcpy(p, packet, packet_size);
-        XcpTlCommitTransmitBuffer(handle, true /* flush */);
-    } else { // Buffer overflow
-        DBG_PRINT_WARNING("WARNING: queue overflow\n");
-        // Ignore, handled by tool
-    }
 }
 
 // Execute XCP command
@@ -105,7 +91,8 @@ uint8_t XcpTlCommand(uint16_t msgLen, const uint8_t *msgBuf) {
     else {
         /* Check for CONNECT command ? */
         if (p->dlc == 2 && p->packet[0] == CC_CONNECT) {
-            XcpTlResetTransmitQueue();
+            // @@@@ gQueueHandle
+            QueueClear(gQueueHandle);
             return XcpCommand((const uint32_t *)&p->packet[0], (uint8_t)p->dlc); // Handle CONNECT command
         } else {
             DBG_PRINTF_WARNING("WARNING: XcpTlCommand: no valid CONNECT command, dlc=%u, data=%02X\n", p->dlc, p->packet[0]);
@@ -128,7 +115,10 @@ int32_t XcpTlHandleTransmitQueue(void) {
 
             // Check
             uint16_t l = 0;
-            b = XcpTlTransmitQueuePeekMsg(&l);
+            // @@@@ gQueueHandle
+            tQueueBuffer queueBuffer = QueuePeek(gQueueHandle);
+            l = queueBuffer.size;
+            b = queueBuffer.buffer;
             if (b == NULL)
                 break; // Ok, queue is empty or not fully commited
 
@@ -143,8 +133,8 @@ int32_t XcpTlHandleTransmitQueue(void) {
             }
             n += l;
 
-            // Free this buffer when succesfully sent
-            XcpTlTransmitQueueNextMsg();
+            // Free this buffer when successfully sent
+            QueueRelease(gQueueHandle, &queueBuffer);
 
         } // for (max_loops)
 
@@ -155,6 +145,27 @@ int32_t XcpTlHandleTransmitQueue(void) {
     } // for (ever)
 
     return n; // Ok, queue empty now
+}
+
+// Wait (sleep) until transmit queue is empty
+// This function is thread safe, any thread can wait for transmit queue empty
+// Timeout after 1s
+bool XcpTlWaitForTransmitQueueEmpty(uint16_t timeout_ms) {
+
+    if (gQueueHandle == NULL)
+        return true;
+
+    do {
+        QueueFlush(gQueueHandle); // Flush the current message
+        sleepMs(20);
+        if (timeout_ms < 20) { // Wait max timeout_ms until the transmit queue is empty
+            DBG_PRINTF_ERROR("XcpTlWaitForTransmitQueueEmpty: timeout! (level=%u)\n", QueueLevel(gQueueHandle));
+            return false;
+        };
+        timeout_ms -= 20;
+        // @@@@ gQueueHandle
+    } while (QueueLevel(gQueueHandle) != 0);
+    return true;
 }
 
 //-------------------------------------------------------------------------------------------------------
@@ -196,7 +207,8 @@ bool XcpTlWaitForTransmitData(uint32_t timeout_ms) {
 // Use polling for Linux
 #define XCPTL_QUEUE_TRANSMIT_POLLING_TIME_MS 1
     uint32_t t = 0;
-    while (!XcpTlTransmitQueueHasMsg()) {
+    // @@@@ gQueueHandle
+    while (0 == QueueLevel(gQueueHandle)) {
         sleepMs(XCPTL_QUEUE_TRANSMIT_POLLING_TIME_MS);
         t = t + XCPTL_QUEUE_TRANSMIT_POLLING_TIME_MS;
         if (t >= timeout_ms)

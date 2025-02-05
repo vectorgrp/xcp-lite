@@ -26,7 +26,7 @@
 #include "src/xcptl_cfg.h" // for XCPTL_xxx
 #include "src/xcpTl.h"     // for tXcpCtoMessage, tXcpDtoMessage, xcpTlXxxx
 #include "src/xcpEthTl.h"  // for xcpEthTlxxx
-#include "src/xcpTlQueue.h"
+#include "src/xcpQueue.h"
 #include "src/xcpEthServer.h"
 
 #if defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)
@@ -64,8 +64,7 @@ static struct {
 bool XcpEthServerStatus(void) { return gXcpServer.isInit && gXcpServer.TransmitThreadRunning && gXcpServer.ReceiveThreadRunning; }
 
 // XCP server init
-bool XcpEthServerInit(const uint8_t *addr, uint16_t port, bool useTCP, void *queue, uint32_t queueSize) {
-    int r = 0;
+bool XcpEthServerInit(const uint8_t *addr, uint16_t port, bool useTCP, uint32_t queueSize) {
 
     // Check that the XCP singleton has been explicitly initialized
     if (!XcpIsInitialized()) {
@@ -89,12 +88,12 @@ bool XcpEthServerInit(const uint8_t *addr, uint16_t port, bool useTCP, void *que
     gXcpServer.ReceiveThreadRunning = false;
 
     // Initialize XCP transport layer
-    r = XcpEthTlInit(addr, port, useTCP, true /*blocking rx*/, queue, queueSize);
-    if (!r)
-        return 0;
+    if (!XcpEthTlInit(addr, port, useTCP, true /*blocking rx*/, queueSize))
+        return false;
 
     // Start XCP protocol layer
-    XcpStart(false);
+    // @@@@ gQueueHandle
+    XcpStart(gQueueHandle, false);
 
     // Create threads
     mutexInit(&gXcpServer.TransmitQueueMutex, false, 0);
@@ -189,7 +188,8 @@ extern void *XcpServerTransmitThread(void *par)
 
         // Wait for transmit data available, time out at least for required flush cycle
         if (!XcpTlWaitForTransmitData(XCPTL_QUEUE_FLUSH_CYCLE_MS))
-            XcpTlFlushTransmitBuffer(); // Flush after timeout to keep data visualization going
+            // @@@@ gQueueHandle
+            QueueFlush(gQueueHandle); // Flush after timeout to keep data visualization going
 
         // Transmit all completed messages from the transmit queue
         mutexLock(&gXcpServer.TransmitQueueMutex);

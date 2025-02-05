@@ -71,6 +71,7 @@
 #include "src/xcptl_cfg.h" // XCP transport layer configuration parameters (XCPTL_xxx)
 #include "src/xcp.h"       // XCP protocol definitions
 #include "src/xcpLite.h"   // XCP protocol layer interface functions
+#include "src/xcpQueue.h"  // for QueueXxx transport queue layer interface
 #include "src/xcpTl.h"     // for xcpTlxxx transport layer interface
 
 /****************************************************************************/
@@ -172,6 +173,9 @@ typedef struct {
     uint8_t CmdLast;
     uint8_t CmdLast1;
 #endif
+
+    /* queue */
+    tQueueHandle Queue;
 
     /* Memory Transfer Address as pointer (ApplXcpGetPointer) */
     uint8_t *MtaPtr;
@@ -793,15 +797,6 @@ static void XcpStartDaq(void) {
         gXcp.DaqStartClock64 = ApplXcpGetClock64();
         gXcp.DaqOverflowCount = 0;
 
-        // Reset event time stamps
-#ifdef XCP_ENABLE_DAQ_EVENT_LIST
-#ifdef XCP_ENABLE_TIMESTAMP_CHECK
-        for (uint16_t e = 0; e < gXcp.EventCount; e++) {
-            gXcp.EventList[e].time = 0;
-        }
-#endif
-#endif
-
 #ifdef DBG_LEVEL
         if (DBG_LEVEL >= 4) {
             char ts[64];
@@ -917,40 +912,18 @@ static void XcpStopSelectedDaqLists(void) {
 #define gXcpDaqLists daq_lists
 
 // Trigger daq list
-static void XcpTriggerDaqList(const tXcpDaqLists *daq_lists, uint16_t daq, const uint8_t *base, uint64_t clock) {
+static void XcpTriggerDaqList(const tXcpDaqLists *daq_lists, tQueueHandle queueHandle, uint16_t daq, const uint8_t *base, uint64_t clock) {
 
     uint8_t *d0;
     uint32_t odt, hs;
-    void *handle = NULL;
 
     // Outer loop
     // Loop over all ODTs of the current DAQ list
     for (hs = ODT_HEADER_SIZE + ODT_TIMESTAMP_SIZE, odt = DaqListFirstOdt(daq); odt <= DaqListLastOdt(daq); hs = ODT_HEADER_SIZE, odt++) {
 
-        // Mutex to ensure transmit buffers with time stamp in ascending order
-#if defined(XCP_ENABLE_MULTITHREAD_DAQ_EVENTS) && defined(XCP_ENABLE_DAQ_EVENT_LIST)
-        mutexLock(&ev->mutex);
-#endif
-
         // Get DTO buffer
-        d0 = XcpTlGetTransmitBuffer(&handle, (uint16_t)(DaqListOdtTable[odt].size + hs));
-
-#if defined(XCP_ENABLE_MULTITHREAD_DAQ_EVENTS) && defined(XCP_ENABLE_DAQ_EVENT_LIST)
-        mutexUnlock(&ev->mutex);
-#endif
-
-        // Check declining time stamps
-        // Disable for maximal measurement performance
-#ifdef XCP_ENABLE_DAQ_EVENT_LIST
-#if defined(XCP_ENABLE_TIMESTAMP_CHECK)
-        if (ev->time > clock) { // declining time stamps
-            DBG_PRINTF_ERROR("Declining timestamp! event=%u, diff=%" PRIu64 "\n", event, ev->time - clock);
-        }
-        if (ev->time == clock) { // duplicate time stamps
-            DBG_PRINTF_WARNING("WARNING: Duplicate timestamp! event=%u\n", event);
-        }
-#endif
-#endif
+        tQueueBuffer queueBuffer = QueueAcquire(queueHandle, DaqListOdtTable[odt].size + hs);
+        d0 = queueBuffer.buffer;
 
         // DAQ queue overflow
         if (d0 == NULL) {
@@ -1010,13 +983,13 @@ static void XcpTriggerDaqList(const tXcpDaqLists *daq_lists, uint16_t daq, const
             }
         }
 
-        XcpTlCommitTransmitBuffer(handle, DaqListPriority(daq) != 0 && odt == DaqListLastOdt(daq));
+        QueuePush(queueHandle, &queueBuffer, DaqListPriority(daq) != 0 && odt == DaqListLastOdt(daq));
     } /* odt */
 }
 
 // Trigger event
 // DAQ must be running
-void XcpTriggerDaqEventAt(const tXcpDaqLists *daq_lists, uint16_t event, const uint8_t *base, uint64_t clock) {
+void XcpTriggerDaqEventAt(const tXcpDaqLists *daq_lists, tQueueHandle queueHandle, uint16_t event, const uint8_t *base, uint64_t clock) {
 
     uint16_t daq;
 
@@ -1036,8 +1009,8 @@ void XcpTriggerDaqEventAt(const tXcpDaqLists *daq_lists, uint16_t event, const u
         if ((DaqListState(daq) & DAQ_STATE_RUNNING) == 0)
             continue; // DAQ list not active
         if (DaqListEventChannel(daq) != event)
-            continue;                                   // DAQ list not associated with this event
-        XcpTriggerDaqList(daq_lists, daq, base, clock); // Trigger DAQ list
+            continue;                                                // DAQ list not associated with this event
+        XcpTriggerDaqList(daq_lists, queueHandle, daq, base, clock); // Trigger DAQ list
     } /* daq */
 
 #else
@@ -1057,10 +1030,6 @@ void XcpTriggerDaqEventAt(const tXcpDaqLists *daq_lists, uint16_t event, const u
         daq = DaqListNext(daq);
     }
 #endif
-
-#if defined(XCP_ENABLE_TIMESTAMP_CHECK)
-    ev->time = clock;
-#endif
 }
 
 #undef gXcpDaqLists
@@ -1071,7 +1040,7 @@ void XcpTriggerDaqEventAt(const tXcpDaqLists *daq_lists, uint16_t event, const u
 void XcpEventAt(uint16_t event, uint64_t clock) {
     if (!isDaqRunning())
         return; // DAQ not running
-    XcpTriggerDaqEventAt(gXcpDaqLists, event, NULL, clock);
+    XcpTriggerDaqEventAt(gXcpDaqLists, gXcp.Queue, event, NULL, clock);
 }
 #endif
 
@@ -1081,7 +1050,7 @@ void XcpEventAt(uint16_t event, uint64_t clock) {
 void XcpEvent(uint16_t event) {
     if (!isDaqRunning())
         return; // DAQ not running
-    XcpTriggerDaqEventAt(gXcpDaqLists, event, NULL, 0);
+    XcpTriggerDaqEventAt(gXcpDaqLists, gXcp.Queue, event, NULL, 0);
 }
 #endif
 
@@ -1125,7 +1094,7 @@ uint8_t XcpEventExtAt(uint16_t event, const uint8_t *base, uint64_t clock) {
     // Daq
     if (!isDaqRunning())
         return CRC_CMD_OK; // DAQ not running
-    XcpTriggerDaqEventAt(gXcpDaqLists, event, base, clock);
+    XcpTriggerDaqEventAt(gXcpDaqLists, gXcp.Queue, event, base, clock);
     return CRC_CMD_OK;
 }
 
@@ -1152,10 +1121,27 @@ void XcpDisconnect(void) {
     }
 }
 
+// Queue a response or event packet
+// If transmission fails, when queue is full, tool times out, retries or take appropriate action
+// Note: CANape cancels measurement, when answer to GET_DAQ_CLOCK times out
+static void XcpSendCrm(const uint8_t *packet, uint16_t packet_size) {
+
+    // Queue the response packet
+    tQueueBuffer queueBuffer = QueueAcquire(gXcp.Queue, packet_size);
+    uint8_t *p = queueBuffer.buffer;
+    if (p != NULL) {
+        memcpy(p, packet, packet_size);
+        QueuePush(gXcp.Queue, &queueBuffer, true /* flush */);
+    } else { // Buffer overflow
+        DBG_PRINT_WARNING("WARNING: queue overflow\n");
+        // Ignore, handled by tool
+    }
+}
+
 // Transmit command response
 static void XcpSendResponse(const tXcpCto *crm, uint8_t crmLen) {
 
-    XcpTlSendCrm((const uint8_t *)crm, crmLen);
+    XcpSendCrm((const uint8_t *)crm, crmLen);
 #ifdef DBG_LEVEL
     if (DBG_LEVEL >= 4)
         XcpPrintRes(crm);
@@ -2042,7 +2028,7 @@ void XcpSendEvent(uint8_t evc, const uint8_t *d, uint8_t l) {
         for (i = 0; i < l; i++)
             crm.b[i + 2] = d[i];
     }
-    XcpTlSendCrm((const uint8_t *)&crm, l + 2);
+    XcpSendCrm((const uint8_t *)&crm, l + 2);
 }
 
 // Send terminate session signal event
@@ -2068,7 +2054,7 @@ void XcpPrint(const char *str) {
         crm.b[i + 2] = str[i];
     crm.b[i + 2] = '\n';
     crm.b[i + 3] = 0;
-    XcpTlSendCrm((const uint8_t *)&crm, l + 4);
+    XcpSendCrm((const uint8_t *)&crm, l + 4);
 }
 
 #endif // XCP_ENABLE_SERV_TEXT
@@ -2122,7 +2108,7 @@ void XcpInit(tXcpDaqLists *daq_lists) {
 
 // Start XCP protocol layer
 // Assume the transport layer is running
-void XcpStart(bool resumeMode) {
+void XcpStart(tQueueHandle queueHandle, bool resumeMode) {
 
     (void)resumeMode; // Start in resume mode
 
@@ -2168,6 +2154,8 @@ void XcpStart(bool resumeMode) {
 #endif
     DBG_PRINT3(")\n");
 #endif
+
+    gXcp.Queue = queueHandle;
 
 #ifdef XCP_ENABLE_PROTOCOL_LAYER_ETH
 #if XCP_PROTOCOL_LAYER_VERSION >= 0x0103
@@ -2318,12 +2306,6 @@ uint16_t XcpCreateEvent(const char *name, uint32_t cycleTimeNs, uint8_t priority
     gXcp.EventList[e].priority = priority;
     gXcp.EventList[e].sampleCount = sampleCount;
     gXcp.EventList[e].size = size;
-#ifdef XCP_ENABLE_TIMESTAMP_CHECK
-    gXcp.EventList[e].time = 0;
-#endif
-#ifdef XCP_ENABLE_MULTITHREAD_DAQ_EVENTS
-    mutexInit(&gXcp.EventList[e].mutex, false, 1000);
-#endif
 #ifdef DBG_LEVEL
     uint64_t ns = (uint64_t)(gXcp.EventList[e].timeCycle * pow(10, gXcp.EventList[e].timeUnit));
     DBG_PRINTF3("  Event %u: %s cycle=%" PRIu64 "ns, prio=%u, sc=%u, size=%u\n", e, gXcp.EventList[e].shortName, ns, gXcp.EventList[e].priority, gXcp.EventList[e].sampleCount,
