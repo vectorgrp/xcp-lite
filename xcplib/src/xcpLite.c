@@ -1084,7 +1084,7 @@ uint8_t XcpEventExtAt(uint16_t event, const uint8_t *base, uint64_t clock) {
         return CRC_CMD_OK;
 
     // Check if a pending command can be executed in this context
-    // @@@@ ToDo: Optimize with atomics, this is performance critical as cal events may come from different threads
+    // @@@@ TODO: Optimize with atomics, this is performance critical as cal events may come from different threads
 #if defined(XCP_ENABLE_MULTITHREAD_CAL_EVENTS)
     mutexLock(&gXcp.CmdPendingMutex);
 #endif
@@ -1389,13 +1389,13 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
                 gXcpDaqLists->config_id = CRO_SET_REQUEST_CONFIG_ID;
                 // gXcp.SessionStatus |= SS_STORE_DAQ_REQ;
                 check_error(ApplXcpDaqResumeStore());
-                /* @@@@ Send an event message */
+                /* @@@@ TODO Send an event message */
                 // gXcp.SessionStatus &= ~SS_STORE_DAQ_REQ;
                 break;
             case SS_CLEAR_DAQ_REQ:
                 // gXcp.SessionStatus |= SS_CLEAR_DAQ_REQ;
                 check_error(ApplXcpDaqResumeClear());
-                /* @@@@ Send an event message */
+                /* @@@@ TODO Send an event message */
                 // gXcp.SessionStatus &= ~SS_CLEAR_DAQ_REQ;
                 break;
 #endif /* XCP_ENABLE_DAQ_RESUME */
@@ -1499,7 +1499,7 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
         } break;
 #endif // XCP_ENABLE_COPY_CAL_PAGE
 
-#ifdef XCP_ENABLE_FREEZE_CAL_PAGE // @@@@ ToDo: Only 1 segment supported yet
+#ifdef XCP_ENABLE_FREEZE_CAL_PAGE // @@@@ TODO: Only 1 segment supported yet
         case CC_GET_PAG_PROCESSOR_INFO: {
             check_len(CRO_GET_PAG_PROCESSOR_INFO_LEN);
             CRM_LEN = CRM_GET_PAG_PROCESSOR_INFO_LEN;
@@ -2217,7 +2217,7 @@ void XcpStart(bool resumeMode) {
             /* Start DAQ */
             XcpStartSelectedDaqLists();
 
-            /* @@@@ Send an event message to indicate resume mode */
+            /* @@@@ TODO Send an event message to indicate resume mode */
 
 #ifdef DBG_LEVEL
             if (DBG_LEVEL != 0) {

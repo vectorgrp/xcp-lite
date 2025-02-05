@@ -449,7 +449,7 @@ macro_rules! daq_serialize {
         let byte_offset;
         match DAQ_OFFSET__.compare_exchange(-32768, 0, std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed) {
             Ok(_) => {
-                // @@@@ Experimental: Hard coded type here for point_cloud demo
+                // @@@@ TODO: Hard coded type here for point_cloud demo
                 let annotation = GeneratorCollection::generate(&IDL::CDR, &$id.description()).unwrap();
                 byte_offset = $daq_event.add_capture(
                     stringify!($id),
@@ -702,7 +702,7 @@ mod daq_tests {
                 break;
             }
         }
-        xcp.write_a2l().unwrap(); // @@@@ Remove: force A2L write
+        xcp.write_a2l().unwrap(); // @@@@ TODO: force A2L write
     }
 
     //-----------------------------------------------------------------------------
@@ -737,7 +737,7 @@ mod daq_tests {
                 break;
             }
         }
-        xcp.write_a2l().unwrap(); // @@@@ Remove: force A2L write
+        xcp.write_a2l().unwrap(); // @@@@ TODO: force A2L write
     }
 
     //-----------------------------------------------------------------------------
@@ -796,6 +796,6 @@ mod daq_tests {
 
         // daq_register_instance!(channel6, event5); // panic: duplicate measurement
 
-        xcp.write_a2l().unwrap(); // @@@@ Remove: force A2L write
+        xcp.write_a2l().unwrap(); // @@@@ TODO: force A2L write
     }
 }

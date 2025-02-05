@@ -299,7 +299,7 @@ where
         // let xcp = Xcp::get();
         // if xcp.get_xcp_cal_page() == XcpCalPage::Ram
         {
-            // @@@@ ToDo: Avoid the lock, when there is no pending modification for the XCP page
+            // @@@@ TODO: Avoid the lock, when there is no pending modification for the XCP page
             let mut xcp_page = self.xcp_page.lock();
 
             // Freeze - save xcp page to json file
@@ -788,7 +788,7 @@ mod cal_tests {
     // Test file read and write of a cal_seg
 
     #[cfg(feature = "serde")]
-    #[test] 
+    #[test]
     fn test_calibration_segment_persistence() {
         xcp_test::test_setup(log::LevelFilter::Info);
 

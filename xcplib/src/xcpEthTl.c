@@ -130,7 +130,7 @@ void XcpEthTlSendMulticastCrm(const uint8_t *packet, uint16_t packet_size, const
     memcpy(p.packet, packet, packet_size);
     r = XcpEthTlSend((uint8_t *)&p, (uint16_t)(packet_size + XCPTL_TRANSPORT_LAYER_HEADER_SIZE), addr, port);
     if (r == (-1)) { // Would block
-                     // @@@@ ToDo: Handle this case
+                     // @@@@ TODO: Handle this case
     }
 }
 #endif
@@ -302,7 +302,7 @@ static int handleXcpMulticastCommand(int n, tXcpCtoMessage *p, uint8_t *dstAddr,
     (void)dstAddr;
     (void)dstPort;
 
-    // @@@@ ToDo: Check addr and cluster id and port
+    // @@@@ TODO: Check addr and cluster id and port
     // printf("MULTICAST: %u.%u.%u.%u:%u len=%u\n", dstAddr[0], dstAddr[1], dstAddr[2], dstAddr[3], dstPort, n);
 
     // Valid socket data received, at least transport layer header and 1 byte

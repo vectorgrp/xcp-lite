@@ -16,7 +16,7 @@
 #include "xcpLite.h"
 #include "xcpAppl.h"
 
-// @@@@ improve
+// @@@@  TODO improve
 #ifdef XCP_ENABLE_USER_COMMAND
 static bool write_delay = false;
 #endif
@@ -376,7 +376,7 @@ uint8_t ApplXcpFreezeCalPage(uint8_t segment) {
 uint8_t ApplXcpGetCalPageMode(uint8_t segment) {
     if (segment > 0)
         return 0;
-    return 0x01; // @@@@ ToDo: Support multiple segments, CANape does not support switching individual memory segments
+    return 0x01; // @@@@ TODO: Support multiple segments, CANape does not support switching individual memory segments
 }
 #endif
 

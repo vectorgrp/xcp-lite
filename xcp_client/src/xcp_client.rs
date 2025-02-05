@@ -716,7 +716,7 @@ impl XcpClient {
 
                                             // Handle DAQ data if DAQ running
                                             if c.running {
-                                                let mut m = decode_daq.lock(); // @@@@ Unnecessary mutex ?????
+                                                let mut m = decode_daq.lock(); // @@@@ TODO Unnecessary mutex ?????
                                                 m.decode(ctr_lost, &buf[i + 4..i + 4 + len]);
                                                 ctr_lost = 0;
                                             } // running
@@ -874,7 +874,7 @@ impl XcpClient {
 
     //------------------------------------------------------------------------
     // Get server identification
-    // @@@@ Impl: other types, only  XCP_IDT_ASAM_UPLOAD supported
+    // @@@@ TODO: other types, only  XCP_IDT_ASAM_UPLOAD supported
     pub async fn get_id(&mut self, id_type: u8) -> Result<(u32, Option<String>), Box<dyn Error>> {
         let data = self.send_command(XcpCommandBuilder::new(CC_GET_ID).add_u8(id_type).build()).await?;
 
@@ -1401,7 +1401,7 @@ impl XcpClient {
         debug!("alloc_daq count={}", daq_count);
 
         // Alloc one ODT for each DAQ list (event)
-        // @@@@ Restriction: Only one ODT per DAQ list supported yet
+        // @@@@ TODO Restriction: Only one ODT per DAQ list supported yet
         for daq in 0..daq_count {
             self.alloc_odt(daq, 1).await?;
             debug!("Alloc daq={}, odt_count={}", daq, 1);

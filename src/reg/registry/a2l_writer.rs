@@ -55,7 +55,7 @@ impl GenerateA2l for RegistryEvent {
         // TimeCycle 0
         // TimeUnit 0
         // Priority 0
-        // @@@@ ToDo: CANape does not accept CONSISTENCY EVENT for serialized data types
+        // @@@@ TODO: CANape does not accept CONSISTENCY EVENT for serialized data types
         if index > 0 {
             write!(writer, "/begin EVENT \"{:.98}_{}\" \"{:.6}_{}\" ", name, index, name, index)?;
         } else {
