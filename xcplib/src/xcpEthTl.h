@@ -4,8 +4,8 @@
 /* Copyright(c) Vector Informatik GmbH.All rights reserved.
    Licensed under the MIT license.See LICENSE file in the project root for details. */
 
-#include "src/platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
-#include "src/xcptl_cfg.h" // for XCPTL_xxx
+#include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
+#include "xcptl_cfg.h" // for XCPTL_xxx
 
 /* ETH transport Layer functions called by server */
 #if defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)

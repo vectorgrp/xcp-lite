@@ -65,14 +65,14 @@
 #include <stdlib.h>   // for free, malloc
 #include <string.h>   // for memcpy, memset, strlen
 
-#include "src/dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
+#include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
 
-#include "src/xcp_cfg.h"   // XCP protocol layer configuration parameters (XCP_xxx)
-#include "src/xcptl_cfg.h" // XCP transport layer configuration parameters (XCPTL_xxx)
-#include "src/xcp.h"       // XCP protocol definitions
-#include "src/xcpLite.h"   // XCP protocol layer interface functions
-#include "src/xcpQueue.h"  // for QueueXxx transport queue layer interface
-#include "src/xcpTl.h"     // for xcpTlxxx transport layer interface
+#include "xcp_cfg.h"   // XCP protocol layer configuration parameters (XCP_xxx)
+#include "xcptl_cfg.h" // XCP transport layer configuration parameters (XCPTL_xxx)
+#include "xcp.h"       // XCP protocol definitions
+#include "xcpLite.h"   // XCP protocol layer interface functions
+#include "xcpQueue.h"  // for QueueXxx transport queue layer interface
+#include "xcpTl.h"     // for xcpTlxxx transport layer interface
 
 /****************************************************************************/
 /* Defaults and checks                                                      */

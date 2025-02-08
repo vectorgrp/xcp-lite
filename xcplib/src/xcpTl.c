@@ -18,16 +18,16 @@
 #include <inttypes.h> // for PRIu64
 #include <string.h>   // for memcpy, strcmp
 
-#include "src/platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
-#include "src/dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
+#include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
+#include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
 
-#include "src/xcptl_cfg.h" // for XCPTL_xxx
+#include "xcptl_cfg.h" // for XCPTL_xxx
 
-#include "src/xcp.h"      // for CRC_XXX
-#include "src/xcpLite.h"  // for tXcpDaqLists, XcpXxx, ApplXcpXxx, ...
-#include "src/xcpTl.h"    // for tXcpCtoMessage, tXcpDtoMessage, xcpTlXxxx
-#include "src/xcpEthTl.h" // for xcpEthTlxxx
-#include "src/xcpQueue.h"
+#include "xcp.h"      // for CRC_XXX
+#include "xcpLite.h"  // for tXcpDaqLists, XcpXxx, ApplXcpXxx, ...
+#include "xcpTl.h"    // for tXcpCtoMessage, tXcpDtoMessage, xcpTlXxxx
+#include "xcpEthTl.h" // for xcpEthTlxxx
+#include "xcpQueue.h"
 
 #if !defined(_WIN) && !defined(_LINUX) && !defined(_MACOS)
 #error "Please define platform _WIN, _MACOS or _LINUX"

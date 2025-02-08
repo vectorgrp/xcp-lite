@@ -19,11 +19,11 @@
 #include <stdlib.h>   // for free, malloc
 #include <string.h>   // for memcpy, strcmp
 
-#include "src/platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
-#include "src/dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
-#include "src/xcpTl.h"     // for tXcpCtoMessage, tXcpDtoMessage, xcpTlXxxx
-#include "src/xcpQueue.h"
-#include "src/platform.h" // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
+#include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
+#include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
+#include "xcpTl.h"     // for tXcpCtoMessage, tXcpDtoMessage, xcpTlXxxx
+#include "xcpQueue.h"
+#include "platform.h" // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
 
 #ifndef _WIN
 #include <stdatomic.h>
@@ -196,7 +196,7 @@ tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint64_t packet_len) {
     msg_len = (uint16_t)((msg_len + 7) & 0xFFF8); // Add fill %8
 #endif
 
-    DBG_PRINTF5("QueueAcquire: len=%llu\n", packet_len);
+    DBG_PRINTF5("QueueAcquire: len=%" PRIu64 "\n", packet_len);
 
 #ifdef TEST_LOCK_TIMING
     uint64_t c = clockGet();

@@ -6,7 +6,7 @@
 #include <stdbool.h> // for bool
 #include <stdint.h>  // for uint32_t, uint64_t, uint8_t, int64_t
 
-#include "src/xcpLite.h" // for tXcpDaqLists
+#include "xcpLite.h" // for tXcpDaqLists
 
 extern void ApplXcpSetLogLevel(uint8_t level);
 

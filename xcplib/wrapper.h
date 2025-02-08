@@ -2,8 +2,8 @@
 
 #define __WRAPPER_H__
 
-#include "src/xcpLite.h"
-#include "src/xcpTl.h"
-#include "src/xcpEthTl.h"
-#include "src/xcpEthServer.h"
+#include "xcpLite.h"
+#include "xcpTl.h"
+#include "xcpEthTl.h"
+#include "xcpEthServer.h"
 #include "xcpAppl.h"

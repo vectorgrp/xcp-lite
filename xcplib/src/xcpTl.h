@@ -7,8 +7,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "src/xcptl_cfg.h" // for XCPTL_xxx
-#include "src/xcpQueue.h"  // for QueueXxxx, tQueueHandle
+#include "xcptl_cfg.h" // for XCPTL_xxx
+#include "xcpQueue.h"  // for QueueXxxx, tQueueHandle
 
 // Parameter checks
 #if XCPTL_TRANSPORT_LAYER_HEADER_SIZE != 4

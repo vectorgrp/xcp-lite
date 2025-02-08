@@ -19,15 +19,15 @@
 #include <inttypes.h> // for PRIu64
 #include <string.h>   // for memcpy, strcmp
 
-#include "src/platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
-#include "src/dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
+#include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
+#include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
 
-#include "src/xcp.h"       // for CRC_XXX
-#include "src/xcpLite.h"   // for tXcpDaqLists, XcpXxx, ApplXcpXxx, ...
-#include "src/xcptl_cfg.h" // for XCPTL_xxx
-#include "src/xcpEthTl.h"  // for xcpEthTlxxx
-#include "src/xcpTl.h"     // for tXcpCtoMessage, tXcpDtoMessage, xcpTlXxxx
-#include "src/xcpQueue.h"
+#include "xcp.h"       // for CRC_XXX
+#include "xcpLite.h"   // for tXcpDaqLists, XcpXxx, ApplXcpXxx, ...
+#include "xcptl_cfg.h" // for XCPTL_xxx
+#include "xcpEthTl.h"  // for xcpEthTlxxx
+#include "xcpTl.h"     // for tXcpCtoMessage, tXcpDtoMessage, xcpTlXxxx
+#include "xcpQueue.h"
 
 #if defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)
 static struct {

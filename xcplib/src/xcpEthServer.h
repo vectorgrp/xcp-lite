@@ -7,7 +7,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "src/xcptl_cfg.h" // for XCPTL_ENABLE_UDP, ...
+#include "xcptl_cfg.h" // for XCPTL_ENABLE_UDP, ...
 
 #if defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)
 

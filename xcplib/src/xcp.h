@@ -4,7 +4,7 @@
 /* Copyright(c) Vector Informatik GmbH.All rights reserved.
    Licensed under the MIT license.See LICENSE file in the project root for details. */
 
-#include "src/xcp_cfg.h" // for XCP_ENABLE_xxx
+#include "xcp_cfg.h" // for XCP_ENABLE_xxx
 
 /***************************************************************************/
 /* Commands                                                                */

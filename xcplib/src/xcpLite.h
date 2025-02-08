@@ -7,8 +7,8 @@
 #include <stdbool.h> // for bool
 #include <stdint.h>  // for uint16_t, uint32_t, uint8_t
 
-#include "src/xcp_cfg.h" // for XCP_PROTOCOL_LAYER_VERSION, XCP_ENABLE_DY...
-#include "src/xcpQueue.h"
+#include "xcp_cfg.h" // for XCP_PROTOCOL_LAYER_VERSION, XCP_ENABLE_DY...
+#include "xcpQueue.h"
 
 /****************************************************************************/
 /* DAQ event channel information                                            */
