@@ -2,7 +2,7 @@ fn main() {
     build_info_build::build_script();
 
     // Generate XCPlite C code bindings
-
+/* 
     let bindings = bindgen::Builder::default()
         .header("xcplib/wrapper.h")
         //
@@ -39,7 +39,7 @@ fn main() {
         .generate()
         .expect("Unable to generate bindings");
     bindings.write_to_file("src/xcp/xcplib.rs").expect("Couldn't write bindings!");
-
+*/
     // Build a XCP on ETH version of XCPlite as a library
     cc::Build::new()
         .include("xcplib/src/")
@@ -52,7 +52,7 @@ fn main() {
         .file("xcplib/src/xcpEthTl.c")
         .file("xcplib/src/xcpEthServer.c")
         // C11
-        .flag("-std=c11")
+        // .flag("-std=c11")
         // Optimizations
         // @@@@ Enable optimization in release mode
         .flag("-O2")

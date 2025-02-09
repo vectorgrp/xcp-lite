@@ -171,16 +171,17 @@ bool XcpTlWaitForTransmitQueueEmpty(uint16_t timeout_ms) {
 //-------------------------------------------------------------------------------------------------------
 
 // Notify transmit queue handler thread
-bool XcpTlNotifyTransmitQueueHandler(void) {
-
+bool XcpTlNotifyTransmitQueueHandler(tQueueHandle queueHandle) {
+    
+    (void)queueHandle;
+    
     // Windows only, Linux version uses polling
 #if defined(_WIN) // Windows
-    // Notify when there is finalized buffer in the queue
+
+    // Notify that there is data in the queue
     // Notify at most every XCPTL_QUEUE_TRANSMIT_CYCLE_TIME to save CPU load
     uint64_t clock = clockGetLast();
-    if (clock == gXcpTl.queue_event_time)
-        clock = clockGet();
-    if (XcpTlTransmitQueueHasMsg() && clock >= gXcpTl.queue_event_time + XCPTL_QUEUE_TRANSMIT_CYCLE_TIME) {
+    if ( clock >= gXcpTl.queue_event_time + XCPTL_QUEUE_TRANSMIT_CYCLE_TIME) {
         gXcpTl.queue_event_time = clock;
         SetEvent(gXcpTl.queue_event);
         return true;

@@ -7,23 +7,28 @@
 
 // Windows or Linux ?
 #if defined(_WIN32) || defined(_WIN64)
-#define _WIN
-#if defined(_WIN32) && defined(_WIN64)
-#undef _WIN32
-#endif
-#if defined(_LINUX) || defined(_LINUX64) || defined(_LINUX32)
-#error
-#endif
+
+    #define _WIN
+    
+    #if defined(_WIN32) && defined(_WIN64)
+        #error "defined(_WIN32) && defined(_WIN64)"
+    #endif
+    #if defined(_LINUX) || defined(_LINUX64) || defined(_LINUX32)
+        #error "defined(_LINUX) || defined(_LINUX64) || defined(_LINUX32)"
+    #endif
+
 #else
-#define _LINUX
-#if defined(_ix64_) || defined(__x86_64__) || defined(__aarch64__)
-#define _LINUX64
-#else
-#define _LINUX32
-#endif
-#if defined(_WIN) || defined(_WIN64) || defined(_WIN32)
-#error
-#endif
+
+    #define _LINUX
+    #if defined(_ix64_) || defined(__x86_64__) || defined(__aarch64__)
+        #define _LINUX64
+    #else
+        #define _LINUX32
+    #endif
+
+    #if defined(_WIN) || defined(_WIN64) || defined(_WIN32)
+        #error "defined(_WIN) || defined(_WIN64) || defined(_WIN32)"
+    #endif
 #endif
 
 #ifdef _WIN

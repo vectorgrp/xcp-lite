@@ -474,18 +474,18 @@ void XcpEthTlShutdown(void) {
 }
 
 //-------------------------------------------------------------------------------------------------------
-#ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
 void XcpEthTlGetInfo(bool *isTcp, uint8_t *mac, uint8_t *addr, uint16_t *port) {
 
     if (isTcp != NULL)
         *isTcp = gXcpTl.ServerUseTCP;
+#ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
     if (addr != NULL)
         memcpy(addr, gXcpTl.ServerAddr, 4);
     if (mac != NULL)
         memcpy(mac, gXcpTl.ServerMac, 6);
+#endif
     if (port != NULL)
         *port = gXcpTl.ServerPort;
 }
-#endif
 
 #endif // defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)

@@ -209,7 +209,7 @@ uint8_t *ApplXcpGetBaseAddr(void) {
 
 uint32_t ApplXcpGetAddr(const uint8_t *p) {
 
-    assert(p >= ApplXcpGetBaseAddr(void));
+    assert(p >= ApplXcpGetBaseAddr());
 #ifdef _WIN64
     assert(((uint64_t)p - (uint64_t)ApplXcpGetBaseAddr()) <= 0xffffffff); // be sure that XCP address range is sufficient
 #endif

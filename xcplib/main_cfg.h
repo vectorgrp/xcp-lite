@@ -50,7 +50,7 @@
 
 // Enable socketGetLocalAddr and XcpEthTlGetInfo
 // For convenience to get a correct ip addr in A2L, when bound to ANY 0.0.0.0
-#define PLATFORM_ENABLE_GET_LOCAL_ADDR
+// #define PLATFORM_ENABLE_GET_LOCAL_ADDR
 
 // Logging
 #define OPTION_ENABLE_DBG_PRINTS

@@ -1,15 +1,19 @@
 /*----------------------------------------------------------------------------
 | File:
-|   Queue.c
+|   xcpQueue.c
 |
 | Description:
 |   XCP transport layer queue
-|   Multi producer single consumer queue
+|   Multi producer single consumer queue (producer side thread safe, not consumer side)
+|   XCP transport layer specific: 
+|   Queue entries include XCP message header of WORD CTR and LEN type, CTR incremented on push, overflow indication via CTR 
 |
 | Copyright (c) Vector Informatik GmbH. All rights reserved.
 | See LICENSE file in the project root for details.
 |
  ----------------------------------------------------------------------------*/
+
+#include "xcpQueue.h"
 
 #include <assert.h>   // for assert
 #include <stdbool.h>  // for bool
@@ -19,16 +23,14 @@
 #include <stdlib.h>   // for free, malloc
 #include <string.h>   // for memcpy, strcmp
 
-#include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
 #include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
-#include "xcpTl.h"     // for tXcpCtoMessage, tXcpDtoMessage, xcpTlXxxx
-#include "xcpQueue.h"
-#include "platform.h" // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
+#include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
+#include "xcpTl.h"     // for tXcpDtoMessage
 
 #ifndef _WIN
 #include <stdatomic.h>
 #else
-#ifdef _WIN32_
+#ifdef _WIN32_ // @@@@ 
 #error "Windows32 not implemented yet"
 #endif
 
@@ -265,10 +267,6 @@ void QueuePush(tQueueHandle queueHandle, tQueueBuffer *const queueBuffer, bool f
         queue->h.flush = true;
     entry->ctr = COMMITTED;
 
-#if defined(_WIN) // Windows has event driven transmit queue handler, Linux uses transmit queue polling
-    XcpTlNotifyTransmitQueueHandler();
-#endif
-
     DBG_PRINTF5("QueuePush: dlc=%d, pid=%u, flush=%u, overruns=%u\n", entry->dlc, entry->data[0], flush, queue->h.overruns);
 }
 
@@ -331,7 +329,8 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle) {
     assert(ctr1 == COMMITTED);
     assert(entry1->dlc <= XCPTL_MAX_DTO_SIZE); // Max DTO size
 
-    if (queue->h.overruns) { // Add the number of overruns
+    // Queue overflow indication
+    if (queue->h.overruns) { // Add the number of overruns to CTR
         DBG_PRINTF4("QueuePeek: overruns=%u\n", queue->h.overruns);
         queue->h.ctr += queue->h.overruns;
         queue->h.overruns = 0;

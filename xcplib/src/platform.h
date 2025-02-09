@@ -10,43 +10,52 @@
 
 // Windows or Linux/macOS ?
 #if defined(_WIN32) || defined(_WIN64)
-#define _WIN
-#if defined(_WIN32) && defined(_WIN64)
-// #undef _WIN32 @@@@@@@@@@@@@@@@@@@
-#endif
-#if defined(_LINUX) || defined(_LINUX64) || defined(_LINUX32)
-#error
-#endif
+
+    #define _WIN
+
+    #if defined(_WIN32) && defined(_WIN64)
+        //#error "defined(_WIN32) && defined(_WIN64)"
+        #undef _WIN32  // @@@@ TODO: Remove this line
+    #endif
+    #if defined(_LINUX) || defined(_LINUX64) || defined(_LINUX32)
+        #error "defined(_LINUX) || defined(_LINUX64) || defined(_LINUX32)"
+    #endif
+
 #else
-#define _LINUX
-#if defined(_ix64_) || defined(__x86_64__) || defined(__aarch64__)
-#define _LINUX64
-#ifdef __APPLE__
-#define _MACOS
-#endif
-#else
-#error "32 Bit OS not supported"
-#define _LINUX32
-#ifdef __APPLE__
-#define _MACOS32
-#endif
-#endif
-#if defined(_WIN) || defined(_WIN64) || defined(_WIN32)
-#error
-#endif
+
+    #define _LINUX
+
+    #if defined(_ix64_) || defined(__x86_64__) || defined(__aarch64__)
+        #define _LINUX64
+        #ifdef __APPLE__
+            #define _MACOS
+        #endif
+    #else
+        #error "32 Bit OS not supported"
+        #define _LINUX32
+        #ifdef __APPLE__
+            #define _MACOS32
+        #endif
+    #endif
+
+    #if defined(_WIN) || defined(_WIN64) || defined(_WIN32)
+        #error "defined(_WIN) || defined(_WIN64) || defined(_WIN32)"
+    #endif
+
 #endif
 
+
 #ifdef _WIN
-#define WIN32_LEAN_AND_MEAN
-#define _CRT_SECURE_NO_WARNINGS
+    #define WIN32_LEAN_AND_MEAN
+    #define _CRT_SECURE_NO_WARNINGS
 #else
-#ifndef _DEFAULT_SOURCE
-#define _DEFAULT_SOURCE
-#endif
+    #ifndef _DEFAULT_SOURCE
+        #define _DEFAULT_SOURCE
+    #endif
 #endif
 
 #if !defined(_WIN) && !defined(_LINUX) && !defined(_MACOS)
-#error "Please define platform _WIN or _MACOS or _LINUX"
+    #error "Please define platform _WIN or _MACOS or _LINUX"
 #endif
 
 //-------------------------------------------------------------------------------------------------

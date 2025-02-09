@@ -1,6 +1,22 @@
 # xcp-lite
 XCP for Rust - based on XCPlite  
   
+ToDo xcp-daemon:
+
+Transport layer independant queue
+XcpTlNotifyTransmitQueueHandler in QueuePush
+if (clock == gXcpTl.queue_event_time) entfernen
+
+Remove dead code in XCP_ENABLE_MULTITHREAD_DAQ_EVENTS and XCP_ENABLE_TIMESTAMP_CHECK
+
+
+
+
+
+
+
+
+
 Disclaimer: This code is in experimental state. There is no release yet.  
 
 xcp-lite is a Rust API for measurement and calibration, which uses the ASAM XCP protocol for communication with a measurement and calibration tool like CANape and ASAM A2L for data description.  

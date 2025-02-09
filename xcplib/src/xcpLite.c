@@ -984,6 +984,8 @@ static void XcpTriggerDaqList(const tXcpDaqLists *daq_lists, tQueueHandle queueH
         }
 
         QueuePush(queueHandle, &queueBuffer, DaqListPriority(daq) != 0 && odt == DaqListLastOdt(daq));
+        XcpTlNotifyTransmitQueueHandler(queueHandle);
+
     } /* odt */
 }
 
@@ -1132,6 +1134,7 @@ static void XcpSendCrm(const uint8_t *packet, uint16_t packet_size) {
     if (p != NULL) {
         memcpy(p, packet, packet_size);
         QueuePush(gXcp.Queue, &queueBuffer, true /* flush */);
+        XcpTlNotifyTransmitQueueHandler(gXcp.Queue);
     } else { // Buffer overflow
         DBG_PRINT_WARNING("WARNING: queue overflow\n");
         // Ignore, handled by tool

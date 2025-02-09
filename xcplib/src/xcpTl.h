@@ -39,17 +39,15 @@ typedef struct {
 
 #define XCPTL_TIMEOUT_INFINITE 0xFFFFFFFF // Infinite timeout (blocking mode) for XcpTlHandleCommands, XcpTlWaitForTransmitData
 
-extern tQueueHandle gQueueHandle; // @@@@
+extern tQueueHandle gQueueHandle; // @@@@ ToDo
 
-// Transport Layer functions called by protocol layer in XCPlite.c
+// Transport Layer functions called by protocol layer in xcpLite.c
 extern bool XcpTlWaitForTransmitQueueEmpty(uint16_t timeout_ms); // Wait (sleep) until transmit queue is empty, timeout after 1s return false
+extern bool XcpTlNotifyTransmitQueueHandler(tQueueHandle queueHandle); // provider -> consumer event notificatoni
 
-// Transport layer functions called by the transport layer queue (provider -> consumer event)
-extern bool XcpTlNotifyTransmitQueueHandler(void);
-
-// Transport layer functions called by XCP server
-extern bool XcpTlInit(uint32_t queueSize);                           // Start generic transport layer
-extern void XcpTlShutdown(void);                                     // Stop generic transport layer
+// Transport layer functions called by XCP server in xcpEthServer.c
+extern bool XcpTlInit(uint32_t queueSize);                           // Start transport layer
+extern void XcpTlShutdown(void);                                     // Stop transport layer
 extern uint8_t XcpTlCommand(uint16_t msgLen, const uint8_t *msgBuf); // Handle XCP message
-extern int32_t XcpTlHandleTransmitQueue(void);                       // Send all outgoing packets in the transmit queue
+extern int32_t XcpTlHandleTransmitQueue(void);                       // Send pending packets in the transmit queue
 extern bool XcpTlWaitForTransmitData(uint32_t timeout_ms);           // Wait for at least timeout_ms, until packets are pending in the transmit queue
