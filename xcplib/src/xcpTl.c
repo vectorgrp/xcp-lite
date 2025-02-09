@@ -10,6 +10,8 @@
 |
  ----------------------------------------------------------------------------*/
 
+#include "xcpTl.h"
+
 #include <stddef.h>   // for NULL
 #include <assert.h>   // for assert
 #include <stdbool.h>  // for bool
@@ -25,7 +27,6 @@
 
 #include "xcp.h"      // for CRC_XXX
 #include "xcpLite.h"  // for tXcpDaqLists, XcpXxx, ApplXcpXxx, ...
-#include "xcpTl.h"    // for tXcpCtoMessage, tXcpDtoMessage, xcpTlXxxx
 #include "xcpEthTl.h" // for xcpEthTlxxx
 #include "xcpQueue.h"
 
@@ -63,7 +64,6 @@ bool XcpTlInit(uint32_t queueSize) {
 
 void XcpTlShutdown(void) {
 
-    // @@@@ gQueueHandle
     QueueDeinit(gQueueHandle);
     gQueueHandle = NULL;
 
@@ -91,7 +91,6 @@ uint8_t XcpTlCommand(uint16_t msgLen, const uint8_t *msgBuf) {
     else {
         /* Check for CONNECT command ? */
         if (p->dlc == 2 && p->packet[0] == CC_CONNECT) {
-            // @@@@ gQueueHandle
             QueueClear(gQueueHandle);
             return XcpCommand((const uint32_t *)&p->packet[0], (uint8_t)p->dlc); // Handle CONNECT command
         } else {
@@ -106,21 +105,17 @@ uint8_t XcpTlCommand(uint16_t msgLen, const uint8_t *msgBuf) {
 int32_t XcpTlHandleTransmitQueue(void) {
 
     const uint32_t max_loops = 20; // maximum number of packets to send without sleep(0)
-
     int32_t n = 0;
-    const uint8_t *b = NULL;
 
     for (;;) {
         for (uint32_t i = 0; i < max_loops; i++) {
 
             // Check
-            uint16_t l = 0;
-            // @@@@ gQueueHandle
             tQueueBuffer queueBuffer = QueuePeek(gQueueHandle);
-            l = queueBuffer.size;
-            b = queueBuffer.buffer;
+            uint16_t l = queueBuffer.size;
+            const uint8_t *b = queueBuffer.buffer;
             if (b == NULL)
-                break; // Ok, queue is empty or not fully commited
+                return n; // Ok, queue is empty or not fully commited
 
             // Send this frame
             int r = XcpEthTlSend(b, l, NULL, 0);
@@ -138,13 +133,9 @@ int32_t XcpTlHandleTransmitQueue(void) {
 
         } // for (max_loops)
 
-        if (b == NULL)
-            break; // queue is empty
         sleepMs(0);
 
     } // for (ever)
-
-    return n; // Ok, queue empty now
 }
 
 // Wait (sleep) until transmit queue is empty
@@ -172,16 +163,16 @@ bool XcpTlWaitForTransmitQueueEmpty(uint16_t timeout_ms) {
 
 // Notify transmit queue handler thread
 bool XcpTlNotifyTransmitQueueHandler(tQueueHandle queueHandle) {
-    
+
     (void)queueHandle;
-    
+
     // Windows only, Linux version uses polling
 #if defined(_WIN) // Windows
 
     // Notify that there is data in the queue
     // Notify at most every XCPTL_QUEUE_TRANSMIT_CYCLE_TIME to save CPU load
     uint64_t clock = clockGetLast();
-    if ( clock >= gXcpTl.queue_event_time + XCPTL_QUEUE_TRANSMIT_CYCLE_TIME) {
+    if (clock >= gXcpTl.queue_event_time + XCPTL_QUEUE_TRANSMIT_CYCLE_TIME) {
         gXcpTl.queue_event_time = clock;
         SetEvent(gXcpTl.queue_event);
         return true;

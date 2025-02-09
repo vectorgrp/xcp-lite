@@ -57,6 +57,8 @@
 |  from Vector Informatik GmbH, please contact Vector
 |***************************************************************************/
 
+#include "xcpLite.h" // XCP protocol layer interface functions
+
 #include <assert.h>   // for assert
 #include <stdbool.h>  // for bool
 #include <stdint.h>   // for uint8_t, uint16_t, uint32_t, int32_t, uin...
@@ -66,11 +68,9 @@
 #include <string.h>   // for memcpy, memset, strlen
 
 #include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
-
 #include "xcp_cfg.h"   // XCP protocol layer configuration parameters (XCP_xxx)
 #include "xcptl_cfg.h" // XCP transport layer configuration parameters (XCPTL_xxx)
 #include "xcp.h"       // XCP protocol definitions
-#include "xcpLite.h"   // XCP protocol layer interface functions
 #include "xcpQueue.h"  // for QueueXxx transport queue layer interface
 #include "xcpTl.h"     // for xcpTlxxx transport layer interface
 
@@ -1163,9 +1163,10 @@ static void XcpSendMulticastResponse(const tXcpCto *crm, uint8_t crmLen, uint8_t
 }
 #endif
 
-//  Push XCP command which can not be executes in this context for later async execution
 #ifdef XCP_ENABLE_DYN_ADDRESSING
 
+// Push XCP command which can not be executed in this context for later async execution
+// Returns CRC_CMD_BUSY, if there is already a pending async command
 static uint8_t XcpPushCommand(const tXcpCto *cmdBuf, uint8_t cmdLen) {
 
 #if defined(XCP_ENABLE_MULTITHREAD_CAL_EVENTS)
@@ -1192,11 +1193,19 @@ static uint8_t XcpPushCommand(const tXcpCto *cmdBuf, uint8_t cmdLen) {
 }
 #endif // XCP_ENABLE_DYN_ADDRESSING
 
-//  Handles incoming XCP commands
-uint8_t XcpCommand(const uint32_t *cmdBuf, uint8_t cmdLen) { return XcpAsyncCommand(false, cmdBuf, cmdLen); }
+// Execute XCP commands
+// Returns
+//  CRC_CMD_IGNORED if not in connected state and no response was sent
+//  CRC_CMD_BUSY if a command response is pending, while receiving another command
+//  The XCP error if an error response was pushed to the queue
+uint8_t XcpCommand(const uint32_t *cmdBuf, uint8_t cmdLen) {
+    //
+    return XcpAsyncCommand(false, cmdBuf, cmdLen);
+}
 
-//  Handles incoming or asyncronous XCP commands
+//  Handles incoming or async XCP commands
 static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLen) {
+
 #define CRO ((tXcpCto *)cmdBuf)
 #define CRO_LEN (cmdLen)
 #define CRO_BYTE(x) (CRO->b[x])
@@ -1205,10 +1214,8 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
 
     uint8_t err = 0;
 
-    if (!isStarted())
-        return CRC_GENERIC;
-    if (CRO_LEN > XCPTL_MAX_CTO_SIZE)
-        return CRC_CMD_SYNTAX;
+    assert(isStarted());
+    assert(CRO_LEN <= XCPTL_MAX_CTO_SIZE);
 
     // Prepare the default response
     CRM_CMD = PID_RES; /* Response, no error */
@@ -1992,6 +1999,7 @@ negative_response:
 
 // Transmit busy response, if another command is already pending
 // Interleaved mode is not supported
+// @@@@ ToDo: Find a better solution
 #ifdef XCP_ENABLE_DYN_ADDRESSING
 busy_response:
     CRM_LEN = 2;

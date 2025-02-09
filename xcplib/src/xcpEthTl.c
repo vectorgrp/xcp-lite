@@ -12,6 +12,8 @@
 |
  ----------------------------------------------------------------------------*/
 
+#include "xcpEthTl.h"
+
 #include <assert.h>   // for assert
 #include <stdbool.h>  // for bool
 #include <stdint.h>   // for uint32_t, uint64_t, uint8_t, int64_t
@@ -21,11 +23,9 @@
 
 #include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
 #include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
-
 #include "xcp.h"       // for CRC_XXX
 #include "xcpLite.h"   // for tXcpDaqLists, XcpXxx, ApplXcpXxx, ...
 #include "xcptl_cfg.h" // for XCPTL_xxx
-#include "xcpEthTl.h"  // for xcpEthTlxxx
 #include "xcpTl.h"     // for tXcpCtoMessage, tXcpDtoMessage, xcpTlXxxx
 #include "xcpQueue.h"
 
@@ -148,9 +148,9 @@ void XcpEthTlSendMulticastCrm(const uint8_t *packet, uint16_t packet_size, const
 
 //------------------------------------------------------------------------------
 
-static int handleXcpCommand(tXcpCtoMessage *p, uint8_t *srcAddr, uint16_t srcPort) {
+static bool handleXcpCommand(tXcpCtoMessage *p, uint8_t *srcAddr, uint16_t srcPort) {
 
-    int connected;
+    bool connected;
 
     // gXcpTl.LastCrmCtr = p->ctr;
     connected = XcpIsConnected();
@@ -175,7 +175,7 @@ static int handleXcpCommand(tXcpCtoMessage *p, uint8_t *srcAddr, uint16_t srcPor
                 DBG_PRINTF_WARNING("WARNING: message from unknown new master %u.%u.%u.%u, disconnecting!\n", srcAddr[0], srcAddr[1], srcAddr[2], srcAddr[3]);
                 XcpDisconnect();
                 gXcpTl.MasterAddrValid = false;
-                return 1; // Disconnect
+                return true; // Disconnect
             }
 
             // Check unicast master udp port, not allowed to change
@@ -183,12 +183,12 @@ static int handleXcpCommand(tXcpCtoMessage *p, uint8_t *srcAddr, uint16_t srcPor
                 DBG_PRINTF_WARNING("WARNING: master port changed from %u to %u, disconnecting!\n", gXcpTl.MasterPort, srcPort);
                 XcpDisconnect();
                 gXcpTl.MasterAddrValid = false;
-                return 1; // Disconnect
+                return true; // Disconnect
             }
         }
 #endif // UDP
         if (p->dlc > XCPTL_MAX_CTO_SIZE)
-            return 0;
+            return false;
         XcpCommand((const uint32_t *)&p->packet[0], (uint8_t)p->dlc); // Handle command
     }
 
@@ -196,6 +196,7 @@ static int handleXcpCommand(tXcpCtoMessage *p, uint8_t *srcAddr, uint16_t srcPor
     else {
         /* Check for CONNECT command ? */
         if (p->dlc == 2 && p->packet[0] == CC_CONNECT) {
+
 #ifdef XCPTL_ENABLE_UDP
             if (!isTCP()) {
                 memcpy(gXcpTl.MasterAddr, srcAddr,
@@ -204,7 +205,7 @@ static int handleXcpCommand(tXcpCtoMessage *p, uint8_t *srcAddr, uint16_t srcPor
                 gXcpTl.MasterAddrValid = true;
             }
 #endif // UDP
-       // @@@@ gQueueHandle
+
             QueueClear(gQueueHandle);
             XcpCommand((const uint32_t *)&p->packet[0], (uint8_t)p->dlc); // Handle CONNECT command
         } else {
@@ -222,12 +223,12 @@ static int handleXcpCommand(tXcpCtoMessage *p, uint8_t *srcAddr, uint16_t srcPor
     } // not connected before
 #endif // UDP
 
-    return 1; // Ok
+    return true;
 }
 
 // Handle incoming XCP commands
 // Blocking for timeout_ms, currently XCPTL_TIMEOUT_INFINITE only (blocking)
-// returns false on error
+// Returns false on error
 bool XcpEthTlHandleCommands(uint32_t timeout_ms) {
 
     tXcpCtoMessage msgBuf;
@@ -483,6 +484,9 @@ void XcpEthTlGetInfo(bool *isTcp, uint8_t *mac, uint8_t *addr, uint16_t *port) {
         memcpy(addr, gXcpTl.ServerAddr, 4);
     if (mac != NULL)
         memcpy(mac, gXcpTl.ServerMac, 6);
+#else
+    (void)addr;
+    (void)mac;
 #endif
     if (port != NULL)
         *port = gXcpTl.ServerPort;

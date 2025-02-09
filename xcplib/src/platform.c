@@ -14,6 +14,8 @@
 |   Code released into public domain, no attribution required
  ----------------------------------------------------------------------------*/
 
+#include "platform.h"
+
 #include <assert.h>   // for assert
 #include <stdbool.h>  // for bool
 #include <stdint.h>   // for uint32_t, uint64_t, uint8_t, int64_t
@@ -21,15 +23,12 @@
 #include <inttypes.h> // for PRIu64
 #include <string.h>   // for memcpy, strcmp
 #include <time.h>     // for timespec, nanosleep, CLOCK_MONOTONIC_RAW
-//#include <unistd.h>   // for sleep (@@@@ not found unistd.h on windows ???????)
+#if defined(_LINUX) || defined(_MACOS)
+#include <unistd.h> // for sleep (@@@@ not found unistd.h on windows ???????)
+#endif
 
 #include "main_cfg.h"  // for OPTION_xxx ...
-#include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
 #include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
-
-#if !defined(_WIN) && !defined(_LINUX) && !defined(_MACOS)
-#error "Please define platform _WIN, _MACOS or _LINUX"
-#endif
 
 /**************************************************************************/
 // Winsock
@@ -254,7 +253,7 @@ bool socketClose(SOCKET *sp) {
     return true;
 }
 
-#ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
+#ifdef OPTION_ENABLE_GET_LOCAL_ADDR
 
 #ifndef _MACOS
 #include <linux/if_packet.h>
@@ -339,7 +338,7 @@ bool socketGetLocalAddr(uint8_t *mac, uint8_t *addr) {
     }
 }
 
-#endif // PLATFORM_ENABLE_GET_LOCAL_ADDR
+#endif // OPTION_ENABLE_GET_LOCAL_ADDR
 
 #endif // _LINUX
 
@@ -473,7 +472,7 @@ bool socketClose(SOCKET *sockp) {
     return true;
 }
 
-#ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
+#ifdef OPTION_ENABLE_GET_LOCAL_ADDR
 
 #include <iphlpapi.h>
 #pragma comment(lib, "IPHLPAPI.lib")
@@ -542,7 +541,7 @@ bool socketGetLocalAddr(uint8_t *mac, uint8_t *addr) {
     return false;
 }
 
-#endif // PLATFORM_ENABLE_GET_LOCAL_ADDR
+#endif // OPTION_ENABLE_GET_LOCAL_ADDR
 
 #endif // _WIN
 

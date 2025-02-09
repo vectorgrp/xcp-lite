@@ -13,11 +13,11 @@
 
 #include "xcpAppl.h"
 
-#include <assert.h> // for assert
-#include <stdbool.h>
-#include <stdint.h> // for uint8_t, uint32_t, uint64_t
-#include <stdio.h>  // for fclose, fopen, fread, fseek, ftell
-#include <string.h> // for strlen, strncpy
+#include <assert.h>  // for assert
+#include <stdbool.h> // for bool
+#include <stdint.h>  // for uint8_t, uint32_t, uint64_t
+#include <stdio.h>   // for fclose, fopen, fread, fseek, ftell
+#include <string.h>  // for strlen, strncpy
 
 #include "main_cfg.h"  // for OPTION_xxx
 #include "dbg_print.h" // for DBG_PRINTF3, DBG_PRINT4, DBG_PRINTF4, DBG...

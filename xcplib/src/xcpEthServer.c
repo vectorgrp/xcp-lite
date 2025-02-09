@@ -12,6 +12,8 @@
 |
 -----------------------------------------------------------------------------*/
 
+#include "xcpEthServer.h"
+
 #include <assert.h>   // for assert
 #include <stdbool.h>  // for bool
 #include <stdint.h>   // for uint32_t, uint64_t, uint8_t, int64_t
@@ -20,14 +22,12 @@
 
 #include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
 #include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
-
 #include "xcp.h"       // for CRC_XXX
 #include "xcpLite.h"   // for tXcpDaqLists, XcpXxx, ApplXcpXxx, ...
 #include "xcptl_cfg.h" // for XCPTL_xxx
 #include "xcpTl.h"     // for tXcpCtoMessage, tXcpDtoMessage, xcpTlXxxx
 #include "xcpEthTl.h"  // for xcpEthTlxxx
 #include "xcpQueue.h"
-#include "xcpEthServer.h"
 
 #if defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)
 
@@ -106,7 +106,7 @@ bool XcpEthServerInit(const uint8_t *addr, uint16_t port, bool useTCP, uint32_t 
 
 bool XcpEthServerShutdown(void) {
 
-#ifdef XCP_SERVER_FORCEFULL_TERMINATION
+#ifdef OPTION_SERVER_FORCEFULL_TERMINATION
     // Forcefull termination
     if (gXcpServer.isInit) {
         DBG_PRINT3("Disconnect, cancel threads and shutdown XCP!\n");
@@ -151,7 +151,7 @@ extern void *XcpServerReceiveThread(void *par)
     gXcpServer.ReceiveThreadRunning = true;
     while (gXcpServer.ReceiveThreadRunning) {
         if (!XcpEthTlHandleCommands(XCPTL_TIMEOUT_INFINITE)) { // Timeout Blocking
-            DBG_PRINT_ERROR("ERROR: XcpTlHandleCommands failed!\n");
+            DBG_PRINT_ERROR("ERROR: XcpEthTlHandleCommands failed!\n");
             break; // error -> terminate thread
         } else {
             // Handle transmit queue after each command, to keep the command latency short
