@@ -261,7 +261,8 @@ extern bool ApplXcpGetClockInfoGrandmaster(uint8_t *uuid, uint8_t *epoch, uint8_
 
 /* DAQ resume */
 #ifdef XCP_ENABLE_DAQ_RESUME
-uint8_t ApplXcpDaqResumeStore(void);
+
+uint8_t ApplXcpDaqResumeStore(uint16_t config_id);
 uint8_t ApplXcpDaqResumeClear(void);
 
 #endif

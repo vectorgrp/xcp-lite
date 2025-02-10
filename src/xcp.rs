@@ -444,6 +444,7 @@ impl Xcp {
                 Some(cb_prepare_daq),
                 Some(cb_start_daq),
                 Some(cb_stop_daq),
+                None, // @@@@
                 Some(cb_get_cal_page),
                 Some(cb_set_cal_page),
                 Some(cb_freeze_cal),

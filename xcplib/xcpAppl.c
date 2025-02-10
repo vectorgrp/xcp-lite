@@ -62,6 +62,7 @@ static uint8_t (*callback_connect)(void) = NULL;
 static uint8_t (*callback_prepare_daq)(const tXcpDaqLists *daq) = NULL;
 static uint8_t (*callback_start_daq)(const tXcpDaqLists *daq) = NULL;
 static void (*callback_stop_daq)(void) = NULL;
+static uint8_t (*callback_freeze_daq)(uint8_t clear, uint16_t config_id) = NULL;
 static uint8_t (*callback_get_cal_page)(uint8_t segment, uint8_t mode) = NULL;
 static uint8_t (*callback_set_cal_page)(uint8_t segment, uint8_t page, uint8_t mode) = NULL;
 static uint8_t (*callback_init_cal)(uint8_t src_page, uint8_t dst_page) = NULL;
@@ -71,9 +72,12 @@ static uint8_t (*callback_write)(uint32_t dst, uint8_t size, const uint8_t *src,
 static uint8_t (*callback_flush)(void) = NULL;
 
 void ApplXcpRegisterCallbacks(uint8_t (*cb_connect)(void), uint8_t (*cb_prepare_daq)(const tXcpDaqLists *daq), uint8_t (*cb_start_daq)(const tXcpDaqLists *daq),
-                              void (*cb_stop_daq)(void), uint8_t (*cb_get_cal_page)(uint8_t segment, uint8_t mode),
-                              uint8_t (*cb_set_cal_page)(uint8_t segment, uint8_t page, uint8_t mode), uint8_t (*cb_freeze_cal)(void),
-                              uint8_t (*cb_init_cal)(uint8_t src_page, uint8_t dst_page),
+                              void (*cb_stop_daq)(void),
+
+                              uint8_t (*cb_freeze_daq)(uint8_t clear, uint16_t config_id),
+
+                              uint8_t (*cb_get_cal_page)(uint8_t segment, uint8_t mode), uint8_t (*cb_set_cal_page)(uint8_t segment, uint8_t page, uint8_t mode),
+                              uint8_t (*cb_freeze_cal)(void), uint8_t (*cb_init_cal)(uint8_t src_page, uint8_t dst_page),
 #ifdef XCP_ENABLE_APP_ADDRESSING
                               uint8_t (*cb_read)(uint32_t src, uint8_t size, uint8_t *dst), uint8_t (*cb_write)(uint32_t dst, uint8_t size, const uint8_t *src, uint8_t delay),
                               uint8_t (*cb_flush)(void)
@@ -84,6 +88,7 @@ void ApplXcpRegisterCallbacks(uint8_t (*cb_connect)(void), uint8_t (*cb_prepare_
     callback_prepare_daq = cb_prepare_daq;
     callback_start_daq = cb_start_daq;
     callback_stop_daq = cb_stop_daq;
+    callback_freeze_daq = cb_freeze_daq;
     callback_get_cal_page = cb_get_cal_page;
     callback_set_cal_page = cb_set_cal_page;
     callback_freeze_cal = cb_freeze_cal;
@@ -402,7 +407,9 @@ uint8_t ApplXcpGetCalPageMode(uint8_t segment) {
 
 #ifdef XCP_ENABLE_DAQ_RESUME
 
-uint8_t ApplXcpDaqResumeStore(void) {
+uint8_t ApplXcpDaqResumeStore(uint16_t config_id) {
+
+    DBG_PRINTF3("ApplXcpResumeStore config-id=%u\n", config_id);
 
     //   FILE *f = fopen("XCPsim.DAQ","wb");
     //   if (f) {
@@ -410,13 +417,18 @@ uint8_t ApplXcpDaqResumeStore(void) {
     //     fwrite(&gRemoteAddr,sizeof(gRemoteAddr),1,f);
     //     fclose(f);
     //   }
-    return CRC_CMD_IGNORED;
+    // return CRC_CMD_IGNORED;
+
+    return CRC_CMD_OK;
 }
 
 uint8_t ApplXcpDaqResumeClear(void) {
 
+    DBG_PRINT3("ApplXcpResumeClear\n");
+
     // remove("XCPsim.DAQ");
-    return CRC_CMD_IGNORED;
+    // return CRC_CMD_IGNORED;
+    return CRC_CMD_OK;
 }
 
 #endif

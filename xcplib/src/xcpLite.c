@@ -1392,13 +1392,14 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
             CRM_LEN = CRM_SET_REQUEST_LEN;
             switch (CRO_SET_REQUEST_MODE) {
 #ifdef XCP_ENABLE_DAQ_RESUME
-            case SS_STORE_DAQ_REQ:
-                gXcpDaqLists->config_id = CRO_SET_REQUEST_CONFIG_ID;
+            case SS_STORE_DAQ_REQ: {
+                uint16_t config_id = CRO_SET_REQUEST_CONFIG_ID;
+                gXcpDaqLists->config_id = config_id;
                 // gXcp.SessionStatus |= SS_STORE_DAQ_REQ;
-                check_error(ApplXcpDaqResumeStore());
-                /* @@@@ TODO Send an event message */
+                check_error(ApplXcpDaqResumeStore(config_id));
+                /* @@@@ Send an event message */
                 // gXcp.SessionStatus &= ~SS_STORE_DAQ_REQ;
-                break;
+            } break;
             case SS_CLEAR_DAQ_REQ:
                 // gXcp.SessionStatus |= SS_CLEAR_DAQ_REQ;
                 check_error(ApplXcpDaqResumeClear());
@@ -2546,6 +2547,9 @@ static void XcpPrintRes(const tXcpCto *crm) {
             break;
         case CRC_PGM_ACTIVE:
             e = "CRC_PGM_ACTIVE";
+            break;
+        case CRC_CMD_IGNORED:
+            e = "CRC_CMD_IGNORED";
             break;
         case CRC_CMD_UNKNOWN:
             e = "CRC_CMD_UNKNOWN";

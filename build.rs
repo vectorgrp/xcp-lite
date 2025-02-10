@@ -52,7 +52,7 @@ fn main() {
         .file("xcplib/src/xcpEthServer.c")
         // C11
         // @@@@ ToDo Windows MSC ????
-        // .flag("-std=c11")
+        .flag("-std=c11")
         // Optimizations
         // @@@@ Enable optimization in release mode
         .flag("-O2")

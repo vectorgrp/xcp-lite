@@ -247,6 +247,7 @@ extern "C" {
         cb_prepare_daq: ::std::option::Option<unsafe extern "C" fn(daq: *const tXcpDaqLists) -> u8>,
         cb_start_daq: ::std::option::Option<unsafe extern "C" fn(daq: *const tXcpDaqLists) -> u8>,
         cb_stop_daq: ::std::option::Option<unsafe extern "C" fn()>,
+        cb_freeze_daq: ::std::option::Option<unsafe extern "C" fn(clear: u8, config_id: u16) -> u8>,
         cb_get_cal_page: ::std::option::Option<unsafe extern "C" fn(segment: u8, mode: u8) -> u8>,
         cb_set_cal_page: ::std::option::Option<unsafe extern "C" fn(segment: u8, page: u8, mode: u8) -> u8>,
         cb_freeze_cal: ::std::option::Option<unsafe extern "C" fn() -> u8>,

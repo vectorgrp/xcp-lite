@@ -11,28 +11,27 @@
 // The library crate is named "xcp"
 #![crate_name = "xcp"]
 //
-//
 // Disabled clippy lints
 #![allow(non_snake_case)]
+#![allow(non_camel_case_types)]
 #![allow(dead_code)]
 //
-#![warn(clippy::pedantic)]
-#![allow(clippy::doc_markdown)]
-#![allow(clippy::missing_errors_doc)]
-#![allow(clippy::missing_panics_doc)]
-#![allow(clippy::must_use_candidate)]
-#![allow(clippy::uninlined_format_args)]
-#![allow(clippy::module_name_repetitions)]
-#![allow(clippy::struct_field_names)]
-#![allow(clippy::unreadable_literal)]
-#![allow(clippy::if_not_else)]
-#![allow(clippy::wildcard_imports)]
-#![allow(clippy::cast_lossless)]
-//
-#![allow(clippy::ref_as_ptr)]
-#![allow(clippy::ptr_as_ptr)]
-#![allow(clippy::cast_possible_wrap)]
-#![allow(clippy::trivially_copy_pass_by_ref)]
+// #![warn(clippy::pedantic)]
+// #![allow(clippy::doc_markdown)]
+// #![allow(clippy::missing_errors_doc)]
+// #![allow(clippy::missing_panics_doc)]
+// #![allow(clippy::must_use_candidate)]
+// #![allow(clippy::uninlined_format_args)]
+// #![allow(clippy::module_name_repetitions)]
+// #![allow(clippy::struct_field_names)]
+// #![allow(clippy::unreadable_literal)]
+// #![allow(clippy::if_not_else)]
+// #![allow(clippy::wildcard_imports)]
+// #![allow(clippy::cast_lossless)]
+// #![allow(clippy::ref_as_ptr)]
+// #![allow(clippy::ptr_as_ptr)]
+// #![allow(clippy::cast_possible_wrap)]
+// #![allow(clippy::trivially_copy_pass_by_ref)]
 //
 #![cfg(not(doctest))]
 /*
