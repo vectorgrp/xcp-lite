@@ -11,51 +11,50 @@
 // Windows or Linux/macOS ?
 #if defined(_WIN32) || defined(_WIN64)
 
-    #define _WIN
+#define _WIN
 
-    #if defined(_WIN32) && defined(_WIN64)
-        //#error "defined(_WIN32) && defined(_WIN64)"
-        #undef _WIN32  // @@@@ TODO: Remove this line
-    #endif
-    #if defined(_LINUX) || defined(_LINUX64) || defined(_LINUX32)
-        #error "defined(_LINUX) || defined(_LINUX64) || defined(_LINUX32)"
-    #endif
+#if defined(_WIN32) && defined(_WIN64)
+// #error "defined(_WIN32) && defined(_WIN64)"
+#undef _WIN32 // @@@@ TODO: Remove this line
+#endif
+#if defined(_LINUX) || defined(_LINUX64) || defined(_LINUX32)
+#error "defined(_LINUX) || defined(_LINUX64) || defined(_LINUX32)"
+#endif
 
 #else
 
-    #define _LINUX
+#define _LINUX
 
-    #if defined(_ix64_) || defined(__x86_64__) || defined(__aarch64__)
-        #define _LINUX64
-        #ifdef __APPLE__
-            #define _MACOS
-        #endif
-    #else
-        #error "32 Bit OS not supported"
-        #define _LINUX32
-        #ifdef __APPLE__
-            #define _MACOS32
-        #endif
-    #endif
+#if defined(_ix64_) || defined(__x86_64__) || defined(__aarch64__)
+#define _LINUX64
+#ifdef __APPLE__
+#define _MACOS
+#endif
+#else
+#error "32 Bit OS not supported"
+#define _LINUX32
+#ifdef __APPLE__
+#define _MACOS32
+#endif
+#endif
 
-    #if defined(_WIN) || defined(_WIN64) || defined(_WIN32)
-        #error "defined(_WIN) || defined(_WIN64) || defined(_WIN32)"
-    #endif
+#if defined(_WIN) || defined(_WIN64) || defined(_WIN32)
+#error "defined(_WIN) || defined(_WIN64) || defined(_WIN32)"
+#endif
 
 #endif
 
-
 #ifdef _WIN
-    #define WIN32_LEAN_AND_MEAN
-    #define _CRT_SECURE_NO_WARNINGS
+#define WIN32_LEAN_AND_MEAN
+#define _CRT_SECURE_NO_WARNINGS
 #else
-    #ifndef _DEFAULT_SOURCE
-        #define _DEFAULT_SOURCE
-    #endif
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE
+#endif
 #endif
 
 #if !defined(_WIN) && !defined(_LINUX) && !defined(_MACOS)
-    #error "Please define platform _WIN or _MACOS or _LINUX"
+#error "Please define platform _WIN or _MACOS or _LINUX"
 #endif
 
 //-------------------------------------------------------------------------------------------------
@@ -83,7 +82,7 @@
 
 #endif
 
-#include "main_cfg.h" // for OPTION_xxx, PLATFORM_ENABLE_xxx, ...
+#include "main_cfg.h" // for OPTION_xxx
 
 #if !defined(_WIN) && !defined(_LINUX) && !defined(_MACOS)
 #error "Please define platform _WIN, _MACOS or _LINUX"
@@ -92,7 +91,7 @@
 //-------------------------------------------------------------------------------
 // Keyboard
 
-#ifdef PLATFORM_ENABLE_KEYBOARD
+#ifdef OPTION_ENABLE_KEYBOARD
 
 #ifdef _LINUX
 #include <termios.h>
@@ -177,7 +176,7 @@ typedef pthread_t THREAD;
 #endif
 
 //-------------------------------------------------------------------------------
-// Platform independant socket functions
+// Platform independent socket functions
 
 #if defined(OPTION_ENABLE_TCP) || defined(OPTION_ENABLE_UDP)
 
@@ -238,7 +237,7 @@ extern int16_t socketSend(SOCKET sock, const uint8_t *buffer, uint16_t bufferSiz
 extern int16_t socketSendTo(SOCKET sock, const uint8_t *buffer, uint16_t bufferSize, const uint8_t *addr, uint16_t port, uint64_t *time);
 extern bool socketShutdown(SOCKET sock);
 extern bool socketClose(SOCKET *sp);
-#ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
+#ifdef OPTION_ENABLE_GET_LOCAL_ADDR
 extern bool socketGetLocalAddr(uint8_t *mac, uint8_t *addr);
 #endif
 

@@ -21,22 +21,28 @@
 #include <inttypes.h> // for PRIu64
 #include <string.h>   // for memcpy, strcmp
 
+#include "main_cfg.h"  // for OPTION_xxx
 #include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
 #include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
 #include "xcp.h"       // for CRC_XXX
 #include "xcpLite.h"   // for tXcpDaqLists, XcpXxx, ApplXcpXxx, ...
 #include "xcptl_cfg.h" // for XCPTL_xxx
-#include "xcpTl.h"     // for tXcpCtoMessage, tXcpDtoMessage, xcpTlXxxx
 #include "xcpQueue.h"
 
-#if defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)
 static struct {
+
+    tQueueHandle queue_handle;
+
+#if defined(_WIN) // Windows
+    HANDLE queue_event;
+    uint64_t queue_event_time;
+#endif
 
     SOCKET Sock;
 #ifdef XCPTL_ENABLE_TCP
     SOCKET ListenSock;
 #endif
-#ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
+#ifdef OPTION_ENABLE_GET_LOCAL_ADDR
     uint8_t ServerMac[6];
     uint8_t ServerAddr[4];
 #endif
@@ -54,7 +60,6 @@ static struct {
 #endif
 
 } gXcpTl;
-#endif
 
 #if defined(XCPTL_ENABLE_TCP) && defined(XCPTL_ENABLE_UDP)
 #define isTCP() (gXcpTl.ListenSock != INVALID_SOCKET)
@@ -77,8 +82,6 @@ static int handleXcpMulticastCommand(int n, tXcpCtoMessage *p, uint8_t *dstAddr,
 
 //------------------------------------------------------------------------------
 // Ethernet transport layer socket functions
-
-#if defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)
 
 // Transmit a UDP datagramm or TCP segment (contains multiple XCP DTO messages or a single CRM message
 // (len+ctr+packet+fill)) Must be thread safe, because it is called from CMD and from DAQ thread Returns -1 on would
@@ -206,7 +209,7 @@ static bool handleXcpCommand(tXcpCtoMessage *p, uint8_t *srcAddr, uint16_t srcPo
             }
 #endif // UDP
 
-            QueueClear(gQueueHandle);
+            QueueClear(gXcpTl.queue_handle);
             XcpCommand((const uint32_t *)&p->packet[0], (uint8_t)p->dlc); // Handle CONNECT command
         } else {
             DBG_PRINT_WARNING("WARNING: handleXcpCommand: no valid CONNECT command\n");
@@ -375,10 +378,24 @@ extern void *XcpTlMulticastThread(void *par)
 
 //-------------------------------------------------------------------------------------------------------
 
-bool XcpEthTlInit(const uint8_t *addr, uint16_t port, bool useTCP, bool blockingRx, uint32_t queueSize) {
+// Initialize transport layer
+// Queue can be provided externally in queue_handle, if *queue_handle==NULL queue is returned
+bool XcpEthTlInit(const uint8_t *addr, uint16_t port, bool useTCP, bool blockingRx, tQueueHandle queue_handle) {
 
-    if (!XcpTlInit(queueSize))
-        return false;
+    DBG_PRINT3("Init XCP transport layer\n");
+    DBG_PRINTF3("  MAX_CTO_SIZE=%u\n", XCPTL_MAX_CTO_SIZE);
+#ifdef XCPTL_ENABLE_MULTICAST
+    DBG_PRINT3("        Option ENABLE_MULTICAST (not recommended)\n");
+#endif
+
+    assert(queue_handle != NULL);
+    gXcpTl.queue_handle = queue_handle;
+
+#if defined(_WIN) // Windows
+    gXcpTl.queue_event = CreateEvent(NULL, true, false, NULL);
+    assert(gXcpTl.queue_event != NULL);
+    gXcpTl.queue_event_time = 0;
+#endif
 
     uint8_t bind_addr[4] = {0, 0, 0, 0}; // Bind to ANY(0.0.0.0)
     if (addr != NULL) {                  // Bind to given addr
@@ -417,7 +434,7 @@ bool XcpEthTlInit(const uint8_t *addr, uint16_t port, bool useTCP, bool blocking
         DBG_PRINTF3("  Listening for XCP commands on UDP %u.%u.%u.%u port %u\n", bind_addr[0], bind_addr[1], bind_addr[2], bind_addr[3], port);
     }
 
-#ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
+#ifdef OPTION_ENABLE_GET_LOCAL_ADDR
     {
         uint8_t addr[4] = {0, 0, 0, 0};
         uint8_t mac[6] = {0, 0, 0, 0, 0, 0};
@@ -470,8 +487,9 @@ void XcpEthTlShutdown(void) {
 #endif
     socketClose(&gXcpTl.Sock);
 
-    // Free other resources
-    XcpTlShutdown();
+#if defined(_WIN) // Windows
+    CloseHandle(gXcpTl.queue_event);
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------------
@@ -479,7 +497,7 @@ void XcpEthTlGetInfo(bool *isTcp, uint8_t *mac, uint8_t *addr, uint16_t *port) {
 
     if (isTcp != NULL)
         *isTcp = gXcpTl.ServerUseTCP;
-#ifdef PLATFORM_ENABLE_GET_LOCAL_ADDR
+#ifdef OPTION_ENABLE_GET_LOCAL_ADDR
     if (addr != NULL)
         memcpy(addr, gXcpTl.ServerAddr, 4);
     if (mac != NULL)
@@ -492,4 +510,146 @@ void XcpEthTlGetInfo(bool *isTcp, uint8_t *mac, uint8_t *addr, uint16_t *port) {
         *port = gXcpTl.ServerPort;
 }
 
-#endif // defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)
+//----------------------------------------------------------------------------
+// Generic transport layer functions
+
+// Execute XCP command
+// Returns XCP error code
+uint8_t XcpTlCommand(uint16_t msgLen, const uint8_t *msgBuf) {
+
+    bool connected = XcpIsConnected();
+    tXcpCtoMessage *p = (tXcpCtoMessage *)msgBuf;
+    assert(msgLen >= p->dlc + XCPTL_TRANSPORT_LAYER_HEADER_SIZE);
+
+    /* Connected */
+    if (connected) {
+        if (p->dlc > XCPTL_MAX_CTO_SIZE)
+            return CRC_CMD_SYNTAX;
+        return XcpCommand((const uint32_t *)&p->packet[0], p->dlc); // Handle command
+    }
+
+    /* Not connected yet */
+    else {
+        /* Check for CONNECT command ? */
+        if (p->dlc == 2 && p->packet[0] == CC_CONNECT) {
+            QueueClear(gXcpTl.queue_handle);
+            return XcpCommand((const uint32_t *)&p->packet[0], (uint8_t)p->dlc); // Handle CONNECT command
+        } else {
+            DBG_PRINTF_WARNING("WARNING: XcpTlCommand: no valid CONNECT command, dlc=%u, data=%02X\n", p->dlc, p->packet[0]);
+            return CRC_CMD_SYNTAX;
+        }
+    }
+}
+
+// Transmit all completed and fully commited UDP frames
+// Returns number of bytes sent or -1 on error
+int32_t XcpTlHandleTransmitQueue(void) {
+
+    const uint32_t max_loops = 20; // maximum number of packets to send without sleep(0)
+    int32_t n = 0;
+
+    for (;;) {
+        for (uint32_t i = 0; i < max_loops; i++) {
+
+            // Check
+            tQueueBuffer queueBuffer = QueuePeek(gXcpTl.queue_handle);
+            uint16_t l = queueBuffer.size;
+            const uint8_t *b = queueBuffer.buffer;
+            if (b == NULL)
+                return n; // Ok, queue is empty or not fully commited
+
+            // Send this frame
+            int r = XcpEthTlSend(b, l, NULL, 0);
+            if (r == (-1)) { // would block
+                b = NULL;
+                break;
+            }
+            if (r == 0) { // error
+                return -1;
+            }
+            n += l;
+
+            // Free this buffer when successfully sent
+            QueueRelease(gXcpTl.queue_handle, &queueBuffer);
+
+        } // for (max_loops)
+
+        sleepMs(0);
+
+    } // for (ever)
+}
+
+// Wait (sleep) until transmit queue is empty
+// This function is thread safe, any thread can wait for transmit queue empty
+// Timeout after 1s
+bool XcpTlWaitForTransmitQueueEmpty(uint16_t timeout_ms) {
+
+    if (gXcpTl.queue_handle == NULL)
+        return true;
+
+    do {
+        QueueFlush(gXcpTl.queue_handle); // Flush the current message
+        sleepMs(20);
+        if (timeout_ms < 20) { // Wait max timeout_ms until the transmit queue is empty
+            DBG_PRINTF_ERROR("XcpTlWaitForTransmitQueueEmpty: timeout! (level=%u)\n", QueueLevel(gXcpTl.queue_handle));
+            return false;
+        };
+        timeout_ms -= 20;
+
+    } while (QueueLevel(gXcpTl.queue_handle) != 0);
+    return true;
+}
+
+//-------------------------------------------------------------------------------------------------------
+
+// Notify transmit queue handler thread
+bool XcpTlNotifyTransmitQueueHandler(tQueueHandle queueHandle) {
+
+    (void)queueHandle;
+
+    // Windows only, Linux version uses polling
+#if defined(_WIN) // Windows
+
+    // Notify that there is data in the queue
+    // Notify at most every XCPTL_QUEUE_TRANSMIT_CYCLE_TIME to save CPU load
+    uint64_t clock = clockGetLast();
+    if (clock >= gXcpTl.queue_event_time + XCPTL_QUEUE_TRANSMIT_CYCLE_TIME) {
+        gXcpTl.queue_event_time = clock;
+        SetEvent(gXcpTl.queue_event);
+        return true;
+    }
+#endif
+    return false;
+}
+
+// Wait for outgoing data or timeout after timeout_us
+// Return false in case of timeout
+bool XcpTlWaitForTransmitData(uint32_t timeout_ms) {
+
+#if defined(_WIN) // Windows
+
+    // Use event triggered for Windows
+    if (WAIT_OBJECT_0 == WaitForSingleObject(gXcpTl.queue_event, timeout_ms)) {
+        ResetEvent(gXcpTl.queue_event);
+        return true;
+    }
+    return false;
+
+#elif defined(_LINUX) // Linux
+
+// Use polling for Linux
+#define XCPTL_QUEUE_TRANSMIT_POLLING_TIME_MS 1
+    uint32_t t = 0;
+
+    while (0 == QueueLevel(gXcpTl.queue_handle)) {
+        sleepMs(XCPTL_QUEUE_TRANSMIT_POLLING_TIME_MS);
+        t = t + XCPTL_QUEUE_TRANSMIT_POLLING_TIME_MS;
+        if (t >= timeout_ms)
+            return false;
+    }
+    return true;
+
+#endif
+}
+
+void XcpTlFlushTransmitQueue(void) { QueueFlush(gXcpTl.queue_handle); }

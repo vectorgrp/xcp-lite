@@ -20,16 +20,14 @@
 #include <stdio.h>    // for printf
 #include <inttypes.h> // for PRIu64
 
+#include "main_cfg.h"  // for OPTION_xxx
 #include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
 #include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
 #include "xcp.h"       // for CRC_XXX
 #include "xcpLite.h"   // for tXcpDaqLists, XcpXxx, ApplXcpXxx, ...
 #include "xcptl_cfg.h" // for XCPTL_xxx
-#include "xcpTl.h"     // for tXcpCtoMessage, tXcpDtoMessage, xcpTlXxxx
-#include "xcpEthTl.h"  // for xcpEthTlxxx
+#include "xcpEthTl.h"  // for tXcpCtoMessage, tXcpDtoMessage, xcpTlXxxx, xcpEthTlxxx
 #include "xcpQueue.h"
-
-#if defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)
 
 #if !defined(_WIN) && !defined(_LINUX) && !defined(_MACOS)
 #error "Please define platform _WIN, _MACOS or _LINUX"
@@ -56,6 +54,8 @@ static struct {
     THREAD ReceiveThreadHandle;
     volatile bool ReceiveThreadRunning;
 
+    // Queue
+    tQueueHandle TransmitQueue;
     MUTEX TransmitQueueMutex;
 
 } gXcpServer;
@@ -79,21 +79,26 @@ bool XcpEthServerInit(const uint8_t *addr, uint16_t port, bool useTCP, uint32_t 
     }
 
     DBG_PRINT3("Start XCP server\n");
+    DBG_PRINTF3("  Queue size = %u\n", queueSize);
+
+    gXcpServer.TransmitThreadRunning = false;
+    gXcpServer.ReceiveThreadRunning = false;
 
     // Init network sockets
     if (!socketStartup())
         return false;
 
-    gXcpServer.TransmitThreadRunning = false;
-    gXcpServer.ReceiveThreadRunning = false;
+    // Create queue
+    gXcpServer.TransmitQueue = QueueInit(queueSize);
+    if (gXcpServer.TransmitQueue == NULL)
+        return false;
 
     // Initialize XCP transport layer
-    if (!XcpEthTlInit(addr, port, useTCP, true /*blocking rx*/, queueSize))
+    if (!XcpEthTlInit(addr, port, useTCP, true /*blocking rx*/, gXcpServer.TransmitQueue))
         return false;
 
     // Start XCP protocol layer
-    // @@@@ gQueueHandle
-    XcpStart(gQueueHandle, false);
+    XcpStart(gXcpServer.TransmitQueue, false);
 
     // Create threads
     mutexInit(&gXcpServer.TransmitQueueMutex, false, 0);
@@ -134,6 +139,9 @@ bool XcpEthServerShutdown(void) {
         XcpReset();
     }
 #endif
+
+    QueueDeinit(gXcpServer.TransmitQueue);
+
     return true;
 }
 
@@ -188,8 +196,7 @@ extern void *XcpServerTransmitThread(void *par)
 
         // Wait for transmit data available, time out at least for required flush cycle
         if (!XcpTlWaitForTransmitData(XCPTL_QUEUE_FLUSH_CYCLE_MS))
-            // @@@@ gQueueHandle
-            QueueFlush(gQueueHandle); // Flush after timeout to keep data visualization going
+            XcpTlFlushTransmitQueue(); // Flush after timeout to keep data visualization going
 
         // Transmit all completed messages from the transmit queue
         mutexLock(&gXcpServer.TransmitQueueMutex);
@@ -206,5 +213,3 @@ extern void *XcpServerTransmitThread(void *par)
     DBG_PRINT3("XCP transmit thread terminated!\n");
     return 0;
 }
-
-#endif

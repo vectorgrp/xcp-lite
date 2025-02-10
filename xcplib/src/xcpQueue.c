@@ -5,8 +5,8 @@
 | Description:
 |   XCP transport layer queue
 |   Multi producer single consumer queue (producer side thread safe, not consumer side)
-|   XCP transport layer specific: 
-|   Queue entries include XCP message header of WORD CTR and LEN type, CTR incremented on push, overflow indication via CTR 
+|   XCP transport layer specific:
+|   Queue entries include XCP message header of WORD CTR and LEN type, CTR incremented on push, overflow indication via CTR
 |
 | Copyright (c) Vector Informatik GmbH. All rights reserved.
 | See LICENSE file in the project root for details.
@@ -25,12 +25,12 @@
 
 #include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
 #include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
-#include "xcpTl.h"     // for tXcpDtoMessage
+#include "xcpEthTl.h"  // for tXcpDtoMessage
 
 #ifndef _WIN
 #include <stdatomic.h>
 #else
-#ifdef _WIN32_ // @@@@ 
+#ifdef _WIN32_ // @@@@
 #error "Windows32 not implemented yet"
 #endif
 

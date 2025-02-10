@@ -3,7 +3,6 @@
 #define __WRAPPER_H__
 
 #include "xcpLite.h"
-#include "xcpTl.h"
 #include "xcpEthTl.h"
 #include "xcpEthServer.h"
 #include "xcpAppl.h"
