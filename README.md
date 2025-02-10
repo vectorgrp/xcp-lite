@@ -1,20 +1,6 @@
 # xcp-lite
 XCP for Rust - based on XCPlite  
   
-ToDo xcp-daemon:
-
-Transport layer independant queue
-XcpTlNotifyTransmitQueueHandler in QueuePush
-if (clock == gXcpTl.queue_event_time) entfernen
-
-Remove dead code in XCP_ENABLE_MULTITHREAD_DAQ_EVENTS and XCP_ENABLE_TIMESTAMP_CHECK
-
-
-
-
-
-
-
 
 
 Disclaimer: This code is in experimental state. There is no release yet.  
@@ -314,31 +300,6 @@ Mode ABS is the usual absolute addressing mode, relative to the module load addr
 These concepts are currently not supported by the A2L update tools, though A2L generation at runtime is the only option for now.
 
 The EPK version string in the A2L file can be set by the application. It resides a separate, hardcoded const memory segment.  
-
-
-## Possible improvements
-
-- Create a lock free algorithm to acquire an entry in the mpsc event queue
-- Support specialized types of calibration parameters, including types for curves and maps with axis
-- Avoid the mutex lock in CalSeg::Sync when there is no pending parameter modification or switch to a mcu algorithm  
-- Improve the meta data annotations of the A2L serializer
-- Add support to describe the application clock domain
-- Provide a no-std version and create an embassy example
-
-
-Suggested simplifications and optimizations for the XCP on ETH standard
-- Support 64 Bit addresses in SHORT_UPLOAD, SHORT_DONWLOAD and SET_MTA
-- Support more than (256-4)/(128-4) ODTs (ODT number as u16), avoid event based queue overload indication
-- Add an option for 64 bit transport layer packet alignment
-- Add an option to require a 1:1 association from event to daq list to simplify data structures and reduce event runtime
-
-- Support variable length ODT entries for serialized data types
-- Support segmented DTOs larger than segment size
-
-- Add GET_ID type to upload (from ECU) binary schemas (.ZIP, .desc), referenced in A2L file
-- Make GET_DAQ_CLOCK obsolete (when PTP TAI time is provided), by supporting 64 Bit DAQ timestamps
-- Remove clock properties legacy mode
-
 
 
 
