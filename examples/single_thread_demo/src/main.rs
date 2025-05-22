@@ -1,8 +1,9 @@
 // xcp-lite - single_thread_demo
+#![allow(unused_imports)]
 
 use anyhow::Result;
-#[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
+use std::net::Ipv4Addr;
 use std::{
     f64::consts::PI,
     fmt::Debug,
@@ -10,39 +11,122 @@ use std::{
     time::{Duration, Instant},
 };
 
-use xcp::*;
+use xcp_lite::registry::*;
+use xcp_lite::*;
+
+//-----------------------------------------------------------------------------
+// Parameters
+
+const APP_NAME: &str = "single_thread_demo";
+const JSON_FILE: &str = "single_thread_demo.json"; // JSON file for calibration segment
+
+const XCP_QUEUE_SIZE: u32 = 1024 * 64; // 64kB
+const MAINLOOP_CYCLE_TIME: u32 = 10000; // 10ms
+
+// Static application start time
+lazy_static::lazy_static! {
+    static ref START_TIME: Instant = Instant::now();
+}
+
+//-----------------------------------------------------------------------------
+// Command line arguments
+
+const DEFAULT_LOG_LEVEL: u8 = 3; // Info
+const DEFAULT_BIND_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
+const DEFAULT_PORT: u16 = 5555;
+const DEFAULT_TCP: bool = false; // UDP
+
+use clap::Parser;
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Log level (Off=0, Error=1, Warn=2, Info=3, Debug=4, Trace=5)
+    #[arg(short, long, default_value_t = DEFAULT_LOG_LEVEL)]
+    log_level: u8,
+
+    /// Bind address, default is ANY
+    #[arg(short, long, default_value_t = DEFAULT_BIND_ADDR)]
+    bind: Ipv4Addr,
+
+    /// Use TCP as transport layer, default is UDP
+    #[arg(short, long, default_value_t = DEFAULT_TCP)]
+    tcp: bool,
+
+    /// Port number
+    #[arg(short, long, default_value_t = DEFAULT_PORT)]
+    port: u16,
+
+    /// Application name
+    #[arg(short, long, default_value_t = String::from(APP_NAME))]
+    name: String,
+}
 
 //-----------------------------------------------------------------------------
 // Demo calibration parameters
 
 // Define a struct with calibration parameters
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
-struct CalPage {
-    #[type_description(comment = "Amplitude of the sine signal")]
-    #[type_description(unit = "Volt")]
-    #[type_description(min = "0")]
-    #[type_description(max = "500")]
-    ampl: f64,
+struct Params {
+    #[characteristic(comment = "Amplitude of the sine signal in mV")]
+    #[characteristic(unit = "mV")]
+    #[characteristic(min = "0")]
+    #[characteristic(max = "8000")]
+    ampl: u16,
 
-    #[type_description(comment = "Period of the sine signal")]
-    #[type_description(unit = "s")]
-    #[type_description(min = "0.001")]
-    #[type_description(max = "10")]
+    #[characteristic(comment = "Period of the sine signal")]
+    #[characteristic(unit = "s")]
+    #[characteristic(min = "0.001")]
+    #[characteristic(max = "10")]
     period: f64,
 
-    #[type_description(comment = "Counter maximum value")]
-    #[type_description(min = "0")]
-    #[type_description(max = "255")]
+    #[characteristic(comment = "Counter maximum value")]
+    #[characteristic(min = "0")]
+    #[characteristic(max = "255")]
     counter_max: u32,
+
+    #[characteristic(comment = "Task delay time in s, ecu internal value as u32 in us")]
+    #[characteristic(min = "0.00001", max = "2", unit = "s", factor = "0.000001")]
+    delay: u32,
 }
 
 // Default calibration values
 // This will be the FLASH page in the calibration memory segment
-const CAL_PAGE: CalPage = CalPage {
-    ampl: 100.0,
-    period: 5.0,
+const PARAMS: Params = Params {
+    ampl: 1000,  // mV
+    period: 5.0, // s
     counter_max: 100,
+    delay: MAINLOOP_CYCLE_TIME,
 };
+
+//-----------------------------------------------------------------------------
+// Demo task
+
+// A task executed in multiple threads sharing a calibration parameter segment
+fn task(params: CalSeg<Params>) {
+    // Demo signal
+    let mut sine: i16 = 0; // mV
+
+    // Create an event and register variables for measurement directly from stack
+    let event = daq_create_event!("thread_loop", 16);
+    daq_register!(sine, event, "sine wave signal, internal value in mV", "Volt", 0.001, 0.0);
+
+    loop {
+        // Lock the calibration segment for read access
+        let params = params.read_lock();
+
+        // A sine signal with amplitude and period from calibration parameters
+        // The value here is the internal value in mV as i16, CANape will convert it to Volt
+        let time = START_TIME.elapsed().as_micros() as f64 * 0.000001; // s
+        sine = ((params.ampl as f64) * ((PI * time) / params.period).sin()) as i16;
+        let _ = sine;
+
+        // Trigger the measurement event
+        event.trigger();
+
+        thread::sleep(Duration::from_micros(params.delay as u64));
+    }
+}
 
 //-----------------------------------------------------------------------------
 // Demo application main
@@ -50,66 +134,91 @@ const CAL_PAGE: CalPage = CalPage {
 fn main() -> Result<()> {
     println!("XCPlite Single Thread Demo");
 
-    // Logging
-    env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(log::LevelFilter::Info).init();
+    // Args
+    let args = Args::parse();
+    let log_level = match args.log_level {
+        2 => log::LevelFilter::Warn,
+        3 => log::LevelFilter::Info,
+        4 => log::LevelFilter::Debug,
+        5 => log::LevelFilter::Trace,
+        _ => log::LevelFilter::Error,
+    };
 
-    // Initialize XCP driver singleton, the XCP transport layer server and enable the A2L file creator
-    // The A2L file will be finalized on XCP connection and can be uploaded by CANape
-    let xcp = XcpBuilder::new("single_thread_demo")
-        .set_log_level(3) // Set log level of the XCP server
-        .set_epk("EPK_") // Set the EPK string for A2L version check, length must be %4
-        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1] /*[172, 19, 11, 24]*/, 5555, 1024 * 64)?;
+    // Logging
+    env_logger::Builder::new()
+        .target(env_logger::Target::Stdout)
+        .filter_level(log_level)
+        .format_timestamp(None)
+        .format_module_path(false)
+        .format_target(false)
+        .init();
+
+    // XCP: Initialize the XCP server
+    let app_name = args.name.as_str();
+    let app_revision = build_info::format!("{}", $.timestamp);
+    let _xcp = Xcp::get()
+        .set_app_name(app_name)
+        .set_app_revision(app_revision)
+        .set_log_level(args.log_level)
+        .start_server(
+            if args.tcp { XcpTransportLayer::Tcp } else { XcpTransportLayer::Udp },
+            args.bind.octets(),
+            args.port,
+            XCP_QUEUE_SIZE,
+        )?;
 
     // Create a calibration parameter set "calseg"
     // This will define a MEMORY_SEGMENT named "calseg" in A2L
-    // Calibration segments have 2 pages, a constant default "FLASH" page and a mutable "RAM" page
+    // Calibration segments have 2 pages, a constant default "FLASH" page and a mutable working "RAM" page
     // FLASH or RAM can be switched during runtime (XCP set_cal_page), saved to json (XCP freeze) freeze, reinitialized from FLASH (XCP copy_cal_page)
-    // The RAM page can be reloaded from a json file (load_json==true)
-    // If A2L is enabled (enable_a2l), the A2L description will be generated and provided for upload by CANape
-    let calseg = xcp.create_calseg(
-        "calseg",  // name of the calibration segment and the .json file
-        &CAL_PAGE, // default calibration values
+    let params = CalSeg::new(
+        "calseg", // name of the calibration segment and the .json file
+        &PARAMS,  // default calibration values
     );
-    calseg.register_fields();
+    params.register_fields();
 
-    // Mainloop
-    let start_time = Instant::now();
+    // Load calseg from json file
+    if params.load(JSON_FILE).is_err() {
+        params.save(JSON_FILE).unwrap();
+    }
+
+    // Create a thread
+    thread::spawn({
+        // Move a clone of the calibration parameters into the thread
+        let params = CalSeg::clone(&params);
+        move || {
+            task(params);
+        }
+    });
 
     // Measurement variable
     let mut counter: u32 = 0;
-    let mut channel_1: f64 = 0.0;
 
-    // Create a measurement event with a unique name "task"
+    // Create a measurement event
     // This will apear as measurement mode in the CANape measurement configuration
-    let event = daq_create_event!("task");
+    let event = daq_create_event!("main_loop");
 
-    // Register local variables "counter" and "channel_1" and associate them to event "task"
+    // Register local variables and associate them to the event
     daq_register!(counter, event);
-    daq_register!(channel_1, event, "sine wave signal", "Volt");
 
     loop {
-        // A saw tooth counter with max from a calibration parameter
+        // Lock the calibration segment for read access
+        let calseg = params.read_lock();
+
+        // A saw tooth counter with a max value from a calibration parameter
         counter += 1;
         if counter > calseg.counter_max {
             counter = 0
         }
 
-        // A sine signal with amplitude and period from calibration parameters
-        let time = start_time.elapsed().as_micros() as f64 * 0.000001; // s
-        channel_1 = calseg.ampl * (PI * time / calseg.period).sin();
-        let _channel_2 = channel_1;
-
-        // Triger the measurement event "task"
+        // Trigger the measurement event
         // The measurement event timestamp is taken here and captured data is sent to CANape
         event.trigger();
 
-        // Synchronize calibration operations, if there are any
-        // All calibration (mutation of calseg) actions (download, page switch, freeze, init) on segment "calseg" happen here
-        calseg.sync();
+        thread::sleep(Duration::from_micros(calseg.delay as u64));
 
-        thread::sleep(Duration::from_millis(10)); // 100 Hz
-
-        xcp.write_a2l().unwrap(); // @@@@ Remove: force A2L write
+        // Generate the A2L file once immediately
+        // xcp.finalize_registry().unwrap();
     }
 
     // Stop the XCP server

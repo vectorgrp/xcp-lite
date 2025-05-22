@@ -1,0 +1,14 @@
+[package]
+name = "struct_measurement_demo"
+version = "0.3.0"
+edition = "2024"
+
+[dependencies]
+log = "0.4.21"
+env_logger = "0.11.3"
+anyhow = "1.0"
+rand = "0.8"
+lazy_static = "1.4"
+
+# xcp_lite = { path = "../../", default-features = false }
+xcp_lite = { path = "../../"  }
