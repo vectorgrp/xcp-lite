@@ -1,0 +1,15 @@
+[package]
+name = "calibration_demo"
+version = "0.3.0"
+edition = "2024"
+
+[dependencies]
+log = "0.4.21"
+env_logger = "0.11.3"
+anyhow = "1.0"
+lazy_static = "1.4"
+serde = "1.0"
+serde_json = "1.0"
+
+xcp_lite = { path = "../../", features = [] }
+
