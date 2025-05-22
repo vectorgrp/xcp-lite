@@ -1,14 +1,12 @@
 // main
-// xcp-lite demo and test application
+// xcp-lite test application
 //
 // Demonstrates the usage of various xcp-lite for Rust features together with a CANape project
 // For comprehensive examples better look at the ./examples/ folder
 
-#![allow(dead_code)]
-//#![allow(clippy::vec_init_then_push)]
-#![allow(unused_imports)]
-
+#[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
+
 use std::{
     f64::consts::PI,
     fmt::Debug,
@@ -25,25 +23,8 @@ use std::{
 //-----------------------------------------------------------------------------
 // xcp_lite lib
 
-use xcp_lite::metrics::*;
 use xcp_lite::registry::*;
 use xcp_lite::*;
-
-//-----------------------------------------------------------------------------
-// XCP xcp_type_description lib
-
-use xcp_type_description::prelude::*;
-
-//-----------------------------------------------------------------------------
-// Alloc statistics
-
-extern crate stats_alloc;
-
-use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
-use std::alloc::System;
-
-#[global_allocator]
-static GLOBAL: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
 
 //-----------------------------------------------------------------------------
 // Parameters
@@ -90,18 +71,6 @@ struct Args {
     #[arg(short, long, default_value_t = String::from(APP_NAME))]
     name: String,
 }
-
-//-----------------------------------------------------------------------------
-// Static measurement variables
-
-// This is the classical address oriented calibration approach for individual measurement signals
-
-struct StaticVars {
-    test_u32: u32,
-    test_f64: f64,
-}
-
-static STATIC_VARS: static_cell::StaticCell<StaticVars> = static_cell::StaticCell::new();
 
 //-----------------------------------------------------------------------------
 // Calibration example
@@ -324,7 +293,7 @@ fn task2(instance_num: usize, calseg: CalSeg<CalPage>, calseg2: CalSeg<CalPage2>
         }
 
         // Sleep for a calibratable amount of microseconds
-        thread::sleep(Duration::from_micros(1000 /* cal_page.task2_cycle_time_us as u64 */));
+        thread::sleep(Duration::from_micros(TASK2_CYCLE_TIME_US as u64));
 
         let channel = {
             // Synchronize calibration parameters in cal_page and lock read access
@@ -397,7 +366,7 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
             break;
         }
 
-        thread::sleep(Duration::from_micros(1000 /*cal_page.task1_cycle_time_us as u64*/));
+        thread::sleep(Duration::from_micros(TASK1_CYCLE_TIME_US as u64));
 
         let calseg1 = calseg1.read_lock();
 
@@ -468,9 +437,6 @@ fn main() {
         .format_target(false)
         .init();
 
-    let mut reg = Region::new(&GLOBAL);
-    info!("Alloc stats before starting XCP server : {:#?}", reg.change());
-
     // Initialize XCP and start the XCP on ETH server
     let app_name = args.name.as_str();
     let app_revision = build_info::format!("{}", $.timestamp);
@@ -487,8 +453,6 @@ fn main() {
             XCP_QUEUE_SIZE,
         )
         .expect("could not start server");
-
-    info!("Alloc stats after XCP server : {:#?}", reg.change());
 
     // Create and register calibration parameter segments (with memory segments in A2L)
     // Calibration segments have "static" lifetime, the Xcp singleton holds a smart pointer clone to each
@@ -522,8 +486,6 @@ fn main() {
     if calseg2.load("xcp-lite_calseg2.json").is_err() {
         calseg2.save("xcp-lite_calseg2.json").expect("could not write json");
     }
-
-    info!("Alloc stats after registering calsegs: {:#?}", reg.change());
 
     // Task2 - 9 instances
     // Create multiple tasks which have local or thread local measurement signals
@@ -615,17 +577,7 @@ fn main() {
             break;
         }
 
-        // Create A2L once after some time (for test and metrics snapshot)
-        if mainloop_counter1 == 10 {
-            reg.reset();
-
-            match xcp.finalize_registry() {
-                Ok(_) => {
-                    info!("Alloc stats for writing registry: {:#?}", reg.change());
-                }
-                Err(e) => log::error!("Error writing A2L file: {}", e),
-            }
-        }
+        xcp.finalize_registry();
     }
 
     log::info!("Main task finished");

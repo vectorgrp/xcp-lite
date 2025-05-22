@@ -1,8 +1,8 @@
 [FILE_INFO]
 Identification=CANape-Configuration-File
 FileName=xcp_demo.cna
-FileNameAbsolute=Y:\xcp-lite-rdm\examples\calibration_demo\CANape\xcp_demo.cna
-WorkingDirectory=Y:\xcp-lite-rdm\examples\calibration_demo\CANape
+FileNameAbsolute=Y:\xcp-lite-private\examples\calibration_demo\CANape\xcp_demo.cna
+WorkingDirectory=Y:\xcp-lite-private\examples\calibration_demo\CANape
 ProjectId=07e8-0007-0007-0015-0002-0030-0000
 FileVersion=2200
 PrgVersion=Version 23.0.11.121 HF1
@@ -10,8 +10,8 @@ PrgDate=29.04.2025
 Description=
 CreationTime=21:05
 CreationDate=07/07/2024 ; Month/Day/Year
-ModificationTime=11:41
-ModificationDate=05/21/2025 ; Month/Day/Year
+ModificationTime=20:13
+ModificationDate=05/22/2025 ; Month/Day/Year
 Protected=0
 CurrentWindowsACP=1252
 
@@ -266,7 +266,7 @@ Count=0
 
 [DISPLAY_PAGES]
 Count=3
-Active=1
+Active=0
 
 [DYNAMIC_COLUMNS]
 Count=0
@@ -692,8 +692,8 @@ WindowTextExtended=1
 WindowTextExtendedNew=1
 WindowSymbols=1
 GlobalCursor=0
-GlobalCursorTime=834
-GlobalCursorTimeNs=834932964
+GlobalCursorTime=0
+GlobalCursorTimeNs=0
 MainWindowPos=1, 20, 20, 1760, 1014 ;cmd, x, y, w, h
 
 [PAR_COMMENT]
@@ -945,7 +945,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_7c00b1e2-58b1-4a70-9cf5-107fae9a6ab5
+GUID=DISPLAY_9d4a957f-874d-4893-9111-1fa4a038585f
 
 [WINDOW_1_OBJECT_2]
 Type=2
@@ -994,7 +994,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_3803f024-ead1-4b45-a9a4-b1e3e5b92b01
+GUID=DISPLAY_0192857b-e319-438c-921f-a7f063ac519e
 
 [WINDOW_1_OBJECT_3]
 Type=2
@@ -1043,7 +1043,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_79b5b2fa-4688-4455-8231-0d080d1a04d4
+GUID=DISPLAY_d877e243-06a0-484c-bb9b-a6067e47c54e
 
 [WINDOW_2]
 ComponentCount=1
@@ -1065,8 +1065,8 @@ DisplayMask=1 ; pages 1
 XLen=1201561
 XMin=0
 XMinNs=0
-XMax=8328
-XMaxNs=8328926998
+XMax=3973
+XMaxNs=3973974913
 Grid=1
 Mark=1
 YValue=1
@@ -1139,9 +1139,9 @@ Comment=Kennfeld-/Kennlinienfenster
 Number=4
 GUID=WINDOW_a607a3d2-37cf-4405-b915-840e2cc275d5
 ScreenDPIinSection=144
-Position=0, 0, 0, 1670, 753 ;cmd, x, y, w, h
+Position=0, 0, 0, 1669, 753 ;cmd, x, y, w, h
 Position_dpi96=0, 0, 0, 1113, 502 ;cmd, x, y, w, h
-Position_Page02=0, 0, 0, 1670, 753 ;cmd, x, y, w, h
+Position_Page02=0, 0, 0, 1669, 753 ;cmd, x, y, w, h
 Position_Page02_dpi96=0, 0, 0, 1113, 502 ;cmd, x, y, w, h
 FloatingWindow=0
 ShowSignalComments=1
@@ -1158,7 +1158,7 @@ ColorFunction=0
 DefColWidth=78
 CrosshairCursor=0
 CursorColor=0
-DataWindowAreaHorizontalSplittingFactor=0.457932692308
+DataWindowAreaHorizontalSplittingFactor=0.458208057727
 DataWindowAreaLayout=2
 DataWindowAreaVerticalSplittingFactor=0.592203898051
 DisplayMask=2 ; pages 2
@@ -1273,9 +1273,9 @@ Comment=Kennfeld-/Kennlinienfenster
 Number=5
 GUID=WINDOW_dc7502e1-3741-4be0-91e0-7f71c08e1d9e
 ScreenDPIinSection=144
-Position=0, 0, 753, 1670, 492 ;cmd, x, y, w, h
+Position=0, 0, 753, 1669, 492 ;cmd, x, y, w, h
 Position_dpi96=0, 0, 502, 1113, 328 ;cmd, x, y, w, h
-Position_Page02=0, 0, 753, 1670, 492 ;cmd, x, y, w, h
+Position_Page02=0, 0, 753, 1669, 492 ;cmd, x, y, w, h
 Position_Page02_dpi96=0, 0, 502, 1113, 328 ;cmd, x, y, w, h
 FloatingWindow=0
 ShowSignalComments=1
@@ -1453,7 +1453,7 @@ ValueFormat=3
 Title=
 Type=16
 Comment=Kennfeld-/Kennlinienfenster
-Number=9
+Number=6
 GUID=WINDOW_aea5fd3e-beea-4fa7-be48-7e79dacec45a
 ScreenDPIinSection=144
 Position=0, 0, 385, 1777, 427 ;cmd, x, y, w, h
@@ -1518,7 +1518,7 @@ SideAndTopHeaderContent=0
 SplitFactor=0.666666666667
 SplittedDataWindowArea=1
 SplitVerticalFactor=0.666666666667
-TopRow=4
+TopRow=1
 WireModel=0
 WorkingPointColor=16711680
 WorkingPointMarker=0
@@ -1531,7 +1531,7 @@ Type=2
 Module=xcp_demo
 Name=cal_demo_2.lookup_table.lookup_values
 Color=65280
-Window=9
+Window=6
 Index=0
 ApplyColorToBackground=0
 ColorFunction=0
@@ -1570,7 +1570,7 @@ XAxisLabel=
 YAxisLabel=
 AxisCaption=
 Row=0
-Col=9
+Col=0
 YAxis_ID=0
 AxisTemplate=
 GUID=DISPLAY_33c7b79c-b916-42bc-be09-97bddc87c289
@@ -1596,7 +1596,7 @@ Column_2_dpi96=23, 1114
 Title=Write
 Type=128
 Comment=Write-Fenster
-Number=10
+Number=7
 GUID=WINDOW_a8d607a3-491e-45ba-9e79-60d3610c8123
 ScreenDPIinSection=144
 Position=0, 48, 36, 2098, 1129 ;cmd, x, y, w, h

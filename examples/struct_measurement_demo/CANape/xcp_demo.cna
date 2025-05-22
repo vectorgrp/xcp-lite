@@ -1,8 +1,8 @@
 [FILE_INFO]
 Identification=CANape-Configuration-File
 FileName=xcp_demo.cna
-FileNameAbsolute=Y:\xcp-lite-rdm\examples\struct_measurement_demo\CANape\xcp_demo.cna
-WorkingDirectory=Y:\xcp-lite-rdm\examples\struct_measurement_demo\CANape
+FileNameAbsolute=Y:\xcp-lite-private\examples\struct_measurement_demo\CANape\xcp_demo.cna
+WorkingDirectory=Y:\xcp-lite-private\examples\struct_measurement_demo\CANape
 ProjectId=07e8-0007-0007-0015-0002-0030-0000
 FileVersion=2200
 PrgVersion=Version 23.0.11.121 HF1
@@ -10,8 +10,8 @@ PrgDate=29.04.2025
 Description=
 CreationTime=21:05
 CreationDate=07/07/2024 ; Month/Day/Year
-ModificationTime=11:24
-ModificationDate=05/21/2025 ; Month/Day/Year
+ModificationTime=20:19
+ModificationDate=05/22/2025 ; Month/Day/Year
 Protected=0
 CurrentWindowsACP=1252
 
@@ -230,7 +230,7 @@ Count=0
 
 [DISPLAY_PAGES]
 Count=6
-Active=1
+Active=4
 
 [DYNAMIC_COLUMNS]
 Count=0
@@ -3414,7 +3414,7 @@ Columns=50
 ArchivBy_1=Rekorder
 IsFallback=0
 HasManagedDisplay=0
-DisplayCount=22
+DisplayCount=23
 
 [MEASUREMENT_OBJECT_9_DISPLAY_1]
 Window=17
@@ -4107,6 +4107,52 @@ YAxis_ID=0
 AxisTemplate=
 GUID=DISPLAY_dc6012d6-d1e4-413b-a095-757ca8712b5d
 
+[MEASUREMENT_OBJECT_9_DISPLAY_23]
+Window=22
+Index=21
+Color=255
+ApplyColorToBackground=0
+ColorFunction=0
+ColorFunctionScope=1
+LineTyp=2
+YMinHome=0
+YMaxHome=4294967295
+YMin=0
+YMax=4294967295
+XOffsetNS=0
+XOffset=0
+ValueFormat=3
+BitMask=1
+ShowYAxis=1
+Width=10
+LineStyle=1
+MarkerType=1
+SRMainValue=0
+InvalidValueDrawMode=3
+LineWidth=1
+Precision=-2
+Digits=6
+Enabled=1
+StoredFocused=0
+SublMask=0
+MeaSublMask=0
+LockScaling=0
+RightAxis=0
+MapMode=3
+OverlayGridColor=0
+ShadingMode=3
+EditOffset=1
+EditFactor=2
+WAxisLabel=
+XAxisLabel=
+YAxisLabel=
+AxisCaption=
+Row=0
+Col=0
+YAxis_ID=0
+AxisTemplate=
+GUID=DISPLAY_9aa19551-a8b9-4e7c-8144-f00e2fe68b56
+
 [MEASUREMENT_OBJECT_9_DISPLAY_3]
 Window=22
 Index=1
@@ -4757,7 +4803,7 @@ ShowActivity=0
 ExceedLimitWarning=0
 OnlyHighlightOnViolation=1
 LegendScrollPos=0
-DotLinePos=0
+DotLinePos=88
 ObjectCount=0
 Title=Numerisch {DISPLAYED_FILENAME}
 Type=4
@@ -4778,12 +4824,12 @@ DisplayMask=8 ; pages 4
 [WINDOW_10_LEG_COLUMNS]
 ScreenDPIinSection=144
 COUNT=1
-COL_0=31, 0
-COL_0_dpi96=31, 0
+COL_0=31, 213
+COL_0_dpi96=31, 142
 
 [WINDOW_11]
-XMin=19
-XMinNs=19834850
+XMin=2069
+XMinNs=2069586436
 ShowTime=1
 Grid=1
 HDspOffset=0
@@ -4810,8 +4856,8 @@ DisplayMask=2 ; pages 2
 XLen=83927
 XMin=0
 XMinNs=0
-XMax=1567
-XMaxNs=1567512947
+XMax=8867
+XMaxNs=8867978473
 Grid=1
 Mark=1
 YValue=1
@@ -4948,8 +4994,8 @@ DisplayMask=32 ; pages 6
 XLen=1703
 XMin=0
 XMinNs=0
-XMax=1567
-XMaxNs=1567512947
+XMax=8867
+XMaxNs=8867978473
 Grid=1
 Mark=1
 YValue=1
@@ -5103,7 +5149,7 @@ ShowActivity=0
 ExceedLimitWarning=0
 OnlyHighlightOnViolation=0
 LegendScrollPos=0
-DotLinePos=0
+DotLinePos=95
 ObjectCount=0
 Title=Numerisch {DISPLAYED_FILENAME}
 Type=4
@@ -5124,8 +5170,8 @@ DisplayMask=4 ; pages 3
 [WINDOW_18_LEG_COLUMNS]
 ScreenDPIinSection=144
 COUNT=1
-COL_0=31, 0
-COL_0_dpi96=31, 0
+COL_0=31, 383
+COL_0_dpi96=31, 255
 
 [WINDOW_19]
 ComponentCount=1
@@ -5147,8 +5193,8 @@ DisplayMask=4 ; pages 3
 XLen=83927
 XMin=0
 XMinNs=0
-XMax=1567
-XMaxNs=1567512947
+XMax=8867
+XMaxNs=8867978473
 Grid=1
 Mark=1
 YValue=1
@@ -5212,8 +5258,8 @@ DisplayMask=2 ; pages 2
 XLen=44358
 XMin=0
 XMinNs=0
-XMax=1567
-XMaxNs=1567512947
+XMax=8867
+XMaxNs=8867978473
 Grid=1
 Mark=1
 YValue=1
@@ -5474,7 +5520,7 @@ ShowActivity=0
 ExceedLimitWarning=0
 OnlyHighlightOnViolation=0
 LegendScrollPos=0
-DotLinePos=0
+DotLinePos=72
 ObjectCount=0
 Title=Numerisch {DISPLAYED_FILENAME}
 Type=4
@@ -5495,8 +5541,8 @@ DisplayMask=4 ; pages 3
 [WINDOW_23_LEG_COLUMNS]
 ScreenDPIinSection=144
 COUNT=1
-COL_0=31, 0
-COL_0_dpi96=31, 0
+COL_0=31, 168
+COL_0_dpi96=31, 112
 
 [WINDOW_24]
 ScaleFont=1
@@ -5513,7 +5559,7 @@ ShowActivity=0
 ExceedLimitWarning=0
 OnlyHighlightOnViolation=0
 LegendScrollPos=0
-DotLinePos=0
+DotLinePos=86
 ObjectCount=0
 Title=Numerisch {DISPLAYED_FILENAME}
 Type=4
@@ -5534,8 +5580,8 @@ DisplayMask=8 ; pages 4
 [WINDOW_24_LEG_COLUMNS]
 ScreenDPIinSection=144
 COUNT=1
-COL_0=31, 0
-COL_0_dpi96=31, 0
+COL_0=31, 245
+COL_0_dpi96=31, 163
 
 [WINDOW_2_LEG_COLUMNS]
 ScreenDPIinSection=144
@@ -5588,7 +5634,7 @@ InterpolateWorkingPoint=0
 LastFocus=3D
 LeftCol=1
 LegendWindowSelectionMode=0
-LegendWindowSizeInPercent=0.0712742980562
+LegendWindowSizeInPercent=0.0713513513514
 LegendWindowVerticalSizeInPixel=66
 LwColumns=<Id:1048594,W:60><Id:1048576,W:238><Id:3,W:153><Id:16,W:103>
 LwScrollPos=H:0,V:0
@@ -5837,7 +5883,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_5b0908de-3353-4d65-9f12-b30063bbf352
+GUID=DISPLAY_c4953e92-17c9-4579-a0b4-554e3966e62b
 
 [WINDOW_6_OBJECT_2]
 Type=2
@@ -5886,7 +5932,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_0c474db2-aa79-458f-af9a-47e48ba2e796
+GUID=DISPLAY_a1d0e416-d8e3-45b6-a3a3-b8a32530666b
 
 [WINDOW_6_OBJECT_3]
 Type=2
@@ -5935,7 +5981,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_cb869fc5-ebb9-469d-831f-5329775798a1
+GUID=DISPLAY_40862680-ca1c-49b9-a9d2-19f9537222cf
 
 [WINDOW_6_OBJECT_4]
 Type=2
@@ -5984,7 +6030,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_133da027-440b-4e34-8d99-40375b2e0c25
+GUID=DISPLAY_5a90ddde-cb67-4fa0-8398-f9b2b4627c16
 
 [WINDOW_7]
 ProgID=
@@ -6056,7 +6102,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_58cd7434-03d1-416c-a9ff-3ea26ced24eb
+GUID=DISPLAY_e513e1b5-1dbf-4fb2-a269-d81ab5945f26
 
 [WINDOW_7_OBJECT_2]
 Type=2
@@ -6105,7 +6151,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_7881eb5f-f87f-4813-aea5-5d1b96b3dcea
+GUID=DISPLAY_0f453fc1-4a9b-46e0-9976-915017ee1560
 
 [WINDOW_8]
 ScaleFont=1
@@ -6122,7 +6168,7 @@ ShowActivity=0
 ExceedLimitWarning=0
 OnlyHighlightOnViolation=0
 LegendScrollPos=0
-DotLinePos=0
+DotLinePos=88
 ObjectCount=0
 Title=Numerisch {DISPLAYED_FILENAME}
 Type=4
@@ -6143,8 +6189,8 @@ DisplayMask=8 ; pages 4
 [WINDOW_8_LEG_COLUMNS]
 ScreenDPIinSection=144
 COUNT=1
-COL_0=31, 0
-COL_0_dpi96=31, 0
+COL_0=31, 240
+COL_0_dpi96=31, 160
 
 [WINDOW_9]
 ScaleFont=1
@@ -6161,7 +6207,7 @@ ShowActivity=0
 ExceedLimitWarning=0
 OnlyHighlightOnViolation=1
 LegendScrollPos=0
-DotLinePos=0
+DotLinePos=88
 ObjectCount=0
 Title=Numerisch {DISPLAYED_FILENAME}
 Type=4
@@ -6182,8 +6228,8 @@ DisplayMask=8 ; pages 4
 [WINDOW_9_LEG_COLUMNS]
 ScreenDPIinSection=144
 COUNT=1
-COL_0=31, 0
-COL_0_dpi96=31, 0
+COL_0=31, 240
+COL_0_dpi96=31, 160
 
 [WINDOWS]
 Count=24
