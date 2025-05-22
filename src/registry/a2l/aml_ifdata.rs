@@ -1,8 +1,6 @@
-#![allow(clippy::all)] // don't care about mesages in generated code
+#![allow(clippy::all)] // don't care about messages in generated code
 
-use a2lfile::a2ml_specification;
-
-a2ml_specification! {
+a2lfile::a2ml_specification! {
     <A2mlVector>
 
     struct Protocol_Layer {
@@ -865,8 +863,8 @@ a2ml_specification! {
                     uint address_ext;        /// address extension of the segment
                     uint ds_relative;        /// flag: address is relative to DS
                     long segment_offset;     /// offset of the segment address
-                    uint datatype_valid;     /// datatypValid
-                    uint datatype;           /// enum datatyp
+                    uint data_type_valid;     /// datatypValid
+                    uint value_type;           /// enum datatyp
                     uint bit_offset;         /// bit offset of the data (bitfield)
                 };
                 "DISPLAY" struct {
