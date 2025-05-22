@@ -2,39 +2,31 @@
 // Integration test for XCP in a single thread application
 // Uses the test XCP client in module xcp_client
 
-// cargo test --features=a2l_reader --features=serde -- --test-threads=1 --nocapture  --test test_single_thread
+// cargo test --features=a2l_reader -- --test-threads=1 --nocapture  --test test_single_thread
 
-use xcp::*;
+#![allow(unused_imports)]
 
-mod xcp_test_executor;
-use xcp_test_executor::xcp_test_executor;
-use xcp_test_executor::OPTION_LOG_LEVEL;
-use xcp_test_executor::OPTION_XCP_LOG_LEVEL;
-
-#[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use std::{fmt::Debug, thread};
 use tokio::time::Duration;
+
+use xcp_lite::registry::*;
+use xcp_lite::*;
+
+mod xcp_test_executor;
+use xcp_test_executor::OPTION_LOG_LEVEL;
+use xcp_test_executor::OPTION_XCP_LOG_LEVEL;
+use xcp_test_executor::test_executor;
 
 //-----------------------------------------------------------------------------
 // Test settings
 
 const TEST_CAL: xcp_test_executor::TestModeCal = xcp_test_executor::TestModeCal::Cal; // Execute calibration tests: Cal or None
-
-const TEST_DAQ: xcp_test_executor::TestModeDaq = xcp_test_executor::TestModeDaq::SingleThreadDAQ; // Execute measurement tests: SingleThreadDAQ or None
-
+const TEST_DAQ: xcp_test_executor::TestModeDaq = xcp_test_executor::TestModeDaq::DaqSingleThread; // Execute measurement tests: DaqSingleThread or None
+const TEST_DURATION_MS: u64 = 5000;
+const TEST_CYCLE_TIME_US: u32 = 1000; // Cycle time in microseconds
+const TEST_SIGNAL_COUNT: usize = 10; // Number of signals is TEST_SIGNAL_COUNT + 5 for each task
 const TEST_REINIT: bool = true; // Execute reinitialization test
-
-const TEST_UPLOAD_A2L: bool = true; // Upload A2L file
-
-//-----------------------------------------------------------------------------
-// Static Variables
-struct StaticVars {
-    test_u32: u32,
-    test_f64: f64,
-}
-
-static STATIC_VARS: static_cell::StaticCell<StaticVars> = static_cell::StaticCell::new();
 
 //-----------------------------------------------------------------------------
 // Calibration Segment
@@ -69,7 +61,7 @@ const CAL_PAR1: CalPage1 = CalPage1 {
     run: true,
     counter_max: 0xFFFF,
     cal_test: 0x5555555500000000u64,
-    cycle_time_us: 1000,
+    cycle_time_us: TEST_CYCLE_TIME_US,
     page: XcpCalPage::Flash as u8,
     test_ints: TestInts {
         test_bool: false,
@@ -91,28 +83,38 @@ const CAL_PAR1: CalPage1 = CalPage1 {
 // Test task will be instanciated only once
 fn task(cal_seg: CalSeg<CalPage1>) {
     let mut loop_counter: u32 = 0;
-    let mut changes: u32 = 0;
     let mut cal_test: u64 = 0;
+    let mut changes: u32 = 0;
     let mut counter_max: u32 = cal_seg.read_lock().counter_max;
     let mut counter: u32 = 0;
+    let mut test0: u64 = 0;
+    let mut test1: u64 = 0;
+    let mut test2: u64 = 0;
+    let mut test3: u64 = 0;
+    let mut test4: u64 = 0;
+    let mut test5: u64 = 0;
+    let mut test6: u64 = 0;
+    let mut test7: u64 = 0;
+    let mut test8: u64 = 0;
+    let mut test9: u64 = 0;
 
-    // Create a DAQ event and register local variables for measurment
-    let event = daq_create_event!("task");
+    // Create a DAQ event and register local variables for measurement
+    let mut event = daq_create_event!("task", 16);
 
-    // Create static calibration variables
-    let static_vars: &'static mut StaticVars = STATIC_VARS.init(StaticVars {
-        test_u32: 0x12345678,
-        test_f64: 1.0,
-    });
-    let static_event = Xcp::get().create_event("static_event");
-    daq_register_static!(static_vars.test_u32, static_event, "Test static u32");
-    daq_register_static!(static_vars.test_f64, static_event, "Test static f64");
-
-    daq_register!(changes, event);
     daq_register!(loop_counter, event);
+    daq_register!(changes, event);
     daq_register!(counter_max, event);
     daq_register!(counter, event);
-    daq_register!(cal_test, event);
+    daq_register_tli!(test0, event);
+    daq_register_tli!(test1, event);
+    daq_register_tli!(test2, event);
+    daq_register_tli!(test3, event);
+    daq_register_tli!(test4, event);
+    daq_register_tli!(test5, event);
+    daq_register_tli!(test6, event);
+    daq_register_tli!(test7, event);
+    daq_register_tli!(test8, event);
+    daq_register_tli!(test9, event);
 
     loop {
         // Sleep for a calibratable amount of microseconds
@@ -132,6 +134,17 @@ fn task(cal_seg: CalSeg<CalPage1>) {
             if counter > counter_max {
                 counter = 0;
             }
+            test0 = loop_counter as u64 + 1;
+            test1 = test0 + 1;
+            test2 = test1 + 1;
+            test3 = test2 + 1;
+            test4 = test3 + 1;
+            test5 = test4 + 1;
+            test6 = test5 + 1;
+            test7 = test6 + 1;
+            test8 = test7 + 1;
+            test9 = test8 + 1;
+            let _ = test9;
 
             // Test calibration data validity
             if cal_test != cal_seg.cal_test {
@@ -139,6 +152,7 @@ fn task(cal_seg: CalSeg<CalPage1>) {
                 cal_test = cal_seg.cal_test;
                 assert_eq!((cal_test >> 32) ^ 0x55555555, cal_test & 0xFFFFFFFF);
             }
+            daq_capture!(cal_test, event);
 
             // Trigger DAQ event
             // daq_capture!(cal_test, event);
@@ -179,58 +193,51 @@ async fn test_single_thread() {
 
     info!("Running test_single_thread");
 
-    // Initialize the XCP driver singleton
-    let xcp = Xcp::get();
+    // Test calibration and measurement in a single thread
+
+    info!("XCP server initialization 1");
+    let _ = std::fs::remove_file("test_single_thread.a2h");
+
+    // Initialize XCP server
+    let xcp = match Xcp::get()
+        .set_app_name("test_single_thread")
+        .set_app_revision("EPK1.0.0")
+        .set_log_level(OPTION_XCP_LOG_LEVEL)
+        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555, 1024 * 256)
+    {
+        Err(res) => {
+            error!("XCP initialization failed: {:?}", res);
+            return;
+        }
+        Ok(xcp) => xcp,
+    };
 
     // Create a calibration segment
-    let cal_seg = xcp.create_calseg("cal_seg", &CAL_PAR1);
+    let cal_seg = CalSeg::new("cal_seg", &CAL_PAR1);
     cal_seg.register_fields();
 
-    // Test calibration and measurement in a single thread
-    {
-        info!("XCP server initialization 1");
-        let _ = std::fs::remove_file("test_single_thread.a2h");
+    // Create a test task
+    let t1 = thread::spawn({
+        let cal_seg = cal_seg.clone();
+        move || {
+            task(cal_seg);
+        }
+    });
 
-        // Initialize the XCPserver, transport layer and protocoll layer
-        let xcp = match XcpBuilder::new("test_single_thread").set_log_level(OPTION_XCP_LOG_LEVEL).set_epk("EPK_TEST").start_server(
-            XcpTransportLayer::Udp,
-            [127, 0, 0, 1],
-            5555,
-            1024 * 64,
-        ) {
-            Err(res) => {
-                error!("XCP initialization failed: {:?}", res);
-                return;
-            }
-            Ok(xcp) => xcp,
-        };
+    thread::sleep(Duration::from_micros(100000));
+    xcp.finalize_registry().unwrap(); // Write the A2L file
 
-        // Create a test task
-        let t1 = thread::spawn({
-            let cal_seg = cal_seg.clone();
-            move || {
-                task(cal_seg);
-            }
-        });
+    test_executor(TEST_CAL, TEST_DAQ, TEST_DURATION_MS, 1, TEST_SIGNAL_COUNT, TEST_CYCLE_TIME_US as u64).await; // Start the test executor XCP client
 
-        xcp_test_executor(xcp, TEST_CAL, TEST_DAQ, "test_single_thread.a2l", TEST_UPLOAD_A2L).await; // Start the test executor XCP client
-
-        t1.join().unwrap();
-        xcp.stop_server();
-    }
+    t1.join().unwrap();
+    xcp.stop_server();
 
     // Reinitialize the XCP server a second time, to check correct shutdown behaviour
     if TEST_REINIT {
         info!("XCP server initialization 2");
-        let _ = std::fs::remove_file("test_single_thread.a2h");
 
         // Initialize the XCPserver, transport layer and protocoll layer a second time
-        let xcp = match XcpBuilder::new("test_single_thread").set_log_level(OPTION_XCP_LOG_LEVEL).set_epk("EPK_TEST").start_server(
-            XcpTransportLayer::Udp,
-            [127, 0, 0, 1],
-            5555,
-            1024 * 64,
-        ) {
+        let xcp = match Xcp::get().start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555, 1024 * 64) {
             Err(res) => {
                 error!("XCP initialization failed: {:?}", res);
                 return;
@@ -238,12 +245,13 @@ async fn test_single_thread() {
             Ok(xcp) => xcp,
         };
 
-        xcp_test_executor(
-            xcp,
+        test_executor(
             xcp_test_executor::TestModeCal::None,
             xcp_test_executor::TestModeDaq::None,
-            "test_single_thread.a2l",
-            false,
+            TEST_DURATION_MS,
+            1,
+            TEST_SIGNAL_COUNT,
+            TEST_CYCLE_TIME_US as u64,
         )
         .await; // Start the test executor XCP client
 

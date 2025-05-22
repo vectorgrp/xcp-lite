@@ -19,8 +19,8 @@
 #include <stdio.h>   // for fclose, fopen, fread, fseek, ftell
 #include <string.h>  // for strlen, strncpy
 
-#include "main_cfg.h"  // for OPTION_xxx
 #include "dbg_print.h" // for DBG_PRINTF3, DBG_PRINT4, DBG_PRINTF4, DBG...
+#include "main_cfg.h"  // for OPTION_xxx
 #include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
 #include "xcp.h"       // for CRC_XXX
 #include "xcpLite.h"   // for tXcpDaqLists, XcpXxx, ApplXcpXxx, ...
@@ -59,8 +59,8 @@ void ApplXcpSetLogLevel(uint8_t level) {
 /**************************************************************************/
 
 static uint8_t (*callback_connect)(void) = NULL;
-static uint8_t (*callback_prepare_daq)(const tXcpDaqLists *daq) = NULL;
-static uint8_t (*callback_start_daq)(const tXcpDaqLists *daq) = NULL;
+static uint8_t (*callback_prepare_daq)(void) = NULL;
+static uint8_t (*callback_start_daq)(void) = NULL;
 static void (*callback_stop_daq)(void) = NULL;
 static uint8_t (*callback_freeze_daq)(uint8_t clear, uint16_t config_id) = NULL;
 static uint8_t (*callback_get_cal_page)(uint8_t segment, uint8_t mode) = NULL;
@@ -71,13 +71,10 @@ static uint8_t (*callback_read)(uint32_t src, uint8_t size, uint8_t *dst) = NULL
 static uint8_t (*callback_write)(uint32_t dst, uint8_t size, const uint8_t *src, uint8_t delay) = NULL;
 static uint8_t (*callback_flush)(void) = NULL;
 
-void ApplXcpRegisterCallbacks(uint8_t (*cb_connect)(void), uint8_t (*cb_prepare_daq)(const tXcpDaqLists *daq), uint8_t (*cb_start_daq)(const tXcpDaqLists *daq),
-                              void (*cb_stop_daq)(void),
-
-                              uint8_t (*cb_freeze_daq)(uint8_t clear, uint16_t config_id),
-
-                              uint8_t (*cb_get_cal_page)(uint8_t segment, uint8_t mode), uint8_t (*cb_set_cal_page)(uint8_t segment, uint8_t page, uint8_t mode),
-                              uint8_t (*cb_freeze_cal)(void), uint8_t (*cb_init_cal)(uint8_t src_page, uint8_t dst_page),
+void ApplXcpRegisterCallbacks(uint8_t (*cb_connect)(void), uint8_t (*cb_prepare_daq)(void), uint8_t (*cb_start_daq)(void), void (*cb_stop_daq)(void),
+                              uint8_t (*cb_freeze_daq)(uint8_t clear, uint16_t config_id), uint8_t (*cb_get_cal_page)(uint8_t segment, uint8_t mode),
+                              uint8_t (*cb_set_cal_page)(uint8_t segment, uint8_t page, uint8_t mode), uint8_t (*cb_freeze_cal)(void),
+                              uint8_t (*cb_init_cal)(uint8_t src_page, uint8_t dst_page),
 #ifdef XCP_ENABLE_APP_ADDRESSING
                               uint8_t (*cb_read)(uint32_t src, uint8_t size, uint8_t *dst), uint8_t (*cb_write)(uint32_t dst, uint8_t size, const uint8_t *src, uint8_t delay),
                               uint8_t (*cb_flush)(void)
@@ -117,10 +114,10 @@ bool ApplXcpConnect(void) {
 void ApplXcpDisconnect(void) { DBG_PRINT4("ApplXcpDisconnect\n"); }
 
 #if XCP_PROTOCOL_LAYER_VERSION >= 0x0104
-bool ApplXcpPrepareDaq(const tXcpDaqLists *daq) {
+bool ApplXcpPrepareDaq() {
     DBG_PRINT4("ApplXcpPrepareDaq\n");
     if (callback_prepare_daq != NULL) {
-        if (!callback_prepare_daq(daq)) {
+        if (!callback_prepare_daq()) {
             DBG_PRINT_WARNING("DAQ start canceled by AppXcpPrepareDaq!\n");
             return false;
         };
@@ -129,10 +126,10 @@ bool ApplXcpPrepareDaq(const tXcpDaqLists *daq) {
 }
 #endif
 
-void ApplXcpStartDaq(const tXcpDaqLists *daq) {
+void ApplXcpStartDaq() {
     DBG_PRINT4("ApplXcpStartDaq\n");
     if (callback_start_daq != NULL)
-        callback_start_daq(daq);
+        callback_start_daq();
 }
 
 void ApplXcpStopDaq(void) {
@@ -146,13 +143,20 @@ void ApplXcpStopDaq(void) {
 // Get clock for DAQ timestamps
 /**************************************************************************/
 
-// XCP server clock timestamp resolution defined in xcp_cfg.h
-// Clock must be monotonic !!!
+uint64_t ApplXcpGetClock64(void) {
 
-uint64_t ApplXcpGetClock64(void) { return clockGet(); }
+    /* Return value is clock with
+        Clock timestamp resolution defined in xcp_cfg.h
+        Clock must be monotonic !!!
+    */
+    return clockGet();
+}
 
 uint8_t ApplXcpGetClockState(void) {
 
+    /* Return value may be one of the following:
+        CLOCK_STATE_SYNCH, CLOCK_STATE_SYNCH_IN_PROGRESS, CLOCK_STATE_FREE_RUNNING, CLOCK_STATE_GRANDMASTER_STATE_SYNCH
+    */
     return CLOCK_STATE_FREE_RUNNING; // Clock is a free running counter
 }
 
@@ -161,8 +165,12 @@ bool ApplXcpGetClockInfoGrandmaster(uint8_t *uuid, uint8_t *epoch, uint8_t *stra
     (void)uuid;
     (void)epoch;
     (void)stratum;
-
-    return false; // No PTP support implemented
+    /*
+    Return value true, please set the following parameters:
+        stratum: XCP_STRATUM_LEVEL_UNKNOWN, XCP_STRATUM_LEVEL_RTC,XCP_STRATUM_LEVEL_GPS
+        epoch: XCP_EPOCH_TAI, XCP_EPOCH_UTC, XCP_EPOCH_ARB
+    */
+    return false; // No PTP support
 }
 
 /**************************************************************************/
@@ -220,8 +228,6 @@ uint32_t ApplXcpGetAddr(const uint8_t *p) {
 #endif
     return (uint32_t)(p - ApplXcpGetBaseAddr());
 }
-
-#endif
 
 #if defined(_LINUX64) && !defined(_MACOS)
 
@@ -304,7 +310,7 @@ uint32_t ApplXcpGetAddr(const uint8_t *p) {
     uint8_t *b = ApplXcpGetBaseAddr();
     if (p < b || ((uint64_t)p - (uint64_t)b) > 0xffffffff) { // be sure that XCP address range is sufficient
         DBG_PRINTF_ERROR("Address out of range! base = %llX, addr = %llX\n", (uint64_t)b, (uint64_t)p);
-        assert(0);
+        // assert(0);
     }
     return (uint32_t)(p - b);
 }
@@ -318,6 +324,8 @@ uint8_t *ApplXcpGetBaseAddr(void) { return ((uint8_t *)0); }
 uint32_t ApplXcpGetAddr(const uint8_t *p) { return ((uint32_t)(p)); }
 
 #endif
+
+#endif // XCP_ENABLE_ABS_ADDRESSING
 
 /**************************************************************************/
 // Memory access
@@ -385,17 +393,10 @@ uint8_t ApplXcpCopyCalPage(uint8_t srcSeg, uint8_t srcPage, uint8_t dstSeg, uint
 #endif
 
 #ifdef XCP_ENABLE_FREEZE_CAL_PAGE
-uint8_t ApplXcpFreezeCalPage(uint8_t segment) {
-    if (segment > 0)
-        return CRC_PAGE_NOT_VALID;
+uint8_t ApplXcpCalFreeze() {
     if (callback_freeze_cal != NULL)
         return callback_freeze_cal(); // return CRC_CMD_xxx return code
     return CRC_CMD_UNKNOWN;
-}
-uint8_t ApplXcpGetCalPageMode(uint8_t segment) {
-    if (segment > 0)
-        return 0;
-    return 0x01; // @@@@ TODO: Support multiple segments, CANape does not support switching individual memory segments
 }
 #endif
 

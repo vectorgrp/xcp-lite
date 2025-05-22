@@ -1,5 +1,5 @@
 pub mod domain;
-pub mod gen;
+pub mod r#gen;
 pub mod prelude;
 pub mod types;
 

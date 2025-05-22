@@ -4,8 +4,6 @@
 
 #![allow(dead_code)] // because of all the unused XCP definitions
 
-//#![allow(unused_imports)]
-
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
@@ -17,17 +15,13 @@ use std::error::Error;
 use std::io::Cursor;
 use std::io::Write;
 use std::net::SocketAddr;
-use std::path::Path;
 use std::sync::Arc;
 use tokio::net::UdpSocket;
 use tokio::select;
 use tokio::sync::mpsc::{self, Receiver, Sender};
-use tokio::time::{timeout, Duration};
+use tokio::time::{Duration, timeout};
 
-#[allow(unused_imports)]
-use crate::a2l::a2l_reader::{
-    a2l_find_characteristic, a2l_find_measurement, a2l_get_characteristics, a2l_get_measurements, a2l_load, a2l_printf_info, A2lAddr, A2lLimits, A2lType,
-};
+use xcp_lite::registry::*;
 
 //--------------------------------------------------------------------------------------------------------------------------------------------------
 // XCP Parameters
@@ -36,6 +30,8 @@ pub const CMD_TIMEOUT: Duration = Duration::from_secs(3);
 
 pub const XCPTL_MAX_SEGMENT_SIZE: usize = 2048 * 2;
 
+//--------------------------------------------------------------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------------------------
 // XCP error type
 
@@ -74,21 +70,21 @@ pub const ERROR_TASK_TERMINATED: u8 = 0xF5;
 pub const ERROR_SESSION_TERMINATION: u8 = 0xF6;
 
 #[derive(Default)]
-pub struct XcpError {
+pub struct XcpClientError {
     code: u8,
     cmd: u8,
 }
 
-impl XcpError {
-    pub fn new(code: u8, cmd: u8) -> XcpError {
-        XcpError { code, cmd }
+impl XcpClientError {
+    pub fn new(code: u8, cmd: u8) -> XcpClientError {
+        XcpClientError { code, cmd }
     }
     pub fn get_error_code(&self) -> u8 {
         self.code
     }
 }
 
-impl std::fmt::Display for XcpError {
+impl std::fmt::Display for XcpClientError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let cmd: XcpCommand = From::from(self.cmd);
         match self.code {
@@ -189,14 +185,16 @@ impl std::fmt::Display for XcpError {
     }
 }
 
-impl std::fmt::Debug for XcpError {
+impl std::fmt::Debug for XcpClientError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "XcpError 0x{:02X} - {}", self.code, self)
+        write!(f, "XcpClientError 0x{:02X} - {}", self.code, self)
     }
 }
 
-impl std::error::Error for XcpError {}
+impl std::error::Error for XcpClientError {}
 
+//--------------------------------------------------------------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------------------------
 // XCP commands
 
@@ -381,14 +379,89 @@ impl XcpCommandBuilder {
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------------------------------------------------------------
 // CalibrationObject
 // Describes a calibration object with name, address, type, limits and caches it actual value
+
+// Measurement and calibration object attributes
+
+#[derive(Debug, Clone, Copy)]
+pub struct A2lAddr {
+    pub ext: u8,
+    pub addr: u32,
+    pub event: Option<u16>,
+}
+
+impl std::fmt::Display for A2lAddr {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if let Some(event) = self.event {
+            write!(f, "{}:0x{:08X} event {}", self.ext, self.addr, event)
+        } else {
+            write!(f, "{}:0x{:08X}", self.ext, self.addr)
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum A2lTypeEncoding {
+    Signed,
+    Unsigned,
+    Float,
+    Blob,
+}
+
+impl From<&McValueType> for A2lTypeEncoding {
+    fn from(value_type: &McValueType) -> A2lTypeEncoding {
+        match value_type {
+            McValueType::Bool | McValueType::Ubyte | McValueType::Uword | McValueType::Ulong | McValueType::Ulonglong => A2lTypeEncoding::Unsigned,
+            McValueType::Sbyte | McValueType::Sword | McValueType::Slong | McValueType::Slonglong => A2lTypeEncoding::Signed,
+            McValueType::Float32Ieee | McValueType::Float64Ieee => A2lTypeEncoding::Float,
+            _ => A2lTypeEncoding::Blob,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct A2lType {
+    pub size: usize,
+    pub encoding: A2lTypeEncoding,
+}
+
+impl std::fmt::Display for A2lType {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self.encoding {
+            A2lTypeEncoding::Signed => write!(f, "{} byte signed", self.size),
+            A2lTypeEncoding::Unsigned => write!(f, "{} byte unsigned", self.size),
+            A2lTypeEncoding::Float => write!(f, "{} byte float", self.size),
+            A2lTypeEncoding::Blob => write!(f, "{} byte blob", self.size),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct A2lLimits {
+    pub lower: f64,
+    pub upper: f64,
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct XcpCalibrationObjectHandle(usize);
 
+impl XcpCalibrationObjectHandle {
+    pub fn get_name(self, xcp_client: &mut XcpClient) -> &str {
+        xcp_client.get_calibration_object(self).get_name()
+    }
+    pub fn get_a2l_addr(self, xcp_client: &mut XcpClient) -> A2lAddr {
+        xcp_client.get_calibration_object(self).get_a2l_addr()
+    }
+    pub fn get_a2l_type(self, xcp_client: &mut XcpClient) -> A2lType {
+        xcp_client.get_calibration_object(self).get_a2l_type()
+    }
+}
+
 #[derive(Debug)]
-pub struct XcpCalibrationObject {
+pub struct XcpClientCalibrationObject {
     name: String,
     a2l_addr: A2lAddr,
     get_type: A2lType,
@@ -396,9 +469,9 @@ pub struct XcpCalibrationObject {
     value: Vec<u8>,
 }
 
-impl XcpCalibrationObject {
-    pub fn new(name: &str, a2l_addr: A2lAddr, get_type: A2lType, a2l_limits: A2lLimits) -> XcpCalibrationObject {
-        XcpCalibrationObject {
+impl XcpClientCalibrationObject {
+    pub fn new(name: &str, a2l_addr: A2lAddr, get_type: A2lType, a2l_limits: A2lLimits) -> XcpClientCalibrationObject {
+        XcpClientCalibrationObject {
             name: name.to_string(),
             a2l_addr,
             get_type,
@@ -407,8 +480,16 @@ impl XcpCalibrationObject {
         }
     }
 
-    pub fn get_type(&self) -> A2lType {
+    pub fn get_name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn get_a2l_type(&self) -> A2lType {
         self.get_type
+    }
+
+    pub fn get_a2l_addr(&self) -> A2lAddr {
+        self.a2l_addr
     }
 
     pub fn set_value(&mut self, bytes: &[u8]) {
@@ -423,13 +504,13 @@ impl XcpCalibrationObject {
         let mut value = 0u64;
         for i in (0..self.get_type.size).rev() {
             value <<= 8;
-            value += self.value[i as usize] as u64;
+            value += self.value[i] as u64;
         }
         value
     }
 
     pub fn get_value_i64(&self) -> i64 {
-        let size: usize = self.get_type.size as usize;
+        let size: usize = self.get_type.size;
         let mut value = 0;
         if self.value[size - 1] & 0x80 != 0 {
             value = -1;
@@ -447,11 +528,23 @@ impl XcpCalibrationObject {
 // MeasurementObject
 // Describes a measurement object with name, address, type and event
 
-#[derive(Debug, Clone)]
-pub struct XcpMeasurementObjectHandle(usize);
+#[derive(Debug, Copy, Clone)]
+pub struct XcpMeasurementObjectHandle(pub usize);
+
+impl XcpMeasurementObjectHandle {
+    pub fn get_name(self, xcp_client: &mut XcpClient) -> &str {
+        xcp_client.get_measurement_object(self).get_name()
+    }
+    pub fn get_a2l_addr(self, xcp_client: &mut XcpClient) -> A2lAddr {
+        xcp_client.get_measurement_object(self).get_a2l_addr()
+    }
+    pub fn get_a2l_type(self, xcp_client: &mut XcpClient) -> A2lType {
+        xcp_client.get_measurement_object(self).get_a2l_type()
+    }
+}
 
 #[derive(Debug, Clone)]
-pub struct XcpMeasurementObject {
+pub struct XcpClientMeasurementObject {
     name: String,
     pub a2l_addr: A2lAddr,
     pub a2l_type: A2lType,
@@ -460,9 +553,9 @@ pub struct XcpMeasurementObject {
     pub offset: u16,
 }
 
-impl XcpMeasurementObject {
-    pub fn new(name: &str, a2l_addr: A2lAddr, a2l_type: A2lType) -> XcpMeasurementObject {
-        XcpMeasurementObject {
+impl XcpClientMeasurementObject {
+    pub fn new(name: &str, a2l_addr: A2lAddr, a2l_type: A2lType) -> XcpClientMeasurementObject {
+        XcpClientMeasurementObject {
             name: name.to_string(),
             a2l_addr,
             a2l_type,
@@ -475,13 +568,18 @@ impl XcpMeasurementObject {
     pub fn get_name(&self) -> &str {
         &self.name
     }
-    pub fn get_addr(&self) -> A2lAddr {
+    pub fn get_a2l_addr(&self) -> A2lAddr {
         self.a2l_addr
     }
-    pub fn get_type(&self) -> A2lType {
+    pub fn get_a2l_type(&self) -> A2lType {
         self.a2l_type
     }
 }
+
+//--------------------------------------------------------------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------------------------------------------------------------
+// Decoder traits for XCP messages
 
 //--------------------------------------------------------------------------------------------------------------------------------------------------
 // Text decoder trait for XCP SERV_TEXT messages
@@ -547,6 +645,8 @@ impl XcpTaskControl {
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------------------------------------------------------------
 // XcpClient
 
 /// XCP client
@@ -564,9 +664,9 @@ pub struct XcpClient {
     max_dto_size: u16,
     timestamp_resolution_ns: u64,
     daq_header_size: u8,
-    a2l_file: Option<a2lfile::A2lFile>,
-    calibration_objects: Vec<XcpCalibrationObject>,
-    measurement_objects: Vec<XcpMeasurementObject>,
+    registry: Option<xcp_lite::registry::Registry>,
+    calibration_object_list: Vec<XcpClientCalibrationObject>,
+    measurement_object_list: Vec<XcpClientMeasurementObject>,
 }
 
 impl XcpClient {
@@ -589,9 +689,9 @@ impl XcpClient {
             max_dto_size: 0,
             timestamp_resolution_ns: 1,
             daq_header_size: 4,
-            a2l_file: None,
-            calibration_objects: Vec::new(),
-            measurement_objects: Vec::new(),
+            registry: None,
+            calibration_object_list: Vec::new(),
+            measurement_object_list: Vec::new(),
         }
     }
 
@@ -623,13 +723,13 @@ impl XcpClient {
 
                             // Disconnect
                             if !c.connected { // Handle the data from rx_daq_decoder
-                                info!("receive_task: stop, disconnect");
+                                debug!("receive_task: stop, disconnect");
                                 return Ok(());
                             }
 
                             // Start DAQ
                             if c.running {
-                                info!("receive_task: start DAQ");
+                                debug!("receive_task: start DAQ");
                                 ctr_first = true;
                                 ctr_last = 0;
                                 ctr_lost = 0;
@@ -639,7 +739,7 @@ impl XcpClient {
                             task_control = Some(c);
                         }
                         None => { // The sender has been dropped
-                            info!("receive_task: stop, channel closed");
+                            debug!("receive_task: stop, channel closed");
                             return Ok(());
                         }
                     }
@@ -659,11 +759,11 @@ impl XcpClient {
                             while i < size {
                                 // Decode the next transport layer message header in the packet
                                 if size < 5 {
-                                    return Err(Box::new(XcpError::new(ERROR_TL_HEADER,0)) as Box<dyn Error>);
+                                    return Err(Box::new(XcpClientError::new(ERROR_TL_HEADER,0)) as Box<dyn Error>);
                                 }
                                 let len = buf[i] as usize + ((buf[i + 1] as usize) << 8);
                                 if len > size - 4 || len == 0 { // Corrupt packet received, not enough data received or no content
-                                    return Err(Box::new(XcpError::new(ERROR_TL_HEADER,0)) as Box<dyn Error>);
+                                    return Err(Box::new(XcpClientError::new(ERROR_TL_HEADER,0)) as Box<dyn Error>);
                                 }
                                 let ctr = buf[i + 2] as u16 + ((buf[i + 3] as u16) << 8);
                                 if ctr_first {
@@ -692,7 +792,7 @@ impl XcpClient {
                                         // Event
                                         let event_code = buf[i + 5];
                                         match event_code {
-                                            0x07 => { warn!("receive_task: stop, SESSION_TERMINATDED"); return Err(Box::new(XcpError::new(ERROR_SESSION_TERMINATION,0)) as Box<dyn Error>); },
+                                            0x07 => { info!("receive_task: stop, SESSION_TERMINATDED"); return Err(Box::new(XcpClientError::new(ERROR_SESSION_TERMINATION,0)) as Box<dyn Error>); },
                                             _ => warn!("xcp_receive: ignored XCP event = 0x{:0X}", event_code),
                                         }
 
@@ -731,7 +831,7 @@ impl XcpClient {
                         Err(e) => {
                             // Handle the error from recv_from
                             warn!("receive_task: stop, socket error {}",e);
-                            return Err(Box::new(XcpError::new(ERROR_TL_HEADER,0)) as Box<dyn Error>);
+                            return Err(Box::new(XcpClientError::new(ERROR_TL_HEADER,0)) as Box<dyn Error>);
                         }
                     }
                 } // socket.recv_from
@@ -761,8 +861,8 @@ impl XcpClient {
                                 Ok(data)
                             }
                             0xFE => {
-                                // XCP negative response, return error code with XcpError
-                                Err(Box::new(XcpError::new(data[1], cmd_bytes[4])) as Box<dyn Error>)
+                                // XCP negative response, return error code with XcpClientError
+                                Err(Box::new(XcpClientError::new(data[1], cmd_bytes[4])) as Box<dyn Error>)
                             }
                             _ => {
                                 panic!("xcp_command: bug in receive_task");
@@ -771,14 +871,14 @@ impl XcpClient {
                     }
                     None => {
                         // Empty response, channel has been closed because receive task terminated
-                        warn!("xcp_command: receive_task terminated");
-                        Err(Box::new(XcpError::new(ERROR_TASK_TERMINATED, cmd_bytes[4])) as Box<dyn Error>)
+                        info!("xcp_command: receive_task terminated");
+                        Err(Box::new(XcpClientError::new(ERROR_TASK_TERMINATED, cmd_bytes[4])) as Box<dyn Error>)
                     }
                 }
             }
             Err(_) => {
-                // Timeout, return with XcpError
-                Err(Box::new(XcpError::new(ERROR_CMD_TIMEOUT, cmd_bytes[4])) as Box<dyn Error>)
+                // Timeout, return with XcpClientError
+                Err(Box::new(XcpClientError::new(ERROR_CMD_TIMEOUT, cmd_bytes[4])) as Box<dyn Error>)
             }
         }
     }
@@ -816,8 +916,8 @@ impl XcpClient {
         let data = self.send_command(XcpCommandBuilder::new(CC_CONNECT).add_u8(0).build()).await?;
         assert!(data.len() >= 8);
         let max_cto_size: u8 = data[3];
-        let max_dto_size: u16 = data[4] as u16 | (data[5] as u16) << 8;
-        info!("XCP client connected, max_cto_size = {}, max_dto_size = {}", max_cto_size, max_dto_size);
+        let max_dto_size: u16 = (data[4] as u16) | ((data[5] as u16) << 8);
+        debug!("XCP client connected, max_cto_size = {}, max_dto_size = {}", max_cto_size, max_dto_size);
         self.max_cto_size = max_cto_size;
         self.max_dto_size = max_dto_size;
 
@@ -874,7 +974,7 @@ impl XcpClient {
 
     //------------------------------------------------------------------------
     // Get server identification
-    // @@@@ TODO: other types, only  XCP_IDT_ASAM_UPLOAD supported
+    // @@@@ TODO other types, only XCP_IDT_ASAM_UPLOAD supported
     pub async fn get_id(&mut self, id_type: u8) -> Result<(u32, Option<String>), Box<dyn Error>> {
         let data = self.send_command(XcpCommandBuilder::new(CC_GET_ID).add_u8(id_type).build()).await?;
 
@@ -885,9 +985,9 @@ impl XcpClient {
         // Decode size
         let mut size = 0u32;
         for i in (4..8).rev() {
-            size = size << 8 | data[i] as u32;
+            size = (size << 8) | (data[i] as u32);
         }
-        info!("GET_ID mode={} -> size = {}", id_type, size);
+        debug!("GET_ID mode={} -> size = {}", id_type, size);
 
         // Data ready for upload
         if mode == 0 {
@@ -899,12 +999,12 @@ impl XcpClient {
             let name = String::from_utf8(data[8..(size as usize + 8)].to_vec());
             match name {
                 Ok(name) => {
-                    info!("  -> text = {}", name);
+                    debug!("  -> text result = {}", name);
                     Ok((0, Some(name)))
                 }
                 Err(_) => {
                     error!("GET_ID mode={} -> invalid string {:?}", id_type, data);
-                    Err(Box::new(XcpError::new(CRC_CMD_SYNTAX, CC_GET_ID)) as Box<dyn Error>)
+                    Err(Box::new(XcpClientError::new(CRC_CMD_SYNTAX, CC_GET_ID)) as Box<dyn Error>)
                 }
             }
         }
@@ -1009,7 +1109,7 @@ impl XcpClient {
         self.daq_header_size = (daq_key_byte >> 6) + 1;
         assert!(self.daq_header_size == 4 || self.daq_header_size == 2, "DAQ header type must be ODT_FIL_DAQW or ODT_DAQB");
 
-        info!(
+        debug!(
             "GET_DAQ_PROPERTIES daq_properties = 0x{:0X}, max_daq = {}, max_event = {}, min_daq = {}, daq_key_byte = 0x{:0X} (header_size={})",
             daq_properties, max_daq, max_event, min_daq, daq_key_byte, self.daq_header_size
         );
@@ -1113,7 +1213,7 @@ impl XcpClient {
                     .build(),
             )
             .await?;
-        info!("TIME_CORRELATION_PROPERIES set response format to SERVER_CONFIG_RESPONSE_FMT_ADVANCED");
+        debug!("TIME_CORRELATION_PROPERIES set response format to SERVER_CONFIG_RESPONSE_FMT_ADVANCED");
         Ok(())
     }
 
@@ -1142,7 +1242,7 @@ impl XcpClient {
         }
         self.timestamp_resolution_ns = timestamp_resolution_ns;
 
-        info!(
+        debug!(
             "GET_DAQ_RESOLUTION_INFO granularity_daq={} max_size_daq={} timestamp_mode={} timestamp_resolution={}ns",
             granularity_daq, max_size_daq, timestamp_mode, timestamp_resolution_ns
         );
@@ -1169,7 +1269,7 @@ impl XcpClient {
             // 64 bit slave clock
             c.read_u64::<LittleEndian>()?
         } else {
-            return Err(Box::new(XcpError::new(CRC_OUT_OF_RANGE, CC_GET_DAQ_CLOCK)) as Box<dyn Error>);
+            return Err(Box::new(XcpClientError::new(CRC_OUT_OF_RANGE, CC_GET_DAQ_CLOCK)) as Box<dyn Error>);
         };
 
         trace!("GET_DAQ_CLOCK trigger_info=0x{:2X}, payload_fmt=0x{:2X} time={}", trigger_info, payload_fmt, timestamp64);
@@ -1184,171 +1284,230 @@ impl XcpClient {
     }
 
     //-------------------------------------------------------------------------------------------------
-    // A2L upload and load
+    // A2L upload
 
-    /// Upload A2l
-    pub async fn upload_a2l(&mut self, print_info: bool) -> Result<(), Box<dyn Error>> {
-        self.a2l_loader::<&str>(None, print_info).await
-    }
-
-    /// Load A2L
-    pub async fn read_a2l<P: AsRef<Path>>(&mut self, filename: P, print_info: bool) -> Result<(), Box<dyn Error>> {
-        self.a2l_loader(Some(filename), print_info).await
-    }
-
-    // Get the A2L via XCP or from file and read it
-    pub async fn a2l_loader<P: AsRef<Path>>(&mut self, filename: Option<P>, print_info: bool) -> Result<(), Box<dyn Error>> {
-        let a2l_filename = filename.as_ref().map(|p| p.as_ref()).unwrap_or(Path::new("xcp_client_autodetect.a2l"));
-
-        // Upload the A2L via XCP
-        // Be aware the file name may be the original A2L file written by registry
-        if filename.is_none() {
-            info!("Upload A2L to {}", a2l_filename.display());
-            {
-                let file = std::fs::File::create(a2l_filename)?;
-                let mut writer = std::io::BufWriter::new(file);
-                let (file_size, _) = self.get_id(XCP_IDT_ASAM_UPLOAD).await?;
-                assert!(file_size > 0);
-                let mut size = file_size;
-                while size > 0 {
-                    let n = if size > 200 { 200 } else { size as u8 };
-                    size -= n as u32;
-                    let data = self.upload(n).await?;
-                    trace!("xcp_client.upload: {} bytes = {:?}", data.len(), data);
-                    writer.write_all(&data[1..=n as usize])?;
-                }
-                writer.flush()?;
-                info!("  Upload complete, {} bytes loaded", file_size);
+    // Get the A2L via XCP upload and GET_ID4 (XCP_IDT_ASAM_UPLOAD)
+    pub async fn a2l_loader(&mut self) -> Result<(), Box<dyn Error>> {
+        // Send XCP GET_ID GET_ID XCP_IDT_ASAM_NAME to obtain the A2L filename
+        info!("XCP GET_ID XCP_IDT_ASAM_NAME");
+        let res = self.get_id(XCP_IDT_ASAM_NAME).await;
+        let a2l_name = match res {
+            Ok((_, Some(id))) => id,
+            Err(e) => {
+                panic!("GET_ID failed, Error: {}", e);
             }
+            _ => {
+                panic!("Empty string");
+            }
+        };
+        info!("A2l file name from GET_ID IDT_ASAM_NAME = {}", a2l_name);
+
+        // Use the same filname for the uploaded file as CANape does <name>_autodetect.a2l
+        let a2l_filename = format!("{}_autodetect.a2l", a2l_name);
+        let mut a2l_path = std::path::PathBuf::new();
+        a2l_path.set_file_name(a2l_filename);
+        a2l_path.set_extension("a2l");
+
+        // Send XCP GET_ID 4 command to set MTA
+        let (file_size, _) = self.get_id(XCP_IDT_ASAM_UPLOAD).await?;
+        if file_size == 0 {
+            error!("A2L file not available, GET_ID 4 returned size 0");
+            return Err(Box::new(XcpClientError::new(ERROR_A2L, CC_GET_ID)) as Box<dyn Error>);
         }
 
-        // Read the A2L file
-        //info!("Read A2L {}", a2l_filename.display());
-        if let Ok(a2l_file) = a2l_load(a2l_filename) {
-            if print_info {
-                a2l_printf_info(&a2l_file);
-            }
-            self.a2l_file = Some(a2l_file);
-        } else {
-            error!("Could not read A2L file {}", a2l_filename.display());
-            return Err(Box::new(XcpError::new(ERROR_A2L, 0)) as Box<dyn Error>);
+        // Upload the A2L file
+        info!("Upload A2L to {}.a2l", a2l_path.display());
+        let file = std::fs::File::create(&a2l_path)?;
+        let mut writer = std::io::BufWriter::new(file);
+        let mut size = file_size;
+        while size > 0 {
+            let n = if size > 200 { 200 } else { size as u8 };
+            size -= n as u32;
+            let data = self.upload(n).await?;
+            trace!("xcp_client.upload: {} bytes = {:?}", data.len(), data);
+            writer.write_all(&data[1..=n as usize])?;
         }
+        writer.flush()?;
+        debug!("A2L upload completed, {} bytes loaded", file_size);
+
+        // Read the A2L file into a registry
+        let mut registry = xcp_lite::registry::Registry::new();
+        // @@@@ xcp_client does not support arrays, instances and typedefs yet, flatten the registry and mangle the names
+        registry.load_a2l(&a2l_path, true, true, true, true)?;
+        self.registry = Some(registry);
 
         Ok(())
     }
 
-    pub fn get_a2l_file(&self) -> Option<&a2lfile::A2lFile> {
-        self.a2l_file.as_ref()
+    pub fn a2l_epk(&self) -> Option<&str> {
+        self.registry.as_ref().map(|r| r.get_app_version())
     }
 
     //------------------------------------------------------------------------
-    // A2l
+    // Registry
+    // Get a list available measurement and calibration object names from registry matching a regular expression
 
-    pub fn get_characteristics(&self) -> Vec<String> {
-        a2l_get_characteristics(self.a2l_file.as_ref().unwrap())
+    pub fn get_registry(&self) -> &xcp_lite::registry::Registry {
+        self.registry.as_ref().unwrap()
     }
 
-    pub fn get_measurements(&self) -> Vec<String> {
-        a2l_get_measurements(self.a2l_file.as_ref().unwrap())
+    pub fn find_characteristics(&self, expr: &str) -> Vec<String> {
+        let registry = self.registry.as_ref().unwrap();
+        registry.instance_list.find_instances(expr, xcp_lite::registry::McObjectType::Characteristic, None)
+    }
+
+    pub fn find_measurements(&self, expr: &str) -> Vec<String> {
+        let registry = self.registry.as_ref().unwrap();
+        registry.instance_list.find_instances(expr, xcp_lite::registry::McObjectType::Measurement, None)
     }
 
     //------------------------------------------------------------------------
     // XcpCalibrationObject, XcpCalibrationObjectHandle (index pointer to XcpCalibrationObject),
     // XcpXcpCalibrationObjectHandle is assumed immutable and the actual value is cached
 
-    pub fn get_calibration_object(&mut self, handle: XcpCalibrationObjectHandle) -> &XcpCalibrationObject {
-        &self.calibration_objects[handle.0]
+    pub fn get_calibration_object(&self, handle: XcpCalibrationObjectHandle) -> &XcpClientCalibrationObject {
+        &self.calibration_object_list[handle.0]
     }
 
     pub async fn create_calibration_object(&mut self, name: &str) -> Result<XcpCalibrationObjectHandle, Box<dyn Error>> {
-        let res = a2l_find_characteristic(self.a2l_file.as_ref().unwrap(), name);
-        if res.is_none() {
-            debug!("create_calibration_object: characteristic {} not found", name);
-            Err(Box::new(XcpError::new(ERROR_A2L, 0)) as Box<dyn Error>)
-        } else {
-            let (a2l_addr, a2l_type, a2l_limits) = res.unwrap();
-
-            let mut o = XcpCalibrationObject::new(name, a2l_addr, a2l_type, a2l_limits);
-            let resp = self.short_upload(o.a2l_addr.addr, o.a2l_addr.ext, o.get_type.size).await?;
-            o.value = resp[1..=o.get_type.size as usize].to_vec();
-            trace!("upload {}: addr = {:?} type = {:?} limit={:?} value={:?}\n", name, a2l_addr, a2l_type, a2l_limits, o.value);
-            self.calibration_objects.push(o);
-            Ok(XcpCalibrationObjectHandle(self.calibration_objects.len() - 1))
+        //let res = a2l_find_characteristic(self.a2l_file.as_ref().unwrap(), name);
+        //let (a2l_addr, a2l_type, a2l_limits) = res.unwrap();
+        let registry = self.registry.as_ref().unwrap();
+        match registry.instance_list.find_instance(name, xcp_lite::registry::McObjectType::Characteristic, None) {
+            None => {
+                error!("Characteristic {} not found", name);
+                Err(Box::new(XcpClientError::new(ERROR_A2L, 0)) as Box<dyn Error>)
+            }
+            Some(instance) => {
+                let (ext, addr) = instance.address().get_a2l_addr(registry);
+                let a2l_addr: A2lAddr = A2lAddr { ext, addr, event: None };
+                let a2l_type: A2lType = A2lType {
+                    size: instance.value_size(),
+                    encoding: instance.value_type().into(),
+                };
+                let a2l_limits: A2lLimits = A2lLimits {
+                    lower: instance.get_min().unwrap(),
+                    upper: instance.get_max().unwrap(),
+                };
+                let mut o = XcpClientCalibrationObject::new(instance.get_name(), a2l_addr, a2l_type, a2l_limits);
+                let size = o.get_type.size;
+                assert!(size < 256, "xcp_client currently supports only <256 byte values");
+                let resp = self.short_upload(o.a2l_addr.addr, o.a2l_addr.ext, size as u8).await?;
+                o.value = resp[1..=o.get_type.size].to_vec();
+                trace!("upload {}: addr = {:?} type = {:?} limit={:?} value={:?}\n", name, a2l_addr, a2l_type, a2l_limits, o.value);
+                self.calibration_object_list.push(o);
+                Ok(XcpCalibrationObjectHandle(self.calibration_object_list.len() - 1))
+            }
         }
     }
 
     pub async fn set_value_u64(&mut self, handle: XcpCalibrationObjectHandle, value: u64) -> Result<(), Box<dyn Error>> {
-        let obj = &self.calibration_objects[handle.0];
+        let obj = &self.calibration_object_list[handle.0];
         if (value as f64) > obj.a2l_limits.upper || (value as f64) < obj.a2l_limits.lower {
-            return Err(Box::new(XcpError::new(ERROR_LIMIT, 0)) as Box<dyn Error>);
+            return Err(Box::new(XcpClientError::new(ERROR_LIMIT, 0)) as Box<dyn Error>);
         }
-        let size: usize = obj.get_type.size as usize;
+        let size: usize = obj.get_type.size;
         let slice = &value.to_le_bytes()[0..size];
         self.short_download(obj.a2l_addr.addr, obj.a2l_addr.ext, slice).await?;
-        self.calibration_objects[handle.0].set_value(slice);
+        self.calibration_object_list[handle.0].set_value(slice);
         Ok(())
     }
     pub async fn set_value_i64(&mut self, handle: XcpCalibrationObjectHandle, value: i64) -> Result<(), Box<dyn Error>> {
-        let obj = &self.calibration_objects[handle.0];
+        let obj = &self.calibration_object_list[handle.0];
         if (value as f64) > obj.a2l_limits.upper || (value as f64) < obj.a2l_limits.lower {
-            return Err(Box::new(XcpError::new(ERROR_LIMIT, 0)) as Box<dyn Error>);
+            return Err(Box::new(XcpClientError::new(ERROR_LIMIT, 0)) as Box<dyn Error>);
         }
-        let size: usize = obj.get_type.size as usize;
+        let size: usize = obj.get_type.size;
         let slice = &value.to_le_bytes()[0..size];
         self.short_download(obj.a2l_addr.addr, obj.a2l_addr.ext, slice).await?;
-        self.calibration_objects[handle.0].set_value(slice);
+        self.calibration_object_list[handle.0].set_value(slice);
         Ok(())
     }
     pub async fn set_value_f64(&mut self, handle: XcpCalibrationObjectHandle, value: f64) -> Result<(), Box<dyn Error>> {
-        let obj = &self.calibration_objects[handle.0];
+        let obj = &self.calibration_object_list[handle.0];
         if value > obj.a2l_limits.upper || value < obj.a2l_limits.lower {
-            return Err(Box::new(XcpError::new(ERROR_LIMIT, 0)) as Box<dyn Error>);
+            return Err(Box::new(XcpClientError::new(ERROR_LIMIT, 0)) as Box<dyn Error>);
         }
-        let size: usize = obj.get_type.size as usize;
+        let size: usize = obj.get_type.size;
         let slice = &value.to_le_bytes()[0..size];
         self.short_download(obj.a2l_addr.addr, obj.a2l_addr.ext, slice).await?;
-        self.calibration_objects[handle.0].set_value(slice);
+        self.calibration_object_list[handle.0].set_value(slice);
         Ok(())
     }
 
     pub async fn read_value_u64(&mut self, index: XcpCalibrationObjectHandle) -> Result<u64, Box<dyn Error>> {
-        let a2l_addr = self.calibration_objects[index.0].a2l_addr;
-        let get_type = self.calibration_objects[index.0].get_type;
-        let resp = self.short_upload(a2l_addr.addr, a2l_addr.ext, get_type.size).await?;
-        let value = resp[1..=get_type.size as usize].to_vec();
-        self.calibration_objects[index.0].value = value;
+        let obj = &self.calibration_object_list[index.0];
+        let a2l_addr = obj.a2l_addr;
+        let get_type = obj.get_type;
+        let size = obj.get_type.size;
+        assert!(size < 256, "xcp_client currently supports only <256 byte values");
+        let resp = self.short_upload(a2l_addr.addr, a2l_addr.ext, size as u8).await?;
+        let value = resp[1..=get_type.size].to_vec();
+        self.calibration_object_list[index.0].value = value;
         Ok(self.get_value_u64(index))
     }
 
     pub fn get_value_u64(&mut self, index: XcpCalibrationObjectHandle) -> u64 {
-        let obj = &self.calibration_objects[index.0];
+        let obj = &self.calibration_object_list[index.0];
         obj.get_value_u64()
     }
 
     pub fn get_value_i64(&mut self, index: XcpCalibrationObjectHandle) -> i64 {
-        let obj = &self.calibration_objects[index.0];
+        let obj = &self.calibration_object_list[index.0];
         obj.get_value_i64()
     }
     pub fn get_value_f64(&mut self, index: XcpCalibrationObjectHandle) -> f64 {
-        let obj = &self.calibration_objects[index.0];
+        let obj = &self.calibration_object_list[index.0];
         let v = obj.get_value_u64();
-        #[allow(clippy::transmute_int_to_float)]
-        // @@@@ - unsafe - Test XCP client
-        unsafe {
-            std::mem::transmute(v)
+        match obj.get_type.size {
+            8 => {
+                // Convert to f64
+                f64::from_bits(v)
+            }
+            4 => {
+                // Convert to f32
+                f32::from_bits(v as u32) as f64
+            }
+            _ => {
+                error!("get_value_f64: size = {}", obj.get_type.size);
+                0.0
+            }
         }
     }
 
     //------------------------------------------------------------------------
-    // XcpMeasurementObject, XcpMeasurmentObjectHandle (index pointer to XcpCMeasurmentObject),
+    // XcpMeasurementObject, XcpMeasurementObjectHandle (index pointer to XcpCMeasurementObject),
     //
 
     pub fn create_measurement_object(&mut self, name: &str) -> Option<XcpMeasurementObjectHandle> {
-        let (a2l_addr, a2l_type) = a2l_find_measurement(self.a2l_file.as_ref().unwrap(), name)?;
-        let o = XcpMeasurementObject::new(name, a2l_addr, a2l_type);
-        debug!("Create measurement object {}: addr = {:?} type = {:?}", name, a2l_addr, a2l_type,);
-        self.measurement_objects.push(o);
-        Some(XcpMeasurementObjectHandle(self.measurement_objects.len() - 1))
+        let registry = self.registry.as_ref().unwrap();
+        match registry.instance_list.find_instance(name, xcp_lite::registry::McObjectType::Measurement, None) {
+            None => {
+                debug!("Measurement {} not found", name);
+                None
+            }
+            Some(instance) => {
+                let (ext, addr) = instance.address().get_a2l_addr(registry);
+                if instance.event_id().is_none() {
+                    log::error!("event_id for measurement object {} not found, addr = {}:0x{:0X}", name, ext, addr);
+                    return None;
+                }
+                let event = instance.event_id().unwrap();
+                let a2l_addr: A2lAddr = A2lAddr { ext, addr, event: Some(event) };
+                let a2l_type: A2lType = A2lType {
+                    size: instance.value_size(),
+                    encoding: instance.value_type().into(),
+                };
+                let o = XcpClientMeasurementObject::new(name, a2l_addr, a2l_type);
+                debug!("Create measurement object {}: addr = {:?} type = {:?}", name, a2l_addr, a2l_type,);
+                self.measurement_object_list.push(o);
+                Some(XcpMeasurementObjectHandle(self.measurement_object_list.len() - 1))
+            }
+        }
+    }
+
+    pub fn get_measurement_object(&self, handle: XcpMeasurementObjectHandle) -> &XcpClientMeasurementObject {
+        &self.measurement_object_list[handle.0]
     }
 
     //------------------------------------------------------------------------
@@ -1362,10 +1521,10 @@ impl XcpClient {
 
     /// Start DAQ
     pub async fn start_measurement(&mut self) -> Result<(), Box<dyn Error>> {
-        info!("Start measurement");
+        debug!("Start measurement");
 
         // Init
-        let signal_count = self.measurement_objects.len();
+        let signal_count = self.measurement_object_list.len();
         let mut daq_odt_entries: Vec<Vec<OdtEntry>> = Vec::with_capacity(8);
 
         // Store all events in a hashmap (eventnumber, signalcount)
@@ -1373,7 +1532,7 @@ impl XcpClient {
         let mut min_event: u16 = 0xFFFF;
         let mut max_event: u16 = 0;
         for i in 0..signal_count {
-            let event = self.measurement_objects[i].get_addr().event;
+            let event = self.measurement_object_list[i].get_a2l_addr().event.unwrap();
             if event < min_event {
                 min_event = event;
             }
@@ -1384,7 +1543,7 @@ impl XcpClient {
             *count += 1;
         }
         let event_count: u16 = event_map.len() as u16;
-        info!("event/daq count = {}", event_count);
+        debug!("event/daq count = {}", event_count);
 
         // Transform the event hashmap to a sorted array
         let mut event_list: Vec<(u16, u16)> = Vec::new();
@@ -1420,16 +1579,16 @@ impl XcpClient {
             //
             let event = event_list[daq as usize].0;
             let odt = 0; // Only one odt per daq list supported yet
-            let odt_entry_count = self.measurement_objects.len();
+            let odt_entry_count = self.measurement_object_list.len();
 
             // Create ODT entries for this daq list
             let mut odt_entries = Vec::new();
             let mut odt_size: u16 = 0;
             self.set_daq_ptr(daq, odt, 0).await?;
             for odt_entry in 0..odt_entry_count {
-                let m = &mut self.measurement_objects[odt_entry];
+                let m = &mut self.measurement_object_list[odt_entry];
                 let a2l_addr = m.a2l_addr;
-                if a2l_addr.event == event {
+                if a2l_addr.event == Some(event) {
                     // Only add signals for the daq list event
                     let a2l_type: A2lType = m.a2l_type;
                     m.daq = daq;
@@ -1455,11 +1614,13 @@ impl XcpClient {
                         offset: odt_size,
                     });
 
-                    self.write_daq(a2l_addr.ext, a2l_addr.addr, a2l_type.size).await?;
+                    let size = a2l_type.size;
+                    assert!(size < 256, "xcp_client currently supports only <256 byte values");
+                    self.write_daq(a2l_addr.ext, a2l_addr.addr, size as u8).await?;
 
                     odt_size += a2l_type.size as u16;
                     if odt_size > self.max_dto_size - 6 {
-                        return Err(Box::new(XcpError::new(ERROR_ODT_SIZE, 0)) as Box<dyn Error>);
+                        return Err(Box::new(XcpClientError::new(ERROR_ODT_SIZE, 0)) as Box<dyn Error>);
                     }
                 }
             } // odt_entries
@@ -1496,7 +1657,7 @@ impl XcpClient {
 
     /// Stop DAQ
     pub async fn stop_measurement(&mut self) -> Result<(), Box<dyn Error>> {
-        info!("Stop measurement");
+        debug!("Stop measurement");
 
         // Stop DAQ
         let res = self.stop_all_daq_lists().await;
@@ -1507,6 +1668,9 @@ impl XcpClient {
 
         // Stop the DAQ decoder
         self.daq_decoder.as_ref().unwrap().lock().stop();
+
+        // Clear the measurement object list
+        self.measurement_object_list.clear();
 
         res
     }

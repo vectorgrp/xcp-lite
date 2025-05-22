@@ -2,7 +2,7 @@
 #define __MAIN_CFG_H__
 
 /*
-| Build options for XCP or xcpliv
+| Build options for XCP or xcplib
 |
 | Code released into public domain, no attribution required
 */
@@ -37,22 +37,26 @@
 // XCP options
 #define OPTION_ENABLE_TCP
 #define OPTION_ENABLE_UDP
-#define OPTION_MTU 8000                // UDP MTU size - Jumbo frames supported
-#define OPTION_QUEUE_SIZE 1024         // Max number of ODTs in transmit queue
-#define OPTION_DAQ_MEM_SIZE (3000 * 5) // Max memory for DAQ tables - sufficient for about 3000 measurement signals
+#define OPTION_MTU 6000 // UDP MTU size - Jumbo frames supported
+
+// @@@@ TODO: OPTION_QUEUE_SIZE not used anymore
+// #define OPTION_QUEUE_SIZE (1024 * 2)        // Memory bytes used for XCP transmit queue
+
+#define OPTION_DAQ_MEM_SIZE (32 * 1024 * 5) // Memory bytes used for XCP DAQ tables - max 5 bytes per signal needed
 #define OPTION_ENABLE_A2L_UPLOAD
 #define OPTION_SERVER_FORCEFULL_TERMINATION
 
 // Platform options
+
 // Clock
-#define OPTION_CLOCK_EPOCH_ARB
+// #define OPTION_CLOCK_EPOCH_ARB // -> use CLOCK_MONOTONIC_RAW
+#define OPTION_CLOCK_EPOCH_PTP // -> use CLOCK_REALTIME
 #define OPTION_CLOCK_TICKS_1NS
 
 // Enable socketGetLocalAddr and XcpEthTlGetInfo
 // Used for convenience to get a correct ip addr in A2L, when bound to ANY 0.0.0.0
-// @@@@ TODO: Broken on Windows - need to fix
 // #define OPTION_ENABLE_GET_LOCAL_ADDR
 
 // Logging
 #define OPTION_ENABLE_DBG_PRINTS
-#define OPTION_DEFAULT_DBG_LEVEL 3
+#define OPTION_DEFAULT_DBG_LEVEL 2

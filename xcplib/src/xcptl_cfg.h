@@ -37,19 +37,12 @@
 #ifdef OPTION_MTU
 #define XCPTL_MAX_SEGMENT_SIZE (OPTION_MTU - 20 - 8) // UDP MTU (MTU - IP-header - UDP-header)
 #else
+#error "Please define XCPTL_MAX_SEGMENT_SIZE"
 #define XCPTL_MAX_SEGMENT_SIZE (1500 - 20 - 8)
 #endif
 
 // Alignment for packet concatenation
 #define XCPTL_PACKET_ALIGNMENT 4 // Packet alignment for multiple XCP transport layer packets in a XCP transport layer message
-
-// Transmit queue size, should at least be able to hold all data produced until the next call to HandleTransmitQueue
-// Size is in XCP DTO/CRM packets (not messages as in V1.x)
-#ifdef OPTION_QUEUE_SIZE
-#define XCPTL_QUEUE_SIZE OPTION_QUEUE_SIZE
-#else
-#define XCPTL_QUEUE_SIZE (256)
-#endif
 
 // Maximum queue (producer->consumer) event rate (Windows only, Linux uses polling on the consumer side)
 #define XCPTL_QUEUE_TRANSMIT_CYCLE_TIME (1 * CLOCK_TICKS_PER_MS)

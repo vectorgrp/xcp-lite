@@ -27,9 +27,7 @@
 extern uint8_t gDebugLevel;
 #define DBG_LEVEL gDebugLevel
 
-#define DBG_PRINTF(level, format, ...)                                                                                                                                             \
-    if (DBG_LEVEL >= level)                                                                                                                                                        \
-    printf("[XCP  ] " format, __VA_ARGS__)
+#define DBG_PRINTF(format, ...) printf(format, __VA_ARGS__)
 #define DBG_PRINTF_ERROR(format, ...)                                                                                                                                              \
     if (DBG_LEVEL >= 1)                                                                                                                                                            \
     printf("[XCP  ] ERROR: " format, __VA_ARGS__)
@@ -46,9 +44,7 @@ extern uint8_t gDebugLevel;
     if (DBG_LEVEL >= 5)                                                                                                                                                            \
     printf("[XCP  ] " format, __VA_ARGS__)
 
-#define DBG_PRINT(level, format)                                                                                                                                                   \
-    if (DBG_LEVEL >= level)                                                                                                                                                        \
-    printf("[XCP  ] " format)
+#define DBG_PRINT(format) printf(format)
 #define DBG_PRINT_ERROR(format)                                                                                                                                                    \
     if (DBG_LEVEL >= 1)                                                                                                                                                            \
     printf("[XCP  ] ERROR: " format)
@@ -69,14 +65,14 @@ extern uint8_t gDebugLevel;
 
 #undef DBG_LEVEL
 
-#define DBG_PRINTF(level, s, ...)
+#define DBG_PRINTF(s, ...)
 #define DBG_PRINTF_ERROR(s, ...) // printf(s,__VA_ARGS__)
 #define DBG_PRINTF_WARNING(s, ...)
 #define DBG_PRINTF3(s, ...)
 #define DBG_PRINTF4(s, ...)
 #define DBG_PRINTF5(s, ...)
 
-#define DBG_PRINT(level, s, ...)
+#define DBG_PRINT(s, ...)
 #define DBG_PRINT_ERROR(s, ...) // printf(s,__VA_ARGS__)
 #define DBG_PRINT_WARNING(s, ...)
 #define DBG_PRINT3(s, ...)

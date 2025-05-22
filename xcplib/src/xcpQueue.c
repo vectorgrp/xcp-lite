@@ -16,10 +16,10 @@
 #include "xcpQueue.h"
 
 #include <assert.h>   // for assert
+#include <inttypes.h> // for PRIu64
 #include <stdbool.h>  // for bool
 #include <stdint.h>   // for uint32_t, uint64_t, uint8_t, int64_t
 #include <stdio.h>    // for NULL, snprintf
-#include <inttypes.h> // for PRIu64
 #include <stdlib.h>   // for free, malloc
 #include <string.h>   // for memcpy, strcmp
 
@@ -30,8 +30,8 @@
 #ifndef _WIN
 #include <stdatomic.h>
 #else
-#ifdef _WIN32_ // @@@@
-#error "Windows32 not implemented yet"
+#ifdef _WIN32_
+#error "Windows32 not implemented"
 #endif
 
 // On Windows 64 we rely on the x86-64 strong memory model and assume atomic 64 bit load/store
@@ -62,7 +62,6 @@ static uint64_t lockTimeHistogram[HISTOGRAM_SIZE] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 
 #define COMMITTED 1 // Committed by producer
 
 #define ENTRY_SIZE (XCPTL_MAX_DTO_SIZE + XCPTL_TRANSPORT_LAYER_HEADER_SIZE)
-// #define BUFFER_SIZE ((XCPTL_QUEUE_SIZE + 1) * ENTRY_SIZE) // Buffer size must be one entry larger than queue size
 
 // Queue header
 typedef struct {

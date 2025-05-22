@@ -1,105 +1,157 @@
 // hello_xcp
-// Basic demo
-
+// xcp-lite basic demo
+//
+// Demonstrates the usage of xcp-lite for Rust together with a CANape project
+//
 // Run the demo
-// cargo run --features serde --example hello_xcp
-
+// cargo run --example hello_xcp
+//
 // Run the test XCP client in another terminal or start CANape with the project in folder examples/hello_xcp/CANape
-// cargo run --example xcp_client
+// cargo run --example xcp_client -- -m "counter"
 
-use anyhow::Result;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use std::{fmt::Debug, thread, time::Duration};
-use xcp::*;
+
+use xcp_lite::registry::*;
+use xcp_lite::*;
 
 //-----------------------------------------------------------------------------
-// Calibration parameters
+// Parameters
 
-// Define calibration parameters as a struct
-// XCP: Add meta data for A2L generation
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
-struct CalPage {
-    #[type_description(comment = "Max counter value")]
-    #[type_description(min = "0")]
-    #[type_description(max = "1023")]
-    counter_max: u32,
+const APP_NAME: &str = "hello_xcp";
+const XCP_QUEUE_SIZE: u32 = 1024 * 64; // 64kB
+const MAINLOOP_CYCLE_TIME: u32 = 10000; // 10ms
 
-    #[type_description(comment = "Min counter value")]
-    #[type_description(min = "0")]
-    #[type_description(max = "1023")]
-    counter_min: u32,
+//-----------------------------------------------------------------------------
+// Command line arguments
 
-    #[type_description(comment = "Task delay time in us")]
-    #[type_description(min = "0")]
-    #[type_description(max = "1000000")]
-    #[type_description(unit = "us")]
-    delay: u32,
+const DEFAULT_LOG_LEVEL: u8 = 3; // Info
+const DEFAULT_BIND_ADDR: std::net::Ipv4Addr = std::net::Ipv4Addr::new(0, 0, 0, 0); // ANY
+const DEFAULT_PORT: u16 = 5555;
+const DEFAULT_TCP: bool = false; // UDP
+
+use clap::Parser;
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Log level (Off=0, Error=1, Warn=2, Info=3, Debug=4, Trace=5)
+    #[arg(short, long, default_value_t = DEFAULT_LOG_LEVEL)]
+    log_level: u8,
+
+    /// Bind address, default is ANY
+    #[arg(short, long, default_value_t = DEFAULT_BIND_ADDR)]
+    bind: std::net::Ipv4Addr,
+
+    /// Use TCP as transport layer, default is UDP
+    #[arg(short, long, default_value_t = DEFAULT_TCP)]
+    tcp: bool,
+
+    /// Port number
+    #[arg(short, long, default_value_t = DEFAULT_PORT)]
+    port: u16,
+
+    /// Application name
+    #[arg(short, long, default_value_t = String::from(APP_NAME))]
+    name: String,
 }
 
-// Optionally define methods if needed
-impl CalPage {
-    fn get_delay(&self) -> u64 {
-        self.delay as u64
-    }
+//-----------------------------------------------------------------------------
+// Demo calibration parameters
+
+// Define calibration parameters in a struct with semantic annotations to create the A2L file
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+struct Params {
+    #[characteristic(comment = "Start/stop counter")]
+    counter_on: bool,
+
+    #[characteristic(comment = "Max counter value")]
+    #[characteristic(min = "0", max = "1023")]
+    counter_max: u32,
+
+    #[characteristic(comment = "Task delay time in s, ecu internal value as u32 in us")]
+    #[characteristic(min = "0.00001", max = "2", unit = "s", factor = "0.000001")]
+    delay: u32,
+
+    #[characteristic(comment = "Demo array", min = "0", max = "100")]
+    array: [u8; 4],
+
+    #[characteristic(comment = "Demo matrix", min = "0", max = "100")]
+    matrix: [[u8; 8]; 4],
 }
 
 // Default values for the calibration parameters
-const CAL_PAGE: CalPage = CalPage {
-    counter_min: 5,
-    counter_max: 10,
-    delay: 100000,
+const PARAMS: Params = Params {
+    counter_on: true,
+    counter_max: 100,
+    delay: MAINLOOP_CYCLE_TIME,
+    array: [0, 2, 5, 10],
+    matrix: [[0, 0, 0, 0, 0, 0, 1, 2], [0, 0, 0, 0, 0, 0, 2, 3], [0, 0, 0, 0, 1, 1, 2, 3], [0, 0, 0, 1, 1, 2, 3, 4]],
 };
 
 //-----------------------------------------------------------------------------
 
-fn main() -> Result<()> {
-    println!("XCP Demo");
+fn main() -> anyhow::Result<()> {
+    println!("XCP for Rust demo - hello_xcp - CANape project in ./examples/hello_xcp/CANape");
+
+    // Args
+    let args = Args::parse();
+    let log_level = match args.log_level {
+        2 => log::LevelFilter::Warn,
+        3 => log::LevelFilter::Info,
+        4 => log::LevelFilter::Debug,
+        5 => log::LevelFilter::Trace,
+        _ => log::LevelFilter::Error,
+    };
 
     // Logging
-    env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(log::LevelFilter::Info).init();
+    env_logger::Builder::new()
+        .target(env_logger::Target::Stdout)
+        .filter_level(log_level)
+        .format_timestamp(None)
+        .format_module_path(false)
+        .format_target(false)
+        .init();
 
     // XCP: Initialize the XCP server
-    let xcp = XcpBuilder::new("hello_xcp")
-        .set_log_level(3)
-        .set_epk("EPK_")
-        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555, 1024 * 64)?;
+    let app_name = args.name.as_str();
+    let app_revision = build_info::format!("EPK_{}", $.timestamp);
+    let _xcp = Xcp::get()
+        .set_app_name(app_name)
+        .set_app_revision(app_revision)
+        .set_log_level(args.log_level)
+        .start_server(
+            if args.tcp { XcpTransportLayer::Tcp } else { XcpTransportLayer::Udp },
+            args.bind.octets(),
+            args.port,
+            XCP_QUEUE_SIZE,
+        )?;
 
     // XCP: Create a calibration segment wrapper with default values and register the calibration parameters
-    let cal_page = xcp.create_calseg("calseg", &CAL_PAGE);
-    cal_page.register_fields();
+    let params = CalSeg::new("my_params", &PARAMS);
+    params.register_fields();
 
-    // XCP: Load calibration parameter page from a file if it exists, otherwise initially save the defaults
-    #[allow(unexpected_cfgs)]
-    #[cfg(feature = "serde")]
-    if cal_page.load("hello_xcp.json").is_err() {
-        cal_page.save("hello_xcp.json").unwrap();
-    }
+    // Demo measurement variable on stack
+    let mut counter: u32 = 0;
 
-    // Measurement variables on stack
-    let mut counter: u32 = cal_page.counter_min;
-    let mut counter_u64: u64 = 0;
-
-    // XCP: Register a measurement event and bind the measurement variables
-    let event = daq_create_event!("mainloop", 16);
+    // XCP: Register a measurement event and bind measurement variables
+    let event = daq_create_event!("my_event", 16);
     daq_register!(counter, event);
-    daq_register!(counter_u64, event);
 
     loop {
-        // XCP: Synchronize calibration parameters in cal_page and lock read access
-        let cal_page = cal_page.read_lock();
+        // XCP: Synchronize calibration parameters in cal_page and lock read access for consistency
+        let params = params.read_lock();
 
-        counter += 1;
-        counter_u64 += 1;
-        if counter > cal_page.counter_max {
-            counter = cal_page.counter_min;
+        if params.counter_on {
+            counter += 1;
+            if counter > params.counter_max {
+                counter = 0;
+            }
         }
 
         // XCP: Trigger timestamped measurement data acquisition
         event.trigger();
 
-        thread::sleep(Duration::from_micros(cal_page.get_delay()));
+        std::thread::sleep(std::time::Duration::from_micros(params.delay as u64));
     }
-
-    // Ok(())
 }

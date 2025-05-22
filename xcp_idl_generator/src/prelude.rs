@@ -1,6 +1,6 @@
-pub use crate::gen::collection::GeneratorCollection;
-pub use crate::gen::Generator;
-pub use crate::types::{Field, FieldList, Struct, IDL};
+pub use crate::r#gen::Generator;
+pub use crate::r#gen::collection::GeneratorCollection;
+pub use crate::types::{Field, FieldList, IDL, Struct};
 
 pub use crate::{IdlGenerator, STRUCTS};
 pub use xcp_idl_generator_derive::IdlGenerator;

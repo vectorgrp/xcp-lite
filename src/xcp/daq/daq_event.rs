@@ -4,61 +4,19 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use crate::{reg::RegistryMeasurement, xcp::*, RegistryDataType};
-
-//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-// XcpEvent
-
-impl Xcp {
-    /// Create a measurement event and a measurement variable directly associated to the event with memory offset 0
-    pub fn create_measurement_object(&self, name: &'static str, data_type: RegistryDataType, x_dim: u16, y_dim: u16, comment: &'static str) -> XcpEvent {
-        let event = self.create_event(name);
-        if self
-            .get_registry()
-            .lock()
-            .add_measurement(RegistryMeasurement::new(
-                name, data_type, x_dim, y_dim, event, 0, // byte_offset
-                0, 1.0, // factor
-                0.0, // offset
-                comment, "", // unit
-                None,
-            ))
-            .is_err()
-        {
-            error!("Error: Measurement {} already exists", name);
-        }
-        event
-    }
-}
-
-/// Create a single instance XCP event and register the given variable once, trigger the event
-#[allow(unused_macros)]
-#[macro_export]
-macro_rules! daq_event_ref {
-
-    ( $id:expr, $data_type: expr, $x_dim: expr, $comment:expr ) => {{
-        lazy_static::lazy_static! {
-            static ref XCP_EVENT__: XcpEvent = Xcp::get().create_measurement_object(stringify!($id), $data_type, $x_dim, 1, $comment);
-        }
-        XCP_EVENT__.trigger(&(*$id) as *const _ as *const u8, 0 );
-    }};
-    ( $id:expr, $data_type: expr, $x_dim: expr, $y_dim: expr, $comment:expr ) => {{
-        lazy_static::lazy_static! {
-            static ref XCP_EVENT__: XcpEvent = Xcp::get().create_measurement_object(stringify!($id), $data_type, $x_dim, $y_dim, $comment);
-        }
-        // @@@@ Unsafe - C library call which will dereference the raw pointer base
-        unsafe { XCP_EVENT__.trigger_ext(&(*$id) as *const _ as *const u8); }
-    }};
-}
+use crate::registry::*;
+use crate::xcp::*;
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // DaqEvent
 
-/// DaqEvent is a wrapper for XcpEvent which adds the capability to read variables from stack or adds an optional capture buffer to capture variable values
+/// DaqEvent is a wrapper for XcpEvent which adds the capability to read variables from stack or heap, or hold an optional capture buffer of capacity N to capture variable values
+#[doc(hidden)]
 #[derive(Debug)]
 pub struct DaqEvent<const N: usize> {
     event: XcpEvent,
     buffer_len: usize,
+    /// The optinal capture buffer
     pub buffer: [u8; N],
 }
 
@@ -73,7 +31,7 @@ impl<const N: usize> DaqEvent<N> {
     pub fn new(name: &'static str) -> DaqEvent<N> {
         let xcp = Xcp::get();
         DaqEvent {
-            event: xcp.create_event_ext(name, false, 0),
+            event: xcp.create_event_ext(name, false),
             buffer_len: 0,
             buffer: [0; N],
         }
@@ -88,8 +46,14 @@ impl<const N: usize> DaqEvent<N> {
         }
     }
 
-    fn get_xcp_event(&self) -> XcpEvent {
+    // Get the XcpEvent
+    pub fn get_xcp_event(&self) -> XcpEvent {
         self.event
+    }
+
+    /// Get the XCP event id
+    pub fn get_event_id(&self) -> u16 {
+        self.event.id
     }
 
     /// Get the capacity of the capture buffer
@@ -98,7 +62,11 @@ impl<const N: usize> DaqEvent<N> {
         N
     }
 
-    /// Allocate space in the capture buffer
+    /// Allocate space in the events capture buffer
+    /// # Panics
+    /// On event buffer memory overflow
+    /// # Returns
+    /// Offset in the event buffer
     pub fn allocate(&mut self, size: usize) -> i16 {
         trace!("Allocate DAQ buffer, size={}, len={}", size, self.buffer_len);
         let offset = self.buffer_len;
@@ -113,69 +81,63 @@ impl<const N: usize> DaqEvent<N> {
         self.buffer[offset..offset + data.len()].copy_from_slice(data);
     }
 
-    /// Trigger for stack or capture buffer measurement with base pointer relative addressing
+    /// Trigger for stack or capture buffer measurement with relative addressing on base address &self.buffer
     pub fn trigger(&self) {
         let base: *const u8 = &self.buffer as *const u8;
-        // @@@@ Unsafe - C library call which will dereference the raw pointer base
+        // @@@@ UNSAFE - C library call which will dereference the raw pointer base
         unsafe {
             self.event.trigger_ext(base);
         }
     }
 
-    /// Trigger for stack measurement with absolute addressing
-    pub fn trigger_abs(&self) {
-        self.event.trigger_abs();
+    /// Trigger for event relative addressing on base address base_ptr
+    pub fn trigger_ext<T>(&self, base: *const T) {
+        // @@@@ UNSAFE - C library call which will dereference the raw pointer base
+        unsafe {
+            self.event.trigger_ext(base as *const u8);
+        }
     }
 
-    /// Associate a variable to this DaqEvent, allocate space in the capture buffer and register it
+    /// Associate a variable to this DaqEvent, register in rel addr mode, allocate space in the capture buffer and register it
     #[allow(clippy::too_many_arguments)]
     pub fn add_capture(
         &mut self,
         name: &'static str,
         size: usize,
-        datatype: RegistryDataType,
+        value_type: McValueType,
         x_dim: u16,
         y_dim: u16,
         factor: f64,
         offset: f64,
         unit: &'static str,
         comment: &'static str,
-        annotation: Option<String>,
     ) -> i16 {
-        let event_offset: i16 = self.allocate(size); // Address offset (signed) relative to event memory context (XCP_ADDR_EXT_DYN)
-        trace!("Allocate DAQ buffer for {}, TLS OFFSET = {} {:?} and register measurement", name, event_offset, datatype);
+        let event_offset: i16 = self.allocate(size); // Address offset (signed) relative to event memory context (XCP_ADDR_EXT_DYN or XCP_ADDR_EXT_REL)
+        trace!("Allocate DAQ buffer for {}, TLS OFFSET = {} {:?} and register measurement", name, event_offset, &value_type);
         let event = self.get_xcp_event();
-        if Xcp::get()
-            .get_registry()
-            .lock()
-            .add_measurement(RegistryMeasurement::new(
+        let mc_support_data = McSupportData::new(McObjectType::Measurement).set_comment(comment).set_linear(factor, offset, unit);
+        if let Some(reg) = registry::get_lock().as_mut() {
+            if let Err(e) = reg.instance_list.add_instance(
                 name,
-                datatype,
-                x_dim,
-                y_dim,
-                event,
-                event_offset,
-                0u64,
-                factor,
-                offset,
-                comment,
-                unit,
-                annotation,
-            ))
-            .is_err()
-        {
-            error!("Error: Measurement {} already exists", name);
+                McDimType::new_with_metadata(value_type, x_dim, y_dim, mc_support_data),
+                McAddress::new_event_rel(event.get_id(), event_offset as i32),
+            ) {
+                error!("add_instance failed: {}", e);
+            }
+        } else {
+            warn!("Could not register {}, registry already closed", name);
         }
+
         event_offset
     }
 
-    /// Associate a variable on stack to this DaqEvent and register it
+    /// Associate a variable on stack to this DaqEvent and register it in rel addr mode
     #[allow(clippy::too_many_arguments)]
     pub fn add_stack(
         &self,
         name: &'static str,
         ptr: *const u8,
-        datatype: RegistryDataType,
+        value_type: McValueType,
         x_dim: u16,
         y_dim: u16,
         factor: f64,
@@ -186,63 +148,41 @@ impl<const N: usize> DaqEvent<N> {
         let p = ptr as usize; // variable address
         let b = &self.buffer as *const _ as usize; // base address
         let o: i64 = p as i64 - b as i64; // variable - base address
-        let event_offset: i16 = o.try_into().expect("memory offset out of rang");
-        trace!(
-            "add_stack: {} {:?} ptr={:p} base={:p} event_offset={}",
-            name,
-            datatype,
-            ptr,
-            &self.buffer as *const _,
-            event_offset
-        );
-        if Xcp::get()
-            .get_registry()
-            .lock()
-            .add_measurement(RegistryMeasurement::new(
+        let event_offset: i32 = o.try_into().expect("memory offset out of range");
+        let mc_support_data = McSupportData::new(McObjectType::Measurement).set_comment(comment).set_linear(factor, offset, unit);
+        if let Some(reg) = registry::get_lock().as_mut() {
+            if let Err(e) = reg.instance_list.add_instance(
                 name,
-                datatype,
-                x_dim,
-                y_dim,
-                self.event,
-                event_offset,
-                0u64,
-                factor,
-                offset,
-                comment,
-                unit,
-                None,
-            ))
-            .is_err()
-        {
-            println!("Error: Measurement {} already exists", name);
+                McDimType::new_with_metadata(value_type, x_dim, y_dim, mc_support_data),
+                McAddress::new_event_rel(self.event.get_id(), event_offset),
+            ) {
+                error!("add_instance failed: {}", e);
+            }
+        } else {
+            warn!("Could not register {}, registry already closed", name);
         }
     }
 
-    /// Associate a variable on stack to this DaqEvent and register it
+    /// Associate a variable on heap to this DaqEvent and register it in event rel addr mode
+    /// Use trigger_ext() to trigger the event
+    /// # Panics
+    /// If offset ptr to base_ptr is not with i32 range
     #[allow(clippy::too_many_arguments)]
-    pub fn add_heap(
-        &self,
-        name: &'static str,
-        ptr: *const u8,
-        datatype: RegistryDataType,
-        x_dim: u16,
-        y_dim: u16,
-        factor: f64,
-        offset: f64,
-        unit: &'static str,
-        comment: &'static str,
-    ) {
-        debug!("add_heap: {} {:?} ptr={:p} ", name, datatype, ptr,);
-
-        if Xcp::get()
-            .get_registry()
-            .lock()
-            .add_measurement(RegistryMeasurement::new(
-                name, datatype, x_dim, y_dim, self.event, 0i16, ptr as u64, factor, offset, comment, unit, None,
-            ))
-            .is_err()
-        {
-            error!("Error: Measurement {} already exists", name);
+    pub fn add_heap<T: Into<McIdentifier>, B, V>(&self, name: T, base: *const B, value: *const V, value_type: McValueType, x_dim: u16, y_dim: u16, mc_support_data: McSupportData) {
+        let name = name.into();
+        let base_ptr: *const u8 = base as *const u8;
+        let ptr: *const u8 = value as *const u8;
+        let offset: i32 = unsafe { ptr.offset_from(base_ptr) }.try_into().unwrap();
+        if let Some(reg) = registry::get_lock().as_mut() {
+            if let Err(e) = reg.instance_list.add_instance(
+                name,
+                McDimType::new_with_metadata(value_type, x_dim, y_dim, mc_support_data),
+                McAddress::new_event_rel(self.event.get_id(), offset),
+            ) {
+                error!("add_instance failed: {}", e);
+            }
+        } else {
+            warn!("Could not register {}, registry already closed", name);
         }
     }
 }
@@ -261,16 +201,6 @@ impl<const N: usize> DaqEvent<N> {
 #[allow(unused_macros)]
 #[macro_export]
 macro_rules! daq_create_event {
-    // With capture buffer and cycle time
-    // Value may be moved, variable addresses is capture buffer offset
-    ( $name:expr, $capacity: expr, $cycle_time_ns: expr ) => {{
-        // Scope for lazy static XCP_EVENT__, create the XCP event only once
-        lazy_static::lazy_static! {
-            static ref XCP_EVENT__: XcpEvent = Xcp::get().create_event_ext($name,false,$cycle_time_ns);
-        }
-        // Create the DAQ event every time the thread is running through this code
-        DaqEvent::<{ $capacity }>::new_from(&XCP_EVENT__)
-    }};
     // With capture buffer
     // Value may be moved, variable addresses is capture buffer offset
     ( $name:expr, $capacity: expr ) => {{
@@ -312,7 +242,6 @@ macro_rules! daq_capture {
                     $offset,
                     $unit,
                     $comment,
-                    None,
                 );
                 DAQ_OFFSET__.store(byte_offset, std::sync::atomic::Ordering::Relaxed);
             }
@@ -338,7 +267,6 @@ macro_rules! daq_capture {
                     0.0,
                     $unit,
                     $comment,
-                    None,
                 );
                 DAQ_OFFSET__.store(byte_offset, std::sync::atomic::Ordering::Relaxed);
             }
@@ -363,7 +291,6 @@ macro_rules! daq_capture {
                     0.0,
                     "",
                     "",
-                    None,
                 );
                 DAQ_OFFSET__.store(byte_offset, std::sync::atomic::Ordering::Relaxed);
             }
@@ -373,8 +300,40 @@ macro_rules! daq_capture {
     }};
 }
 
+// @@@@ TODO Work in progress, does not compile
+// let x: [u8; std::mem::size_of::<Lookup>()] = unsafe { std::mem::transmute(*lookup) };
+// Capture the value of a variable with struct copy type into the the capture buffer of the given daq event
+// Register the given variable metadata once
+#[allow(unused_macros)]
+#[macro_export]
+macro_rules! daq_capture_struct {
+    // name, event
+    ( $id:ident, $daq_event:expr ) => {{
+        static DAQ_OFFSET__: std::sync::atomic::AtomicI16 = std::sync::atomic::AtomicI16::new(-32768);
+        let byte_offset;
+        match DAQ_OFFSET__.compare_exchange(-32768, 0, std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed) {
+            Ok(_) => {
+                byte_offset = $daq_event.add_capture(
+                    stringify!($id),
+                    std::mem::size_of_val(&$id),
+                    (*$id).get_type(),
+                    1, // x_dim
+                    1, // y_dim
+                    1.0,
+                    0.0,
+                    "",
+                    "",
+                );
+                DAQ_OFFSET__.store(byte_offset, std::sync::atomic::Ordering::Relaxed);
+            }
+            Err(offset) => byte_offset = offset,
+        };
+        $daq_event.capture(unsafe { std::mem::transmute(*$id) }, byte_offset);
+    }};
+}
+
 /// Register a local variable with basic type for the given daq event
-/// Address format and addressing mode will be relative to the stack frame position of the variable holding the event
+/// McAddress format and addressing mode will be relative to the stack frame position of the variable holding the event
 /// No capture buffer required
 #[allow(unused_macros)]
 #[macro_export]
@@ -405,8 +364,38 @@ macro_rules! daq_register {
     }};
 }
 
+/// Register a local variable with type struct for the given daq event
+/// McAddress format and addressing mode will be relative to the stack frame position of the variable holding the event
+/// No capture buffer required
+#[allow(unused_macros)]
+#[macro_export]
+macro_rules! daq_register_struct {
+    // name, event
+    ( $id:ident, $daq_event:expr ) => {{
+        static ONCE: std::sync::Once = std::sync::Once::new();
+        ONCE.call_once(|| {
+            if let Some(type_description) = $id.type_description(true) {
+                // Register via RegisterFieldsTrait, don't register instance
+                $id.register_struct_typedef(None, $daq_event.get_event_id());
+                // Create an instance of the typedef with event relative addressing on stack
+                $daq_event.add_stack(
+                    stringify!($id),
+                    &$id as *const _ as *const u8,
+                    McValueType::new_typedef(type_description.name()),
+                    1,
+                    1,
+                    1.0,
+                    0.0,
+                    "",
+                    "",
+                );
+            }
+        });
+    }};
+}
+
 /// Register a local variable with type array of basic type for the given daq event
-/// Address format and addressing mode will be relative to the stack frame position of the variable holding the event
+/// McAddress format and addressing mode will be relative to the stack frame position of the variable holding the event
 /// No capture buffer required
 #[allow(unused_macros)]
 #[macro_export]
@@ -422,7 +411,7 @@ macro_rules! daq_register_array {
 }
 
 /// Register a local variable which is a reference to heap with basic type for the given daq event
-/// Address format and addressing mode will be absolute addressing mode
+/// McAddress format and addressing mode will be absolute addressing mode
 /// Assuming that the memory location is reachable in absolute addressing mode, otherwise panic
 /// No capture buffer required
 #[allow(unused_macros)]
@@ -449,19 +438,18 @@ macro_rules! daq_serialize {
         let byte_offset;
         match DAQ_OFFSET__.compare_exchange(-32768, 0, std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed) {
             Ok(_) => {
-                // @@@@ TODO: Hard coded type here for point_cloud demo
+                // @@@@ TODO Hard coded type here for point_cloud demo
                 let annotation = GeneratorCollection::generate(&IDL::CDR, &$id.description()).unwrap();
                 byte_offset = $daq_event.add_capture(
                     stringify!($id),
                     std::mem::size_of_val(&$id),
-                    RegistryDataType::Blob,
+                    McValueType::new_blob(annotation),
                     $daq_event.buffer.len().try_into().expect("buffer too large"), // x_dim is buffer size in bytes
                     1,                                                             // y_dim
                     1.0,
                     0.0,
                     "",
                     $comment,
-                    Some(annotation),
                 );
                 DAQ_OFFSET__.store(byte_offset, std::sync::atomic::Ordering::Relaxed);
             }
@@ -471,6 +459,47 @@ macro_rules! daq_serialize {
         $daq_event.capture(&v, byte_offset);
     }};
 }
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// XcpEvent
+
+// impl Xcp {
+//     // Create a measurement event and a measurement variable directly associated to the event with memory offset 0
+//     pub fn create_measurement_object(&self, name: &'static str, value_type: McValueType, x_dim: u16, y_dim: u16, comment: &'static str) -> XcpEvent {
+//         let event = self.create_event(name);
+//         if registry::get_lock().instance_list.add_instance(
+//                 name, McDimType::new_with_metadata(value_type, x_dim, y_dim), event, 0, // byte_offset
+//                 0, 1.0, // factor
+//                 0.0, // offset
+//                 comment, "", // unit
+//             )
+//             .is_err()
+//         {
+//             error!("Error: Measurement {} already exists", name);
+//         }
+//         event
+//     }
+// }
+
+// Create a single instance XCP event and register the given variable once, trigger the event
+// #[allow(unused_macros)]
+// #[macro_export]
+// macro_rules! daq_event_ref {
+
+//     ( $id:expr, $value_type: expr, $x_dim: expr, $comment:expr ) => {{
+//         lazy_static::lazy_static! {
+//             static ref XCP_EVENT__: XcpEvent = Xcp::get().create_measurement_object(stringify!($id), $value_type, $x_dim, 1, $comment);
+//         }
+//         XCP_EVENT__.trigger(&(*$id) as *const _ as *const u8, 0 );
+//     }};
+//     ( $id:expr, $value_type: expr, $x_dim: expr, $y_dim: expr, $comment:expr ) => {{
+//         lazy_static::lazy_static! {
+//             static ref XCP_EVENT__: XcpEvent = Xcp::get().create_measurement_object(stringify!($id), $value_type, $x_dim, $y_dim, $comment);
+//         }
+//         // @@@@ UNSAFE - C library call which will dereference the raw pointer base
+//         unsafe { XCP_EVENT__.trigger_ext(&(*$id) as *const _ as *const u8); }
+//     }};
+// }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -491,7 +520,7 @@ macro_rules! daq_create_event_tli {
             static XCP_EVENT__: std::cell::Cell<XcpEvent> = const { std::cell::Cell::new(XcpEvent::XCP_UNDEFINED_EVENT) }
         }
         if XCP_EVENT__.get() == XcpEvent::XCP_UNDEFINED_EVENT {
-            XCP_EVENT__.set(Xcp::get().create_event_ext($name, true, 0));
+            XCP_EVENT__.set(Xcp::get().create_event_ext($name, true));
         }
         DaqEvent::<$capacity>::new_from(&XCP_EVENT__.get())
     }};
@@ -500,7 +529,7 @@ macro_rules! daq_create_event_tli {
             static XCP_EVENT__: std::cell::Cell<XcpEvent> = const { std::cell::Cell::new(XcpEvent::XCP_UNDEFINED_EVENT) }
         }
         if XCP_EVENT__.get() == XcpEvent::XCP_UNDEFINED_EVENT {
-            XCP_EVENT__.set(Xcp::get().create_event_ext($name, true, 0));
+            XCP_EVENT__.set(Xcp::get().create_event_ext($name, true));
         }
         DaqEvent::<0>::new_from(&XCP_EVENT__.get())
     }};
@@ -531,7 +560,6 @@ macro_rules! daq_capture_tli {
                 $offset,
                 $unit,
                 $comment,
-                None,
             );
             DAQ_OFFSET__.set(offset)
         };
@@ -555,7 +583,6 @@ macro_rules! daq_capture_tli {
                 0.0,
                 $unit,
                 $comment,
-                None,
             );
             DAQ_OFFSET__.set(offset)
         };
@@ -579,7 +606,6 @@ macro_rules! daq_capture_tli {
                 0.0,
                 "",
                 "",
-                None,
             );
             DAQ_OFFSET__.set(offset)
         };
@@ -588,7 +614,7 @@ macro_rules! daq_capture_tli {
 }
 
 /// Register a local variable with basic type once for the given multi instance daq event
-/// Address will be relative to the stack frame position of event
+/// McAddress will be relative to the stack frame position of event
 /// No capture buffer required
 #[allow(unused_macros)]
 #[macro_export]
@@ -624,19 +650,17 @@ macro_rules! daq_register_tli {
 //-----------------------------------------------------------------------------
 
 /// Create a multi instance task DAQ event
-/// Each call will create a new instance of an event named "<name>_<instance_index>""
+/// Each call will create a new instance of an event named "name_instanceindex>""
 #[allow(unused_macros)]
 #[macro_export]
 macro_rules! daq_create_event_instance {
-    ( $name:expr ) => {{
-        DaqEvent::<0>::new_from(&Xcp::get().create_event_ext($name, true, 0))
-    }};
+    ( $name:expr ) => {{ DaqEvent::<0>::new_from(&Xcp::get().create_event_ext($name, true)) }};
 }
 
 /// Register a local variable with basic type for the given daq event once for each event instance
 /// The events index number will be appended to the variable name
 /// May be executed only once, there is no check the instance already exists
-/// Address will be relative to the stack frame position of event
+/// McAddress will be relative to the stack frame position of event
 /// No capture buffer required
 #[allow(unused_macros)]
 #[macro_export]
@@ -648,10 +672,9 @@ macro_rules! daq_register_instance {
     }};
 }
 
-//-----------------------------------------------------------------------------
-// Test
-// Tests for the daq types
-//-----------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+// Test module
 
 #[cfg(test)]
 mod daq_tests {
@@ -660,16 +683,17 @@ mod daq_tests {
     #![allow(unused_imports)]
 
     use super::*;
-
-    use crate::reg::*;
+    use crate::registry::*;
+    //use crate::xcp;
     use crate::xcp::*;
+
+    use xcp_type_description::prelude::*;
 
     //-----------------------------------------------------------------------------
     // Test local variable register
     #[test]
-    fn daq_register() {
-        xcp_test::test_setup(log::LevelFilter::Info);
-        let xcp = Xcp::get();
+    fn test_daq_register() {
+        let xcp = xcp_test::test_setup();
 
         let event = daq_create_event!("TestEvent1");
         let mut counter1: u16 = 0;
@@ -702,15 +726,14 @@ mod daq_tests {
                 break;
             }
         }
-        xcp.write_a2l().unwrap(); // @@@@ TODO: force A2L write
+        xcp.finalize_registry().unwrap(); // Generate A2L and test
     }
 
     //-----------------------------------------------------------------------------
     // Test local variable capture
     #[test]
-    fn daq_capture() {
-        xcp_test::test_setup(log::LevelFilter::Info);
-        let xcp = Xcp::get();
+    fn test_daq_capture() {
+        let xcp = xcp_test::test_setup();
 
         let mut event = daq_create_event!("TestEvent1", 15);
         let mut counter1: u16 = 0;
@@ -737,15 +760,14 @@ mod daq_tests {
                 break;
             }
         }
-        xcp.write_a2l().unwrap(); // @@@@ TODO: force A2L write
+        xcp.finalize_registry().unwrap(); // Generate A2L and test
     }
 
     //-----------------------------------------------------------------------------
     // Test A2L file generation for local variables
     #[test]
     fn test_a2l_local_variables_capture() {
-        xcp_test::test_setup(log::LevelFilter::Info);
-        let xcp = Xcp::get();
+        let xcp = xcp_test::test_setup();
 
         let mut event1: DaqEvent<0> = DaqEvent::new_from(&XcpEvent::XCP_UNDEFINED_EVENT);
         let mut event1_2: DaqEvent<0> = DaqEvent::new_from(&XcpEvent::XCP_UNDEFINED_EVENT);
@@ -757,7 +779,7 @@ mod daq_tests {
                 event1_2 = event;
             }
         }
-        assert!(event1.get_xcp_event().get_channel() == event1_2.get_xcp_event().get_channel());
+        assert!(event1.get_xcp_event().get_id() == event1_2.get_xcp_event().get_id());
 
         // let event1 = daq_create_event!("event"); // panic: duplicate event
 
@@ -796,6 +818,6 @@ mod daq_tests {
 
         // daq_register_instance!(channel6, event5); // panic: duplicate measurement
 
-        xcp.write_a2l().unwrap(); // @@@@ TODO: force A2L write
+        xcp.finalize_registry().unwrap(); // Generate A2L and test
     }
 }

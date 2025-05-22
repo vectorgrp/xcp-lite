@@ -49,7 +49,7 @@ impl Field {
         self.0
     }
 
-    pub fn datatype(&self) -> &str {
+    pub fn value_type(&self) -> &str {
         self.1
     }
 }

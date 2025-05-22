@@ -1,12 +1,12 @@
-use crate::domain::VECTOR_NAMESPACE;
-use crate::gen::Generator;
-use crate::gen::TypeMapping;
-use crate::types::Struct;
 use crate::STRUCTS;
+use crate::domain::VECTOR_NAMESPACE;
+use crate::r#gen::Generator;
+use crate::r#gen::TypeMapping;
+use crate::types::Struct;
 use regex::Regex;
 use std::sync::Once;
 
-//TODO: Move to common package
+//TODO Move to common package
 fn extract_types(input: &str) -> Vec<&str> {
     let re = Regex::new(r"[^\w]+").unwrap();
     re.split(input).filter(|s| !s.is_empty()).collect()
@@ -25,7 +25,7 @@ impl CdrGenerator {
             .fields()
             .iter()
             .map(|field| {
-                let mut translated_type = field.datatype().to_string();
+                let mut translated_type = field.value_type().to_string();
 
                 for (key, value) in self.type_mapping().iter() {
                     translated_type = translated_type.replace(key, value);
@@ -65,16 +65,16 @@ impl Generator for CdrGenerator {
         let mut processed: Vec<&str> = Vec::new();
 
         for field in input.fields().iter() {
-            let extracted_type_tree = extract_types(field.datatype());
+            let extracted_type_tree = extract_types(field.value_type());
 
-            for datatype in extracted_type_tree.iter() {
-                match self.type_mapping().get(datatype) {
+            for value_type in extracted_type_tree.iter() {
+                match self.type_mapping().get(value_type) {
                     None => {
-                        if processed.contains(datatype) {
+                        if processed.contains(value_type) {
                             continue;
                         }
 
-                        let s_slice: &str = datatype;
+                        let s_slice: &str = value_type;
                         let description = struct_collection.get(s_slice).unwrap();
 
                         let inner_type_name = description.type_name();
@@ -89,7 +89,7 @@ impl Generator for CdrGenerator {
                         let tag = format!("module {VECTOR_NAMESPACE} {{");
                         translation = translation.replace(&tag, &format!("module {VECTOR_NAMESPACE} {{\"\n{}", idl_str));
 
-                        processed.push(datatype);
+                        processed.push(value_type);
                     }
                     Some(_) => { /* Rust primitive -> Ignored */ }
                 }
@@ -99,12 +99,12 @@ impl Generator for CdrGenerator {
         translation
     }
 
-    //TODO: Add other type mappings
+    //TODO Add other type mappings
     fn type_mapping(&self) -> &'static TypeMapping {
         static mut MAPPING: Option<TypeMapping> = None;
         static INIT: Once = Once::new();
 
-        // @@@@ - unsafe - Mutable static, TODO
+        // @@@@ UNSAFE - Mutable static, TODO
         unsafe {
             INIT.call_once(|| {
                 let mut mapping = TypeMapping::new();
@@ -115,7 +115,7 @@ impl Generator for CdrGenerator {
                 MAPPING = Some(mapping);
             });
             #[allow(static_mut_refs)]
-            MAPPING.as_ref().unwrap() //TODO: Error Handling??
+            MAPPING.as_ref().unwrap() //TODO Error Handling??
         }
     }
 }

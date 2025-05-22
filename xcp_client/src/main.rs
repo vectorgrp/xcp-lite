@@ -1,13 +1,16 @@
 //-----------------------------------------------------------------------------
-// xcp_client is a binary crate that uses the xcp_client library crate
+// xcp_client - XCP client example
+// This example demonstrates how to connect to an XCP server, load an A2L file, read and write calibration variables,
+// and measure data using the DAQ protocol.
+// The example uses the tokio runtime and async/await syntax.
+//
+// Run:
+// cargo r --example xcp_client -- -h
 
-use a2l::a2l_reader::A2lTypeEncoding;
 use parking_lot::Mutex;
 use std::{error::Error, sync::Arc};
 mod xcp_client;
 use xcp_client::*;
-mod a2l;
-// mod mdflib;
 
 //----------------------------------------------------------------------------------------------
 // Logging
@@ -34,7 +37,10 @@ impl ToLogLevelFilter for u8 {
 }
 
 //------------------------------------------------------------------------
-// Handle incomming DAQ data
+// DaqDecoder
+// Handle incoming DAQ data
+// This is a simple example of a DAQ decoder that prints the decoded data to the console
+// It can be used as a template for more advanced DAQ decoders
 
 const MAX_EVENT: usize = 16;
 
@@ -61,9 +67,7 @@ impl DaqDecoder {
     }
 }
 
-// Hard coded decoder for DAQ data
-// This is a simple example, a real application would need to decode the data according to the actual measurement setup
-// Assumes first signal is a 32 bit counter and there is only one ODT
+// Decoder for DAQ data
 impl XcpDaqDecoder for DaqDecoder {
     // Set start time and init
     fn start(&mut self, daq_odt_entries: Vec<Vec<OdtEntry>>, timestamp: u64) {
@@ -74,46 +78,9 @@ impl XcpDaqDecoder for DaqDecoder {
         for t in self.daq_timestamp.iter_mut() {
             *t = timestamp;
         }
-
-        // Init MDF file
-        /*
-        let daq_odt_entries = odt_entries.lock();
-        let mut record_len = 0;
-        for odt_entry in &daq_odt_entries{
-
-            record_len = odt_entries.iter().iter().map(|o| o.a2l_type.size as u32).sum();
-        }
-
-        unsafe {
-            let file_name = std::ffi::CString::new("test.mdf").unwrap();
-            mdflib::mdfOpen(file_name.as_ptr());
-
-            mdflib::mdfCreateChannelGroup(0, record_len, 8, 0.000000001);
-            for odt_entry in odt_entries.iter() {
-                let channel_name = std::ffi::CString::new(odt_entry.name.as_str()).unwrap();
-                let unit_name = std::ffi::CString::new("channel1_unit").unwrap();
-                mdflib::mdfCreateChannel(
-                    channel_name.as_ptr(),
-                    odt_entry.a2l_type.size,
-                    odt_entry.a2l_type.encoding as i8,
-                    1,
-                    odt_entry.offset as u32,
-                    1.0,
-                    0.0,
-                    unit_name.as_ptr(),
-                );
-            }
-            mdflib::mdfWriteHeader();
-            //mdflib::mdfWriteRecord(record, recordLen);
-        }
-        */
     }
 
-    fn stop(&mut self) {
-        //unsafe {
-        //    mdflib::mdfClose();
-        //}
-    }
+    fn stop(&mut self) {}
 
     // Set timestamp resolution
     fn set_daq_properties(&mut self, timestamp_resolution: u64, daq_header_size: u8) {
@@ -130,10 +97,10 @@ impl XcpDaqDecoder for DaqDecoder {
 
         // Decode header and raw timestamp
         if self.daq_header_size == 4 {
-            daq = buf[2] as u16 | (buf[3] as u16) << 8;
+            daq = (buf[2] as u16) | ((buf[3] as u16) << 8);
             odt = buf[0];
             if odt == 0 {
-                timestamp_raw = buf[4] as u32 | (buf[4 + 1] as u32) << 8 | (buf[4 + 2] as u32) << 16 | (buf[4 + 3] as u32) << 24;
+                timestamp_raw = (buf[4] as u32) | ((buf[4 + 1] as u32) << 8) | ((buf[4 + 2] as u32) << 16) | ((buf[4 + 3] as u32) << 24);
                 data = &buf[8..];
             } else {
                 data = &buf[4..];
@@ -142,7 +109,7 @@ impl XcpDaqDecoder for DaqDecoder {
             daq = buf[1] as u16;
             odt = buf[0];
             if odt == 0 {
-                timestamp_raw = buf[2] as u32 | (buf[2 + 1] as u32) << 8 | (buf[2 + 2] as u32) << 16 | (buf[2 + 3] as u32) << 24;
+                timestamp_raw = (buf[2] as u32) | ((buf[2 + 1] as u32) << 8) | ((buf[2 + 2] as u32) << 16) | ((buf[2 + 3] as u32) << 24);
                 data = &buf[6..];
             } else {
                 data = &buf[2..];
@@ -160,7 +127,7 @@ impl XcpDaqDecoder for DaqDecoder {
             if timestamp_raw < tl {
                 th += 1;
             }
-            let t = timestamp_raw as u64 | (th as u64) << 32;
+            let t = (timestamp_raw as u64) | ((th as u64) << 32);
             if t < t_last {
                 warn!("Timestamp of daq {} declining {} -> {}", daq, t_last, t);
             }
@@ -177,7 +144,7 @@ impl XcpDaqDecoder for DaqDecoder {
 
         // Decode all odt entries
         for odt_entry in daq_list.iter() {
-            let value_size = odt_entry.a2l_type.size as usize;
+            let value_size = odt_entry.a2l_type.size;
             let mut value_offset = odt_entry.offset as usize + value_size - 1;
             let mut value: u64 = 0;
             loop {
@@ -226,6 +193,9 @@ impl XcpDaqDecoder for DaqDecoder {
                         println!(" {} = {}", odt_entry.name, value);
                     }
                 }
+                A2lTypeEncoding::Blob => {
+                    panic!("Blob not supported");
+                }
             }
         }
 
@@ -266,52 +236,57 @@ use clap::Parser;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
+    // -l --log-level
     /// Log level (Off=0, Error=1, Warn=2, Info=3, Debug=4, Trace=5)
-    #[arg(short, long, default_value_t = 2)]
+    #[arg(short, long, default_value_t = 3)]
     log_level: u8,
 
+    // -d --dest_addr
     /// XCP server address
     #[arg(short, long, default_value = "127.0.0.1:5555")]
     dest_addr: String,
 
+    // -p --port
     /// XCP server port number
     #[arg(short, long, default_value_t = 5555)]
     port: u16,
 
+    // -b -- bind-addr
     /// Bind address, master port number
     #[arg(short, long, default_value = "0.0.0.0:9999")]
     bind_addr: String,
 
-    /// Print detailled A2L infos
-    #[clap(long)]
-    print_a2l: bool,
+    // --list_mea
+    /// Lists all matchin measurement variables found in the A2L file
+    #[clap(long, default_value = "")]
+    list_mea: String,
 
-    /// Lists all measurement variables
-    #[clap(long)]
-    list_mea: bool,
+    // --list-cal
+    /// Lists all matching calibration variables found in the A2L file
+    #[clap(long, default_value = "")]
+    list_cal: String,
 
-    /// Lists all calibration variables
-    #[clap(long)]
-    list_cal: bool,
-
-    /// Specifies the variables names for DAQ measurement, 'all' or a list of names separated by space
+    // -m --mea
+    /// Specify variable names for DAQ measurement, may be list of names separated by space or single regular expressions (e.g. ".*")
     #[arg(short, long, value_delimiter = ' ', num_args = 1..)]
-    measurement_list: Vec<String>,
+    mea: Vec<String>,
 
-    /// A2L filename, default is upload A2L file
-    #[arg(short, long)]
-    a2l_filename: Option<String>,
+    // -t --time
+    /// Specify measurement duration in ms
+    #[arg(short, long, default_value_t = 5000)]
+    time_ms: u64,
 }
 
 //------------------------------------------------------------------------
-async fn xcp_client(
+// A simple example how to use the XCP client
+
+async fn xcp_client_demo(
     dest_addr: std::net::SocketAddr,
     local_addr: std::net::SocketAddr,
-    a2l_filename: Option<String>,
-    print_a2l: bool,
-    list_cal: bool,
-    list_mea: bool,
+    list_cal: String,
+    list_mea: String,
     measurement_list: Vec<String>,
+    measurement_time_ms: u64,
 ) -> Result<(), Box<dyn Error>> {
     // Create xcp_client
     let mut xcp_client = XcpClient::new(dest_addr, local_addr);
@@ -323,105 +298,110 @@ async fn xcp_client(
 
     // Upload A2L file
     info!("Load A2L file");
-    xcp_client.a2l_loader(a2l_filename, print_a2l).await?;
+    xcp_client.a2l_loader().await?;
 
-    // Print all calibration objects with current value
-    if list_cal {
+    // Print all known calibration objects and get their current value
+    if !list_cal.is_empty() {
         println!();
         println!("Calibration variables:");
-        let cal_objects = xcp_client.get_characteristics();
+        let cal_objects = xcp_client.find_characteristics(list_cal.as_str());
         for name in &cal_objects {
-            let h = xcp_client.create_calibration_object(name).await?;
-            let o = xcp_client.get_calibration_object(h);
-
-            match o.get_type().encoding {
+            let h: XcpCalibrationObjectHandle = xcp_client.create_calibration_object(name).await?;
+            match xcp_client.get_calibration_object(h).get_a2l_type().encoding {
                 A2lTypeEncoding::Signed => {
                     let v = xcp_client.get_value_i64(h);
-                    println!(" {} = {}", name, v);
+                    let o = xcp_client.get_calibration_object(h);
+                    println!(" {} {}:{:08X} = {}", o.get_name(), o.get_a2l_addr().ext, o.get_a2l_addr().addr, v);
                 }
                 A2lTypeEncoding::Unsigned => {
                     let v = xcp_client.get_value_u64(h);
-                    println!(" {} = {}", name, v);
+                    let o = xcp_client.get_calibration_object(h);
+                    println!(" {} {}:{:08X} = {}", o.get_name(), o.get_a2l_addr().ext, o.get_a2l_addr().addr, v);
                 }
                 A2lTypeEncoding::Float => {
                     let v = xcp_client.get_value_f64(h);
-                    println!(" {} = {:.8}", name, v);
+                    let o = xcp_client.get_calibration_object(h);
+                    println!(" {} {}:{:08X} = {}", o.get_name(), o.get_a2l_addr().ext, o.get_a2l_addr().addr, v);
+                }
+                A2lTypeEncoding::Blob => {
+                    println!(" {} = [...]", name);
                 }
             }
         }
         println!();
+        return Ok(());
     }
 
-    // Print all measurement objects
-    if list_mea {
+    // Print all known measurement objects
+    if !list_mea.is_empty() {
         println!();
         println!("Measurement variables:");
-        let mea_objects = xcp_client.get_measurements();
+        let mea_objects = xcp_client.find_measurements(&list_mea);
         for name in &mea_objects {
-            println!(" {}", name);
+            let h = xcp_client.create_measurement_object(name).unwrap();
+            let o = xcp_client.get_measurement_object(h);
+            println!(" {} {} {}", o.get_name(), o.get_a2l_addr(), o.get_a2l_type());
         }
         println!();
+        return Ok(());
     }
 
     // Calibration
-    // Change the value of CalPage1.counter_max to 255 (if exists - from main.rs, hello_xcp.rs, multi_thread_demo.rs)
+    // Change the value of CalPage1.counter_max to 255 (if exists, available in: main.rs, hello_xcp.rs, multi_thread_demo.rs)
     // Measure how long this takes
-    let start_time = tokio::time::Instant::now();
-    if let Ok(counter_max) = xcp_client.create_calibration_object("CalPage1.counter_max").await {
-        let v = xcp_client.get_value_u64(counter_max);
-        let elapsed_time_1 = start_time.elapsed().as_micros();
-        xcp_client.set_value_u64(counter_max, 255).await.unwrap();
-        let elapsed_time_2 = start_time.elapsed().as_micros();
-        info!("Get CalPage1.counter_max = {} (duration = {}us)", v, elapsed_time_1);
-        info!("Set CalPage1.counter_max to {} (duration = {}us)", 255, elapsed_time_2);
-    }
-    // Change the value of ampl to 100.0 (if exists - from XCPlite)
-    // Measure how long this takes
-    let start_time = tokio::time::Instant::now();
-    if let Ok(counter_max) = xcp_client.create_calibration_object("ampl").await {
-        let v = xcp_client.get_value_f64(counter_max);
-        let elapsed_time_1 = start_time.elapsed().as_micros();
-        xcp_client.set_value_f64(counter_max, 123.0).await.unwrap();
-        let elapsed_time_2 = start_time.elapsed().as_micros();
-        info!("Get ampl = {} (duration = {}us)", v, elapsed_time_1);
-        info!("Set ampl to {} (duration = {}us)", 123.0, elapsed_time_2);
-    }
-
-    // Measure
-    let measure_all: bool = measurement_list.len() == 1 && measurement_list[0] == "all";
-
-    if !measurement_list.is_empty() || measure_all {
-        // Set cycle time of main demo tasks (if exists - from main.rs)
-        // counter_x task 1 cycle time
-        if let Ok(cycle_time) = xcp_client.create_calibration_object("static_cal_page.task1_cycle_time_us").await {
-            xcp_client.set_value_u64(cycle_time, 1000).await?;
+    /*
+        let start_time = tokio::time::Instant::now();
+        if let Ok(counter_max) = xcp_client.create_calibration_object("counter_max").await {
+            let v = xcp_client.get_value_u64(counter_max);
+            let elapsed_time_1 = start_time.elapsed().as_micros();
+            let new_v = 10;
+            xcp_client.set_value_u64(counter_max, new_v).await.unwrap();
+            let elapsed_time_2 = start_time.elapsed().as_micros();
+            info!("Get cal_seg.counter_max = {} (duration = {}us)", v, elapsed_time_1);
+            info!("Set cal_seg.counter_max to {} (duration = {}us)", new_v, elapsed_time_2);
         }
-        // channel_x task 2 cycle time
-        if let Ok(cycle_time) = xcp_client.create_calibration_object("static_cal_page.task2_cycle_time_us").await {
-            xcp_client.set_value_u64(cycle_time, 100000).await?;
+        // Change the value of ampl to 100.0 (if exists, available in XCPlite)
+        // Measure how long this takes
+        let start_time = tokio::time::Instant::now();
+        if let Ok(counter_max) = xcp_client.create_calibration_object("ampl").await {
+            let v = xcp_client.get_value_f64(counter_max);
+            let elapsed_time_1 = start_time.elapsed().as_micros();
+            xcp_client.set_value_f64(counter_max, 123.0).await.unwrap();
+            let elapsed_time_2 = start_time.elapsed().as_micros();
+            info!("Get cal_seg.ampl = {} (duration = {}us)", v, elapsed_time_1);
+            info!("Set cal_seg.ampl to {} (duration = {}us)", 123.0, elapsed_time_2);
         }
-        info!("");
+    */
 
-        // Measure all existing measurement variables or the list of variables provided
+    // Measurement demo (DAQ)
+    if !measurement_list.is_empty() {
+        let list = if measurement_list.len() == 1 {
+            // Regular expression
+            xcp_client.find_measurements(measurement_list[0].as_str())
+        } else {
+            // Just a list of names
+            measurement_list
+        };
+
+        // Create measurement objects for all names in the lis
         // Multi dimensional objects not supported yet
-        info!("Measurement variables");
-        let mea_objects = if !measure_all { measurement_list } else { xcp_client.get_measurements() };
-        for o in &mea_objects {
-            if xcp_client.create_measurement_object(o).is_some() {
-                info!(r#"  Created measurement object {}"#, o);
+        info!("Measurement list:");
+        for name in &list {
+            if let Some(o) = xcp_client.create_measurement_object(name) {
+                info!(r#"  {}: {}"#, o.0, name);
             }
         }
         info!("");
 
-        // Measure for 6 seconds
+        // Measure for n seconds
         // 32 bit DAQ timestamp will overflow after 4.2s
         let start_time = tokio::time::Instant::now();
         xcp_client.start_measurement().await?;
-        tokio::time::sleep(std::time::Duration::from_secs(6)).await;
+        tokio::time::sleep(std::time::Duration::from_millis(measurement_time_ms)).await;
         xcp_client.stop_measurement().await?;
         let elapsed_time = start_time.elapsed().as_micros();
 
-        // Print statistics
+        // Print statistics from DAQ decoder
         let event_count = daq_decoder.lock().event_count;
         let byte_count = daq_decoder.lock().byte_count;
         info!(
@@ -439,6 +419,7 @@ async fn xcp_client(
 }
 
 //------------------------------------------------------------------------
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
@@ -452,19 +433,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .format_target(false)
         .init();
 
-    let dest_addr: std::net::SocketAddr = args.dest_addr.parse().map_err(|e| format!("{}", e))?;
-    let local_addr: std::net::SocketAddr = args.bind_addr.parse().map_err(|e| format!("{}", e))?;
-    info!("dest_addr: {}", dest_addr);
-    info!("local_addr: {}", local_addr);
-
-    let measurement_list = args.measurement_list;
+    // Measurement variable list from command line
+    let measurement_list = args.mea;
     if !measurement_list.is_empty() {
         info!("measurement_list: {:?}", measurement_list);
     }
 
-    if args.a2l_filename.is_some() {
-        info!("a2l_filename: {}", args.a2l_filename.as_ref().unwrap());
-    }
-
-    xcp_client(dest_addr, local_addr, args.a2l_filename, args.print_a2l, args.list_cal, args.list_mea, measurement_list).await
+    // Start XCP client
+    let dest_addr: std::net::SocketAddr = args.dest_addr.parse().map_err(|e| format!("{}", e))?;
+    let local_addr: std::net::SocketAddr = args.bind_addr.parse().map_err(|e| format!("{}", e))?;
+    info!("dest_addr: {}", dest_addr);
+    info!("local_addr: {}", local_addr);
+    xcp_client_demo(dest_addr, local_addr, args.list_cal, args.list_mea, measurement_list, args.time_ms).await
 }
