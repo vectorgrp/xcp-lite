@@ -1,26 +1,17 @@
 //----------------------------------------------------------------------------------------------
 // Module xcp
 
+#![allow(unused_imports)]
+
+use bitflags::bitflags;
+use lazy_static::lazy_static;
 use parking_lot::Mutex;
-use std::{
-    net::Ipv4Addr,
-    sync::{
-        atomic::{AtomicU8, Ordering},
-        Arc,
-    },
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, AtomicU8, Ordering},
 };
 
-// Using sync version of OnceCell from once_cell crate for the static event remapping array
-use once_cell::sync::OnceCell;
-
-// Using lazy_static crate for the XCP singleton
-use lazy_static::lazy_static;
-
-// Using bitflags crate for the XCP session status flags
-use bitflags::bitflags;
-
-use crate::reg;
-use reg::*;
+use crate::registry::{self, McEvent};
 
 //-----------------------------------------------------------------------------
 // Submodules
@@ -29,12 +20,28 @@ use reg::*;
 pub mod daq;
 
 // Submodule cal
-pub mod cal;
-use cal::cal_seg::{CalPageTrait, CalSeg};
-use cal::CalSegList;
+mod cal;
+pub use cal::CalCell;
+pub use cal::CalPageTrait;
+pub use cal::CalSeg;
+pub use cal::CalSegList;
 
-// Use XCPlite xcplib as XCP server
 mod xcplib;
+
+//-----------------------------------------------------------------------------
+// XCP println macro
+
+/// Print formated text to CANape console
+#[allow(unused_macros)]
+#[macro_export]
+macro_rules! xcp_println {
+    ( $fmt:expr ) => {
+        Xcp::get().print(&format!($fmt));
+    };
+    ( $fmt:expr, $( $arg:expr ),* ) => {
+        Xcp::get().print(&format!($fmt, $( $arg ),*));
+    };
+}
 
 //----------------------------------------------------------------------------------------------
 // XCP error
@@ -73,34 +80,35 @@ bitflags! {
 // Statically allocate memory for remapping XCP event numbers
 // The mapping of event numbers is used to create deterministic A2L files, regardless of the order of event creation
 // The remapping cell is initialized when the registry is finalized and the A2L is written
-static XCP_EVENT_MAP: OnceCell<[u16; XcpEvent::XCP_MAX_EVENTS]> = OnceCell::new();
+// static XCP_EVENT_MAP: OnceCell<[u16; XcpEvent::XCP_MAX_EVENTS]> = OnceCell::new();
 
 /// Represents a measurement event  
-/// Glue needed for the macros
-/// Holds the raw u16 XCP event number used in the XCP protocol and in A2L IF_DATA to identify an event
+/// Holds the raw u16 event number used in the XCP protocol and in A2L IF_DATA to identify an event
 /// May have an index > 0 to express multiple events with the same name are instanciated in different thread local instances
 #[derive(Debug, Clone, Copy)]
 pub struct XcpEvent {
-    channel: u16, // Number used in A2L and XCP protocol
-    index: u16,   // Instance index, 0 if single instance
+    id: u16,    // Number used in A2L and XCP protocol
+    index: u16, // Instance index, 0 if single instance
 }
 
 impl XcpEvent {
     /// Maximum number of events
-    pub const XCP_MAX_EVENTS: usize = 1024;
-    /// Undefined event channel number
-    pub const XCP_UNDEFINED_EVENT_CHANNEL: u16 = 0xFFFF;
+    pub const XCP_MAX_EVENTS: u16 = 1024;
+    /// Maximum number of thread local event instances
+    pub const XCP_MAX_EVENT_INSTS: u16 = 255;
+    /// Undefined event id number
+    pub const XCP_UNDEFINED_EVENT_ID: u16 = 0xFFFF;
 
     /// Uninitialized event
     pub const XCP_UNDEFINED_EVENT: XcpEvent = XcpEvent {
-        channel: XcpEvent::XCP_UNDEFINED_EVENT_CHANNEL,
+        id: XcpEvent::XCP_UNDEFINED_EVENT_ID,
         index: 0,
     };
 
     /// Create a new XCP event
-    pub fn new(channel: u16, index: u16) -> XcpEvent {
-        assert!((channel as usize) < XcpEvent::XCP_MAX_EVENTS, "Maximum number of events exceeded");
-        XcpEvent { channel, index }
+    pub fn new(id: u16, index: u16) -> XcpEvent {
+        assert!(id < XcpEvent::XCP_MAX_EVENTS, "Maximum number of events exceeded");
+        XcpEvent { id, index }
     }
 
     /// Get the event name
@@ -108,14 +116,19 @@ impl XcpEvent {
         XCP.event_list.lock().get_name(self).unwrap()
     }
 
-    /// Get the event number as u16
-    /// Event number is a unique number for each event
-    pub fn get_channel(self) -> u16 {
-        if let Some(event_map) = XCP_EVENT_MAP.get() {
-            event_map[self.channel as usize]
-        } else {
-            self.channel
-        }
+    // Get the event id as u16
+    // Event id is a unique number for each event
+    // pub fn get_id(self) -> u16 {
+    //     if let Some(event_map) = XCP_EVENT_MAP.get() {
+    //         event_map[self.id as usize]
+    //     } else {
+    //         panic!("XCP event map not initialized");
+    //         //self.id
+    //     }
+    // }
+
+    pub fn get_id(self) -> u16 {
+        self.id
     }
 
     /// Get the event id as u16
@@ -125,17 +138,8 @@ impl XcpEvent {
         self.index
     }
 
-    /// Get address extension and address for A2L generation for XCP_ADDR_EXT_DYN addressing mode
-    /// Used by A2L writer
-    pub fn get_dyn_ext_addr(self, offset: i16) -> (u8, u32) {
-        let a2l_ext = Xcp::XCP_ADDR_EXT_DYN;
-        #[allow(clippy::cast_sign_loss)]
-        let a2l_addr: u32 = (self.get_channel() as u32) << 16 | (offset as u16 as u32);
-        (a2l_ext, a2l_addr)
-    }
-
-    /// Trigger a XCP event and provide a base pointer for relative addressing mode (XCP_ADDR_EXT_DYN)
-    /// Address of the associated measurement variables must be relative to base
+    /// Trigger a XCP event and provide a base pointer for relative addressing mode (XCP_ADDR_EXT_DYN or XCP_ADDR_EXT_REL)
+    /// McAddress of the associated measurement variables must be relative to base
     ///
     /// # Safety
     /// This is a C ffi call, which gets a pointer to a daq capture buffer
@@ -143,45 +147,21 @@ impl XcpEvent {
     /// The buffer must match its registry description, to avoid corrupt data given to the XCP tool
     //#[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub unsafe fn trigger_ext(self, base: *const u8) -> u8 {
-        // @@@@ Unsafe - C library call and transfering a pointer and its valid memory range to XCPlite FFI
-        #[cfg(not(feature = "xcp_appl"))]
-        unsafe {
-            xcplib::XcpEventExt(self.get_channel(), base)
-        }
-        #[cfg(feature = "xcp_appl")]
-        unsafe {
-            let daq_lists = XCP.daq_lists.load(Ordering::Relaxed);
-            if !daq_lists.is_null() {
-                // DAQ running
-                xcplib::XcpTriggerDaqEventAt(daq_lists, self.get_channel(), base, 0);
-            }
-            0
-        }
-    }
+        // @@@@ UNSAFE - C library call and transfering a pointer and its valid memory range to XCPlite FFI
 
-    /// Trigger a XCP event for absolute addressing DAQ lists (XCP_ADDR_EXT_ABS)
-    /// Address of the associated measurement variables must be absolute (relative to ApplXcpGetBaseAddr)
-    #[allow(clippy::not_unsafe_ptr_arg_deref)]
-    pub fn trigger_abs(self) {
-        // @@@@ Unsafe - C library call and transfering a pointer and its valid memory range to XCPlite FFI
-        #[cfg(not(feature = "xcp_appl"))]
-        unsafe {
-            xcplib::XcpEvent(self.get_channel());
-        }
-        #[cfg(feature = "xcp_appl")]
-        unsafe {
-            let daq_lists = XCP.daq_lists.load(Ordering::Relaxed);
-            if !daq_lists.is_null() {
-                // DAQ running
-                xcplib::XcpTriggerDaqEventAt(daq_lists, self.get_channel(), std::ptr::null_mut(), 0);
-            }
-        }
+        unsafe { xcplib::XcpEventExt(self.get_id(), base) }
     }
 }
 
 impl PartialEq for XcpEvent {
     fn eq(&self, other: &Self) -> bool {
-        self.channel == other.channel
+        self.id == other.id
+    }
+}
+
+impl Default for XcpEvent {
+    fn default() -> Self {
+        XcpEvent::XCP_UNDEFINED_EVENT
     }
 }
 
@@ -191,7 +171,6 @@ impl PartialEq for XcpEvent {
 struct XcpEventInfo {
     name: &'static str,
     event: XcpEvent,
-    cycle_time_ns: u32, // 0 -sporadic or unknown
 }
 
 struct EventList(Vec<XcpEventInfo>);
@@ -218,49 +197,62 @@ impl EventList {
         self.0.sort_by(|a, b| if a.name == b.name { a.event.index.cmp(&b.event.index) } else { a.name.cmp(b.name) });
     }
 
+    // Register all events in the list and create the event id transformation map
     fn register(&mut self) {
         // Sort the event list by name and then instance index
         self.sort_by_name_and_index();
 
         // Remap the event numbers
         // Problem is, that the event numbers are not deterministic, they depend on order of creation
-        // This is not a problem for the XCP client, but the A2L file might change unnessesarily on every start of the application
-        let mut event_map: [u16; XcpEvent::XCP_MAX_EVENTS] = [0; XcpEvent::XCP_MAX_EVENTS];
-        for (i, e) in self.0.iter().enumerate() {
-            event_map[e.event.channel as usize] = i.try_into().unwrap();
-        }
-        XCP_EVENT_MAP.set(event_map).ok();
-        log::trace!("Event map: {:?}", XCP_EVENT_MAP.get().unwrap());
+        // This is not a problem for the XCP client, but the A2L file might change unnecessarily on every start of the application
+        // let mut event_map: [u16; XcpEvent::XCP_MAX_EVENTS] = [0; XcpEvent::XCP_MAX_EVENTS];
+        // for (i, e) in self.0.iter().enumerate() {
+        //     event_map[e.event.id as usize] = i.try_into().unwrap();
+        // }
+        // XCP_EVENT_MAP.set(event_map).ok();
+        // log::trace!("Event map: {:?}", XCP_EVENT_MAP.get().unwrap());
 
         // Register all events
-        let r = XCP.get_registry();
         {
-            let mut l = r.lock();
-            self.0.iter().for_each(|e| l.add_event(e.name, e.event, e.cycle_time_ns));
+            let mut l = registry::get_lock();
+            let r = l.as_mut().unwrap();
+            self.0.iter().for_each(|e| {
+                let _ = r.event_list.add_event(McEvent::new(e.name, e.event.index, e.event.id, 0));
+                // @@@@ TODO Error handling needed
+            });
         }
     }
 
-    fn create_event_ext(&mut self, name: &'static str, indexed: bool, cycle_time_ns: u32) -> XcpEvent {
-        // Allocate a new, sequential event channel number
-        let channel: u16 = self.0.len().try_into().unwrap();
+    fn create_event_ext(&mut self, name: &'static str, indexed: bool) -> XcpEvent {
+        // Allocate a new, sequential event id number
+        let id: u16 = self.0.len() as u16;
+        if id >= XcpEvent::XCP_MAX_EVENTS {
+            log::error!("Maximum number of events exceeded");
+            return XcpEvent::XCP_UNDEFINED_EVENT;
+        }
 
         // In instance mode, check for other events in instance mode with duplicate name and create new instance index
         // otherwise check for unique event name
         let index: u16 = if indexed {
             (self.0.iter().filter(|e| e.name == name && e.event.get_index() > 0).count() + 1).try_into().unwrap()
         } else {
-            assert!(self.0.iter().filter(|e| e.name == name).count() == 0, "Event name already exists");
+            if self.0.iter().filter(|e| e.name == name).count() > 0 {
+                log::error!("Event name {} already exists", name);
+                return XcpEvent::XCP_UNDEFINED_EVENT;
+            }
             0
         };
+        if index > XcpEvent::XCP_MAX_EVENT_INSTS {
+            log::error!("Maximum number of event thread local instances exceeded");
+            return XcpEvent::XCP_UNDEFINED_EVENT;
+        }
 
         // Create XcpEvent
-        let event = XcpEvent::new(channel, index);
-
-        log::debug!("Create event {} channel={}, index={}", name, event.get_channel(), event.get_index());
+        let event = XcpEvent::new(id, index);
+        log::debug!("Create event {} id={}, index={}", name, event.get_id(), event.get_index());
 
         // Add XcpEventInfo to event list
-        self.0.push(XcpEventInfo { name, event, cycle_time_ns });
-
+        self.0.push(XcpEventInfo { name, event });
         event
     }
 }
@@ -269,11 +261,12 @@ impl EventList {
 // XcpCalPage
 
 // Calibration page type (RAM,FLASH) used by the FFI
-pub const XCP_CAL_PAGE_RAM: u8 = 0;
-pub const XCP_CAL_PAGE_FLASH: u8 = 1;
+const XCP_CAL_PAGE_RAM: u8 = 0;
+const XCP_CAL_PAGE_FLASH: u8 = 1;
 
 /// Calibration page
 /// enum to specify the active calibration page (mutable by XCP ("Ram") or const default ("Flash")) of a calibration segment
+#[doc(hidden)] // For integration test
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum XcpCalPage {
     /// The mutable page
@@ -314,95 +307,20 @@ impl XcpTransportLayer {
 }
 
 //------------------------------------------------------------------------------------------
-// XcpBuilder
-
-/// A builder to initialize the singleton instance of the XCP server
-#[derive(Debug)]
-pub struct XcpBuilder {
-    log_level: u8,      // log level for the server
-    name: &'static str, // Registry name, file name for the registry A2L generator
-    epk: &'static str,  // EPK string for A2L version check
-}
-
-impl XcpBuilder {
-    /// Create a XcpBuilder
-    pub fn new(name: &'static str) -> XcpBuilder {
-        XcpBuilder { log_level: 3, name, epk: "EPK" }
-    }
-
-    /// Set log level
-    #[must_use]
-    pub fn set_log_level(mut self, log_level: u8) -> Self {
-        self.log_level = log_level;
-        self
-    }
-
-    /// Set the EPK to enable the XCP tool to check the A2L file fits the code
-    #[must_use]
-    pub fn set_epk(mut self, epk: &'static str) -> Self {
-        self.epk = epk;
-        self
-    }
-
-    /// Start the XCP on Ethernet Server
-    pub fn start_server<A>(self, tl: XcpTransportLayer, addr: A, port: u16, queue_size: u32) -> Result<&'static Xcp, XcpError>
-    where
-        A: Into<Ipv4Addr>,
-    {
-        let ipv4_addr: Ipv4Addr = addr.into();
-        let xcp = &XCP;
-
-        // xcplib server log level parameter
-        xcp.set_log_level(self.log_level);
-
-        // EPV parameter
-        xcp.set_epk(self.epk);
-
-        // Register name and epk
-        {
-            let mut r = xcp.registry.lock();
-            r.set_name(self.name);
-            r.set_epk(self.epk, Xcp::XCP_EPK_ADDR); // EPK
-        }
-
-        // Initialize the XCP Server and ETH transport layer
-        unsafe {
-            // @@@@ Unsafe - C library call
-            if !xcplib::XcpEthServerInit(&ipv4_addr.octets() as *const u8, port, tl == XcpTransportLayer::Tcp, queue_size) {
-                return Err(XcpError::XcpLib("Error: XcpEthServerInit() failed"));
-            }
-        }
-
-        // Register transport layer parameters and actual ip addr of the server to make the A2L plug&play
-        let mut r = xcp.registry.lock();
-        // If bound to any, get the actual ip address
-        let mut addr: [u8; 4] = ipv4_addr.octets();
-        if addr == [0, 0, 0, 0] {
-            unsafe {
-                // @@@@ Unsafe - C library call
-                xcplib::XcpEthTlGetInfo(std::ptr::null_mut(), std::ptr::null_mut(), &mut addr[0] as *mut u8, std::ptr::null_mut());
-            }
-        }
-        r.set_tl_params(tl.protocol_name(), addr.into(), port); // Transport layer parameters
-
-        Ok(xcp)
-    }
-}
-
-//------------------------------------------------------------------------------------------
 // Xcp singleton
 
 /// A singleton instance of Xcp holds all XCP server data and states  
 /// The Xcp singleton is obtained with Xcp::get()
 pub struct Xcp {
-    ecu_cal_page: AtomicU8,
-    xcp_cal_page: AtomicU8,
+    registry_finalized: AtomicBool,
     event_list: Arc<Mutex<EventList>>,
-    registry: Arc<Mutex<Registry>>,
-    calseg_list: Arc<Mutex<CalSegList>>,
     epk: Mutex<&'static str>,
-    #[cfg(feature = "xcp_appl")]
-    daq_lists: std::sync::atomic::AtomicPtr<xcplib::tXcpDaqLists>,
+
+    ecu_cal_page: AtomicU8,
+
+    xcp_cal_page: AtomicU8,
+
+    calseg_list: Arc<Mutex<CalSegList>>,
 }
 
 lazy_static! {
@@ -410,41 +328,25 @@ lazy_static! {
 }
 
 impl Xcp {
-    /// Absolute addressing mode of XCPlite
-    pub const XCP_ADDR_EXT_ABS: u8 = 1; // Used for DAQ objects on heap (addr is relative to module load address)
-    /// Relative addressing mode of XCPlite
-    pub const XCP_ADDR_EXT_DYN: u8 = 2; // Used for DAQ objects on stack and capture DAQ ( event in addr high word, low word relative to base given to XcpEventExt )
-    /// Segment relative addressing mode of XCPlite handled by applications read/write callbacks
-    pub const XCP_ADDR_EXT_APP: u8 = 0; // Used for CAL objects (addr = index | 0x8000 in high word (CANape does not support addr_ext in memory segments))
-
     /// Addr of the EPK
     pub const XCP_EPK_ADDR: u32 = 0x80000000;
-
-    /// Get address extension and address for A2L generation for XCP_ADDR_EXT_ABS addressing mode
-    /// Used by A2L writer
-    pub fn get_abs_ext_addr(addr: u64) -> (u8, u32) {
-        let a2l_ext = Xcp::XCP_ADDR_EXT_ABS;
-        // @@@@ Unsafe - C library call
-        let a2l_addr = unsafe { xcplib::ApplXcpGetAddr(addr as *const u8) };
-        (a2l_ext, a2l_addr)
-    }
 
     // new
     // Lazy static initialization of the Xcp singleton
     fn new() -> Xcp {
         unsafe {
             // Initialize the XCP protocol layer
-            // @@@@ Unsafe - C library calls
-            xcplib::XcpInit(std::ptr::null_mut());
+            // @@@@ UNSAFE - C library calls
+            xcplib::XcpInit();
 
             // Register the callbacks from xcplib
-            // @@@@ Unsafe - C library calls
+            // @@@@ UNSAFE - C library calls
             xcplib::ApplXcpRegisterCallbacks(
                 Some(cb_connect),
                 Some(cb_prepare_daq),
                 Some(cb_start_daq),
                 Some(cb_stop_daq),
-                None, // @@@@
+                None, // @@@@ TODO Implement cb_freeze_daq
                 Some(cb_get_cal_page),
                 Some(cb_set_cal_page),
                 Some(cb_freeze_cal),
@@ -455,39 +357,67 @@ impl Xcp {
             );
         }
 
+        // Initialize the registry
+        registry::init();
+
+        // Create the Xcp singleton
         Xcp {
-            ecu_cal_page: AtomicU8::new(XcpCalPage::Ram as u8), // ECU page defaults on RAM
-            xcp_cal_page: AtomicU8::new(XcpCalPage::Ram as u8), // XCP page defaults on RAM
+            registry_finalized: AtomicBool::new(false),
             event_list: Arc::new(Mutex::new(EventList::new())),
-            registry: Arc::new(Mutex::new(Registry::new())),
+            epk: Mutex::new(""),
+
+            ecu_cal_page: AtomicU8::new(XcpCalPage::Ram as u8), // ECU page defaults on RAM
+
+            xcp_cal_page: AtomicU8::new(XcpCalPage::Ram as u8), // XCP page defaults on RAM
+
             calseg_list: Arc::new(Mutex::new(CalSegList::new())),
-            epk: Mutex::new("DEFAULT_EPK"),
-            #[cfg(feature = "xcp_appl")]
-            daq_lists: std::sync::atomic::AtomicPtr::new(std::ptr::null_mut()),
         }
     }
 
     /// Get the Xcp singleton instance
     #[inline]
-    #[must_use]
     pub fn get() -> &'static Xcp {
         // XCP will be initialized by lazy_static
         &XCP
     }
 
+    /// Set the log level for XCP C library xcplib
     #[allow(clippy::unused_self)]
-    /// Set the log level for XCP library
-    pub fn set_log_level(&self, level: u8) {
+    pub fn set_log_level(&self, level: u8) -> &'static Xcp {
         unsafe {
-            // @@@@ Unsafe - C library call
+            // @@@@ UNSAFE - C library call
             xcplib::ApplXcpSetLogLevel(level);
         }
+
+        &XCP
     }
 
-    /// Print a formated text message to the XCP client tool console
+    /// Set the project name (will be used as A2L file name and A2L project name)
+    pub fn set_app_name(&self, app_name: &str) -> &'static Xcp {
+        registry::get_lock().as_mut().unwrap().set_app_info(app_name.to_string(), "xcp-lite", 0);
+        &XCP
+    }
+
+    /// Set software version (will be used as A2L EPK string and for EPK memory segment)
+    pub fn set_app_revision(&self, app_revision: &'static str) -> &'static Xcp {
+        assert!(app_revision.len() % 4 == 0); // @@@@
+        *(self.epk.lock()) = app_revision;
+        registry::get_lock().as_mut().unwrap().set_app_version(app_revision, Xcp::XCP_EPK_ADDR);
+        &XCP
+    }
+
+    /// Set registry mode (flat or with typedefs, prefix names with app name)
+    pub fn set_registry_mode(&self, flatten_typedefs: bool, prefix_names: bool) -> &'static Xcp {
+        registry::get_lock().as_mut().unwrap().set_flatten_typedefs(flatten_typedefs);
+        registry::get_lock().as_mut().unwrap().set_prefix_names(prefix_names);
+        &XCP
+    }
+
+    /// Print a formatted text message to the XCP client tool console
     #[allow(clippy::unused_self)]
     pub fn print(&self, msg: &str) {
-        // @@@@ Unsafe - C library call
+        // @@@@ UNSAFE - C library call
+
         unsafe {
             let msg = std::ffi::CString::new(msg).unwrap();
             xcplib::XcpPrint(msg.as_ptr());
@@ -495,13 +425,47 @@ impl Xcp {
     }
 
     //------------------------------------------------------------------------------------------
-    // Server
+    // XCP on Ethernet Server
+
+    /// Start the XCP server
+    pub fn start_server<A>(&self, tl: XcpTransportLayer, addr: A, port: u16, queue_size: u32) -> Result<&'static Xcp, XcpError>
+    where
+        A: Into<std::net::Ipv4Addr>,
+    {
+        {
+            let ipv4_addr: std::net::Ipv4Addr = addr.into();
+            let _ = &XCP;
+
+            // Initialize the XCP server and ETH transport layer in xcplib
+            unsafe {
+                // @@@@ UNSAFE - C library call
+                if !xcplib::XcpEthServerInit(&ipv4_addr.octets() as *const u8, port, tl == XcpTransportLayer::Tcp, std::ptr::null_mut(), queue_size) {
+                    return Err(XcpError::XcpLib("Error: XcpEthServerInit() failed"));
+                }
+            }
+
+            // Register transport layer parameters and actual ip addr of the server to create XCP IF_DATA make the A2L plug&play
+            // If bound to any, get the actual ip address
+            let mut addr: [u8; 4] = ipv4_addr.octets();
+            if addr == [0, 0, 0, 0] {
+                unsafe {
+                    // @@@@ UNSAFE - C library call
+                    xcplib::XcpEthTlGetInfo(std::ptr::null_mut(), std::ptr::null_mut(), &mut addr[0] as *mut u8, std::ptr::null_mut());
+                }
+            }
+            let mut reg = registry::get_lock();
+            if let Some(reg) = reg.as_mut() {
+                reg.set_xcp_params(tl.protocol_name(), addr.into(), port); // Transport layer parameters
+            }
+            Ok(&XCP)
+        }
+    }
 
     /// Check if the XCP server is ok and running
     #[allow(clippy::unused_self)]
     pub fn check_server(&self) -> bool {
         unsafe {
-            // @@@@ Unsafe - C library call
+            // @@@@ UNSAFE - C library call
             xcplib::XcpEthServerStatus()
         }
     }
@@ -509,7 +473,8 @@ impl Xcp {
     /// Stop the XCP server
     #[allow(clippy::unused_self)]
     pub fn stop_server(&self) {
-        // @@@@ Unsafe - C library calls
+        // @@@@ UNSAFE - C library calls
+
         unsafe {
             xcplib::XcpSendTerminateSessionEvent(); // Send terminate session event, if the XCP client is still connected
             xcplib::XcpDisconnect();
@@ -520,7 +485,8 @@ impl Xcp {
     /// Signal the client to disconnect
     #[allow(clippy::unused_self)]
     pub fn disconnect_client(&self) {
-        // @@@@ Unsafe - C library calls
+        // @@@@ UNSAFE - C library calls
+
         unsafe {
             xcplib::XcpSendTerminateSessionEvent(); // Send terminate session event, if the XCP client is connected
         }
@@ -531,20 +497,9 @@ impl Xcp {
 
     /// Create a calibration segment  
     /// # Panics  
-    /// Panics if the calibration segment name already exists  
-    /// Panics if the calibration page size exceeds 64k
+    /// If the calibration segment name already exists  
+    /// If the calibration page size exceeds 64k
     pub fn create_calseg<T>(&self, name: &'static str, default_page: &'static T) -> CalSeg<T>
-    where
-        T: CalPageTrait,
-    {
-        self.calseg_list.lock().create_calseg(name, default_page)
-    }
-
-    /// Create a calibration segment, don't register fields and don't load json  
-    /// # Panics  
-    /// Panics if the calibration segment name already exists  
-    /// Panics if the calibration page size exceeds 64k
-    pub fn add_calseg<T>(&self, name: &'static str, default_page: &'static T) -> CalSeg<T>
     where
         T: CalPageTrait,
     {
@@ -557,32 +512,8 @@ impl Xcp {
     }
 
     /// Get calibration segment name by index
-    pub fn get_calseg_name(&self, index: usize) -> &'static str {
+    fn get_calseg_name(&self, index: usize) -> &'static str {
         self.calseg_list.lock().get_name(index)
-    }
-
-    /// Get A2L addr (ext,addr) of a CalSeg
-    pub fn get_calseg_ext_addr_base(calseg_index: u16) -> (u8, u32) {
-        // Address format for calibration segment field is index | 0x8000 in high word, addr_ext is 0 (CANape does not support addr_ext in memory segments)
-        let addr_ext = Xcp::XCP_ADDR_EXT_APP;
-        let addr = (((calseg_index as u32) + 1) | 0x8000) << 16;
-        (addr_ext, addr)
-    }
-
-    /// Get A2L addr (ext,addr) for a calibration value field at offset in a CalSeg
-    /// The address is relative to the base addr of the calibration segment
-    pub fn get_calseg_ext_addr(calseg_index: u16, offset: u16) -> (u8, u32) {
-        let (addr_ext, mut addr) = Xcp::get_calseg_ext_addr_base(calseg_index);
-        addr += offset as u32;
-        (addr_ext, addr)
-    }
-
-    //------------------------------------------------------------------------------------------
-    // EPK
-
-    // Set EPK
-    fn set_epk(&self, epk: &'static str) {
-        *self.epk.lock() = epk;
     }
 
     //------------------------------------------------------------------------------------------
@@ -591,81 +522,121 @@ impl Xcp {
     /// Create XCP event  
     /// index==0 single instance  
     /// index>0 multi instance (instance number is attached to name)  
-    pub fn create_event_ext(&self, name: &'static str, indexed: bool, cycle_time_ns: u32) -> XcpEvent {
-        self.event_list.lock().create_event_ext(name, indexed, cycle_time_ns)
+    pub fn create_event_ext(&self, name: &'static str, indexed: bool) -> XcpEvent {
+        let event = self.event_list.lock().create_event_ext(name, indexed);
+        if event == XcpEvent::XCP_UNDEFINED_EVENT {
+            panic!("Event name already exists or maximum number of events exceeded");
+        }
+        event
     }
 
     /// Create XCP event  
     /// Single instance  
     pub fn create_event(&self, name: &'static str) -> XcpEvent {
-        self.event_list.lock().create_event_ext(name, false, 0)
+        let event = self.event_list.lock().create_event_ext(name, false);
+        if event == XcpEvent::XCP_UNDEFINED_EVENT {
+            panic!("Event name already exists or maximum number of events exceeded");
+        }
+        event
     }
 
     //------------------------------------------------------------------------------------------
     // Registry
+    // A2L file generation and provision for XCP upload
 
-    /// Write A2L  
-    /// A2l is normally automatically written on connect of the XCP client tool  
-    /// This function is used to force the A2L to be written immediately  
-    pub fn write_a2l(&self) -> Result<bool, XcpError> {
-        // Do nothing, if the registry is already written, or does not exist
-        if self.registry.lock().is_frozen() {
+    /// Finalize the registry and provide it to the client tool
+    /// A2l is normally automatically finalized on connect of the XCP client tool  
+    /// After this happens, creating of registry content, like events and data objects is not possible anymore
+    pub fn finalize_registry(&self) -> Result<bool, XcpError> {
+        // Once
+        // Ignore further calls
+        if self.registry_finalized.load(Ordering::Relaxed) {
             return Ok(false);
         }
+        assert!(!registry::is_closed());
 
         // Register all calibration segments
+
         self.calseg_list.lock().register();
 
         // Register all events
         self.event_list.lock().register();
 
+        // Sort typedef, measurement, axis and calibration list to get a deterministic order
+        // Event and CalSeg lists stay in the order they were added
+        registry::get_lock().as_mut().unwrap().typedef_list.sort_by_name();
+        registry::get_lock().as_mut().unwrap().instance_list.sort_by_name_and_event();
+
+        // Close the registry and move to immutable state
+        registry::close();
+
+        // Write A2L
+
         {
             // Write A2L file from registry
-            self.registry.lock().write_a2l()?;
+            let write_xcp_ifdata = {
+                // Build filename
+                let app_name = registry::get().get_app_name();
+                assert!(app_name.len() != 0, "App name not set");
+                let mut path = std::path::PathBuf::new();
+                path.set_file_name(app_name);
+                path.set_extension("a2l");
 
-            // A2L exists and is up to date on disk
-            // Set the name of the A2L file in the XCPlite server to enable upload via XCP
+                // Write A2L file to disk, with typedefs or flatten and mangle
+                // @@@@ TODO parameter
+                #[cfg(test)]
+                let check = true;
+                #[cfg(not(test))]
+                let check = false;
 
-            unsafe {
-                let name = std::ffi::CString::new(self.registry.lock().get_name().unwrap()).unwrap();
-                // @@@@ Unsafe - C library call
-                xcplib::ApplXcpSetA2lName(name.as_ptr());
-                std::mem::forget(name); // This memory is never dropped, it is moved to xcplib singleton
+                registry::get().write_a2l(&path, check)?;
+                registry::get().has_xcp_params()
+            };
 
-                let epk = std::ffi::CString::new(self.registry.lock().get_epk().unwrap()).unwrap();
-                // @@@@ Unsafe - C library call
-                xcplib::ApplXcpSetEpk(epk.as_ptr());
-                std::mem::forget(epk); // This memory is never dropped, it is moved to xcplib singleton
+            // If XCP is enabled:
+            // Set the file name (without extension, assumed to be in current dir) of the A2L file in xcplib server to enable upload via XCP
+            let _ = write_xcp_ifdata;
+
+            if write_xcp_ifdata {
+                unsafe {
+                    let reg = registry::get();
+
+                    let name = std::ffi::CString::new(reg.get_app_name()).unwrap();
+                    // @@@@ UNSAFE - C library call
+                    xcplib::ApplXcpSetA2lName(name.as_ptr());
+                    std::mem::forget(name); // This memory is never dropped, it is moved to xcplib singleton
+
+                    let epk = std::ffi::CString::new(reg.get_app_version()).unwrap();
+                    // @@@@ UNSAFE - C library call
+                    xcplib::ApplXcpSetEpk(epk.as_ptr());
+                    std::mem::forget(epk); // This memory is never dropped, it is moved to xcplib singleton
+                }
             }
-
-            // A2l is no longer needed yet, free memory
-            // Another call to a2l_write will do nothing
-            // All registrations from now on, will cause panic
-            self.registry.lock().freeze();
         }
 
-        Ok(true)
-    }
+        // Mark the registration process as finished, A2l has been written and is ready for upload by XCP
+        self.registry_finalized.store(true, Ordering::Relaxed);
 
-    /// Get a clone of the registry
-    pub fn get_registry(&self) -> Arc<Mutex<Registry>> {
-        Arc::clone(&self.registry)
+        Ok(true)
     }
 
     //------------------------------------------------------------------------------------------
     // Calibration page switching
 
     /// Set the active calibration page for the ECU access (used for test only)
+
     fn set_ecu_cal_page(&self, page: XcpCalPage) {
         self.ecu_cal_page.store(page as u8, Ordering::Relaxed);
     }
 
     /// Set the active calibration page for the XCP access (used for test only)
+
     fn set_xcp_cal_page(&self, page: XcpCalPage) {
         self.xcp_cal_page.store(page as u8, Ordering::Relaxed);
     }
 
     /// Get the active calibration page for the ECU access
+
     #[inline]
     fn get_ecu_cal_page(&self) -> XcpCalPage {
         if self.ecu_cal_page.load(Ordering::Relaxed) == XcpCalPage::Ram as u8 {
@@ -676,6 +647,7 @@ impl Xcp {
     }
 
     /// Get the active calibration page for the XCP access
+
     fn get_xcp_cal_page(&self) -> XcpCalPage {
         if self.xcp_cal_page.load(Ordering::Relaxed) == XcpCalPage::Ram as u8 {
             XcpCalPage::Ram
@@ -689,14 +661,33 @@ impl Xcp {
 
     /// Set calibration segment init request  
     /// Called on init cal from XCP server  
+
     fn set_init_request(&self) {
         self.calseg_list.lock().set_init_request();
     }
 
     /// Set calibration segment freeze request  
     /// Called on freeze cal from XCP server  
+
     fn set_freeze_request(&self) {
         self.calseg_list.lock().set_freeze_request();
+    }
+
+    pub fn get_epk(&self) -> &Mutex<&'static str> {
+        &self.epk
+    }
+
+    //------------------------------------------------------------------------------------------
+    // Clock
+    // For demo purposes:
+    // Get the XCP 64Bit clock
+    // Maybe 1us or 1ns resolution, arb or ptp epoch depending on the setting in xcplib main_cfg.h
+
+    pub fn get_clock(&self) -> u64 {
+        unsafe {
+            // @@@@ UNSAFE - C library call
+            xcplib::ApplXcpGetClock64()
+        }
     }
 }
 
@@ -718,42 +709,42 @@ const CAL_PAGE_MODE_ECU: u8 = 0x01;
 const CAL_PAGE_MODE_XCP: u8 = 0x02;
 const CAL_PAGE_MODE_ALL: u8 = 0x80; // switch all segments simultaneously
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn cb_connect() -> u8 {
-    log::trace!("cb_connect: generate and write Al2 file");
-    if let Err(e) = XCP.write_a2l() {
-        log::error!("connect refused, A2L file write failed, {}", e);
-        return FALSE;
+    {
+        log::trace!("cb_connect: generate and write Al2 file");
+        if let Err(e) = XCP.finalize_registry() {
+            log::error!("connect refused, A2L file write failed, {}", e);
+            return FALSE;
+        }
+        TRUE
     }
-    TRUE
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[allow(unused_variables)]
-extern "C" fn cb_prepare_daq(_daq: *const xcplib::tXcpDaqLists) -> u8 {
+extern "C" fn cb_prepare_daq() -> u8 {
     log::trace!("cb_prepare_daq");
-    TRUE
+    1
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[allow(unused_variables)]
-extern "C" fn cb_start_daq(daq: *const xcplib::tXcpDaqLists) -> u8 {
+extern "C" fn cb_start_daq() -> u8 {
     log::trace!("cb_start_daq");
-    #[cfg(feature = "xcp_appl")]
-    XCP.daq_lists.store(daq.cast_mut(), Ordering::Relaxed);
-    TRUE
+
+    1
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn cb_stop_daq() {
     log::trace!("cb_stop_daq");
-    #[cfg(feature = "xcp_appl")]
-    XCP.daq_lists.store(std::ptr::null_mut(), Ordering::Relaxed);
 }
 
 // Switching individual segments (CANape option CALPAGE_SINGLE_SEGMENT_SWITCHING) not supported, not needed and CANape is buggy
 // Returns 0xFF on invalid mode, segment number is ignored, CAL_PAGE_MODE_ALL is ignored
-#[no_mangle]
+
+#[unsafe(no_mangle)]
 extern "C" fn cb_get_cal_page(segment: u8, mode: u8) -> u8 {
     log::debug!("cb_get_cal_page: get cal page of segment {}, mode {:02X}", segment, mode);
     let page: u8;
@@ -769,7 +760,7 @@ extern "C" fn cb_get_cal_page(segment: u8, mode: u8) -> u8 {
     page
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn cb_set_cal_page(segment: u8, page: u8, mode: u8) -> u8 {
     log::debug!("cb_set_cal_page: set cal page to segment={}, page={:?}, mode={:02X}", segment, XcpCalPage::from(page), mode);
     if (mode & CAL_PAGE_MODE_ALL) == 0 {
@@ -791,14 +782,14 @@ extern "C" fn cb_set_cal_page(segment: u8, page: u8, mode: u8) -> u8 {
     CRC_CMD_OK
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn cb_init_cal(_src_page: u8, _dst_page: u8) -> u8 {
     log::trace!("cb_init_cal");
     XCP.set_init_request();
     CRC_CMD_OK
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn cb_freeze_cal() -> u8 {
     log::trace!("cb_freeze_cal");
     XCP.set_freeze_request();
@@ -810,8 +801,9 @@ extern "C" fn cb_freeze_cal() -> u8 {
 // Read and write are called by XCP on UPLOAD and DNLOAD commands and XCP must assure the correctness of the parameters, which are usually taken from an A2L file
 // Writing with incorrect offset or len might lead to undefined behaviour or at least wrong field values in the calibration segment
 // Reading with incorrect offset or len will lead to incorrect data shown in the XCP tool
-// @@@@ Unsafe - direct memory access with pointer arithmetic
-#[no_mangle]
+// @@@@ UNSAFE - direct memory access with pointer arithmetic
+
+#[unsafe(no_mangle)]
 unsafe extern "C" fn cb_read(addr: u32, len: u8, dst: *mut u8) -> u8 {
     log::trace!("cb_read: addr=0x{:08X}, len={}, dst={:?}", addr, len, dst);
     assert!((addr & 0x80000000) != 0, "cb_read: invalid address");
@@ -822,7 +814,7 @@ unsafe extern "C" fn cb_read(addr: u32, len: u8, dst: *mut u8) -> u8 {
     let offset: u16 = (addr & 0xFFFF) as u16;
 
     // EPK read
-    // This might be more elegantlty solved with a EPK segment in the registry, but this is a simple solution
+    // This might be more elegantly solved with a EPK segment in the registry, but this is a simple solution
     // Otherwise we would have to introduce a read only CalSeg
     if index == 0 {
         let m = XCP.epk.lock();
@@ -838,22 +830,24 @@ unsafe extern "C" fn cb_read(addr: u32, len: u8, dst: *mut u8) -> u8 {
             epk_len
         );
 
-        let src = epk.as_ptr().add(offset as usize);
-        std::ptr::copy_nonoverlapping(src, dst, len as usize);
-
+        unsafe {
+            let src = epk.as_ptr().add(offset as usize);
+            std::ptr::copy_nonoverlapping(src, dst, len as usize);
+        }
         CRC_CMD_OK
     }
     // Calibration segment read
     // read_from is Unsafe function
-    else if !XCP.calseg_list.lock().read_from((index - 1) as usize, offset, len, dst) {
+    else if !unsafe { XCP.calseg_list.lock().read_from((index - 1) as usize, offset, len, dst) } {
         CRC_ACCESS_DENIED
     } else {
         CRC_CMD_OK
     }
 }
 
-// @@@@ Unsafe - direct memory access with pointer arithmetic
-#[no_mangle]
+// @@@@ UNSAFE - direct memory access with pointer arithmetic
+
+#[unsafe(no_mangle)]
 unsafe extern "C" fn cb_write(addr: u32, len: u8, src: *const u8, delay: u8) -> u8 {
     log::trace!("cb_write: dst=0x{:08X}, len={}, src={:?}, delay={}", addr, len, src, delay);
     // @@@@ callbacks should not panic
@@ -869,69 +863,64 @@ unsafe extern "C" fn cb_write(addr: u32, len: u8, src: *const u8, delay: u8) -> 
 
     // Write to calibration segment
     // read_from is Unsafe function
-    if !XCP.calseg_list.lock().write_to((index - 1) as usize, offset, len, src, delay) {
+    if !unsafe { XCP.calseg_list.lock().write_to((index - 1) as usize, offset, len, src, delay) } {
         CRC_ACCESS_DENIED
     } else {
         CRC_CMD_OK
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn cb_flush() -> u8 {
     log::trace!("cb_flush");
     XCP.calseg_list.lock().flush();
     CRC_CMD_OK
 }
 
-//--------------------------------------------------------------------------------------------------------------------------------------------------
-// Public test helpers
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+// Test module
 
+#[cfg(test)]
 pub mod xcp_test {
     use super::*;
     use std::sync::Once;
 
     // Using log level Info for tests reduces the probability of finding threading issues !!!
-    #[allow(dead_code)]
     static TEST_INIT: Once = Once::new();
 
     // Setup the test environment
-    #[allow(dead_code)]
-    pub fn test_setup(x: log::LevelFilter) -> &'static Xcp {
-        log::info!("test_setup");
+    #[doc(hidden)]
+    pub fn test_setup() -> &'static Xcp {
+        // Log levels for tests
+        const TEST_LOG_LEVEL: log::LevelFilter = log::LevelFilter::Info;
+        const TEST_XCP_LOG_LEVEL: u8 = 2;
+
+        // Initialize the logging subscriber once
         TEST_INIT.call_once(|| {
             env_logger::Builder::new()
                 .target(env_logger::Target::Stdout)
-                .filter_level(x)
+                .filter_level(TEST_LOG_LEVEL)
                 .format_timestamp(None)
                 .format_module_path(false)
                 .format_target(false)
                 .init();
         });
 
-        test_reinit()
-    }
+        // Reinitialize the registry singleton
+        registry::registry_test::test_reinit();
 
-    // Reinit XCP singleton before the next test
-    pub fn test_reinit() -> &'static Xcp {
+        // Reinitialize the XCP singleton
         let xcp = &XCP;
-        xcp.set_log_level(2);
+        xcp.set_log_level(TEST_XCP_LOG_LEVEL);
+        xcp.event_list.lock().clear();
+
         {
-            let mut l = xcp.event_list.lock();
-            l.clear();
+            xcp.calseg_list.lock().clear();
+            xcp.set_ecu_cal_page(XcpCalPage::Ram);
+            xcp.set_xcp_cal_page(XcpCalPage::Ram);
         }
-        {
-            let mut s = xcp.calseg_list.lock();
-            s.clear();
-        }
-        {
-            let mut r = xcp.registry.lock();
-            r.clear();
-            r.set_name("xcp_test");
-            r.set_epk("TEST_EPK", Xcp::XCP_EPK_ADDR);
-        }
-        xcp.set_ecu_cal_page(XcpCalPage::Ram);
-        xcp.set_xcp_cal_page(XcpCalPage::Ram);
-        log::info!("Test reinit done");
+
         xcp
     }
 }
