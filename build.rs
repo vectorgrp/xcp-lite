@@ -1,8 +1,7 @@
 fn main() {
     build_info_build::build_script();
 
-    // Generate XCPlite C code bindings
-/* 
+    // Generate C code bindings for xcplib
     let bindings = bindgen::Builder::default()
         .header("xcplib/wrapper.h")
         //
@@ -35,13 +34,13 @@ fn main() {
         .allowlist_function("ApplXcpSetEpk")
         .allowlist_function("ApplXcpGetAddr")
         .allowlist_function("ApplXcpRegisterCallbacks")
+        .allowlist_function("ApplXcpGetClock64")
         //
         .generate()
         .expect("Unable to generate bindings");
     bindings.write_to_file("src/xcp/xcplib.rs").expect("Couldn't write bindings!");
-*/
 
-    // Build a XCP on ETH version of XCPlite as a library
+    // Build xcplib
     cc::Build::new()
         .include("xcplib/src/")
         .include("xcplib/")
@@ -52,10 +51,10 @@ fn main() {
         .file("xcplib/src/xcpEthTl.c")
         .file("xcplib/src/xcpEthServer.c")
         // C11
-        // @@@@ ToDo Windows MSC ????
+        // @@@@ TODO Windows MSC ????
         //.flag("-std=c11")
         // Optimizations
-        // @@@@ Enable optimization in release mode
+        // @@@@ TODO Enable optimization in release mode
         .flag("-O2")
         // .flag("-O0")
         // .flag("-g")

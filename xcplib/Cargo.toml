@@ -1,0 +1,15 @@
+[package]
+name = "xcplib"
+edition = "2024"
+version.workspace = true
+publish = false # do not allow to publishing to cargo
+
+# allow generated C code to not use camel case
+[lints.rust]
+non_camel_case_types = "allow"
+
+
+[build-dependencies]
+cc = "1.0"
+#build-info-build = "0.0.40"
+bindgen = "0.71.1"
