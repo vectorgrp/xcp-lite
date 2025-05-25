@@ -12,10 +12,7 @@ use std::{
     fmt::Debug,
     net::Ipv4Addr,
     num::Wrapping,
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::atomic::{AtomicBool, Ordering},
     thread,
     time::{Duration, Instant},
 };
@@ -577,7 +574,7 @@ fn main() {
             break;
         }
 
-        xcp.finalize_registry();
+        let _ = xcp.finalize_registry();
     }
 
     log::info!("Main task finished");

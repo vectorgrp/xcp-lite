@@ -29,7 +29,7 @@ pub struct tXcpDaqList {
     pub last_odt: u16,
     pub first_odt: u16,
     pub event_channel: u16,
-    pub res1: u16,
+    pub next: u16,
     pub mode: u8,
     pub state: u8,
     pub priority: u8,
@@ -42,7 +42,7 @@ const _: () = {
     ["Offset of field: tXcpDaqList::last_odt"][::std::mem::offset_of!(tXcpDaqList, last_odt) - 0usize];
     ["Offset of field: tXcpDaqList::first_odt"][::std::mem::offset_of!(tXcpDaqList, first_odt) - 2usize];
     ["Offset of field: tXcpDaqList::event_channel"][::std::mem::offset_of!(tXcpDaqList, event_channel) - 4usize];
-    ["Offset of field: tXcpDaqList::res1"][::std::mem::offset_of!(tXcpDaqList, res1) - 6usize];
+    ["Offset of field: tXcpDaqList::next"][::std::mem::offset_of!(tXcpDaqList, next) - 6usize];
     ["Offset of field: tXcpDaqList::mode"][::std::mem::offset_of!(tXcpDaqList, mode) - 8usize];
     ["Offset of field: tXcpDaqList::state"][::std::mem::offset_of!(tXcpDaqList, state) - 9usize];
     ["Offset of field: tXcpDaqList::priority"][::std::mem::offset_of!(tXcpDaqList, priority) - 10usize];
@@ -57,6 +57,7 @@ pub struct tXcpDaqLists {
     pub res: u16,
     pub config_id: u16,
     pub res1: u16,
+    pub daq_first: [u16; 256usize],
     pub u: tXcpDaqLists__bindgen_ty_1,
 }
 #[repr(C, packed)]
@@ -80,7 +81,7 @@ const _: () = {
 };
 #[allow(clippy::unnecessary_operation, clippy::identity_op)]
 const _: () = {
-    ["Size of tXcpDaqLists"][::std::mem::size_of::<tXcpDaqLists>() - 163860usize];
+    ["Size of tXcpDaqLists"][::std::mem::size_of::<tXcpDaqLists>() - 164372usize];
     ["Alignment of tXcpDaqLists"][::std::mem::align_of::<tXcpDaqLists>() - 1usize];
     ["Offset of field: tXcpDaqLists::odt_entry_count"][::std::mem::offset_of!(tXcpDaqLists, odt_entry_count) - 0usize];
     ["Offset of field: tXcpDaqLists::odt_count"][::std::mem::offset_of!(tXcpDaqLists, odt_count) - 2usize];
@@ -88,7 +89,8 @@ const _: () = {
     ["Offset of field: tXcpDaqLists::res"][::std::mem::offset_of!(tXcpDaqLists, res) - 6usize];
     ["Offset of field: tXcpDaqLists::config_id"][::std::mem::offset_of!(tXcpDaqLists, config_id) - 8usize];
     ["Offset of field: tXcpDaqLists::res1"][::std::mem::offset_of!(tXcpDaqLists, res1) - 10usize];
-    ["Offset of field: tXcpDaqLists::u"][::std::mem::offset_of!(tXcpDaqLists, u) - 12usize];
+    ["Offset of field: tXcpDaqLists::daq_first"][::std::mem::offset_of!(tXcpDaqLists, daq_first) - 12usize];
+    ["Offset of field: tXcpDaqLists::u"][::std::mem::offset_of!(tXcpDaqLists, u) - 524usize];
 };
 unsafe extern "C" {
     pub fn XcpInit();
@@ -115,21 +117,6 @@ unsafe extern "C" {
     pub fn ApplXcpGetClock64() -> u64;
 }
 unsafe extern "C" {
-    pub fn XcpEthTlGetInfo(isTCP: *mut bool, mac: *mut u8, addr: *mut u8, port: *mut u16);
-}
-unsafe extern "C" {
-    #[doc = " Initialize the XCP on Ethernet server instance.\n @pre User has called XcpInit.\n @param address Address to bind to.\n @param port Port to bind to.\n @param use_tcp Use TCP if true, otherwise UDP.\n @param measurement_queue Optional external memory to place the measurement queue.\n Pass NULL if server should allocate it.\n @param measurement_queue_size Measurement queue size in bytes. Includes the bytes occupied by the queue header.\n @return True on success, otherwise false."]
-    pub fn XcpEthServerInit(address: *const u8, port: u16, use_tcp: bool, measurement_queue: *mut ::std::os::raw::c_void, measurement_queue_size: u32) -> bool;
-}
-unsafe extern "C" {
-    #[doc = " Shutdown the XCP on Ethernet server instance."]
-    pub fn XcpEthServerShutdown() -> bool;
-}
-unsafe extern "C" {
-    #[doc = " Get the XCP on Ethernet server instance status.\n @return True if the server is running, otherwise false."]
-    pub fn XcpEthServerStatus() -> bool;
-}
-unsafe extern "C" {
     pub fn ApplXcpSetLogLevel(level: u8);
 }
 unsafe extern "C" {
@@ -153,4 +140,22 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn ApplXcpSetEpk(name: *const ::std::os::raw::c_char);
+}
+unsafe extern "C" {
+    #[doc = " Initialize the XCP on Ethernet server instance.\n @pre User has called XcpInit.\n @param address Address to bind to.\n @param port Port to bind to.\n @param use_tcp Use TCP if true, otherwise UDP.\n @param measurement_queue Optional external memory to place the measurement queue.\n Pass NULL if server should allocate it.\n @param measurement_queue_size Measurement queue size in bytes. Includes the bytes occupied by the queue header.\n @return True on success, otherwise false."]
+    pub fn XcpEthServerInit(address: *const u8, port: u16, use_tcp: bool, measurement_queue: *mut ::std::os::raw::c_void, measurement_queue_size: u32) -> bool;
+}
+unsafe extern "C" {
+    #[doc = " Shutdown the XCP on Ethernet server instance."]
+    pub fn XcpEthServerShutdown() -> bool;
+}
+unsafe extern "C" {
+    #[doc = " Get the XCP on Ethernet server instance status.\n @return True if the server is running, otherwise false."]
+    pub fn XcpEthServerStatus() -> bool;
+}
+unsafe extern "C" {
+    pub fn XcpEthTlGetInfo(isTCP: *mut bool, mac: *mut u8, addr: *mut u8, port: *mut u16);
+}
+unsafe extern "C" {
+    pub fn c_demo();
 }

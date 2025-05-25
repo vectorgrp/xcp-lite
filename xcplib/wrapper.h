@@ -2,7 +2,9 @@
 
 #define __WRAPPER_H__
 
-#include "xcpLite.h"
-#include "xcpEthTl.h"
-#include "xcpEthServer.h"
 #include "xcpAppl.h"
+#include "xcpEthServer.h"
+#include "xcpEthTl.h"
+#include "xcpLite.h"
+
+void c_demo(void);

@@ -26,7 +26,7 @@ pub use cal::CalPageTrait;
 pub use cal::CalSeg;
 pub use cal::CalSegList;
 
-mod xcplib;
+pub mod xcplib;
 
 //-----------------------------------------------------------------------------
 // XCP println macro

@@ -104,7 +104,7 @@
 // If XCP_MAX_EVENT_COUNT is defined, DAQ list to event association lookup will be optimized
 // Requires XCP_MAX_EVENT_COUNT * 2 bytes of memory
 // XCP_MAX_EVENT_COUNT must be even
-// #define XCP_MAX_EVENT_COUNT 256 // For available event numbers from 0 to 255
+#define XCP_MAX_EVENT_COUNT 256 // For available event numbers from 0 to 255
 
 // Maximum number of DAQ lists
 // Must be <= 0xFFFE
@@ -125,13 +125,13 @@
 
 // Enable event list
 // Not needed for Rust xcp-lite
-// #define XCP_ENABLE_DAQ_EVENT_LIST
+#define XCP_ENABLE_DAQ_EVENT_LIST
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
 
-// #define XCP_ENABLE_DAQ_EVENT_INFO // Enable XCP_GET_EVENT_INFO, if this is enabled, A2L file event information will
-// be ignored
+// Enable XCP_GET_EVENT_INFO, if this is enabled, A2L file event information will be ignored
+// #define XCP_ENABLE_DAQ_EVENT_INFO
 
-// #define XCP_MAX_EVENT_NAME 16
+#define XCP_MAX_EVENT_NAME 15
 
 #endif
 

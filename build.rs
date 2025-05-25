@@ -36,6 +36,8 @@ fn main() {
         .allowlist_function("ApplXcpRegisterCallbacks")
         .allowlist_function("ApplXcpGetClock64")
         //
+        .allowlist_function("c_demo")
+        //
         .generate()
         .expect("Unable to generate bindings");
     bindings.write_to_file("src/xcp/xcplib.rs").expect("Couldn't write bindings!");
@@ -44,6 +46,7 @@ fn main() {
     cc::Build::new()
         .include("xcplib/src/")
         .include("xcplib/")
+        .file("xcplib/c_demo.c")
         .file("xcplib/xcpAppl.c")
         .file("xcplib/src/platform.c")
         .file("xcplib/src/xcpLite.c")
@@ -66,6 +69,7 @@ fn main() {
     println!("cargo:rerun-if-changed=xcplib/xcptl_cfg.h");
     println!("cargo:rerun-if-changed=xcplib/xcp_cfg.h");
     println!("cargo:rerun-if-changed=xcplib/xcpAppl.c");
+    println!("cargo:rerun-if-changed=xcplib/c_test.c");
     println!("cargo:rerun-if-changed=xcplib/src/main.h");
     println!("cargo:rerun-if-changed=xcplib/src/platform.h");
     println!("cargo:rerun-if-changed=xcplib/src/platform.c");

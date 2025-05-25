@@ -61,6 +61,7 @@
 
 #include <assert.h>   // for assert
 #include <inttypes.h> // for PRIx32, PRIu64
+#include <math.h>     // for pow
 #include <stdbool.h>  // for bool
 #include <stdint.h>   // for uint8_t, uint16_t, uint32_t, int32_t, uin...
 #include <stdio.h>    // for printf
@@ -726,9 +727,12 @@ static uint8_t XcpSetDaqListMode(uint16_t daq, uint16_t event, uint8_t mode, uin
         return CRC_DAQ_CONFIG;
 
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
-    tXcpEvent *e = XcpGetEvent(event); // Check if event exists
-    if (e == NULL)
-        return CRC_OUT_OF_RANGE;
+    // If any events are registered, check if this event exists
+    if (gXcp.EventCount > 0) {
+        tXcpEvent *e = XcpGetEvent(event); // Check if event exists
+        if (e == NULL)
+            return CRC_OUT_OF_RANGE;
+    }
 #endif
 
 #ifdef XCP_ENABLE_DYN_ADDRESSING
@@ -1038,8 +1042,8 @@ void XcpTriggerDaqEventAt(const tXcpDaqLists *daq_lists, tQueueHandle queueHandl
 #ifdef XCP_ENABLE_TEST_CHECKS
         assert(daq < daq_lists->daq_count);
 #endif
-        if (DaqListState(daq) & DAQ_STATE_RUNNING) {        // DAQ list active
-            XcpTriggerDaqList(daq_lists, daq, base, clock); // Trigger DAQ list
+        if (DaqListState(daq) & DAQ_STATE_RUNNING) {                     // DAQ list active
+            XcpTriggerDaqList(daq_lists, queueHandle, daq, base, clock); // Trigger DAQ list
         }
         daq = DaqListNext(daq);
     }
@@ -2318,19 +2322,19 @@ tXcpEvent *XcpGetEvent(uint16_t event) {
     return &gXcp.EventList[event];
 }
 
-// Create an XCP event, <rate> in us, 0 = sporadic, <priority> 0-normal, >=1 realtime, <sampleCount> only for packed mode events only, <size> only for extended events
+// Create an XCP event
 // Returns the XCP event number for XcpEventXxx() or XCP_UNDEFINED_EVENT_CHANNEL when out of memory
-uint16_t XcpCreateEvent(const char *name, uint32_t cycleTimeNs, uint8_t priority, uint16_t sampleCount, uint32_t size) {
+uint16_t XcpCreateEvent(const char *name, uint32_t cycleTimeNs, uint8_t priority) {
 
     uint16_t e;
     uint32_t c;
 
     if (!isInitialized()) {
-        DBG_PRINT_ERROR("ERROR: XCP driver not initialized\n");
+        DBG_PRINT_ERROR("XCP not initialized\n");
         return XCP_UNDEFINED_EVENT_CHANNEL; // Uninitialized or out of memory
     }
     if (gXcp.EventCount >= XCP_MAX_EVENT_COUNT) {
-        DBG_PRINT_ERROR("ERROR: XCP too many events\n");
+        DBG_PRINT_ERROR("too many events\n");
         return XCP_UNDEFINED_EVENT_CHANNEL; // timeUninitialized or out of memory
     }
 
@@ -2348,12 +2352,10 @@ uint16_t XcpCreateEvent(const char *name, uint32_t cycleTimeNs, uint8_t priority
     strncpy(gXcp.EventList[e].shortName, name, XCP_MAX_EVENT_NAME);
     gXcp.EventList[e].shortName[XCP_MAX_EVENT_NAME] = 0;
     gXcp.EventList[e].priority = priority;
-    gXcp.EventList[e].sampleCount = sampleCount;
-    gXcp.EventList[e].size = size;
+
 #ifdef DBG_LEVEL
     uint64_t ns = (uint64_t)(gXcp.EventList[e].timeCycle * pow(10, gXcp.EventList[e].timeUnit));
-    DBG_PRINTF3("  Event %u: %s cycle=%" PRIu64 "ns, prio=%u, sc=%u, size=%u\n", e, gXcp.EventList[e].shortName, ns, gXcp.EventList[e].priority, gXcp.EventList[e].sampleCount,
-                gXcp.EventList[e].size);
+    DBG_PRINTF3("  Event %u: %s cycle=%" PRIu64 "ns, prio=%u\n", e, gXcp.EventList[e].shortName, ns, gXcp.EventList[e].priority);
     if (cycleTimeNs != ns)
         DBG_PRINTF_WARNING("WARNING: cycle time %uns, loss of significant digits!\n", cycleTimeNs);
 #endif

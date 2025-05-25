@@ -2520,6 +2520,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "xcplib_demo"
+version = "0.3.0"
+dependencies = [
+ "env_logger",
+ "log",
+ "xcp_lite",
+]
+
+[[package]]
 name = "yansi"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

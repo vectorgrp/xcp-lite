@@ -17,27 +17,25 @@
 #define XCP_UNDEFINED_EVENT_CHANNEL 0xFFFF
 
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
+
 #ifndef XCP_MAX_EVENT_COUNT
-#define XCP_MAX_EVENT_COUNT 16
-#elif XCP_MAX_EVENT_COUNT > 16
-#warning "Memory consumption of event list is high, consider reducing XCP_MAX_EVENT_COUNT or XCP_MAX_EVENT_NAME"
+#error "Please define XCP_MAX_EVENT_COUNT!"
 #endif
 #if XCP_MAX_EVENT_COUNT & 1 != 0
 #error "XCP_MAX_EVENT_COUNT must be even!"
 #endif
 
 #ifndef XCP_MAX_EVENT_NAME
-#define XCP_MAX_EVENT_NAME 8
+#define XCP_MAX_EVENT_NAME 15
 #endif
 
 typedef struct {
-    char shortName[XCP_MAX_EVENT_NAME + 1]; // A2L XCP IF_DATA short event name, long name not supported
-    uint32_t size;                          // ext event size
+    char shortName[XCP_MAX_EVENT_NAME + 1]; // event name
+    uint16_t daqList;                       // associated DAQ list
     uint8_t timeUnit;                       // timeCycle unit, 1ns=0, 10ns=1, 100ns=2, 1us=3, ..., 1ms=6, ...
     uint8_t timeCycle;                      // cycle time in units, 0 = sporadic or unknown
-    uint16_t sampleCount;                   // packed event sample count
-    uint16_t daqList;                       // associated DAQ list
     uint8_t priority;                       // priority 0 = queued, 1 = pushing, 2 = realtime
+    uint8_t res;                            // reserved
 } tXcpEvent;
 
 #endif
@@ -174,10 +172,13 @@ uint16_t XcpGetClusterId(void);
 
 // Clear event list
 void XcpClearEventList(void);
+
 // Add a measurement event to event list, return event number (0..MAX_EVENT-1)
-uint16_t XcpCreateEvent(const char *name, uint32_t cycleTimeNs /* ns */, uint8_t priority /* 0-normal, >=1 realtime*/, uint16_t sampleCount, uint32_t size);
+uint16_t XcpCreateEvent(const char *name, uint32_t cycleTimeNs /* ns */, uint8_t priority /* 0-normal, >=1 realtime*/);
+
 // Get event list
 tXcpEvent *XcpGetEventList(uint16_t *eventCount);
+
 // Lookup event
 tXcpEvent *XcpGetEvent(uint16_t event);
 
