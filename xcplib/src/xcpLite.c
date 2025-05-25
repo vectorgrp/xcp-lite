@@ -2319,17 +2319,12 @@ void XcpReset(void) {
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
 
 // Get a pointer to and the size of the XCP event list
-tXcpEvent *XcpGetEventList(uint16_t *eventCount) {
+tXcpEventList *XcpGetEventList() {
 
     if (!isInitialized())
         return NULL;
-
-    if (eventCount != NULL)
-        *eventCount = gXcp.EventList.count;
-    return gXcp.EventList.event;
+    return &gXcp.EventList;
 }
-
-void XcpClearEventList(void) { gXcp.EventList.count = 0; }
 
 tXcpEvent *XcpGetEvent(uint16_t event) {
     if (!isStarted() || event >= gXcp.EventList.count)
@@ -2400,9 +2395,6 @@ tXcpCalSegList *XcpGetCalSegList() {
     return &gXcp.CalSegList;
 }
 
-// Clear the calibration segment list
-void XcpClearCalSegList(void) { gXcp.CalSegList.count = 0; }
-
 // Get a pointer to a calibration segment struct
 tXcpCalSeg *XcpGetCalSeg(uint16_t calseg) {
     if (!isStarted() || calseg >= gXcp.CalSegList.count)
@@ -2442,6 +2434,41 @@ uint16_t XcpCreateCalSeg(const char *name, uint8_t *default_page, uint16_t size)
     gXcp.CalSegList.calseg[c].ecu_ctr = gXcp.CalSegList.calseg[c].xcp_ctr - 1; // Force initial update
     DBG_PRINTF3("  CalSeg %u: %s size=%u\n", c, gXcp.CalSegList.calseg[c].name, gXcp.CalSegList.calseg[c].size);
     return c;
+}
+
+uint8_t *XcpLockCalSeg(uint16_t calseg) {
+
+    if (!isInitialized() || calseg >= gXcp.CalSegList.count) {
+        DBG_PRINT_ERROR("XCP not initialized or invalid calseg\n");
+        return NULL; // Uninitialized or invalid calseg
+    }
+
+    // Check for updates
+    // Do a fast unsafe check first before locking the mutex
+    if (gXcp.CalSegList.calseg[calseg].ecu_ctr != gXcp.CalSegList.calseg[calseg].xcp_ctr) {
+
+        // Lock the complete calibration segment list against XCP modifications while copying
+        mutexLock(&gXcp.CalSegList.mutex);
+
+        // Copy XCP page to ECU page
+        if (gXcp.CalSegList.calseg[calseg].ecu_ctr != gXcp.CalSegList.calseg[calseg].xcp_ctr) {
+            memcpy(gXcp.CalSegList.calseg[calseg].ecu_page, gXcp.CalSegList.calseg[calseg].xcp_page, gXcp.CalSegList.calseg[calseg].size);
+            gXcp.CalSegList.calseg[calseg].ecu_ctr = gXcp.CalSegList.calseg[calseg].xcp_ctr;
+        }
+
+        mutexUnlock(&gXcp.CalSegList.mutex);
+    }
+
+    return gXcp.CalSegList.calseg[calseg].ecu_page;
+}
+void XcpUnlockCalSeg(uint16_t calseg) {
+
+    if (!isInitialized() || calseg >= gXcp.CalSegList.count) {
+        DBG_PRINT_ERROR("XCP not initialized or invalid calseg\n");
+        return; // Uninitialized or invalid calseg
+    }
+
+    // @@@@ Does nothing yet, just a placeholder for future improvements of the locking mechanism
 }
 
 #endif // XCP_ENABLE_CALSEG_LIST

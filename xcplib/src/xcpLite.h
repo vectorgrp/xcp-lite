@@ -214,14 +214,11 @@ uint16_t XcpGetClusterId(void);
 /* Event list */
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
 
-// Clear event list
-void XcpClearEventList(void);
-
 // Add a measurement event to event list, return event number (0..MAX_EVENT-1)
 uint16_t XcpCreateEvent(const char *name, uint32_t cycleTimeNs /* ns */, uint8_t priority /* 0-normal, >=1 realtime*/);
 
 // Get event list
-tXcpEvent *XcpGetEventList(uint16_t *eventCount);
+tXcpEventList *XcpGetEventList();
 
 // Lookup event
 tXcpEvent *XcpGetEvent(uint16_t event);
@@ -232,8 +229,15 @@ tXcpEvent *XcpGetEvent(uint16_t event);
 #ifdef XCP_ENABLE_CALSEG_LIST
 
 // Create a calibration segmment
+// Thread safe
 // Returns the handle or XCP_UNDEFINED_CALSEG when out of memory
 uint16_t XcpCreateCalSeg(const char *name, uint8_t *default_page, uint16_t size);
+
+// Lock a calibration segment and return a pointer to the ECU page
+uint8_t *XcpLockCalSeg(uint16_t calseg);
+
+// Unlock a calibration segment
+void XcpUnlockCalSeg(uint16_t calseg);
 
 #endif
 

@@ -40,10 +40,12 @@ static uint16_t counter_static = 0;
 // Demo main
 void c_demo(void) {
 
-    printf("\nXCP on Ethernet C Demo\n");
+    printf("\nXCP on Ethernet C xcplib demo\n");
+
+    // Initialize the XCP singleton, must be called before starting the server
+    XcpInit();
 
     // Initialize the XCP Server
-    XcpInit(); // Initialize XCP singleton, must be called before XcpEthServerInit()
     if (!XcpEthServerInit(gOptionBindAddr, gOptionPort, gOptionUseTCP, NULL, gOptionQueueSize)) {
         return;
     }
@@ -60,24 +62,25 @@ void c_demo(void) {
     // Create a measurement event
     uint16_t event = XcpCreateEvent("mainloop", 0, 0);
 
-    // Register a measurement for the counter
-    // XcpRegisterMeasurement(event, "counter", &counter, XCP_MEASUREMENT_TYPE_UINT16);
+    // Register measurement variables
+    // XcpRegisterLocalVariable(event, "counter", &counter, XCP_MEASUREMENT_TYPE_UINT16);
+    // XcpRegisterStaticVariable(event, "counter_static", &counter, XCP_MEASUREMENT_TYPE_UINT16);
 
     for (;;) {
         sleepMs(100);
 
         // Lock the calibration segment for consistent and thread safe access
-        // struct params_t *params = (struct params_t *)XcpLockCalseg(calseg);
+        struct params_t *params = (struct params_t *)XcpLockCalSeg(calseg);
 
         counter++;
         counter_static++;
-        if (counter > params.counter_max) {
+        if (counter > params->counter_max) {
             counter = 0;
             counter_static = 0;
         }
 
         // Unlock the calibration segment
-        // XcpUnlockCalSeg(calseg);
+        XcpUnlockCalSeg(calseg);
 
         // Trigger a measurement event
         XcpEventExt(event, (void *)&event);
