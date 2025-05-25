@@ -11,7 +11,44 @@
 #include "xcp_cfg.h" // for XCP_PROTOCOL_LAYER_VERSION, XCP_ENABLE_DY...
 
 /****************************************************************************/
-/* DAQ event channel information                                            */
+/* Calibration segments                                                     */
+/****************************************************************************/
+
+#define XCP_UNDEFINED_CALSEG 0xFFFF
+
+#ifdef XCP_ENABLE_CALSEG_LIST
+
+#ifndef XCP_MAX_CALSEG_COUNT
+#error "Please define XCP_MAX_CALSEG_COUNT!"
+#endif
+
+#ifndef XCP_MAX_CALSEG_NAME
+#define XCP_MAX_CALSEG_NAME 15
+#endif
+
+// Calibration segment
+typedef struct {
+    uint8_t *default_page;
+    uint8_t *ecu_page;
+    uint8_t *xcp_page;
+    uint16_t size;
+    uint16_t xcp_ctr;
+    uint16_t ecu_ctr;
+    uint16_t res;
+    char name[XCP_MAX_CALSEG_NAME + 1];
+} tXcpCalSeg;
+
+// Calibration segment list
+typedef struct {
+    MUTEX mutex;
+    uint16_t count;
+    tXcpCalSeg calseg[XCP_MAX_CALSEG_COUNT];
+} tXcpCalSegList;
+
+#endif
+
+/****************************************************************************/
+/* DAQ events                                                               */
 /****************************************************************************/
 
 #define XCP_UNDEFINED_EVENT_CHANNEL 0xFFFF
@@ -30,13 +67,20 @@
 #endif
 
 typedef struct {
-    char shortName[XCP_MAX_EVENT_NAME + 1]; // event name
-    uint16_t daqList;                       // associated DAQ list
+    uint16_t daqList; // associated DAQ list
+    uint16_t res1;
     uint8_t timeUnit;                       // timeCycle unit, 1ns=0, 10ns=1, 100ns=2, 1us=3, ..., 1ms=6, ...
     uint8_t timeCycle;                      // cycle time in units, 0 = sporadic or unknown
     uint8_t priority;                       // priority 0 = queued, 1 = pushing, 2 = realtime
-    uint8_t res;                            // reserved
+    uint8_t res2;                           // reserved
+    char shortName[XCP_MAX_EVENT_NAME + 1]; // event name
 } tXcpEvent;
+
+typedef struct {
+    MUTEX mutex;
+    uint16_t count;                       // number of events
+    tXcpEvent event[XCP_MAX_EVENT_COUNT]; // event list
+} tXcpEventList;
 
 #endif
 
@@ -181,6 +225,15 @@ tXcpEvent *XcpGetEventList(uint16_t *eventCount);
 
 // Lookup event
 tXcpEvent *XcpGetEvent(uint16_t event);
+
+#endif
+
+/* Calibration segment list */
+#ifdef XCP_ENABLE_CALSEG_LIST
+
+// Create a calibration segmment
+// Returns the handle or XCP_UNDEFINED_CALSEG when out of memory
+uint16_t XcpCreateCalSeg(const char *name, uint8_t *default_page, uint16_t size);
 
 #endif
 

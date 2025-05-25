@@ -49,7 +49,7 @@ void c_demo(void) {
     }
 
     // Create a calibration segment for parameters
-    // uint16_t calseg = XcpCreateCalSeg("params", sizeof(params), &params);
+    uint16_t calseg = XcpCreateCalSeg("params", &params, sizeof(params));
 
     // Register calibration parameters in calseg
     // XcpRegisterParameter(calseg, "params.counter_max", &params.counter_max, sizeof(params.counter_max));

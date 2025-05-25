@@ -204,8 +204,12 @@ typedef struct {
 
     /* Optional event list */
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
-    uint16_t EventCount;
-    tXcpEvent EventList[XCP_MAX_EVENT_COUNT];
+    tXcpEventList EventList;
+#endif
+
+    /* Optional calibration segment list */
+#ifdef XCP_ENABLE_CALSEG_LIST
+    tXcpCalSegList CalSegList;
 #endif
 
 #if XCP_PROTOCOL_LAYER_VERSION >= 0x0103
@@ -728,7 +732,7 @@ static uint8_t XcpSetDaqListMode(uint16_t daq, uint16_t event, uint8_t mode, uin
 
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
     // If any events are registered, check if this event exists
-    if (gXcp.EventCount > 0) {
+    if (gXcp.EventList.count > 0) {
         tXcpEvent *e = XcpGetEvent(event); // Check if event exists
         if (e == NULL)
             return CRC_OUT_OF_RANGE;
@@ -1619,7 +1623,7 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
             CRM_GET_DAQ_PROCESSOR_INFO_MIN_DAQ = 0;                                                    // Total number of predefined DAQ lists
             CRM_GET_DAQ_PROCESSOR_INFO_MAX_DAQ = gXcpDaqLists != NULL ? (gXcpDaqLists->daq_count) : 0; // Number of currently dynamically allocated DAQ lists
 #if defined(XCP_ENABLE_DAQ_EVENT_INFO)
-            CRM_GET_DAQ_PROCESSOR_INFO_MAX_EVENT = gXcp.EventCount; // Number of currently available event channels
+            CRM_GET_DAQ_PROCESSOR_INFO_MAX_EVENT = gXcp.EventList.count; // Number of currently available event channels
 #else
             CRM_GET_DAQ_PROCESSOR_INFO_MAX_EVENT = 0; // 0 - unknown
 #endif
@@ -2139,6 +2143,14 @@ void XcpInit(void) {
     assert(gXcpDaqLists != NULL);
     XcpClearDaq();
 
+#ifdef XCP_ENABLE_CALSEG_LIST
+    mutexInit(&gXcp.CalSegList.mutex, false, 1000);
+#endif
+
+#ifdef XCP_ENABLE_EVENT_LIST
+    mutexInit(&gXcp.EventList.mutex, false, 1000);
+#endif
+
 #ifdef XCP_ENABLE_MULTITHREAD_CAL_EVENTS
     mutexInit(&gXcp.CmdPendingMutex, false, 1000);
 #endif
@@ -2189,8 +2201,11 @@ void XcpStart(tQueueHandle queueHandle, bool resumeMode) {
 #ifdef XCP_ENABLE_IDT_A2L_HTTP_GET // Enable A2L upload to hostRust
         DBG_PRINT("A2L_URL,");
 #endif
-#ifdef XCP_ENABLE_DAQ_EVENT_LIST // Enable XCP event info by protocol or by A2L
-        DBG_PRINT("DAQ_EVT_LIST,");
+#ifdef XCP_ENABLE_DAQ_EVENT_LIST // Enable XCP event registration and optimization
+        DBG_PRINT("DAQ_EVENT_LIST,");
+#endif
+#ifdef XCP_ENABLE_CALSEG_LIST // Enable XCP calibration segments
+        DBG_PRINT("CALSEG_LIST,");
 #endif
 #ifdef XCP_ENABLE_DAQ_EVENT_INFO // Enable XCP event info by protocol instead of A2L
         DBG_PRINT("DAQ_EVT_INFO,");
@@ -2310,19 +2325,20 @@ tXcpEvent *XcpGetEventList(uint16_t *eventCount) {
         return NULL;
 
     if (eventCount != NULL)
-        *eventCount = gXcp.EventCount;
-    return gXcp.EventList;
+        *eventCount = gXcp.EventList.count;
+    return gXcp.EventList.event;
 }
 
-void XcpClearEventList(void) { gXcp.EventCount = 0; }
+void XcpClearEventList(void) { gXcp.EventList.count = 0; }
 
 tXcpEvent *XcpGetEvent(uint16_t event) {
-    if (!isStarted() || event >= gXcp.EventCount)
+    if (!isStarted() || event >= gXcp.EventList.count)
         return NULL;
-    return &gXcp.EventList[event];
+    return &gXcp.EventList.event[event];
 }
 
 // Create an XCP event
+// Thread safe
 // Returns the XCP event number for XcpEventXxx() or XCP_UNDEFINED_EVENT_CHANNEL when out of memory
 uint16_t XcpCreateEvent(const char *name, uint32_t cycleTimeNs, uint8_t priority) {
 
@@ -2331,39 +2347,104 @@ uint16_t XcpCreateEvent(const char *name, uint32_t cycleTimeNs, uint8_t priority
 
     if (!isInitialized()) {
         DBG_PRINT_ERROR("XCP not initialized\n");
-        return XCP_UNDEFINED_EVENT_CHANNEL; // Uninitialized or out of memory
+        return XCP_UNDEFINED_EVENT_CHANNEL; // Uninitialized
     }
-    if (gXcp.EventCount >= XCP_MAX_EVENT_COUNT) {
+
+    mutexLock(&gXcp.EventList.mutex);
+    e = gXcp.EventList.count;
+    if (e >= XCP_MAX_EVENT_COUNT) {
+        mutexUnlock(&gXcp.EventList.mutex); // Unlock event list mutex
         DBG_PRINT_ERROR("too many events\n");
-        return XCP_UNDEFINED_EVENT_CHANNEL; // timeUninitialized or out of memory
+        return XCP_UNDEFINED_EVENT_CHANNEL; // Out of memory
     }
+    gXcp.EventList.count++;
+    mutexUnlock(&gXcp.EventList.mutex);
 
     // Convert cycle time to ASAM coding time cycle and time unit
     // RESOLUTION OF TIMESTAMP "UNIT_1NS" = 0, "UNIT_10NS" = 1, ...
-    e = gXcp.EventCount;
     c = cycleTimeNs;
-    gXcp.EventList[e].timeUnit = 0;
+    gXcp.EventList.event[e].timeUnit = 0;
     while (c >= 256) {
         c /= 10;
-        gXcp.EventList[e].timeUnit++;
+        gXcp.EventList.event[e].timeUnit++;
     }
-    gXcp.EventList[e].timeCycle = (uint8_t)c;
+    gXcp.EventList.event[e].timeCycle = (uint8_t)c;
 
-    strncpy(gXcp.EventList[e].shortName, name, XCP_MAX_EVENT_NAME);
-    gXcp.EventList[e].shortName[XCP_MAX_EVENT_NAME] = 0;
-    gXcp.EventList[e].priority = priority;
+    strncpy(gXcp.EventList.event[e].shortName, name, XCP_MAX_EVENT_NAME);
+    gXcp.EventList.event[e].shortName[XCP_MAX_EVENT_NAME] = 0;
+    gXcp.EventList.event[e].priority = priority;
 
 #ifdef DBG_LEVEL
-    uint64_t ns = (uint64_t)(gXcp.EventList[e].timeCycle * pow(10, gXcp.EventList[e].timeUnit));
-    DBG_PRINTF3("  Event %u: %s cycle=%" PRIu64 "ns, prio=%u\n", e, gXcp.EventList[e].shortName, ns, gXcp.EventList[e].priority);
+    uint64_t ns = (uint64_t)(gXcp.EventList.event[e].timeCycle * pow(10, gXcp.EventList.event[e].timeUnit));
+    DBG_PRINTF3("  Event %u: %s cycle=%" PRIu64 "ns, prio=%u\n", e, gXcp.EventList.event[e].shortName, ns, gXcp.EventList.event[e].priority);
     if (cycleTimeNs != ns)
         DBG_PRINTF_WARNING("WARNING: cycle time %uns, loss of significant digits!\n", cycleTimeNs);
 #endif
 
-    return gXcp.EventCount++;
+    return e;
 }
 
 #endif // XCP_ENABLE_DAQ_EVENT_LIST
+
+/**************************************************************************/
+/* CalSeglist                                                             */
+/**************************************************************************/
+
+#ifdef XCP_ENABLE_CALSEG_LIST
+
+// Get a pointer to the list and the size of the list
+tXcpCalSegList *XcpGetCalSegList() {
+
+    if (!isInitialized())
+        return NULL;
+    return &gXcp.CalSegList;
+}
+
+// Clear the calibration segment list
+void XcpClearCalSegList(void) { gXcp.CalSegList.count = 0; }
+
+// Get a pointer to a calibration segment struct
+tXcpCalSeg *XcpGetCalSeg(uint16_t calseg) {
+    if (!isStarted() || calseg >= gXcp.CalSegList.count)
+        return NULL;
+    return &gXcp.CalSegList.calseg[calseg];
+}
+
+// Create a calibration segment
+// Thread safe
+// Returns the handle or XCP_UNDEFINED_CALSEG when out of memory
+uint16_t XcpCreateCalSeg(const char *name, uint8_t *default_page, uint16_t size) {
+
+    uint16_t c;
+
+    if (!isInitialized()) {
+        DBG_PRINT_ERROR("XCP not initialized\n");
+        return XCP_UNDEFINED_CALSEG;
+    }
+
+    mutexLock(&gXcp.CalSegList.mutex);
+    c = gXcp.CalSegList.count;
+    if (gXcp.CalSegList.count >= XCP_MAX_CALSEG_COUNT) {
+        mutexUnlock(&gXcp.CalSegList.mutex);
+        DBG_PRINT_ERROR("too many calibration segments\n");
+        return XCP_UNDEFINED_CALSEG;
+    }
+    gXcp.CalSegList.count++;
+    mutexUnlock(&gXcp.CalSegList.mutex);
+
+    strncpy(gXcp.CalSegList.calseg[c].name, name, XCP_MAX_CALSEG_NAME);
+    gXcp.CalSegList.calseg[c].name[XCP_MAX_CALSEG_NAME] = 0;
+    gXcp.CalSegList.calseg[c].default_page = default_page;
+    gXcp.CalSegList.calseg[c].xcp_page = malloc(size);
+    memcpy(gXcp.CalSegList.calseg[c].xcp_page, default_page, size); // Copy default page to XCP page
+    gXcp.CalSegList.calseg[c].ecu_page = malloc(size);
+    gXcp.CalSegList.calseg[c].size = size;
+    gXcp.CalSegList.calseg[c].ecu_ctr = gXcp.CalSegList.calseg[c].xcp_ctr - 1; // Force initial update
+    DBG_PRINTF3("  CalSeg %u: %s size=%u\n", c, gXcp.CalSegList.calseg[c].name, gXcp.CalSegList.calseg[c].size);
+    return c;
+}
+
+#endif // XCP_ENABLE_CALSEG_LIST
 
 /****************************************************************************/
 /* Test printing                                                            */

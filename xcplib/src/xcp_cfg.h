@@ -135,6 +135,16 @@
 
 #endif
 
+// Enable calibration segment list
+// Not needed for Rust xcp-lite
+#define XCP_ENABLE_CALSEG_LIST
+#ifdef XCP_ENABLE_CALSEG_LIST
+
+#define XCP_MAX_CALSEG_COUNT 4
+#define XCP_MAX_CALSEG_NAME 15
+
+#endif
+
 // Overrun indication via PID
 // Not needed for Ethernet, client detects data loss via transport layer counters
 // #define XCP_ENABLE_OVERRUN_INDICATION_PID
