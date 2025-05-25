@@ -1,6 +1,20 @@
 fn main() {
     build_info_build::build_script();
 
+    #[allow(unused_assignments, unused_mut)] // due to feature flag
+    let mut _is_posix = true;
+    #[cfg(target_os = "windows")]
+    {
+        _is_posix = false;
+    }
+
+    #[allow(unused_assignments, unused_mut)] // due to feature flag
+    let mut is_release = true;
+    #[cfg(debug_assertions)]
+    {
+        is_release = false;
+    }
+
     // Generate C code bindings for xcplib
     let bindings = bindgen::Builder::default()
         .header("xcplib/wrapper.h")
@@ -43,40 +57,49 @@ fn main() {
     bindings.write_to_file("src/xcp/xcplib.rs").expect("Couldn't write bindings!");
 
     // Build xcplib
-    cc::Build::new()
+
+    let mut builder = cc::Build::new();
+    let builder = builder
+        //
         .include("xcplib/src/")
         .include("xcplib/")
+        //
         // @@@@ temporary file for testing XCPlite compatibility
         .file("xcplib/c_demo.c")
+        //
         // xcplib source files
+        .file("xcplib/src/a2l.c")
         .file("xcplib/src/xcpAppl.c")
         .file("xcplib/src/platform.c")
         .file("xcplib/src/xcpLite.c")
         .file("xcplib/src/xcpQueue.c")
         .file("xcplib/src/xcpEthTl.c")
         .file("xcplib/src/xcpEthServer.c")
-        // C11
-        // @@@@ TODO Windows MSC ????
-        //.flag("-std=c11")
-        // Optimizations
-        // @@@@ TODO Enable optimization in release mode
-        .flag("-O2")
-        // .flag("-O0")
-        // .flag("-g")
-        .compile("xcplib");
+        // Flags
+        .flag("-std=c11");
+
+    if is_release {
+        builder.flag("-O2");
+    } else {
+        builder.flag("-O0").flag("-g");
+    }
+
+    builder.compile("xcplib");
 
     // Tell cargo to invalidate the built crate whenever any of these files changed.
-    println!("cargo:rerun-if-changed=xcplib/wrapper.h");
-    println!("cargo:rerun-if-changed=xcplib/main_cfg.h");
-    println!("cargo:rerun-if-changed=xcplib/xcptl_cfg.h");
-    println!("cargo:rerun-if-changed=xcplib/xcp_cfg.h");
-    println!("cargo:rerun-if-changed=xcplib/xcpAppl.c");
     println!("cargo:rerun-if-changed=xcplib/c_test.c");
-    println!("cargo:rerun-if-changed=xcplib/src/main.h");
+    println!("cargo:rerun-if-changed=xcplib/wrapper.h");
+    println!("cargo:rerun-if-changed=xcplib/src/main_cfg.h");
+    println!("cargo:rerun-if-changed=xcplib/src/xcptl_cfg.h");
+    println!("cargo:rerun-if-changed=xcplib/src/xcp_cfg.h");
+    println!("cargo:rerun-if-changed=xcplib/src/a2l.h");
+    println!("cargo:rerun-if-changed=xcplib/src/a2l.c");
+    println!("cargo:rerun-if-changed=xcplib/src/xcpAppl.h");
+    println!("cargo:rerun-if-changed=xcplib/src/xcpAppl.c");
     println!("cargo:rerun-if-changed=xcplib/src/platform.h");
     println!("cargo:rerun-if-changed=xcplib/src/platform.c");
-    println!("cargo:rerun-if-changed=xcplib/src/Queue.h");
-    println!("cargo:rerun-if-changed=xcplib/src/Queue.c");
+    println!("cargo:rerun-if-changed=xcplib/src/xcpQueue.h");
+    println!("cargo:rerun-if-changed=xcplib/src/xcpQueue.c");
     println!("cargo:rerun-if-changed=xcplib/src/xcpEthTl.h");
     println!("cargo:rerun-if-changed=xcplib/src/xcpEthTl.c");
     println!("cargo:rerun-if-changed=xcplib/src/xcpEthServer.h");

@@ -185,6 +185,7 @@ bool ApplXcpGetClockInfoGrandmaster(uint8_t *uuid, uint8_t *epoch, uint8_t *stra
 // In Microsoft Visual Studio set option "Generate Debug Information" to "optimized for sharing and publishing (/DEBUG:FULL)"
 
 #ifdef XCP_ENABLE_ABS_ADDRESSING
+
 uint8_t *ApplXcpGetPointer(uint8_t addr_ext, uint32_t addr) {
 
     if (addr_ext != XCP_ADDR_EXT_ABS)
@@ -201,7 +202,6 @@ uint8_t *ApplXcpGetPointer(uint8_t addr_ext, uint32_t addr) {
     p = ApplXcpGetBaseAddr() + addr;
     return p;
 }
-#endif
 
 #ifdef _WIN
 
@@ -228,6 +228,8 @@ uint32_t ApplXcpGetAddr(const uint8_t *p) {
 #endif
     return (uint32_t)(p - ApplXcpGetBaseAddr());
 }
+
+#endif
 
 #if defined(_LINUX64) && !defined(_MACOS)
 

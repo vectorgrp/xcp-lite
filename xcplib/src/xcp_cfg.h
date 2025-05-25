@@ -42,8 +42,8 @@
 #define XCP_ADDR_EXT_DYN 0x02 // Relative address format
 
 // Use addr_ext XCP_ADDR_EXT_ABS to indicate absulute addr format (ApplXcpGetBaseAddr()+ addr as uint64_t)
-// #define XCP_ENABLE_ABS_ADDRESSING
-// #define XCP_ADDR_EXT_ABS 0x01 // Absolute address format
+#define XCP_ENABLE_ABS_ADDRESSING
+#define XCP_ADDR_EXT_ABS 0x01 // Absolute address format
 
 // Use addr_ext XCP_ADDR_EXT_APP to indicate application specific addr format and use ApplXcpReadMemory and ApplXcpWriteMemory
 #define XCP_ENABLE_APP_ADDRESSING

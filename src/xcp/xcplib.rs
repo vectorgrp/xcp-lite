@@ -114,6 +114,9 @@ unsafe extern "C" {
     pub fn XcpPrint(str_: *const ::std::os::raw::c_char);
 }
 unsafe extern "C" {
+    pub fn ApplXcpGetAddr(p: *const u8) -> u32;
+}
+unsafe extern "C" {
     pub fn ApplXcpGetClock64() -> u64;
 }
 unsafe extern "C" {

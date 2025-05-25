@@ -2319,7 +2319,7 @@ void XcpReset(void) {
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
 
 // Get a pointer to and the size of the XCP event list
-tXcpEventList *XcpGetEventList() {
+tXcpEventList *XcpGetEventList(void) {
 
     if (!isInitialized())
         return NULL;
@@ -2365,13 +2365,13 @@ uint16_t XcpCreateEvent(const char *name, uint32_t cycleTimeNs, uint8_t priority
     }
     gXcp.EventList.event[e].timeCycle = (uint8_t)c;
 
-    strncpy(gXcp.EventList.event[e].shortName, name, XCP_MAX_EVENT_NAME);
-    gXcp.EventList.event[e].shortName[XCP_MAX_EVENT_NAME] = 0;
+    strncpy(gXcp.EventList.event[e].name, name, XCP_MAX_EVENT_NAME);
+    gXcp.EventList.event[e].name[XCP_MAX_EVENT_NAME] = 0;
     gXcp.EventList.event[e].priority = priority;
 
 #ifdef DBG_LEVEL
     uint64_t ns = (uint64_t)(gXcp.EventList.event[e].timeCycle * pow(10, gXcp.EventList.event[e].timeUnit));
-    DBG_PRINTF3("  Event %u: %s cycle=%" PRIu64 "ns, prio=%u\n", e, gXcp.EventList.event[e].shortName, ns, gXcp.EventList.event[e].priority);
+    DBG_PRINTF3("  Event %u: %s cycle=%" PRIu64 "ns, prio=%u\n", e, gXcp.EventList.event[e].name, ns, gXcp.EventList.event[e].priority);
     if (cycleTimeNs != ns)
         DBG_PRINTF_WARNING("WARNING: cycle time %uns, loss of significant digits!\n", cycleTimeNs);
 #endif
@@ -2405,7 +2405,7 @@ tXcpCalSeg *XcpGetCalSeg(uint16_t calseg) {
 // Create a calibration segment
 // Thread safe
 // Returns the handle or XCP_UNDEFINED_CALSEG when out of memory
-uint16_t XcpCreateCalSeg(const char *name, uint8_t *default_page, uint16_t size) {
+uint16_t XcpCreateCalSeg(const char *name, void *default_page, uint16_t size) {
 
     uint16_t c;
 

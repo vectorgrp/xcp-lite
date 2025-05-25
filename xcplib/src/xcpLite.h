@@ -69,11 +69,11 @@ typedef struct {
 typedef struct {
     uint16_t daqList; // associated DAQ list
     uint16_t res1;
-    uint8_t timeUnit;                       // timeCycle unit, 1ns=0, 10ns=1, 100ns=2, 1us=3, ..., 1ms=6, ...
-    uint8_t timeCycle;                      // cycle time in units, 0 = sporadic or unknown
-    uint8_t priority;                       // priority 0 = queued, 1 = pushing, 2 = realtime
-    uint8_t res2;                           // reserved
-    char shortName[XCP_MAX_EVENT_NAME + 1]; // event name
+    uint8_t timeUnit;                  // timeCycle unit, 1ns=0, 10ns=1, 100ns=2, 1us=3, ..., 1ms=6, ...
+    uint8_t timeCycle;                 // cycle time in units, 0 = sporadic or unknown
+    uint8_t priority;                  // priority 0 = queued, 1 = pushing, 2 = realtime
+    uint8_t res2;                      // reserved
+    char name[XCP_MAX_EVENT_NAME + 1]; // event name
 } tXcpEvent;
 
 typedef struct {
@@ -218,7 +218,7 @@ uint16_t XcpGetClusterId(void);
 uint16_t XcpCreateEvent(const char *name, uint32_t cycleTimeNs /* ns */, uint8_t priority /* 0-normal, >=1 realtime*/);
 
 // Get event list
-tXcpEventList *XcpGetEventList();
+tXcpEventList *XcpGetEventList(void);
 
 // Lookup event
 tXcpEvent *XcpGetEvent(uint16_t event);
@@ -228,10 +228,13 @@ tXcpEvent *XcpGetEvent(uint16_t event);
 /* Calibration segment list */
 #ifdef XCP_ENABLE_CALSEG_LIST
 
+// Get a pointer to the list
+tXcpCalSegList *XcpGetCalSegList(void);
+
 // Create a calibration segmment
 // Thread safe
 // Returns the handle or XCP_UNDEFINED_CALSEG when out of memory
-uint16_t XcpCreateCalSeg(const char *name, uint8_t *default_page, uint16_t size);
+uint16_t XcpCreateCalSeg(const char *name, void *default_page, uint16_t size);
 
 // Lock a calibration segment and return a pointer to the ECU page
 uint8_t *XcpLockCalSeg(uint16_t calseg);

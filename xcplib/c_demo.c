@@ -24,6 +24,27 @@ uint16_t gOptionPort = OPTION_SERVER_PORT;
 uint8_t gOptionBindAddr[4] = OPTION_SERVER_ADDR;
 
 //-----------------------------------------------------------------------------------------------------
+// Create A2L file
+
+#include "a2l.h" // for sleepMs
+
+#define OPTION_A2L_NAME "C_Demo"          // A2L name
+#define OPTION_A2L_FILE_NAME "C_Demo.a2l" // A2L filename
+
+static bool createA2L() {
+
+    if (!A2lOpen(OPTION_A2L_FILE_NAME, OPTION_A2L_NAME))
+        return false;
+
+    A2lCreate_ETH_IF_DATA(gOptionUseTCP, gOptionBindAddr, gOptionPort);
+
+    A2lCreate_MOD_PAR("EPK_xxxx");
+
+    A2lClose();
+    return true;
+}
+
+//-----------------------------------------------------------------------------------------------------
 
 // Demo calibration parameters
 struct params_t {
@@ -65,6 +86,8 @@ void c_demo(void) {
     // Register measurement variables
     // XcpRegisterLocalVariable(event, "counter", &counter, XCP_MEASUREMENT_TYPE_UINT16);
     // XcpRegisterStaticVariable(event, "counter_static", &counter, XCP_MEASUREMENT_TYPE_UINT16);
+
+    createA2L();
 
     for (;;) {
         sleepMs(100);
