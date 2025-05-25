@@ -1,3 +1,3 @@
 # xcplib
 
-XCPlite C as library
+XCPlite as library

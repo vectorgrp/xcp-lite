@@ -2436,6 +2436,7 @@ uint16_t XcpCreateCalSeg(const char *name, uint8_t *default_page, uint16_t size)
     return c;
 }
 
+// Lock a calibration segment and return a pointer to the ECU page
 uint8_t *XcpLockCalSeg(uint16_t calseg) {
 
     if (!isInitialized() || calseg >= gXcp.CalSegList.count) {
@@ -2461,6 +2462,8 @@ uint8_t *XcpLockCalSeg(uint16_t calseg) {
 
     return gXcp.CalSegList.calseg[calseg].ecu_page;
 }
+
+// Unlock a calibration segment
 void XcpUnlockCalSeg(uint16_t calseg) {
 
     if (!isInitialized() || calseg >= gXcp.CalSegList.count) {

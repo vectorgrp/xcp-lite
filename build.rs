@@ -46,8 +46,10 @@ fn main() {
     cc::Build::new()
         .include("xcplib/src/")
         .include("xcplib/")
+        // @@@@ temporary file for testing XCPlite compatibility
         .file("xcplib/c_demo.c")
-        .file("xcplib/xcpAppl.c")
+        // xcplib source files
+        .file("xcplib/src/xcpAppl.c")
         .file("xcplib/src/platform.c")
         .file("xcplib/src/xcpLite.c")
         .file("xcplib/src/xcpQueue.c")

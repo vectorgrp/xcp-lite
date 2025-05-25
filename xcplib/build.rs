@@ -51,16 +51,14 @@ fn main() {
             .generate()
             .expect("Unable to generate bindings");
 
-        bindings
-            .write_to_file("src/lib.rs")
-            .expect("Couldn't write bindings!");
+        bindings.write_to_file("src/lib.rs").expect("Couldn't write bindings!");
     }
 
     // Build a XCP on ETH version of XCPlite as a library
     let mut binding = cc::Build::new();
     let builder = binding
         .include(".")
-        .file("xcpAppl.c")
+        .file("src/xcpAppl.c")
         .file("src/platform.c")
         .file("src/queue.c")
         .file("src/xcpLite.c")
@@ -89,21 +87,19 @@ fn main() {
 
     // Tell cargo to invalidate the built crate whenever any of these files changed.
     println!("cargo:rerun-if-changed=wrapper.h");
-    println!("cargo:rerun-if-changed=main_cfg.h");
-    println!("cargo:rerun-if-changed=xcptl_cfg.h");
-    println!("cargo:rerun-if-changed=xcp_cfg.h");
-    println!("cargo:rerun-if-changed=xcpAppl.c");
+    println!("cargo:rerun-if-changed=src/main_cfg.h");
+    println!("cargo:rerun-if-changed=src/xcptl_cfg.h");
+    println!("cargo:rerun-if-changed=src/xcp_cfg.h");
+    println!("cargo:rerun-if-changed=src/xcpAppl.h");
+    println!("cargo:rerun-if-changed=src/xcpAppl.c");
     println!("cargo:rerun-if-changed=src/platform.h");
     println!("cargo:rerun-if-changed=src/platform.c");
-    println!("cargo:rerun-if-changed=src/queue.h");
-    println!("cargo:rerun-if-changed=src/queue.c");
-    println!("cargo:rerun-if-changed=src/socket.h");
-    println!("cargo:rerun-if-changed=src/socket.c");
-    println!("cargo:rerun-if-changed=src/xcpTl.h");
-    println!("cargo:rerun-if-changed=src/xcpTl.c");
+    println!("cargo:rerun-if-changed=src/xcpQueue.h");
+    println!("cargo:rerun-if-changed=src/xcpQueue.c");
+    println!("cargo:rerun-if-changed=src/xcpEthTl.h");
+    println!("cargo:rerun-if-changed=src/xcpEthTl.c");
     println!("cargo:rerun-if-changed=src/xcpEthServer.h");
-    println!("cargo:rerun-if-changed=src/posix/xcpEthServer.c");
-    println!("cargo:rerun-if-changed=src/windows/xcpEthServer.c");
+    println!("cargo:rerun-if-changed=src/xcpEthServer.c");
     println!("cargo:rerun-if-changed=src/xcp.h");
     println!("cargo:rerun-if-changed=src/xcpLite.h");
     println!("cargo:rerun-if-changed=src/xcpLite.c");
