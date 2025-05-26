@@ -35,7 +35,7 @@
 
 // Use addr_ext XCP_ADDR_EXT_REL to indicate relative addr format offset as uint64_t
 #define XCP_ENABLE_REL_ADDRESSING
-#define XCP_ADDR_EXT_REL 0x03 // Relative address format
+#define XCP_ADDR_EXT_REL 0x03 // Event relative address format
 
 // Use addr_ext XCP_ADDR_EXT_DYN to indicate relative addr format (event as uint16_t <<16)| offset as int16_t
 #define XCP_ENABLE_DYN_ADDRESSING
@@ -45,9 +45,9 @@
 #define XCP_ENABLE_ABS_ADDRESSING
 #define XCP_ADDR_EXT_ABS 0x01 // Absolute address format
 
-// Use addr_ext XCP_ADDR_EXT_APP to indicate application specific addr format and use ApplXcpReadMemory and ApplXcpWriteMemory
-#define XCP_ENABLE_APP_ADDRESSING
-#define XCP_ADDR_EXT_APP 0x00 // Address format handled by application
+// Use addr_ext XCP_ADDR_EXT_SEG to indicate application specific addr format and use ApplXcpReadMemory and ApplXcpWriteMemory
+#define XCP_ENABLE_APP_ADDRESSING // Segment relative memory access handled by application
+#define XCP_ADDR_EXT_SEG 0x00     // Segment relative address format
 
 // Internally used address extensions
 // Use addr_ext XCP_ADDR_EXT_EPK to indicate EPK upload memory space
@@ -75,7 +75,6 @@
 #ifdef XCP_ENABLE_CAL_PAGE
 #define XCP_ENABLE_COPY_CAL_PAGE   // // Enable calibration page initialization (FLASH->RAM copy)
 #define XCP_ENABLE_FREEZE_CAL_PAGE // Enable calibration freeze command
-// #define XCP_ENABLE_FREEZE_CAL_PAGE_ON_DISCONNECT // Enable automatic freeze on disconnect
 #endif
 
 #define XCP_ENABLE_CHECKSUM // Enable checksum calculation command

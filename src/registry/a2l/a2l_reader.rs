@@ -192,7 +192,7 @@ fn get_mc_address(registry: &Registry, addr: u32, addr_ext: u8, event_id: Option
         }
     } else {
         match addr_ext {
-            McAddress::XCP_ADDR_EXT_APP => {
+            McAddress::XCP_ADDR_EXT_SEG => {
                 if let Some(calseg_name) = registry.cal_seg_list.find_cal_seg_by_address(addr) {
                     let offset: u16 = (addr & 0xFFFF) as u16;
                     McAddress::new_calseg_rel(calseg_name, offset as i32)

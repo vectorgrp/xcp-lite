@@ -26,6 +26,11 @@
 #define XCP_MAX_CALSEG_NAME 15
 #endif
 
+// Page numbers for calibration segments
+#define XCP_CALSEG_DEFAULT_PAGE 1 // FLASH page
+#define XCP_CALSEG_WORKING_PAGE 0 // RAM page
+#define XCP_CALSEG_INVALID_PAGE 0xFF
+
 // Calibration segment
 typedef struct {
     uint8_t *default_page;
@@ -34,7 +39,8 @@ typedef struct {
     uint16_t size;
     uint16_t xcp_ctr;
     uint16_t ecu_ctr;
-    uint16_t res;
+    uint8_t xcp_access; // page number for XCP access
+    uint8_t ecu_access; // page number for ECU access
     char name[XCP_MAX_CALSEG_NAME + 1];
 } tXcpCalSeg;
 

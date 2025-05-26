@@ -66,9 +66,9 @@ fn main() {
         //
         // @@@@ temporary file for testing XCPlite compatibility
         .file("xcplib/c_demo.c")
+        .file("xcplib/src/a2l.c")
         //
         // xcplib source files
-        .file("xcplib/src/a2l.c")
         .file("xcplib/src/xcpAppl.c")
         .file("xcplib/src/platform.c")
         .file("xcplib/src/xcpLite.c")

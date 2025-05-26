@@ -19,7 +19,7 @@ pub struct McAddress {
 
     #[serde(default = "default_addr_offset")]
     #[serde(skip_serializing_if = "skip_addr_offset")]
-    addr_offset: i32, // Offset relative to calibration segment (XCP_ADDR_EXT_APP,calseg_name.is_some) or relative to event base address (XCP_ADDR_EXT_REL,event_id.is_some)
+    addr_offset: i32, // Offset relative to calibration segment (XCP_ADDR_EXT_SEG,calseg_name.is_some) or relative to event base address (XCP_ADDR_EXT_REL,event_id.is_some)
 
     addr_mode: u8, // Mode ADDR_MODE_CAL, ADDR_MODE_DYN, ADDR_MODE_REL, ADDR_MODE_A2L, ADDR_MODE_A2L_VECTOR
 
@@ -78,7 +78,7 @@ impl McAddress {
     pub const ADDR_MODE_UNDEF: u8 = 0xFF;
 
     /// Address extension values for the XCP
-    pub const XCP_ADDR_EXT_APP: u8 = 0; // For CAL objects ( index | 0x8000 in high word (CANape does not support addr_ext in memory segments))
+    pub const XCP_ADDR_EXT_SEG: u8 = 0; // For CAL objects ( index | 0x8000 in high word (CANape does not support addr_ext in memory segments))
     pub const XCP_ADDR_EXT_ABS: u8 = 1; // Not implemented for rust
     pub const XCP_ADDR_EXT_DYN: u8 = 2; // For DAQ objects ( event in addr high word, low word relative to base given to XcpEventExt, async access possible )
     pub const XCP_ADDR_EXT_REL: u8 = 3; // For DAQ objects ( event in addr high word, low word relative to base given to XcpEventExt, no async access )
@@ -223,7 +223,7 @@ impl McAddress {
     // Get A2L addr (ext,addr) of a CalSeg
     pub fn get_calseg_ext_addr_base(calseg_index: u16) -> (u8, u32) {
         // McAddress format for calibration segment field is index | 0x8000 in high word, addr_ext is 0 (CANape does not support addr_ext in memory segments)
-        let addr_ext = McAddress::XCP_ADDR_EXT_APP;
+        let addr_ext = McAddress::XCP_ADDR_EXT_SEG;
         let addr = (((calseg_index as u32) + 1) | 0x8000) << 16;
         (addr_ext, addr)
     }
@@ -295,7 +295,7 @@ mod mc_address_tests {
         assert_eq!(addr.event_id(), None);
         assert_eq!(addr.get_addr_offset(), 11);
         let a = addr.get_a2l_addr(&reg);
-        assert!(a.0 == McAddress::XCP_ADDR_EXT_APP);
+        assert!(a.0 == McAddress::XCP_ADDR_EXT_SEG);
         assert_eq!(a.1, 0x8001000B);
 
         let addr = McAddress::new_event_rel(1, -1);

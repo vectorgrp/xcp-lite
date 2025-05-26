@@ -453,7 +453,7 @@ bool A2lOpen(const char *filename, const char *projectName) {
 
 // Memory segments
 void A2lCreate_MOD_PAR(char *epk) {
-
+#ifdef XCP_ENABLE_CALSEG_LIST
     assert(gA2lFile != NULL);
     fprintf(gA2lFile, "/begin MOD_PAR \"\"\n");
     if (epk)
@@ -467,6 +467,7 @@ void A2lCreate_MOD_PAR(char *epk) {
     }
 
     fprintf(gA2lFile, "/end MOD_PAR\n\n");
+#endif
 }
 
 static void A2lCreate_IF_DATA_DAQ() {
