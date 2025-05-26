@@ -47,6 +47,7 @@ typedef struct {
 // Calibration segment list
 typedef struct {
     MUTEX mutex;
+    bool write_delay;
     uint16_t count;
     tXcpCalSeg calseg[XCP_MAX_CALSEG_COUNT];
 } tXcpCalSegList;

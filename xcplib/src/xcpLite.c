@@ -409,7 +409,6 @@ uint16_t XcpCreateCalSeg(const char *name, void *default_page, uint16_t size) {
     gXcp.CalSegList.calseg[c].ecu_ctr = gXcp.CalSegList.calseg[c].xcp_ctr = 0;
     gXcp.CalSegList.calseg[c].ecu_access = XCP_CALSEG_WORKING_PAGE; // Default page for ECU access is the working page
     gXcp.CalSegList.calseg[c].xcp_access = XCP_CALSEG_WORKING_PAGE; // Default page for XCP access is the working page
-
     DBG_PRINTF3("  CalSeg %u: %s size=%u\n", c, gXcp.CalSegList.calseg[c].name, gXcp.CalSegList.calseg[c].size);
     return c;
 }
@@ -429,7 +428,7 @@ uint8_t *XcpLockCalSeg(uint16_t calseg) {
 
     // Check for updates
     // Do a fast unsafe check first before locking the mutex
-    if (gXcp.CalSegList.calseg[calseg].ecu_ctr != gXcp.CalSegList.calseg[calseg].xcp_ctr) {
+    if (gXcp.CalSegList.calseg[calseg].ecu_ctr != gXcp.CalSegList.calseg[calseg].xcp_ctr && !gXcp.CalSegList.write_delay) {
 
         // Lock the complete calibration segment list against XCP modifications while copying
         mutexLock(&gXcp.CalSegList.mutex);
@@ -460,9 +459,20 @@ void XcpUnlockCalSeg(uint16_t calseg) {
 #ifdef XCP_ENABLE_USER_COMMAND
 uint8_t XcpCalSegCommand(uint8_t cmd) {
     switch (cmd) {
-    case 0x01: // Begin atomic calibration operation
+    case 0x01:                              // Begin atomic calibration operation
+        gXcp.CalSegList.write_delay = true; // Set a flag to delay ECU page updates
         break;
-    case 0x02: // End atomic calibration operation;
+    case 0x02:                               // End atomic calibration operation;
+        gXcp.CalSegList.write_delay = false; // Clear the flag and trigger ECU page updates
+        mutexLock(&gXcp.CalSegList.mutex);
+        // Copy all XCP pages to ECU pages if modified
+        for (uint16_t i = 0; i < gXcp.CalSegList.count; i++) {
+            if (gXcp.CalSegList.calseg[i].ecu_ctr != gXcp.CalSegList.calseg[i].xcp_ctr) {
+                memcpy(gXcp.CalSegList.calseg[i].ecu_page, gXcp.CalSegList.calseg[i].xcp_page, gXcp.CalSegList.calseg[i].size);
+                gXcp.CalSegList.calseg[i].ecu_ctr = gXcp.CalSegList.calseg[i].xcp_ctr;
+            }
+        }
+        mutexUnlock(&gXcp.CalSegList.mutex);
         break;
     }
     return CRC_CMD_UNKNOWN;
@@ -470,22 +480,22 @@ uint8_t XcpCalSegCommand(uint8_t cmd) {
 #endif
 
 uint8_t XcpCalSegReadMemory(uint32_t src, uint8_t size, uint8_t *dst) {
-
-    uint16_t calseg = (uint16_t)(src >> 16) & 0x7FFF; // Get the calibration segment number from the address
+    // Decode the source address into calibration segment and offset
+    uint16_t calseg = (uint16_t)(src >> 16) & 0x7FFF; // Get the calibration segment number
     uint16_t offset = (uint16_t)(src & 0xFFFF);       // Get the offset within the calibration segment
-    if (calseg >= gXcp.CalSegList.count || offset >= gXcp.CalSegList.calseg[calseg].size) {
+    if (calseg >= gXcp.CalSegList.count || offset + size > gXcp.CalSegList.calseg[calseg].size) {
         DBG_PRINT_ERROR("invalid calseg access\n");
         return CRC_ACCESS_DENIED;
     }
-    memcpy(dst, gXcp.CalSegList.calseg[dst, calseg].xcp_page + offset, size);
+    memcpy(dst, gXcp.CalSegList.calseg[calseg].xcp_page + offset, size);
     return CRC_ACCESS_DENIED;
 }
 
 uint8_t XcpCalSegWriteMemory(uint32_t dst, uint8_t size, const uint8_t *src) {
-
+    // Decode the destination address into calibration segment and offset
     uint16_t calseg = (uint16_t)(dst >> 16) & 0x7FFF; // Get the calibration segment number from the address
     uint16_t offset = (uint16_t)(dst & 0xFFFF);       // Get the offset within the calibration segment
-    if (calseg >= gXcp.CalSegList.count || offset >= gXcp.CalSegList.calseg[calseg].size) {
+    if (calseg >= gXcp.CalSegList.count || offset + size > gXcp.CalSegList.calseg[calseg].size) {
         DBG_PRINT_ERROR("invalid calseg access\n");
         return CRC_ACCESS_DENIED;
     }
@@ -528,7 +538,7 @@ uint8_t XcpCalSegSetCalPage(uint8_t calseg, uint8_t page, uint8_t mode) {
 
 #ifdef XCP_ENABLE_COPY_CAL_PAGE
 uint8_t XcpCalSegCopyCalPage(uint8_t srcSeg, uint8_t srcPage, uint8_t dstSeg, uint8_t dstPage) {
-    if (srcSeg != dstSeg && srcSeg >= gXcp.CalSegList.count || dstPage != XCP_CALSEG_WORKING_PAGE || srcPage != XCP_CALSEG_DEFAULT_PAGE) {
+    if (srcSeg != dstSeg || srcSeg >= gXcp.CalSegList.count || dstPage != XCP_CALSEG_WORKING_PAGE || srcPage != XCP_CALSEG_DEFAULT_PAGE) {
         DBG_PRINT_ERROR("invalid calseg copy operation\n");
         return CRC_PAGE_NOT_VALID;
     }
@@ -1546,6 +1556,11 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
 
         // Initialize Session Status
         gXcp.SessionStatus = (SS_INITIALIZED | SS_STARTED | SS_CONNECTED | SS_LEGACY_MODE);
+
+// Reset calibration states
+#ifdef XCP_ENABLE_CALSEG_LIST
+        gXcp.CalSegList.write_delay = false;
+#endif
 
         /* Reset DAQ */
         XcpClearDaq();
