@@ -31,15 +31,16 @@ uint8_t gOptionBindAddr[4] = OPTION_SERVER_ADDR;
 #define OPTION_A2L_NAME "C_Demo"          // A2L name
 #define OPTION_A2L_FILE_NAME "C_Demo.a2l" // A2L filename
 
-static bool createA2L() {
+static bool a2lOpen() {
 
     if (!A2lOpen(OPTION_A2L_FILE_NAME, OPTION_A2L_NAME))
         return false;
+    return true;
+}
 
-    A2lCreate_ETH_IF_DATA(gOptionUseTCP, gOptionBindAddr, gOptionPort);
-
+static bool a2lClose() {
     A2lCreate_MOD_PAR("EPK_xxxx");
-
+    A2lCreate_ETH_IF_DATA(gOptionUseTCP, gOptionBindAddr, gOptionPort);
     A2lClose();
     return true;
 }
@@ -71,10 +72,13 @@ void c_demo(void) {
         return;
     }
 
+    a2lOpen();
+
     // Create a calibration segment for parameters
     uint16_t calseg = XcpCreateCalSeg("params", &params, sizeof(params));
 
     // Register calibration parameters in calseg
+    A2lCreateParameterWithLimits(params.counter_max, A2L_TYPE_UINT16, "comment", "unit", 0, 2000);
     // XcpRegisterParameter(calseg, "params.counter_max", &params.counter_max, sizeof(params.counter_max));
 
     // A demo variable on stack
@@ -87,7 +91,7 @@ void c_demo(void) {
     // XcpRegisterLocalVariable(event, "counter", &counter, XCP_MEASUREMENT_TYPE_UINT16);
     // XcpRegisterStaticVariable(event, "counter_static", &counter, XCP_MEASUREMENT_TYPE_UINT16);
 
-    createA2L();
+    a2lClose();
 
     for (;;) {
         sleepMs(100);

@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use super::McIdentifier;
 use super::McText;
+use super::McValueType;
 
 //----------------------------------------------------------------------------------------------
 // McObjectType
@@ -351,6 +352,112 @@ impl McSupportData {
     pub fn set_y_axis_conv<T: Into<McIdentifier>>(mut self, y_axis_conv: Option<T>) -> Self {
         self.y_axis_conv = y_axis_conv.map(|s| s.into());
         self
+    }
+
+    //-----------------------------------------
+
+    /// Get the object type
+    /// If there is no MC semantic description (mc_support_data), return McObjectType::Unspecified
+    /// May be Measurement, Characteristic, Axis or Unspecified
+    pub fn get_object_type(&self) -> McObjectType {
+        assert!(self.object_type != McObjectType::Unspecified);
+        self.object_type
+    }
+
+    /// This is a adjustable shared axis (subset of calibration object)
+    pub fn is_axis(&self) -> bool {
+        return self.object_type.is_axis();
+    }
+
+    /// This is a characteristic object (subset of calibration object)
+    pub fn is_characteristic(&self) -> bool {
+        return self.object_type.is_characteristic();
+    }
+
+    /// This describes an instance with calibration semantics
+    /// It is never modified by the target and may be modified by the calibration tool
+    pub fn is_calibration_object(&self) -> bool {
+        return self.object_type.is_calibration_object();
+    }
+
+    /// This describes a measurement object instance
+    /// It is continously or sporadically modified by the target
+    pub fn is_measurement_object(&self) -> bool {
+        return self.object_type.is_measurement_object();
+    }
+
+    /// Get the x-axis reference as McIdentifier
+    pub fn get_x_axis_ref(&self) -> Option<McIdentifier> {
+        return self.x_axis_ref;
+    }
+
+    /// Get the y-axis reference as McIdentifier
+    pub fn get_y_axis_ref(&self) -> Option<McIdentifier> {
+        return self.y_axis_ref;
+    }
+
+    /// Get the x-axis conversion as McIdentifier
+    pub fn get_x_axis_conv(&self) -> Option<McIdentifier> {
+        return self.x_axis_conv;
+    }
+
+    /// Get the y-axis conversion as McIdentifier
+    pub fn get_y_axis_conv(&self) -> Option<McIdentifier> {
+        return self.y_axis_conv;
+    }
+
+    /// Get the description (LongIdentifier, Description, Comment, ...) as &'static str
+    pub fn get_comment(&self) -> &'static str {
+        self.comment.as_str()
+    }
+
+    /// Get the minimum value for the type in physical units as f64
+    /// When the value can not be represented, it is rounded down
+    pub fn get_min(&self, value_type: McValueType) -> Option<f64> {
+        if self.min.is_some() {
+            return self.min;
+        }
+        if let Some(min) = value_type.get_min() {
+            return Some(self.convert(min));
+        }
+        value_type.get_min()
+    }
+
+    /// Get the maximum value for the type in physical units as f64
+    /// When the value can not be represented, it is rounded up
+    pub fn get_max(&self, value_type: McValueType) -> Option<f64> {
+        if self.max.is_some() {
+            return self.max;
+        }
+        if let Some(max) = value_type.get_max() {
+            return Some(self.convert(max));
+        }
+        value_type.get_max()
+    }
+
+    /// Get the physical conversion factor
+    pub fn get_factor(&self) -> Option<f64> {
+        if let Some(factor) = self.factor {
+            if factor != 1.0 {
+                return Some(factor);
+            }
+        }
+        None
+    }
+
+    // Get the physical conversion offset
+    pub fn get_offset(&self) -> Option<f64> {
+        if let Some(offset) = self.offset {
+            if offset != 0.0 {
+                return Some(offset);
+            }
+        }
+        None
+    }
+
+    /// Get the physical unit as &'static str
+    pub fn get_unit(&self) -> &'static str {
+        return self.unit.as_str();
     }
 }
 

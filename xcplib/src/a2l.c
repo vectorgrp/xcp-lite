@@ -649,8 +649,6 @@ void A2lCreateMeasurement_(const char *instanceName, const char *name, int32_t t
     fprintf(gA2lFile, " READ_WRITE");
 #ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
     fprintf(gA2lFile, " SYMBOL_LINK \"%s\" %u", A2lGetSymbolName(instanceName, name), 0);
-#else
-    (void)symbolLink;
 #endif
     A2lCreateMeasurement_IF_DATA();
     fprintf(gA2lFile, " /end MEASUREMENT\n");
