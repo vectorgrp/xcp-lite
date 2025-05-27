@@ -450,13 +450,21 @@ fn create_flattened_instance_list(reg: &mut Registry, typedef_index: &HashMap<&'
             }
 
             if let Some(i) = typedef_index.get(typedef_name) {
-                collect_flattened_instances(reg, &mut flat_instance_list, typedef_index, name, instance.address(), 0, reg.typedef_list.get(*i).unwrap());
+                collect_flattened_instances(
+                    reg,
+                    &mut flat_instance_list,
+                    typedef_index,
+                    name,
+                    instance.get_address(),
+                    0,
+                    reg.typedef_list.get(*i).unwrap(),
+                );
             } else {
                 log::error!("Typedef {} not found in typedef list", typedef_name);
             }
         } else {
             // No typedef, just add the instance
-            let _ = flat_instance_list.add_instance(name, instance.dim_type.clone(), *instance.address());
+            let _ = flat_instance_list.add_instance(name, instance.dim_type.clone(), *instance.get_address());
         }
     }
     flat_instance_list
@@ -743,12 +751,12 @@ pub mod registry_test {
 
         let reg = registry::get();
         let c = reg.instance_list.find_instance("calseg.a", McObjectType::Characteristic, None).unwrap();
-        assert_eq!(c.dim_type().get_comment(), "Comment");
-        assert_eq!(c.dim_type().get_unit(), "Unit");
-        assert_eq!(c.dim_type().get_min(), Some(0.0));
-        assert_eq!(c.dim_type().get_max(), Some(100.0));
-        assert!(c.dim_type().get_dim()[0] <= 1);
-        assert!(c.dim_type().get_dim()[1] <= 1);
+        assert_eq!(c.get_dim_type().get_comment(), "Comment");
+        assert_eq!(c.get_dim_type().get_unit(), "Unit");
+        assert_eq!(c.get_dim_type().get_min(), Some(0.0));
+        assert_eq!(c.get_dim_type().get_max(), Some(100.0));
+        assert!(c.get_dim_type().get_dim()[0] <= 1);
+        assert!(c.get_dim_type().get_dim()[1] <= 1);
         assert_eq!(c.address.get_addr_offset(), 328);
         assert_eq!(c.dim_type.value_type, McValueType::Ulong);
 

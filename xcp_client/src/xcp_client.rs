@@ -1379,7 +1379,7 @@ impl XcpClient {
                 Err(Box::new(XcpClientError::new(ERROR_A2L, 0)) as Box<dyn Error>)
             }
             Some(instance) => {
-                let (ext, addr) = instance.address().get_a2l_addr(registry);
+                let (ext, addr) = instance.get_address().get_a2l_addr(registry);
                 let a2l_addr: A2lAddr = A2lAddr { ext, addr, event: None };
                 let a2l_type: A2lType = A2lType {
                     size: instance.value_size(),
@@ -1487,7 +1487,7 @@ impl XcpClient {
                 None
             }
             Some(instance) => {
-                let (ext, addr) = instance.address().get_a2l_addr(registry);
+                let (ext, addr) = instance.get_address().get_a2l_addr(registry);
                 if instance.event_id().is_none() {
                     log::error!("event_id for measurement object {} not found, addr = {}:0x{:0X}", name, ext, addr);
                     return None;

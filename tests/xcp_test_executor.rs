@@ -538,7 +538,7 @@ async fn test_calibration(xcp_client: &mut XcpClient, task_cycle_us: u64) -> boo
         // Get address of calibration variable cal_seg.cal_test
         let registry = xcp_client.get_registry();
         let instance_cal_test = registry.instance_list.find_instance("cal_seg.cal_test", McObjectType::Characteristic, None).unwrap();
-        let addr_cal_test = instance_cal_test.address().get_a2l_addr(registry);
+        let addr_cal_test = instance_cal_test.get_address().get_a2l_addr(registry);
         debug!("Address of cal_seg.cal_test = {}:0x{:X}\n", addr_cal_test.0, addr_cal_test.1);
 
         // Calibration loop

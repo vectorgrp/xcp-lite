@@ -22,15 +22,13 @@ use super::McText;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McDimType {
     pub value_type: McValueType,
-    //#[serde(rename = "x_dim")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub x_dim: Option<u16>,
-    //#[serde(rename = "y_dim")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub y_dim: Option<u16>,
-    //#[serde(rename = "mc_support_data")]
+    // @@@@ TODO: Maybe move this to McInstance and McTypeDefField
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub mc_support_data: Option<McSupportData>, // Meta data for the type
+    mc_support_data: Option<McSupportData>, // Meta data for the instance
 }
 
 impl McDimType {
@@ -111,6 +109,7 @@ impl McDimType {
             }
         }
     }
+
     /// Matrix type (2 dimensions), no meta data
     pub fn new_matrix(value_type: McValueType, x_dim: u16, y_dim: u16) -> Self {
         if y_dim <= 1 {
@@ -165,6 +164,14 @@ impl McDimType {
 
     // MC semantics
     //-----------------------------------------
+
+    pub fn get_mc_support_data(&self) -> Option<&McSupportData> {
+        self.mc_support_data.as_ref()
+    }
+
+    pub fn set_mc_support_data(&mut self, mc_support_data: McSupportData) {
+        self.mc_support_data = Some(mc_support_data);
+    }
 
     /// Get the object type
     /// If there is no MC semantic description (mc_support_data), return McObjectType::Unspecified

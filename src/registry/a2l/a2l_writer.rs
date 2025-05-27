@@ -58,7 +58,7 @@ impl McValueType {
 
 // Get the A2L object type of the calibration parameter
 fn get_characteristic_subtype_str(dim_type: &McDimType) -> &'static str {
-    if let Some(mc_support_data) = dim_type.mc_support_data.as_ref() {
+    if let Some(mc_support_data) = dim_type.get_mc_support_data() {
         match mc_support_data.object_type {
             McObjectType::Axis => "AXIS_PTS",
             McObjectType::Characteristic => {
@@ -155,7 +155,7 @@ fn write_dimensions(dim_type: &McDimType, writer: &mut A2lWriter) -> std::io::Re
 fn write_axis_descr(_name: &str, dim_type: &McDimType, writer: &mut A2lWriter) -> std::io::Result<()> {
     let x_dim = dim_type.get_dim()[0];
     let y_dim = dim_type.get_dim()[1];
-    let mc_support_data = dim_type.mc_support_data.as_ref().unwrap();
+    let mc_support_data = dim_type.get_mc_support_data().unwrap();
 
     // MAP
     if x_dim > 1 || y_dim > 1 {
@@ -566,7 +566,7 @@ impl McInstance {
             let instance_index = self.get_index(writer.registry);
             let min = dim_type.get_min().unwrap();
             let max = dim_type.get_max().unwrap();
-            let step = dim_type.mc_support_data.as_ref().and_then(|m| m.step);
+            let step = self.get_mc_support_data().and_then(|m| m.step);
             let type_str = self.dim_type.value_type.get_type_str(); // UWORD, SWORD, ULONG, SLONG, FLOAT32_IEEE, FLOAT64_IEEE, ...
             let conversion_name = write_conversion(writer, self.name.as_str(), instance_index, dim_type)?;
             let x_fix_axis = dim_type.get_dim()[0] > 1 && dim_type.get_x_axis_conv().is_some();
@@ -648,7 +648,7 @@ impl McInstance {
         let record_layout = dim_type.value_type.get_record_layout_str();
         let min = dim_type.get_min().unwrap();
         let max = dim_type.get_max().unwrap();
-        let step = dim_type.mc_support_data.as_ref().and_then(|m| m.step);
+        let step = self.get_mc_support_data().and_then(|m| m.step);
         let conversion_name = write_conversion(writer, name.as_str(), 0, dim_type)?;
         write!(
             writer,
@@ -696,7 +696,7 @@ impl McInstance {
             assert!(self.dim_type.is_calibration_object());
             let min = dim_type.get_min().unwrap();
             let max = dim_type.get_max().unwrap();
-            let step = dim_type.mc_support_data.as_ref().and_then(|m| m.step);
+            let step = self.get_mc_support_data().and_then(|m| m.step);
             let sub_type_str = get_characteristic_subtype_str(&self.dim_type); // VAL_BLK, VALUE, MAP, CURVE
             let record_layout = self.dim_type.value_type.get_record_layout_str();
 
@@ -1044,7 +1044,7 @@ impl<'a> A2lWriter<'a> {
         for s in &self.registry.cal_seg_list {
             let mut n = 0;
             for c in self.registry.instance_list.into_iter() {
-                if c.address().is_segment_relative() && s.name == c.address().calseg_name().unwrap() {
+                if c.get_address().is_segment_relative() && s.name == c.get_address().calseg_name().unwrap() {
                     n += 1;
                     if n == 1 {
                         write!(self, "/begin GROUP {} \"\" /begin REF_CHARACTERISTIC ", s.name)?;

@@ -7,7 +7,7 @@ use serde::Serialize;
 
 use super::McDimType;
 use super::McIdentifier;
-use super::McObjectType;
+use super::McSupportData;
 use super::McValueType;
 use super::RegistryError;
 
@@ -42,9 +42,6 @@ impl McTypeDef {
 
     pub fn add_field<T: Into<McIdentifier>>(&mut self, name: T, dim_type: McDimType, offset: u16) -> Result<(), RegistryError> {
         let name: McIdentifier = name.into();
-
-        // Leafs must have McSupportData.object_type, otherwise they can not be represented in A2L (TYPEDEF_CHARACTERTISTIC, TYPEDEF_MEASUREMENT, TYPEDEF_AXIS)
-        assert!(dim_type.is_typedef() || (dim_type.mc_support_data.as_ref().is_some() && dim_type.get_object_type() != McObjectType::Unspecified));
 
         // Error if duplicate field name
         if self.find_field(name.as_str()).is_some() {
@@ -172,6 +169,21 @@ impl McTypeDefField {
             McValueType::TypeDef(typedef_name) => Some(typedef_name.as_str()),
             _ => None,
         }
+    }
+
+    /// Get the offset of the field in the struct ABI
+    pub fn get_offset(&self) -> u16 {
+        self.offset
+    }
+
+    /// Get type
+    pub fn get_dim_type(&self) -> &McDimType {
+        &self.dim_type
+    }
+
+    /// Get metadata
+    pub fn get_mc_support_data(&self) -> Option<&McSupportData> {
+        self.dim_type.get_mc_support_data()
     }
 }
 

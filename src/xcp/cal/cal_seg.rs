@@ -25,17 +25,21 @@ use super::CalSegTrait;
 // Calibration parameter page wrapper for T with modification counter, init and freeze requests
 
 #[derive(Debug, Copy, Clone)]
-struct XcpPage<T: CalPageTrait> {
+struct Page<T: CalPageTrait> {
     ctr: u16,
+    inner: T,
+}
+
+#[derive(Debug, Copy, Clone)]
+struct XcpPage<T: CalPageTrait> {
     init_request: bool,
     freeze_request: bool,
-    page: T,
+    page: Page<T>,
 }
 
 #[derive(Debug, Copy, Clone)]
 struct EcuPage<T: CalPageTrait> {
-    ctr: u16,
-    page: T,
+    page: Page<T>,
 }
 
 //----------------------------------------------------------------------------------------------
@@ -132,12 +136,13 @@ where
         CalSeg {
             index,
             default_page,
-            ecu_page: Box::new(EcuPage { ctr: 0, page: init_page }),
+            ecu_page: Box::new(EcuPage {
+                page: Page { ctr: 0, inner: init_page },
+            }),
             xcp_page: Arc::new(Mutex::new(XcpPage {
-                ctr: 0,
                 init_request: false,
                 freeze_request: false,
-                page: init_page,
+                page: Page { ctr: 0, inner: init_page },
             })),
             _not_sync_marker: PhantomData,
         }
@@ -174,7 +179,7 @@ where
 
                 let file = std::fs::File::create(path).unwrap();
                 let mut writer = std::io::BufWriter::new(file);
-                let s = serde_json::to_string(&xcp_page.page)
+                let s = serde_json::to_string(&xcp_page.page.inner)
                     .map_err(|e| std::io::Error::other(format!("serde_json::to_string failed: {}", e)))
                     .unwrap();
                 std::io::Write::write_all(&mut writer, s.as_ref()).unwrap();
@@ -185,27 +190,26 @@ where
                 xcp_page.init_request = false;
                 // @@@@ UNSAFE - Implementation of init cal page in sync() with non mut self
                 unsafe {
-                    info!("init: {}: default_page => xcp_page ({})", self.get_name(), xcp_page.ctr,);
+                    info!("init: {}: default_page => xcp_page ({})", self.get_name(), xcp_page.page.ctr,);
 
                     let src_ptr = self.default_page as *const T;
                     #[allow(clippy::ptr_cast_constness)]
-                    let dst_ptr = &xcp_page.page as *const _ as *mut T;
+                    let dst_ptr = &xcp_page.page.inner as *const _ as *mut T;
                     core::ptr::copy_nonoverlapping(src_ptr, dst_ptr, 1);
                 }
 
                 // Increment the modification counter to distribute the new xcp page to all clones
-                xcp_page.ctr += 1;
+                xcp_page.page.ctr += 1;
             }
 
-            // Sync - Copy shared (ctr,xcp_page) to (ctr,ecu_page) in this clone of the calibration segment
-            if xcp_page.ctr != self.ecu_page.ctr {
-                trace!("sync: {}: xcp_page ({}) => ecu_page ({})", self.get_name(), xcp_page.ctr, self.ecu_page.ctr);
+            // Sync - Copy shared xcp_page.page to ecu_page.page in this clone of the calibration segment
+            if xcp_page.page.ctr != self.ecu_page.page.ctr {
+                trace!("sync: {}: xcp_page ({}) => ecu_page ({})", self.get_name(), xcp_page.page.ctr, self.ecu_page.page.ctr);
                 // @@@@ UNSAFE - Copy xcp_page to ecu_page
                 unsafe {
-                    let dst_ptr: *mut u8 = self.ecu_page.as_ref() as *const _ as *mut u8; // Box<EcuPage<T>>
-                    let src_ptr: *const u8 = &*xcp_page as *const _ as *const u8;
-                    let size: usize = std::mem::size_of::<(usize, T)>();
-                    core::ptr::copy_nonoverlapping(src_ptr, dst_ptr, size);
+                    let dst_ptr = &self.ecu_page.page as *const _ as *mut Page<T>; // Box<EcuPage<T>>
+                    let src_ptr = &(xcp_page.page) as *const _;
+                    core::ptr::copy_nonoverlapping(src_ptr, dst_ptr, 1);
                 }
                 modified = true;
             }
@@ -268,7 +272,7 @@ where
             }
             if delay == 0 {
                 // Increment modification counter
-                xcp_page.ctr = xcp_page.ctr.wrapping_add(1);
+                xcp_page.page.ctr = xcp_page.page.ctr.wrapping_add(1);
             }
             true
         } else {
@@ -278,7 +282,7 @@ where
 
     fn flush(&self) {
         let mut xcp_page = self.xcp_page.lock();
-        xcp_page.ctr = xcp_page.ctr.wrapping_add(1); // Increment modification counter
+        xcp_page.page.ctr = xcp_page.page.ctr.wrapping_add(1); // Increment modification counter
     }
 }
 
@@ -296,7 +300,7 @@ where
     #[inline]
     fn deref(&self) -> &Self::Target {
         if xcp::XCP.ecu_cal_page.load(std::sync::atomic::Ordering::Relaxed) == XcpCalPage::Ram as u8 {
-            std::hint::black_box(&self.ecu_page.page)
+            std::hint::black_box(&self.ecu_page.page.inner)
         } else {
             self.default_page
         }
@@ -310,8 +314,8 @@ where
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         let mut p = self.xcp_page.lock();
-        p.ctr = p.ctr.wrapping_add(1);
-        let r: *mut T = &mut p.page;
+        p.page.ctr = p.page.ctr.wrapping_add(1);
+        let r: *mut T = &mut p.page.inner;
         unsafe { &mut *r }
     }
 }
@@ -354,8 +358,8 @@ where
         if let Ok(file) = std::fs::File::open(path) {
             let reader = std::io::BufReader::new(file);
             let page = serde_json::from_reader::<_, T>(reader)?;
-            self.xcp_page.lock().page = page;
-            self.xcp_page.lock().ctr += 1;
+            self.xcp_page.lock().page.inner = page;
+            self.xcp_page.lock().page.ctr += 1;
             self.sync();
             Ok(())
         } else {
@@ -371,7 +375,7 @@ where
         info!("Save {} to file {}", self.get_name(), path.display());
         let file = std::fs::File::create(path)?;
         let mut writer = std::io::BufWriter::new(file);
-        let s = serde_json::to_string(&self.xcp_page.lock().page).map_err(|e| std::io::Error::other(format!("serde_json::to_string failed: {}", e)))?;
+        let s = serde_json::to_string(&self.xcp_page.lock().page.inner).map_err(|e| std::io::Error::other(format!("serde_json::to_string failed: {}", e)))?;
         std::io::Write::write_all(&mut writer, s.as_ref())?;
         Ok(())
     }
@@ -389,7 +393,7 @@ where
     pub fn read_lock(&self) -> ReadLockGuard<'_, T> {
         self.sync();
         let xcp_or_default_page = if xcp::XCP.ecu_cal_page.load(std::sync::atomic::Ordering::Relaxed) == XcpCalPage::Ram as u8 {
-            std::hint::black_box(&self.ecu_page.page)
+            std::hint::black_box(&self.ecu_page.page.inner)
         } else {
             self.default_page
         };
@@ -436,19 +440,19 @@ impl<T: CalPageTrait> Deref for WriteLockGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        &self.lock.page
+        &self.lock.page.inner
     }
 }
 
 impl<T: CalPageTrait> DerefMut for WriteLockGuard<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.lock.page
+        &mut self.lock.page.inner
     }
 }
 
 impl<T: CalPageTrait> Drop for WriteLockGuard<'_, T> {
     fn drop(&mut self) {
-        self.lock.ctr = self.lock.ctr.wrapping_add(1); // Increment modification counter to let all other clones know about the changes
+        self.lock.page.ctr = self.lock.page.ctr.wrapping_add(1); // Increment modification counter to let all other clones know about the changes
 
         // Sync the changes to the ECU page of this calibration segment, all other clones will be updated on their next sync
         // Can not use CalSeg::sync() here, because it would lock the mutex again
