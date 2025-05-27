@@ -458,10 +458,9 @@ impl<T: CalPageTrait> Drop for WriteLockGuard<'_, T> {
         // Can not use CalSeg::sync() here, because it would lock the mutex again
         // @@@@ UNSAFE - Copy xcp_page to ecu_page
         unsafe {
-            let dst_ptr: *mut u8 = self.calseg.ecu_page.as_ref() as *const _ as *mut u8; // Box<EcuPage<T>>
-            let src_ptr: *const u8 = &self.lock.page as *const _ as *const u8;
-            let size: usize = std::mem::size_of::<(usize, T)>();
-            core::ptr::copy_nonoverlapping(src_ptr, dst_ptr, size);
+            let dst_ptr = &self.calseg.ecu_page.page as *const _ as *mut Page<T>; // Box<EcuPage<T>>
+            let src_ptr = &(self.lock.page) as *const _;
+            core::ptr::copy_nonoverlapping(src_ptr, dst_ptr, 1);
         }
     }
 }
