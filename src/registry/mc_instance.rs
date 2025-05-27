@@ -10,6 +10,7 @@ use super::McAddress;
 use super::McDimType;
 use super::McIdentifier;
 use super::McObjectType;
+use super::McSupportData;
 use super::McValueType;
 use super::Registry;
 use super::RegistryError;
@@ -37,10 +38,15 @@ impl McInstance {
         }
     }
 
-    pub fn dim_type(&self) -> &McDimType {
+    pub fn get_dim_type(&self) -> &McDimType {
         &self.dim_type
     }
-    pub fn address(&self) -> &McAddress {
+
+    pub fn get_mc_support_data(&self) -> Option<&McSupportData> {
+        self.dim_type.get_mc_support_data()
+    }
+
+    pub fn get_address(&self) -> &McAddress {
         &self.address
     }
 
@@ -110,6 +116,8 @@ impl McInstance {
             _ => None,
         }
     }
+
+    // Shortcuts to mc_support_data
     pub fn object_type(&self) -> McObjectType {
         self.dim_type.get_object_type()
     }
@@ -235,7 +243,7 @@ impl McInstanceList {
 
         // Error if duplicate in instance namespace (A2l characteristics, measurements, axis and instances)
         // Names may not be unique, when there is a unique event_id
-        if self.into_iter().any(|i| i.address() == &address && i.name == name) {
+        if self.into_iter().any(|i| i.get_address() == &address && i.name == name) {
             log::error!("Duplicate instance {}!", name);
             return Err(RegistryError::Duplicate(name.to_string()));
         }
@@ -250,7 +258,7 @@ impl McInstanceList {
     pub fn find_instance(&self, regex: &str, object_type: McObjectType, event_id: Option<u16>) -> Option<&McInstance> {
         if let Ok(regex) = Regex::new(regex) {
             self.into_iter().find(|i| {
-                (i.address().event_id() == event_id || event_id.is_none())
+                (i.get_address().event_id() == event_id || event_id.is_none())
                     && ((object_type == McObjectType::Unspecified || i.object_type() == object_type) && regex.is_match(i.name.as_str()))
             })
         } else {
@@ -263,7 +271,7 @@ impl McInstanceList {
         if let Ok(regex) = Regex::new(regex) {
             self.into_iter()
                 .filter(|i| {
-                    (i.address().event_id() == event_id || event_id.is_none())
+                    (i.get_address().event_id() == event_id || event_id.is_none())
                         && ((object_type == McObjectType::Unspecified || i.object_type() == object_type) && regex.is_match(i.name.as_str()))
                 })
                 .map(|i| i.name.to_string())
