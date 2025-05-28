@@ -10,7 +10,7 @@ PrgDate=29.04.2025
 Description=
 CreationTime=21:05
 CreationDate=07/07/2024 ; Month/Day/Year
-ModificationTime=09:31
+ModificationTime=09:38
 ModificationDate=05/28/2025 ; Month/Day/Year
 Protected=0
 CurrentWindowsACP=1252
@@ -631,7 +631,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_bd097588-0e50-4282-9fa4-789fc80ef3f5
+GUID=DISPLAY_75e81c69-5841-40c1-b99b-a3b83baa3913
 
 [WINDOW_1_OBJECT_2]
 Type=2
@@ -680,7 +680,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_1d14796c-b18f-438f-b4e8-c1f318fd18ff
+GUID=DISPLAY_9813ea8a-8e24-4334-916c-431674742618
 
 [WINDOW_1_OBJECT_3]
 Type=2
@@ -729,7 +729,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_ba17a017-e3ea-4703-ba5b-29798c4c65e4
+GUID=DISPLAY_0da0dfc5-d0b8-49ae-8732-b3d0d913314d
 
 [WINDOW_2]
 ComponentCount=1
