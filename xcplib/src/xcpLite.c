@@ -299,6 +299,25 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
 #define isConnected() (0 != (gXcp.SessionStatus & SS_CONNECTED))
 
 /****************************************************************************/
+// Logging
+/****************************************************************************/
+
+#ifdef OPTION_ENABLE_DBG_PRINTS
+uint8_t gDebugLevel = OPTION_DEFAULT_DBG_LEVEL;
+#endif
+
+// This is used by the Rust ffi to set the log level
+void XcpSetLogLevel(uint8_t level) {
+#ifdef OPTION_ENABLE_DBG_PRINTS
+    if (level > 3)
+        DBG_PRINTF_WARNING("Set log level %u -> %u\n", gDebugLevel, level);
+    gDebugLevel = level;
+#else
+    (void)level;
+#endif
+}
+
+/****************************************************************************/
 // Test instrumentation
 /****************************************************************************/
 
@@ -488,7 +507,7 @@ uint8_t XcpCalSegReadMemory(uint32_t src, uint8_t size, uint8_t *dst) {
         return CRC_ACCESS_DENIED;
     }
     memcpy(dst, gXcp.CalSegList.calseg[calseg].xcp_page + offset, size);
-    return CRC_ACCESS_DENIED;
+    return CRC_CMD_OK;
 }
 
 uint8_t XcpCalSegWriteMemory(uint32_t dst, uint8_t size, const uint8_t *src) {
@@ -500,7 +519,7 @@ uint8_t XcpCalSegWriteMemory(uint32_t dst, uint8_t size, const uint8_t *src) {
         return CRC_ACCESS_DENIED;
     }
     memcpy(gXcp.CalSegList.calseg[calseg].xcp_page + offset, src, size);
-    return CRC_ACCESS_DENIED;
+    return CRC_CMD_OK;
 }
 
 #ifdef XCP_ENABLE_CAL_PAGE

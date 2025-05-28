@@ -23,6 +23,7 @@
 #include "main_cfg.h"  // for OPTION_xxx
 #include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
 #include "xcp.h"       // for CRC_XXX
+#include "xcpAppl.h"   // for ApplSetXxxx and registering callbacks
 #include "xcpLite.h"   // for tXcpDaqLists, XcpXxx, ApplXcpXxx, ...
 #include "xcp_cfg.h"   // for XCP_xxx
 #include "xcptl_cfg.h" // for XCPTL_xxx
@@ -190,21 +191,6 @@ static const char *gA2lIfDataEth = // Parameter: %s TCP or UDP, %04X tl version,
 #endif
     "/end XCP_ON_%s_IP\n" // Transport Layer
     ;
-
-//----------------------------------------------------------------------------------
-// XCP_ON_CAN (CAN_FD not implemented yet)
-static const char *gA2lIfDataCan = // Parameter: TRANSPORT_LAYER_VERSION, CRO_ID, DTO_ID, BITRATE
-    "/begin XCP_ON_CAN\n"          // Transport Layer
-    "  0x%04X\n"
-    "  CAN_ID_MASTER 0x%x\n"
-    "  CAN_ID_SLAVE 0x%x\n"
-    "  BAUDRATE %u\n"
-    "  SAMPLE_POINT 0x4B\n"
-    "  SAMPLE_RATE SINGLE\n"
-    "  BTL_CYCLES 0x08\n"
-    "  SJW 0x02\n"
-    "  SYNC_EDGE SINGLE\n"
-    "/end XCP_ON_CAN\n";
 
 //----------------------------------------------------------------------------------
 static const char *const gA2lIfDataEnd = "/end IF_DATA\n\n";
@@ -424,6 +410,7 @@ static const char *getPhysMax(int32_t type, double factor, double offset) {
 bool A2lOpen(const char *filename, const char *projectName) {
 
     DBG_PRINTF3("\nCreate A2L %s\n", filename);
+
     gA2lFile = NULL;
     gA2lFixedEvent = XCP_UNDEFINED_EVENT_CHANNEL;
     gA2lMeasurements = gA2lParameters = gA2lTypedefs = gA2lInstances = gA2lConversions = gA2lComponents = 0;
@@ -432,6 +419,9 @@ bool A2lOpen(const char *filename, const char *projectName) {
         DBG_PRINTF_ERROR("ERROR: Could not create A2L file %s!\n", filename);
         return false;
     }
+
+    // @@@@ Should be filename without extension
+    ApplXcpSetA2lName(projectName);
 
     // Create header
     fprintf(gA2lFile, gA2lHeader, projectName, projectName);
@@ -453,9 +443,12 @@ bool A2lOpen(const char *filename, const char *projectName) {
 
 // Memory segments
 void A2lCreate_MOD_PAR(char *epk) {
+
+    ApplXcpSetEpk(epk);
+
 #ifdef XCP_ENABLE_CALSEG_LIST
     assert(gA2lFile != NULL);
-    fprintf(gA2lFile, "/begin MOD_PAR \"\"\n");
+    fprintf(gA2lFile, "\n/begin MOD_PAR \"\"\n");
     if (epk)
         fprintf(gA2lFile, "EPK \"%s\"\n", epk);
     // fprintf(gA2lFile, "ADDR_EPK 0x%08X\n",0)); // @@@@ TODO: EPK address is not implemented yet
@@ -535,32 +528,6 @@ void A2lCreate_ETH_IF_DATA(bool useTCP, const uint8_t *addr, uint16_t port) {
     DBG_PRINTF3("  IF_DATA XCP_ON_%s, ip=%s, port=%u\n", prot, addrs, port);
 }
 
-void A2lCreate_CAN_IF_DATA(bool useCANFD, uint16_t croId, uint16_t dtoId, uint32_t bitRate) {
-
-    (void)useCANFD;
-
-    fprintf(gA2lFile, gA2lIfDataBegin);
-
-    // Protocol Layer info
-    fprintf(gA2lFile, gA2lIfDataProtocolLayer, XCP_PROTOCOL_LAYER_VERSION, XCPTL_MAX_CTO_SIZE, XCPTL_MAX_DTO_SIZE);
-
-    // DAQ info
-    A2lCreate_IF_DATA_DAQ();
-
-    // Transport Layer info
-    uint32_t _croId = croId;
-    uint32_t _dtoId = dtoId;
-    if (useCANFD) {
-        _croId |= 0x40000000;
-        _dtoId |= 0x40000000;
-    }
-    fprintf(gA2lFile, gA2lIfDataCan, XCP_TRANSPORT_LAYER_VERSION, _croId, _dtoId, bitRate);
-
-    fprintf(gA2lFile, gA2lIfDataEnd);
-
-    DBG_PRINTF3("  IF_DATA XCP_ON_CAN, CRO=%u, DTO=%u, BITRATE=%u\n", croId, dtoId, bitRate);
-}
-
 void A2lCreateMeasurement_IF_DATA() {
 
     assert(gA2lFile != NULL);
@@ -570,6 +537,65 @@ void A2lCreateMeasurement_IF_DATA() {
         fprintf(gA2lFile, " /begin IF_DATA XCP /begin DAQ_EVENT VARIABLE DEFAULT_EVENT_LIST EVENT 0x%X /end DAQ_EVENT /end IF_DATA", gA2lDefaultEvent);
     }
 }
+
+//----------------------------------------------------------------------------------
+
+uint8_t gAl2AddrExt = XCP_ADDR_EXT_ABS; // Address extension
+const uint8_t *gA2lAddrBase = NULL;     // Event or calseg address for XCP_ADDR_EXT_REL, XCP_ADDR_EXT_SEG
+uint16_t gA2lAddrIndex = 0;             // Segment index for XCP_ADDR_EXT_SEG
+
+void A2lSetAbsAddrMode() {
+
+    assert(gA2lFile != NULL);
+
+    gAl2AddrExt = XCP_ADDR_EXT_ABS;
+    A2lRstFixedEvent();
+}
+
+void A2lSetRelAddrMode(const uint16_t *event) {
+
+    assert(gA2lFile != NULL);
+    gA2lAddrBase = (uint8_t *)event;
+    gAl2AddrExt = XCP_ADDR_EXT_REL;
+    A2lSetFixedEvent(*event);
+}
+
+void A2lSetSegAddrMode(uint16_t calseg_index, const uint8_t *calseg) {
+
+    assert(gA2lFile != NULL);
+    gA2lAddrIndex = calseg_index;
+    gA2lAddrBase = calseg;
+    gAl2AddrExt = XCP_ADDR_EXT_SEG;
+}
+
+uint8_t A2lGetAddrExt() {
+    assert(gA2lFile != NULL);
+    return gAl2AddrExt;
+}
+
+uint32_t A2lGetAddr(uint8_t const *p) {
+    switch (gAl2AddrExt) {
+    case XCP_ADDR_EXT_ABS:
+        return ApplXcpGetAddr(p); // Calculate the XCP address from a pointer
+    case XCP_ADDR_EXT_REL: {
+        uint64_t addr_diff = (uint64_t)p - (uint64_t)gA2lAddrBase;
+        // Ensure the relative address does not overflow the 32 Bit A2L address space
+        uint32_t addr_high = (uint32_t)(addr_diff >> 32);
+        assert(addr_high == 0 || addr_high == 0xFFFFFFFF); // Check that the address is within the 32 Bit range
+        return (uint32_t)(addr_diff & 0xFFFFFFFF);
+    }
+    case XCP_ADDR_EXT_SEG: {
+        uint64_t addr_diff = (uint64_t)p - (uint64_t)gA2lAddrBase;
+        // Ensure the relative address does not overflow the 16 Bit A2L address offset for calibration segment relative addressing
+        assert((addr_diff >> 16) == 0);
+        return (uint32_t)(0x80000000 | ((((uint32_t)gA2lAddrIndex << 16)) | (addr_diff & 0xFFFF)));
+    }
+    }
+    DBG_PRINTF_ERROR("A2L address extension %u is not supported!\n", gAl2AddrExt);
+    assert(0);
+}
+
+//----------------------------------------------------------------------------------
 
 void A2lSetDefaultEvent(uint16_t event) {
 
@@ -584,6 +610,8 @@ uint16_t A2lGetFixedEvent() { return gA2lFixedEvent; }
 void A2lRstDefaultEvent() { gA2lDefaultEvent = XCP_UNDEFINED_EVENT_CHANNEL; }
 
 void A2lRstFixedEvent() { gA2lFixedEvent = XCP_UNDEFINED_EVENT_CHANNEL; }
+
+//----------------------------------------------------------------------------------
 
 void A2lTypedefBegin_(const char *name, uint32_t size, const char *comment) {
 
@@ -621,6 +649,8 @@ void A2lCreateTypedefInstance_(const char *instanceName, const char *typeName, u
     fprintf(gA2lFile, " /end INSTANCE\n");
     gA2lInstances++;
 }
+
+//----------------------------------------------------------------------------------
 
 void A2lCreateMeasurement_(const char *instanceName, const char *name, int32_t type, uint8_t ext, uint32_t addr, double factor, double offset, const char *unit,
                            const char *comment) {
@@ -668,6 +698,8 @@ void A2lCreateMeasurementArray_(const char *instanceName, const char *name, int3
     fprintf(gA2lFile, " /end CHARACTERISTIC\n");
     gA2lMeasurements++;
 }
+
+//----------------------------------------------------------------------------------
 
 void A2lCreateParameterWithLimits_(const char *name, int32_t type, uint8_t ext, uint32_t addr, const char *comment, const char *unit, double min, double max) {
 
@@ -727,6 +759,8 @@ void A2lCreateCurve_(const char *name, int32_t type, uint8_t ext, uint32_t addr,
     fprintf(gA2lFile, " /end CHARACTERISTIC\n");
     gA2lParameters++;
 }
+
+//----------------------------------------------------------------------------------
 
 void A2lParameterGroup(const char *name, int count, ...) {
 

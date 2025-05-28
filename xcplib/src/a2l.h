@@ -1,13 +1,10 @@
 #pragma once
 /* A2L.h */
-
-#include <stdbool.h> // for bool
-#include <stdint.h>  // for uint8_t, uint32_t, uint64_t
-
 /* Copyright(c) Vector Informatik GmbH.All rights reserved.
    Licensed under the MIT license.See LICENSE file in the project root for details. */
 
-// #define OPTION_ENABLE_A2L_SYMBOL_LINKS ON // Enable generation of symbol links (required for CANape integrated linker map update)
+#include <stdbool.h> // for bool
+#include <stdint.h>  // for uint8_t, uint32_t, uint64_t
 
 #define A2L_TYPE_UINT8 1
 #define A2L_TYPE_UINT16 2
@@ -20,64 +17,27 @@
 #define A2L_TYPE_FLOAT -9
 #define A2L_TYPE_DOUBLE -10
 
-#define A2L_TYPE_bool sizeof(bool)
-
-#ifndef A2lGetAddr
-#define A2lGetAddr(p) ApplXcpGetAddr(p)
-#endif
-
-#ifdef __cplusplus
-
-#include <typeinfo>
-
-#ifndef A2lGetType
-#define A2lGetSign_(var) ((int)(typeid(var).name()[0] == 'u' ? +1 : -1))
-#define A2lGetType(var) (A2lGetSign_(var) * (typeid(var).name()[0] == 'f' ? 9 : typeid(var).name()[0] == 'd' ? 10 : sizeof(var)))
-#endif
-#ifndef A2lGetOffset
-#define A2lGetOffset(var) (uint32_t)((uint8_t *)&(var) - (uint8_t *)this)
-#endif
-
 // Create parameters
-#define A2lCreateParameter(name, comment, unit) A2lCreateParameter_(#name, A2lGetType(name), 0, A2lGetAddr((uint8_t *)&name), comment, unit)
-#define A2lCreateParameterWithLimits(name, comment, unit, min, max) A2lCreateParameterWithLimits_(#name, A2lGetType(name), 0, A2lGetAddr((uint8_t *)&name), comment, unit, min, max)
-#define A2lCreateCurve(name, xdim, comment, unit) A2lCreateCurve_(#name, A2lGetType(name[0]), 0, A2lGetAddr((uint8_t *)&name[0]), xdim, comment, unit)
-#define A2lCreateMap(name, xdim, ydim, comment, unit) A2lCreateMap_(#name, A2lGetType(name[0][0]), 0, A2lGetAddr((uint8_t *)&name[0][0]), xdim, ydim, comment, unit)
+#define A2lCreateParameter(name, type, comment, unit) A2lCreateParameter_(#name, type, A2lGetAddrExt(), A2lGetAddr((uint8_t *)&name), comment, unit)
+#define A2lCreateParameterWithLimits(name, type, comment, unit, min, max)                                                                                                          \
+    A2lCreateParameterWithLimits_(#name, type, A2lGetAddrExt(), A2lGetAddr((uint8_t *)&name), comment, unit, min, max)
+#define A2lCreateCurve(name, type, xdim, comment, unit) A2lCreateCurve_(#name, type, A2lGetAddrExt(), A2lGetAddr((uint8_t *)&name[0]), xdim, comment, unit)
+#define A2lCreateMap(name, type, xdim, ydim, comment, unit) A2lCreateMap_(#name, type, A2lGetAddrExt(), A2lGetAddr((uint8_t *)&name[0][0]), xdim, ydim, comment, unit)
 
 // Create measurements
-#define A2lCreateMeasurement(name, comment) A2lCreateMeasurement_(NULL, #name, A2lGetType(name), 0, A2lGetAddr((uint8_t *)&(name)), 1.0, 0.0, NULL, comment)
-#define A2lCreatePhysMeasurement(name, comment, factor, offset, unit)                                                                                                              \
-    A2lCreateMeasurement_(NULL, #name, A2lGetType(name), 0, A2lGetAddr((uint8_t *)&name), factor, offset, unit,                                                                    \
-                          comment) // unsigned integer (8/16/32) with linear physical conversion rule
-#define A2lCreateMeasurementArray(name)                                                                                                                                            \
-    A2lCreateMeasurementArray_(NULL, #name, A2lGetType(name[0]), sizeof(name) / sizeof(name[0]), 0, A2lGetAddr((uint8_t *)&name[0])) // unsigned integer (8/16/32) or double array
-
-// Create typedefs
-#define A2lTypedefComponent(name) A2lTypedefMeasurementComponent_(#name, A2lGetType(name), A2lGetOffset(name))
-
-#else
-
-// Create parameters
-#define A2lCreateParameter(name, type, comment, unit) A2lCreateParameter_(#name, type, 0, A2lGetAddr((uint8_t *)&name), comment, unit)
-#define A2lCreateParameterWithLimits(name, type, comment, unit, min, max) A2lCreateParameterWithLimits_(#name, type, 0, A2lGetAddr((uint8_t *)&name), comment, unit, min, max)
-#define A2lCreateCurve(name, type, xdim, comment, unit) A2lCreateCurve_(#name, type, 0, A2lGetAddr((uint8_t *)&name[0]), xdim, comment, unit)
-#define A2lCreateMap(name, type, xdim, ydim, comment, unit) A2lCreateMap_(#name, type, 0, A2lGetAddr((uint8_t *)&name[0][0]), xdim, ydim, comment, unit)
-
-// Create measurements
-#define A2lCreateMeasurement(name, type, comment) A2lCreateMeasurement_(NULL, #name, type, 0, A2lGetAddr((uint8_t *)&(name)), 1.0, 0.0, NULL, comment)
+#define A2lCreateMeasurement(name, type, comment) A2lCreateMeasurement_(NULL, #name, type, A2lGetAddrExt(), A2lGetAddr((uint8_t *)&(name)), 1.0, 0.0, NULL, comment)
 #define A2lCreatePhysMeasurement(name, type, comment, factor, offset, unit)                                                                                                        \
-    A2lCreateMeasurement_(NULL, #name, type, 0, A2lGetAddr((uint8_t *)&name), factor, offset, unit, comment) // unsigned integer (8/16/32) with linear physical conversion rule
+    A2lCreateMeasurement_(NULL, #name, type, A2lGetAddrExt(), A2lGetAddr((uint8_t *)&name), factor, offset, unit,                                                                  \
+                          comment) // unsigned integer (8/16/32) with linear physical conversion rule
 #define A2lCreateMeasurementArray(name, type)                                                                                                                                      \
-    A2lCreateMeasurementArray_(NULL, #name, type, sizeof(name) / sizeof(name[0]), 0, A2lGetAddr((uint8_t *)&name[0])) // unsigned integer (8/16/32) or double array
+    A2lCreateMeasurementArray_(NULL, #name, type, sizeof(name) / sizeof(name[0]), A2lGetAddrExt(), A2lGetAddr(&name[0])) // unsigned integer (8/16/32) or double array
 
 // Create typedefs
 #define A2lTypedefComponent(name, type, offset) A2lTypedefMeasurementComponent_(#name, type, offset)
-
-#endif
-
 #define A2lTypedefBegin(name, comment) A2lTypedefBegin_(#name, (uint32_t)sizeof(name), comment)
 #define A2lTypedefEnd() A2lTypedefEnd_()
-#define A2lCreateTypedefInstance(instanceName, typeName, addr, comment) A2lCreateTypedefInstance_(instanceName, typeName, 0, A2lGetAddr((uint8_t *)&instanceName), comment)
+#define A2lCreateTypedefInstance(instanceName, typeName, ext, addr, comment)                                                                                                       \
+    A2lCreateTypedefInstance_(instanceName, typeName, A2lGetAddrExt(), A2lGetAddr((uint8_t *)&instanceName), comment)
 #define A2lCreateDynTypedefInstance(instanceName, typeName, comment) A2lCreateTypedefInstance_(instanceName, typeName, 1, 0, comment)
 
 // Init A2L generation
@@ -88,9 +48,11 @@ extern void A2lCreate_MOD_PAR(char *epk);
 
 // Create XCP IF_DATA
 extern void A2lCreate_ETH_IF_DATA(bool useTCP, const uint8_t *addr, uint16_t port);
-extern void A2lCreate_CAN_IF_DATA(bool useCANFD, uint16_t croId, uint16_t dtoId, uint32_t bitRate);
 
-// Set fixec or default event for all following creates
+// Set for all following A2lCreateXxxx
+extern void A2lSetAbsAddrMode();
+extern void A2lSetSegAddrMode(uint16_t calseg_index, const uint8_t *calseg);
+extern void A2lSetRelAddrMode(const uint16_t *event);
 extern void A2lSetFixedEvent(uint16_t event);
 extern void A2lRstFixedEvent();
 extern void A2lSetDefaultEvent(uint16_t event);
@@ -123,6 +85,6 @@ void A2lMeasurementGroupFromList(const char *name, char *names[], uint32_t count
 // Finish A2L generation
 extern void A2lClose();
 
-// For A2L.CPP
-extern const char *A2lGetSymbolName(const char *instanceName, const char *name);
-extern uint16_t A2lGetFixedEvent();
+// Helpers for A2L generation macros
+extern uint32_t A2lGetAddr(const uint8_t *addr);
+extern uint8_t A2lGetAddrExt();

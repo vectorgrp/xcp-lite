@@ -24,38 +24,25 @@ uint16_t gOptionPort = OPTION_SERVER_PORT;
 uint8_t gOptionBindAddr[4] = OPTION_SERVER_ADDR;
 
 //-----------------------------------------------------------------------------------------------------
-// Create A2L file
+// A2L file generation options
 
 #include "a2l.h" // for sleepMs
 
 #define OPTION_A2L_NAME "C_Demo"          // A2L name
 #define OPTION_A2L_FILE_NAME "C_Demo.a2l" // A2L filename
 
-static bool a2lOpen() {
-
-    if (!A2lOpen(OPTION_A2L_FILE_NAME, OPTION_A2L_NAME))
-        return false;
-    return true;
-}
-
-static bool a2lClose() {
-    A2lCreate_MOD_PAR("EPK_xxxx");
-    A2lCreate_ETH_IF_DATA(gOptionUseTCP, gOptionBindAddr, gOptionPort);
-    A2lClose();
-    return true;
-}
-
 //-----------------------------------------------------------------------------------------------------
 
 // Demo calibration parameters
 struct params_t {
     uint16_t counter_max; // Maximum value for the counters
-} params = {.counter_max = 1000};
+    uint32_t delay_us;    // Delay in microseconds for the main loop
+} params = {.counter_max = 1000, .delay_us = 10000};
 
 //-----------------------------------------------------------------------------------------------------
 
 // Global demo measurement variable
-static uint16_t counter_static = 0;
+static uint16_t counter_global = 0;
 
 //-----------------------------------------------------------------------------------------------------
 
@@ -63,6 +50,9 @@ static uint16_t counter_static = 0;
 void c_demo(void) {
 
     printf("\nXCP on Ethernet C xcplib demo\n");
+
+    // Set log level (1-error, 2-warning, 3-info, 4-debug)
+    XcpSetLogLevel(3);
 
     // Initialize the XCP singleton, must be called before starting the server
     XcpInit();
@@ -72,45 +62,63 @@ void c_demo(void) {
         return;
     }
 
-    a2lOpen();
+    // Prepare the A2L file
+    if (!A2lOpen(OPTION_A2L_FILE_NAME, OPTION_A2L_NAME)) {
+        printf("Failed to open A2L file %s\n", OPTION_A2L_FILE_NAME);
+        return;
+    }
 
     // Create a calibration segment for parameters
     uint16_t calseg = XcpCreateCalSeg("params", &params, sizeof(params));
 
-    // Register calibration parameters in calseg
-    A2lCreateParameterWithLimits(params.counter_max, A2L_TYPE_UINT16, "comment", "unit", 0, 2000);
-    // XcpRegisterParameter(calseg, "params.counter_max", &params.counter_max, sizeof(params.counter_max));
+    // Register calibration parameters in calseg with segment relative addresses
+    A2lSetSegAddrMode(calseg, (uint8_t *)&params);
+    A2lCreateParameterWithLimits(params.counter_max, A2L_TYPE_UINT16, "maximum counter value", "", 0, 2000);
+    A2lCreateParameterWithLimits(params.delay_us, A2L_TYPE_UINT32, "mainloop delay time in ue", "us", 0, 1000000);
+
+    // Create a measurement event for global variables
+    uint16_t event_global = XcpCreateEvent("mainloop_global", 0, 0);
+
+    // Register measurement variables located on stack
+    // A2lSetAbsAddrMode(); // Enable absolute addressing
+    // A2lCreatePhysMeasurement(counter_global, A2L_TYPE_UINT16, "Measurement variable", 1.0, 0.0, "counts");
 
     // A demo variable on stack
     uint16_t counter = 0;
 
-    // Create a measurement event
-    uint16_t event = XcpCreateEvent("mainloop", 0, 0);
+    // Create a measurement event for local variables
+    uint16_t event = XcpCreateEvent("mainloop_local", 0, 0);
 
-    // Register measurement variables
-    // XcpRegisterLocalVariable(event, "counter", &counter, XCP_MEASUREMENT_TYPE_UINT16);
-    // XcpRegisterStaticVariable(event, "counter_static", &counter, XCP_MEASUREMENT_TYPE_UINT16);
+    // Register measurement variables located on stack
+    A2lSetRelAddrMode(&event); // Enable event relative addressing
+    A2lCreatePhysMeasurement(counter, A2L_TYPE_UINT16, "Measurement variable", 1.0, 0.0, "counts");
 
-    a2lClose();
+    // Close the A2L file
+    A2lCreate_MOD_PAR("EPK_xxxx");
+    A2lCreate_ETH_IF_DATA(gOptionUseTCP, gOptionBindAddr, gOptionPort);
+    A2lClose();
 
     for (;;) {
         sleepMs(100);
 
-        // Lock the calibration segment for consistent and thread safe access
+        // Lock the calibration parameter segment for consistent and thread safe access
         struct params_t *params = (struct params_t *)XcpLockCalSeg(calseg);
 
+        // Local variable
         counter++;
-        counter_static++;
         if (counter > params->counter_max) {
             counter = 0;
-            counter_static = 0;
         }
 
         // Unlock the calibration segment
         XcpUnlockCalSeg(calseg);
 
-        // Trigger a measurement event
-        XcpEventExt(event, (void *)&event);
+        // Global variable
+        counter_global = counter;
+
+        // Trigger measurement events
+        XcpEventExt(event, (void *)&event); // For local variables
+        XcpEvent(event_global);             // For global variables
 
         // Check server status
         if (!XcpEthServerStatus()) {
