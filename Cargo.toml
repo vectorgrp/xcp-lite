@@ -1,12 +1,11 @@
 [package]
-name = "xcp"
-version = "0.1.0"
-edition = "2021"
+name = "xcp_lite"
+version = "0.3.0"
+edition = "2024"
 resolver = "2"
-rust-version = "1.82.0"
-
-authors = ["Vector Informatik GmbH, RDM"]
-description = "XCP for Rust, based on XCPlite"
+rust-version = "1.85.0"
+authors = ["RainerZ"]
+description = "Measurement and Calibration for Rust with XCP, based on XCPlite"
 readme = "README.md"
 keywords = ["XCP","Rust","Vector","ASAM","CANape","A2L"]
 license = "MIT OR Apache-2.0"
@@ -16,17 +15,24 @@ categories = ["MC"]
 
 [workspace]
 members = [
-    "xcp_client",
+    "xcp_client",  
     "examples/hello_xcp",
+    "examples/xcplib_demo",
+    "examples/calibration_demo",      
+    "examples/struct_measurement_demo",    
     "examples/single_thread_demo",
     "examples/multi_thread_demo",
     "examples/point_cloud_demo",
     "examples/rayon_demo",
     "examples/tokio_demo",
-    "examples/type_description_demo",
-    "examples/xcp_idl_generator_demo"
+   
 ]
 
+[workspace.package]
+version = "0.3.0"
+
+
+#--------------------------------------------------------------------------------------
 
 [[example]]
 name = "xcp_client"
@@ -35,6 +41,18 @@ path = "xcp_client/src/main.rs"
 [[example]]
 name = "hello_xcp"
 path = "examples/hello_xcp/src/main.rs"
+
+[[example]]
+name = "xcplib_demo"
+path = "examples/xcplib_demo/src/main.rs"
+
+[[example]]
+name = "calibration_demo"
+path = "examples/calibration_demo/src/main.rs"
+
+[[example]]
+name = "struct_measurement_demo"
+path = "examples/struct_measurement_demo/src/main.rs"
 
 [[example]]
 name = "single_thread_demo"
@@ -56,41 +74,30 @@ path = "examples/tokio_demo/src/main.rs"
 name = "point_cloud_demo"
 path = "examples/point_cloud_demo/src/main.rs"
 
-[[example]]
-name = "scoped_threads"
-path = "examples/scoped_threads/src/main.rs"
-
-[[example]]
-name = "protobuf_demo"
-path = "examples/protobuf_demo/src/main.rs"
 
 
+
+#--------------------------------------------------------------------------------------
 [features]
 
-# Feature xcp_appl enable multi-app
-# Unimplemented yet
-xcp_appl = []
-# default = ["xcp_appl"] 
 
-# Feature load, save and freeze calibration segment to json
-serde = ["dep:serde","dep:serde_json"]
+#default = ["a2l_reader"] 
 
-# Feature a2l_reader to enable automatic check of the generated A2L file
+# Feature a2l_reader using a2lfile
+# Automatic check of the generated A2L file
 a2l_reader = ["dep:a2lfile"]
 
 
+#--------------------------------------------------------------------------------------
 
 [dependencies]
 
 # Error handling
 thiserror = "1.0.64"
+#thiserror = "2.0"
 
 # Command line parser
 clap = { version = "4.5.9", features = ["derive"] }
-
-# Raw FFI bindings to platform libraries
-# For XcpLite
-# libc = "0.2.153"
 
 # A macro to generate structures which behave like bitflags
 bitflags = "2.6.0"
@@ -99,20 +106,29 @@ bitflags = "2.6.0"
 log = "0.4.21"
 env_logger = "0.11.3"
 
-# Collects build-information of your Rust crate
-# used to generate EPK
-build-info = "0.0.39"
+# Alloc stats
+stats_alloc = "0.1.10"
+
+# Collects build-information of your Rust crate, used to generate EPK
+build-info = "0.0.40"
 
 # A macro for declaring lazily evaluated statics
-lazy_static = "1.4.0"
+lazy_static = "1.4"
 
 # Single assignment cells
 once_cell = "1.19.0"
 static_cell = "2.1.0"
 
 # More compact and efficient implementations of the standard synchronization primitives
-# Used for the mutex in CalSeg::sync()
 parking_lot = "0.12.3"
+
+# Regular expression matching for registry object search
+regex = "1.11.1"
+
+# A generic serialization/deserialization framework
+# Used to handle json parameter files (optional)
+serde = "1.0"
+serde_json =  "1.0"  
 
 # proc-macro A2L serializer for structs
 xcp_type_description  = { path = "./xcp_type_description/"}
@@ -122,28 +138,31 @@ xcp_type_description_derive = { path = "./xcp_type_description/xcp_type_descript
 xcp_idl_generator  = { path = "./xcp_idl_generator/"}
 xcp_idl_generator_derive  = { path = "./xcp_idl_generator/xcp_idl_generator_derive/"}
 
-# A generic serialization/deserialization framework
-# Used to handle json parameter files (optional)
-serde = { version = "1.0", features = ["derive"] , optional = true}
-serde_json = { version = "1.0" , optional = true}
+# A2L checker (optional)
+a2lfile = { version="3.0.0", optional = true}
 
-# A2L checker
-a2lfile = { version="2.2.0", optional = true}
+#--------------------------------------------------------------------------------------
 
 [dev-dependencies]
 
 anyhow = "1.0"
-serde = { version = "1.0", features = ["derive"] , optional = false }
-serde_json = { version = "1.0" , optional = false}
+rand = "0.9"
+
+# Alloc stats
+stats_alloc = "0.1.10"
+
 
 # XCP test client
 bytes = "1.6.0"
 byteorder = "1.5.0"
+regex = "1.11.1"
 tokio = { version = "1.37.0", features = ["full"] }
-a2lfile = { version="2.2.0", optional = false}
 xcp_client = { path = "xcp_client" }
 
-# dependencies for point_cloud example
+# A2L checker (optional)
+a2lfile = { version="3.0.0", optional = false}
+
+# dependencies for point_cloud demo example
 cdr = "0.2.4"
 
 # dependencies for rayon demo example
@@ -152,24 +171,12 @@ num = "0.4.3"
 image = "0.25.2"
 num_cpus = "1.16.0"
 
-# dependencies for protobuf demo example
-prost = "0.13.1"
-prost-types = "0.13.1"
-
-# benchmarking
-criterion = { version = "0.4", features = ["html_reports"] }
-
-[[bench]]
-name = "xcp_benchmark"
-harness = false
 
 
 [build-dependencies]
 cc = "1.0"
-build-info-build = "0.0.39"
-
-# generate interface to XCPlite
-bindgen = "0.69.4"
+build-info-build = "0.0.40"
+bindgen = "0.71.1"
 
 
 [profile.dev.package."*"]

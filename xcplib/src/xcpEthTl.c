@@ -503,7 +503,12 @@ void XcpEthTlGetInfo(bool *isTcp, uint8_t *mac, uint8_t *addr, uint16_t *port) {
     if (mac != NULL)
         memcpy(mac, gXcpTl.ServerMac, 6);
 #else
-    (void)addr;
+    if (addr != NULL) {
+        addr[0] = 127;
+        addr[1] = 0;
+        addr[2] = 0;
+        addr[3] = 1;
+    }; // Use local host as default
     (void)mac;
 #endif
     if (port != NULL)

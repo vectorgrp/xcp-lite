@@ -5,14 +5,58 @@
 // cargo r --example rayon_demo
 // Creates madelbrot.a2l and mandelbrot.png in current directory
 
+#![allow(unused_imports)]
+
 use anyhow::Result;
 use image::{ImageBuffer, Rgb};
-#[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use num::Complex;
 use rayon::prelude::*;
+use std::net::Ipv4Addr;
 use std::{thread, time::Duration};
-use xcp::*;
+
+use xcp_lite::registry::*;
+use xcp_lite::*;
+
+//-----------------------------------------------------------------------------
+// Parameters
+
+const XCP_QUEUE_SIZE: u32 = 1024 * 64; // 64kB
+const MAINLOOP_CYCLE_TIME: u32 = 1000; // 1ms
+
+//-----------------------------------------------------------------------------
+// Command line arguments
+
+const DEFAULT_LOG_LEVEL: u8 = 3; // Info
+const DEFAULT_BIND_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
+const DEFAULT_PORT: u16 = 5555;
+const DEFAULT_TCP: bool = false; // UDP
+
+use clap::Parser;
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Log level (Off=0, Error=1, Warn=2, Info=3, Debug=4, Trace=5)
+    #[arg(short, long, default_value_t = DEFAULT_LOG_LEVEL)]
+    log_level: u8,
+
+    /// Bind address, default is ANY
+    #[arg(short, long, default_value_t = DEFAULT_BIND_ADDR)]
+    bind: Ipv4Addr,
+
+    /// Use TCP as transport layer, default is UDP
+    #[arg(short, long, default_value_t = DEFAULT_TCP)]
+    tcp: bool,
+
+    /// Port number
+    #[arg(short, long, default_value_t = DEFAULT_PORT)]
+    port: u16,
+
+    /// Application name
+    #[arg(short, long, default_value_t = String::from("rayon_demo"))]
+    name: String,
+}
 
 //---------------------------------------------------------------------------------------
 // Calibratable parameters
@@ -139,7 +183,7 @@ fn pixel_to_point(pixel: (usize, usize), upper_left: Complex<f64>, lower_right: 
 /// Render a line of the Mandelbrot set into a buffer of pixels.
 fn render(pixels: &mut [u8], row: usize, upper_left: Complex<f64>, lower_right: Complex<f64>) {
     // Create event for this worker thread and register variable index, which is the upper left corner of the rectangle
-    let event = daq_create_event_tli!("task");
+    let event = daq_create_event_tli!("thread");
 
     let mut line: u16 = row as u16; // temporary variable to measure the line number as u16
     daq_register_tli!(line, event);
@@ -159,27 +203,49 @@ fn render(pixels: &mut [u8], row: usize, upper_left: Complex<f64>, lower_right: 
 //---------------------------------------------------------------------------------------
 
 fn main() -> Result<()> {
-    println!("xcp-lite rayon mandelbrot demo");
+    println!("rayon mandelbrot demo");
 
-    env_logger::Builder::new().target(env_logger::Target::Stdout).filter_level(log::LevelFilter::Info).init();
+    // Args
+    let args = Args::parse();
+    let log_level = match args.log_level {
+        2 => log::LevelFilter::Warn,
+        3 => log::LevelFilter::Info,
+        4 => log::LevelFilter::Debug,
+        5 => log::LevelFilter::Trace,
+        _ => log::LevelFilter::Error,
+    };
 
-    info!("Number of logical cores is {}", num_cpus::get());
+    // Logging
+    env_logger::Builder::new()
+        .target(env_logger::Target::Stdout)
+        .filter_level(log_level)
+        .format_timestamp(None)
+        .format_module_path(false)
+        .format_target(false)
+        .init();
 
-    const BIND_ADDR: [u8; 4] = [127, 0, 0, 1];
+    // XCP: Initialize the XCP server
+    let app_name = args.name.as_str();
+    let app_revision = build_info::format!("{}", $.timestamp);
+    let _ = Xcp::get()
+        .set_app_name(app_name)
+        .set_app_revision(app_revision)
+        .set_log_level(args.log_level)
+        .start_server(
+            if args.tcp { XcpTransportLayer::Tcp } else { XcpTransportLayer::Udp },
+            args.bind.octets(),
+            args.port,
+            XCP_QUEUE_SIZE,
+        )?;
 
-    let xcp = XcpBuilder::new("mandelbrot")
-        .set_log_level(3)
-        .set_epk("EPK")
-        .start_server(XcpTransportLayer::Udp, BIND_ADDR, 5555, 1024 * 64)?;
-
-    let mandelbrot = xcp.create_calseg("mandelbrot", &MANDELBROT);
+    let mandelbrot = CalSeg::new("mandelbrot", &MANDELBROT);
     mandelbrot.register_fields();
 
     // The pixel array on heap
     let mut pixels = vec![0; X_RES * Y_RES];
 
     // Create event for this worker thread and register variable index, which is the upper left corner of the rectangle
-    let event_mainloop = daq_create_event!("mainloop");
+    let event_mainloop = daq_create_event!("loop");
     let event_update = daq_create_event!("update");
     let mut elapsed_time: f64 = 0.0;
     let mut mainloop_counter: u32 = 0;
@@ -191,7 +257,7 @@ fn main() -> Result<()> {
     // Recalculate image in a loop with 10 ms pause
     let mut first = true;
     loop {
-        thread::sleep(Duration::from_micros(1000)); // 1ms
+        thread::sleep(Duration::from_micros(MAINLOOP_CYCLE_TIME as u64));
         mainloop_counter += 1;
         event_mainloop.trigger();
 
@@ -199,6 +265,7 @@ fn main() -> Result<()> {
         if first || mandelbrot.sync() {
             {
                 let start_time = std::time::Instant::now();
+                let mandelbrot = mandelbrot.read_lock();
 
                 // Calculate image lines in parallel
                 let lower_right = Complex {
@@ -221,7 +288,7 @@ fn main() -> Result<()> {
                 // Measure the pixel array from heap, with an individual event
                 // daq_event_for_ref!(
                 //     pixels,
-                //     RegistryDataType::Ubyte,
+                //     McValueType::Ubyte,
                 //     X_RES as u16,
                 //     Y_RES as u16,
                 //     "pixel array"

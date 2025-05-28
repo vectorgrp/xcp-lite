@@ -7,12 +7,33 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "xcptl_cfg.h" // for XCPTL_ENABLE_UDP, ...
+/// Initialize the XCP on Ethernet server instance.
+/// @pre User has called XcpInit.
+/// @param address Address to bind to.
+/// @param port Port to bind to.
+/// @param use_tcp Use TCP if true, otherwise UDP.
+/// @param measurement_queue Optional external memory to place the measurement queue.
+/// Pass NULL if server should allocate it.
+/// @param measurement_queue_size Measurement queue size in bytes. Includes the bytes occupied by the queue header.
+/// @return True on success, otherwise false.
+bool XcpEthServerInit(uint8_t const *address, uint16_t port, bool use_tcp, void *measurement_queue, uint32_t measurement_queue_size);
 
-#if defined(XCPTL_ENABLE_UDP) || defined(XCPTL_ENABLE_TCP)
+/// Shutdown the XCP on Ethernet server instance.
+bool XcpEthServerShutdown(void);
 
-extern bool XcpEthServerInit(const uint8_t *addr, uint16_t port, bool useTCP, uint32_t queueSize);
-extern bool XcpEthServerShutdown(void);
-extern bool XcpEthServerStatus(void);
+/// Get the XCP on Ethernet server instance status.
+/// @return True if the server is running, otherwise false.
+bool XcpEthServerStatus(void);
 
-#endif
+/// Get information about the XCP on Ethernet server instance address.
+/// @pre The server instance is running.
+/// @param out_is_tcp Optional out parameter to query if TCP or UDP is used.
+/// True if TCP, otherwise UDP.
+/// Pass NULL if not required.
+/// @param out_mac Optional out parameter to query the MAC address of the interface used in the server instance.
+/// Pass NULL if not required.
+/// @param out_address Optional out parameter to query the IP address used in the server instance.
+/// Pass NULL if not required.
+/// @param out_port Optional out parameter to query the port address used in the server instance.
+/// Pass NULL if not required.
+void XcpEthServerGetInfo(bool *out_is_tcp, uint8_t *out_mac, uint8_t *out_address, uint16_t *out_port);

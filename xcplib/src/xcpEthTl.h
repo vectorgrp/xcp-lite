@@ -41,29 +41,29 @@ typedef struct {
 #define XCPTL_TIMEOUT_INFINITE 0xFFFFFFFF // Infinite timeout (blocking mode) for XcpTlHandleCommands, XcpTlWaitForTransmitData
 
 // Transport Layer functions called by protocol layer in xcpLite.c
-extern bool XcpTlWaitForTransmitQueueEmpty(uint16_t timeout_ms);       // Wait (sleep) until transmit queue is empty, timeout after 1s return false
-extern bool XcpTlNotifyTransmitQueueHandler(tQueueHandle queueHandle); // provider -> consumer event notificatoni
+bool XcpTlWaitForTransmitQueueEmpty(uint16_t timeout_ms);       // Wait (sleep) until transmit queue is empty, timeout after 1s return false
+bool XcpTlNotifyTransmitQueueHandler(tQueueHandle queueHandle); // provider -> consumer event notificatoni
 
 // Transport layer functions called by XCP server in xcpEthServer.c
-extern uint8_t XcpTlCommand(uint16_t msgLen, const uint8_t *msgBuf); // Handle XCP message
-extern bool XcpTlWaitForTransmitData(uint32_t timeout_ms);           // Wait for at least timeout_ms, until packets are pending in the transmit queue
-extern int32_t XcpTlHandleTransmitQueue(void);                       // Send pending packets in the transmit queue
-extern void XcpTlFlushTransmitQueue(void);
+uint8_t XcpTlCommand(uint16_t msgLen, const uint8_t *msgBuf); // Handle XCP message
+bool XcpTlWaitForTransmitData(uint32_t timeout_ms);           // Wait for at least timeout_ms, until packets are pending in the transmit queue
+int32_t XcpTlHandleTransmitQueue(void);                       // Send pending packets in the transmit queue
+void XcpTlFlushTransmitQueue(void);
 
 /* ETH transport Layer functions called by server */
 
-extern bool XcpEthTlInit(const uint8_t *addr, uint16_t port, bool useTCP, bool blockingRx, tQueueHandle queue_handle); // Start transport layer
-extern void XcpEthTlShutdown(void);
-extern void XcpEthTlGetInfo(bool *isTCP, uint8_t *mac, uint8_t *addr, uint16_t *port);
+bool XcpEthTlInit(const uint8_t *addr, uint16_t port, bool useTCP, bool blockingRx, tQueueHandle queue_handle); // Start transport layer
+void XcpEthTlShutdown(void);
+void XcpEthTlGetInfo(bool *isTCP, uint8_t *mac, uint8_t *addr, uint16_t *port);
 
 /* Transmit a segment (contains multiple XCP DTO or CRO messages */
 int XcpEthTlSend(const uint8_t *data, uint16_t size, const uint8_t *addr, uint16_t port);
 
 /* ETH transport Layer functions called by server */
-extern bool XcpEthTlHandleCommands(uint32_t timeout_ms); // Handle all incoming XCP commands, (wait for at least timeout_ms)
+bool XcpEthTlHandleCommands(uint32_t timeout_ms); // Handle all incoming XCP commands, (wait for at least timeout_ms)
 
 /* ETH transport Layer functions called by protocol layer */
 #ifdef XCPTL_ENABLE_MULTICAST
-extern void XcpEthTlSendMulticastCrm(const uint8_t *data, uint16_t n, const uint8_t *addr, uint16_t port); // Send multicast command response
-extern void XcpEthTlSetClusterId(uint16_t clusterId);                                                      // Set cluster id for GET_DAQ_CLOCK_MULTICAST reception
+void XcpEthTlSendMulticastCrm(const uint8_t *data, uint16_t n, const uint8_t *addr, uint16_t port); // Send multicast command response
+void XcpEthTlSetClusterId(uint16_t clusterId);                                                      // Set cluster id for GET_DAQ_CLOCK_MULTICAST reception
 #endif

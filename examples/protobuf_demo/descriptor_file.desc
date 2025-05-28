@@ -1,8 +1,0 @@
-
-a
-test_struct.protoexample";
-
-TestStruct
-name (	
-counter (
-signal (bproto3

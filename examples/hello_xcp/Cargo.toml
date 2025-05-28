@@ -1,7 +1,7 @@
 [package]
 name = "hello_xcp"
-version = "0.1.0"
-edition = "2021"
+version = "0.3.0"
+edition = "2024"
 
 
 
@@ -9,8 +9,12 @@ edition = "2021"
 log = "0.4.21"
 env_logger = "0.11.3"
 anyhow = "1.0"
-lazy_static = "1.4.0"
-serde = { version = "1.0", features = ["derive"] }
+lazy_static = "1.4"
+serde = "1.0"
 serde_json = "1.0"
 
-xcp = { path = "../../", features = [] }
+xcp_lite = { path = "../../", features = [] }
+
+
+[features]
+default = [] 

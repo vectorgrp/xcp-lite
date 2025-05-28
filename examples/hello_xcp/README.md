@@ -3,14 +3,14 @@
 Basic demo
 
 Run:
-'''
+```
 cargo run --example hello_xcp
-'''
+```
 
 Run the test XCP client in another terminal with the following command:
-'''
+```
 cargo run --example xcp_client 
-'''
+```
 
 
 
@@ -26,7 +26,7 @@ cargo run --example xcp_client
 
 The demo creates the A2L file below:
 
-'''
+```
 
     ASAP2_VERSION 1 71
     /begin PROJECT hello_xcp ""
@@ -94,6 +94,6 @@ The demo creates the A2L file below:
         /end MODULE
     /end PROJECT
     
-'''
+```
 
 

@@ -64,7 +64,7 @@ static struct {
 bool XcpEthServerStatus(void) { return gXcpServer.isInit && gXcpServer.TransmitThreadRunning && gXcpServer.ReceiveThreadRunning; }
 
 // XCP server init
-bool XcpEthServerInit(const uint8_t *addr, uint16_t port, bool useTCP, uint32_t queueSize) {
+bool XcpEthServerInit(const uint8_t *addr, uint16_t port, bool useTCP, void *queue, uint32_t queueSize) {
 
     // Check that the XCP singleton has been explicitly initialized
     if (!XcpIsInitialized()) {
@@ -89,6 +89,9 @@ bool XcpEthServerInit(const uint8_t *addr, uint16_t port, bool useTCP, uint32_t 
         return false;
 
     // Create queue
+    // @@@@@ External queue not supported yet
+    assert(queueSize > 0);
+    assert(queue == NULL);
     gXcpServer.TransmitQueue = QueueInit(queueSize);
     if (gXcpServer.TransmitQueue == NULL)
         return false;

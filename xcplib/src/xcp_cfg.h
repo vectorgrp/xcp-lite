@@ -31,20 +31,23 @@
 #define XCP_PROTOCOL_LAYER_VERSION 0x0104 // PACKED_MODE, CC_START_STOP_SYNCH prepare
 
 /*----------------------------------------------------------------------------*/
-/* Adress, address extension coding */
+/* Address, address extension coding */
 
-// Use addr_ext XCP_ADDR_EXT_ABS to indicate absulute addr format (ApplXcpGetBaseAddr()+(uint32_t)addr)
-#define XCP_ENABLE_ABS_ADDRESSING
-#define XCP_ADDR_EXT_ABS 0x01 // Absolute address format
+// Use addr_ext XCP_ADDR_EXT_REL to indicate relative addr format offset as uint64_t
+#define XCP_ENABLE_REL_ADDRESSING
+#define XCP_ADDR_EXT_REL 0x03 // Event relative address format
 
-// Use addr_ext XCP_ADDR_EXT_DYN to indicate relative addr format (event<<16)|offset
+// Use addr_ext XCP_ADDR_EXT_DYN to indicate relative addr format (event as uint16_t <<16)| offset as int16_t
 #define XCP_ENABLE_DYN_ADDRESSING
 #define XCP_ADDR_EXT_DYN 0x02 // Relative address format
 
-// Use addr_ext XCP_ADDR_EXT_APP to indicate application specific addr format and use ApplXcpReadMemory and
-// ApplXcpWriteMemory
-#define XCP_ENABLE_APP_ADDRESSING
-#define XCP_ADDR_EXT_APP 0x00 // Address format handled by application
+// Use addr_ext XCP_ADDR_EXT_ABS to indicate absulute addr format (ApplXcpGetBaseAddr()+ addr as uint64_t)
+#define XCP_ENABLE_ABS_ADDRESSING
+#define XCP_ADDR_EXT_ABS 0x01 // Absolute address format
+
+// Use addr_ext XCP_ADDR_EXT_SEG to indicate application specific addr format and use ApplXcpReadMemory and ApplXcpWriteMemory
+#define XCP_ENABLE_APP_ADDRESSING // Segment relative memory access handled by application
+#define XCP_ADDR_EXT_SEG 0x00     // Segment relative address format
 
 // Internally used address extensions
 // Use addr_ext XCP_ADDR_EXT_EPK to indicate EPK upload memory space
@@ -100,7 +103,7 @@
 // If XCP_MAX_EVENT_COUNT is defined, DAQ list to event association lookup will be optimized
 // Requires XCP_MAX_EVENT_COUNT * 2 bytes of memory
 // XCP_MAX_EVENT_COUNT must be even
-// #define XCP_MAX_EVENT_COUNT 256 // For available event numbers from 0 to 255
+#define XCP_MAX_EVENT_COUNT 256 // For available event numbers from 0 to 255
 
 // Maximum number of DAQ lists
 // Must be <= 0xFFFE
@@ -121,13 +124,23 @@
 
 // Enable event list
 // Not needed for Rust xcp-lite
-// #define XCP_ENABLE_DAQ_EVENT_LIST
+#define XCP_ENABLE_DAQ_EVENT_LIST
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
 
-// #define XCP_ENABLE_DAQ_EVENT_INFO // Enable XCP_GET_EVENT_INFO, if this is enabled, A2L file event information will
-// be ignored
+// Enable XCP_GET_EVENT_INFO, if this is enabled, A2L file event information will be ignored
+// #define XCP_ENABLE_DAQ_EVENT_INFO
 
-// #define XCP_MAX_EVENT_NAME 16
+#define XCP_MAX_EVENT_NAME 15
+
+#endif
+
+// Enable calibration segment list
+// Not needed for Rust xcp-lite
+#define XCP_ENABLE_CALSEG_LIST
+#ifdef XCP_ENABLE_CALSEG_LIST
+
+#define XCP_MAX_CALSEG_COUNT 4
+#define XCP_MAX_CALSEG_NAME 15
 
 #endif
 

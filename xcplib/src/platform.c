@@ -17,18 +17,18 @@
 #include "platform.h"
 
 #include <assert.h>   // for assert
+#include <inttypes.h> // for PRIu64
 #include <stdbool.h>  // for bool
 #include <stdint.h>   // for uint32_t, uint64_t, uint8_t, int64_t
 #include <stdio.h>    // for printf
-#include <inttypes.h> // for PRIu64
 #include <string.h>   // for memcpy, strcmp
 #include <time.h>     // for timespec, nanosleep, CLOCK_MONOTONIC_RAW
 #if defined(_LINUX) || defined(_MACOS)
 #include <unistd.h> // for sleep (@@@@ not found unistd.h on windows ???????)
 #endif
 
-#include "main_cfg.h"  // for OPTION_xxx ...
 #include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
+#include "main_cfg.h"  // for OPTION_xxx ...
 
 /**************************************************************************/
 // Winsock
@@ -664,7 +664,7 @@ uint64_t clockGetLast(void) { return sClock; }
 // Not used, might be faster on macOS
 // #ifdef _MACOS
 // #include <mach/mach_time.h>
-// uint64_t getMachineTime() {
+// uint64_t getMachineTime(void) {
 //     uint64_t tm = mach_absolute_time();
 //     mach_timebase_info_data_t timebase;
 //     mach_timebase_info(&timebase);
@@ -702,7 +702,6 @@ resolution Epoch ns since OS or process start Works on all platforms <1us granul
 
 #ifdef OPTION_CLOCK_EPOCH_ARB
 #define CLOCK_TYPE CLOCK_MONOTONIC_RAW // Works on all OS
-// static struct timespec gts0;
 #else
 #ifdef _WIN
 #define CLOCK_TYPE CLOCK_TAI

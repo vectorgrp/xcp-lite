@@ -7,38 +7,87 @@
 #include <stdbool.h> // for bool
 #include <stdint.h>  // for uint16_t, uint32_t, uint8_t
 
-#include "xcp_cfg.h" // for XCP_PROTOCOL_LAYER_VERSION, XCP_ENABLE_DY...
 #include "xcpQueue.h"
+#include "xcp_cfg.h" // for XCP_PROTOCOL_LAYER_VERSION, XCP_ENABLE_DY...
 
 /****************************************************************************/
-/* DAQ event channel information                                            */
+/* Calibration segments                                                     */
+/****************************************************************************/
+
+#define XCP_UNDEFINED_CALSEG 0xFFFF
+
+#ifdef XCP_ENABLE_CALSEG_LIST
+
+#ifndef XCP_MAX_CALSEG_COUNT
+#error "Please define XCP_MAX_CALSEG_COUNT!"
+#endif
+
+#ifndef XCP_MAX_CALSEG_NAME
+#define XCP_MAX_CALSEG_NAME 15
+#endif
+
+// Page numbers for calibration segments
+#define XCP_CALSEG_DEFAULT_PAGE 1 // FLASH page
+#define XCP_CALSEG_WORKING_PAGE 0 // RAM page
+#define XCP_CALSEG_INVALID_PAGE 0xFF
+
+// Calibration segment
+typedef struct {
+    uint8_t *default_page;
+    uint8_t *ecu_page;
+    uint8_t *xcp_page;
+    uint16_t size;
+    uint16_t xcp_ctr;
+    uint16_t ecu_ctr;
+    uint8_t xcp_access; // page number for XCP access
+    uint8_t ecu_access; // page number for ECU access
+    char name[XCP_MAX_CALSEG_NAME + 1];
+} tXcpCalSeg;
+
+// Calibration segment list
+typedef struct {
+    MUTEX mutex;
+    bool write_delay;
+    uint16_t count;
+    tXcpCalSeg calseg[XCP_MAX_CALSEG_COUNT];
+} tXcpCalSegList;
+
+#endif
+
+/****************************************************************************/
+/* DAQ events                                                               */
 /****************************************************************************/
 
 #define XCP_UNDEFINED_EVENT_CHANNEL 0xFFFF
 
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
+
 #ifndef XCP_MAX_EVENT_COUNT
-#define XCP_MAX_EVENT_COUNT 16
-#elif XCP_MAX_EVENT_COUNT > 16
-#warning "Memory consumption of event list is high, consider reducing XCP_MAX_EVENT_COUNT or XCP_MAX_EVENT_NAME"
+#error "Please define XCP_MAX_EVENT_COUNT!"
 #endif
 #if XCP_MAX_EVENT_COUNT & 1 != 0
 #error "XCP_MAX_EVENT_COUNT must be even!"
 #endif
 
 #ifndef XCP_MAX_EVENT_NAME
-#define XCP_MAX_EVENT_NAME 8
+#define XCP_MAX_EVENT_NAME 15
 #endif
 
 typedef struct {
-    char shortName[XCP_MAX_EVENT_NAME + 1]; // A2L XCP IF_DATA short event name, long name not supported
-    uint32_t size;                          // ext event size
-    uint8_t timeUnit;                       // timeCycle unit, 1ns=0, 10ns=1, 100ns=2, 1us=3, ..., 1ms=6, ...
-    uint8_t timeCycle;                      // cycle time in units, 0 = sporadic or unknown
-    uint16_t sampleCount;                   // packed event sample count
-    uint16_t daqList;                       // associated DAQ list
-    uint8_t priority;                       // priority 0 = queued, 1 = pushing, 2 = realtime
+    uint16_t daqList; // associated DAQ list
+    uint16_t res1;
+    uint8_t timeUnit;                  // timeCycle unit, 1ns=0, 10ns=1, 100ns=2, 1us=3, ..., 1ms=6, ...
+    uint8_t timeCycle;                 // cycle time in units, 0 = sporadic or unknown
+    uint8_t priority;                  // priority 0 = queued, 1 = pushing, 2 = realtime
+    uint8_t res2;                      // reserved
+    char name[XCP_MAX_EVENT_NAME + 1]; // event name
 } tXcpEvent;
+
+typedef struct {
+    MUTEX mutex;
+    uint16_t count;                       // number of events
+    tXcpEvent event[XCP_MAX_EVENT_COUNT]; // event list
+} tXcpEventList;
 
 #endif
 
@@ -123,63 +172,82 @@ typedef struct {
 /****************************************************************************/
 
 /* Initialization for the XCP Protocol Layer */
-extern void XcpInit(tXcpDaqLists *daq_lists);
-extern bool XcpIsInitialized(void);
-extern void XcpStart(tQueueHandle queueHandle, bool resumeMode);
-extern void XcpReset(void);
+void XcpInit(void);
+bool XcpIsInitialized(void);
+void XcpStart(tQueueHandle queueHandle, bool resumeMode);
+void XcpReset(void);
 
 /* XCP command processor */
-extern uint8_t XcpCommand(const uint32_t *pCommand, uint8_t len);
+uint8_t XcpCommand(const uint32_t *pCommand, uint8_t len);
 
 /* Disconnect, stop DAQ, flush queue */
-extern void XcpDisconnect(void);
+void XcpDisconnect(void);
 
 /* Trigger a XCP data acquisition event */
-extern void XcpTriggerDaqEventAt(const tXcpDaqLists *daq_lists, tQueueHandle queueHandle, uint16_t event, const uint8_t *base, uint64_t clock);
-extern uint8_t XcpEventExtAt(uint16_t event, const uint8_t *base, uint64_t clock);
-extern uint8_t XcpEventExt(uint16_t event, const uint8_t *base);
-extern void XcpEventAt(uint16_t event, uint64_t clock);
-extern void XcpEvent(uint16_t event);
+void XcpTriggerDaqEventAt(const tXcpDaqLists *daq_lists, tQueueHandle queueHandle, uint16_t event, const uint8_t *base, uint64_t clock);
+uint8_t XcpEventExtAt(uint16_t event, const uint8_t *base, uint64_t clock);
+uint8_t XcpEventExt(uint16_t event, const uint8_t *base);
+void XcpEventAt(uint16_t event, uint64_t clock);
+void XcpEvent(uint16_t event);
 
 /* Send an XCP event message */
-extern void XcpSendEvent(uint8_t evc, const uint8_t *d, uint8_t l);
+void XcpSendEvent(uint8_t evc, const uint8_t *d, uint8_t l);
 
 /* Send terminate session signal event */
-extern void XcpSendTerminateSessionEvent(void);
+void XcpSendTerminateSessionEvent(void);
 
 /* Print log message via XCP */
 #ifdef XCP_ENABLE_SERV_TEXT
-extern void XcpPrint(const char *str);
+void XcpPrint(const char *str);
 #endif
 
 /* Check status */
-extern bool XcpIsStarted(void);
-extern bool XcpIsConnected(void);
-extern uint16_t XcpGetSessionStatus(void);
-extern bool XcpIsDaqRunning(void);
-extern bool XcpIsDaqEventRunning(uint16_t event);
-extern uint64_t XcpGetDaqStartTime(void);
-extern uint32_t XcpGetDaqOverflowCount(void);
+bool XcpIsStarted(void);
+bool XcpIsConnected(void);
+uint16_t XcpGetSessionStatus(void);
+bool XcpIsDaqRunning(void);
+bool XcpIsDaqEventRunning(uint16_t event);
+uint64_t XcpGetDaqStartTime(void);
+uint32_t XcpGetDaqOverflowCount(void);
 
 /* Time synchronisation */
 #ifdef XCP_ENABLE_DAQ_CLOCK_MULTICAST
 #if XCP_PROTOCOL_LAYER_VERSION < 0x0103
 #error "Protocol layer version must be >=0x0103"
 #endif
-extern uint16_t XcpGetClusterId(void);
+uint16_t XcpGetClusterId(void);
 #endif
 
 /* Event list */
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
 
-// Clear event list
-extern void XcpClearEventList(void);
 // Add a measurement event to event list, return event number (0..MAX_EVENT-1)
-extern uint16_t XcpCreateEvent(const char *name, uint32_t cycleTimeNs /* ns */, uint8_t priority /* 0-normal, >=1 realtime*/, uint16_t sampleCount, uint32_t size);
+uint16_t XcpCreateEvent(const char *name, uint32_t cycleTimeNs /* ns */, uint8_t priority /* 0-normal, >=1 realtime*/);
+
 // Get event list
-extern tXcpEvent *XcpGetEventList(uint16_t *eventCount);
+tXcpEventList *XcpGetEventList(void);
+
 // Lookup event
-extern tXcpEvent *XcpGetEvent(uint16_t event);
+tXcpEvent *XcpGetEvent(uint16_t event);
+
+#endif
+
+/* Calibration segment list */
+#ifdef XCP_ENABLE_CALSEG_LIST
+
+// Get a pointer to the list
+tXcpCalSegList *XcpGetCalSegList(void);
+
+// Create a calibration segmment
+// Thread safe
+// Returns the handle or XCP_UNDEFINED_CALSEG when out of memory
+uint16_t XcpCreateCalSeg(const char *name, void *default_page, uint16_t size);
+
+// Lock a calibration segment and return a pointer to the ECU page
+uint8_t *XcpLockCalSeg(uint16_t calseg);
+
+// Unlock a calibration segment
+void XcpUnlockCalSeg(uint16_t calseg);
 
 #endif
 
@@ -191,38 +259,38 @@ extern tXcpEvent *XcpGetEvent(uint16_t event);
 // Must be thread save
 
 /* Callbacks on connect, disconnect, measurement prepare, start and stop */
-extern bool ApplXcpConnect(void);
-extern void ApplXcpDisconnect(void);
+bool ApplXcpConnect(void);
+void ApplXcpDisconnect(void);
 #if XCP_PROTOCOL_LAYER_VERSION >= 0x0104
-extern bool ApplXcpPrepareDaq(const tXcpDaqLists *daq);
+bool ApplXcpPrepareDaq(void);
 #endif
-extern void ApplXcpStartDaq(const tXcpDaqLists *daq);
-extern void ApplXcpStopDaq(void);
+void ApplXcpStartDaq(void);
+void ApplXcpStopDaq(void);
 
 /* Address conversions from A2L address to pointer and vice versa in absolute addressing mode */
 #ifdef XCP_ENABLE_ABS_ADDRESSING
-extern uint8_t *ApplXcpGetPointer(uint8_t xcpAddrExt, uint32_t xcpAddr); /* Create a pointer (uint8_t*) from xcpAddrExt and xcpAddr, returns NULL if no access */
-extern uint32_t ApplXcpGetAddr(const uint8_t *p);                        // Calculate the xcpAddr address from a pointer
-extern uint8_t *ApplXcpGetBaseAddr(void);                                // Get the base address for DAQ data access */
+uint8_t *ApplXcpGetPointer(uint8_t xcpAddrExt, uint32_t xcpAddr); /* Create a pointer (uint8_t*) from xcpAddrExt and xcpAddr, returns NULL if no access */
+uint32_t ApplXcpGetAddr(const uint8_t *p);                        // Calculate the xcpAddr address from a pointer
+uint8_t *ApplXcpGetBaseAddr(void);                                // Get the base address for DAQ data access */
 #endif
 
 /* Read and write memory */
 #ifdef XCP_ENABLE_APP_ADDRESSING
-extern uint8_t ApplXcpReadMemory(uint32_t src, uint8_t size, uint8_t *dst);
-extern uint8_t ApplXcpWriteMemory(uint32_t dst, uint8_t size, const uint8_t *src);
+uint8_t ApplXcpReadMemory(uint32_t src, uint8_t size, uint8_t *dst);
+uint8_t ApplXcpWriteMemory(uint32_t dst, uint8_t size, const uint8_t *src);
 #endif
 
 /* User command */
 #ifdef XCP_ENABLE_USER_COMMAND
-extern uint8_t ApplXcpUserCommand(uint8_t cmd);
+uint8_t ApplXcpUserCommand(uint8_t cmd);
 #endif
 
 /*
  Note 1:
    For DAQ performance and memory optimization:
    XCPlite DAQ tables do not store address extensions and do not use ApplXcpGetPointer(void), addr is stored as 32 Bit value and access is hardcoded by *(baseAddr+xcpAddr)
-   All accesible DAQ data is within a 4GByte range starting at ApplXcpGetBaseAddr(void)
-   Attempting to setup an ODT entry with address extension != XCP_ADDR_EXT_ABS or XCP_ADDR_EXT_DYN gives a CRC_ACCESS_DENIED error message
+   All accessible DAQ data is within a 4GByte range starting at ApplXcpGetBaseAddr(void)
+   Attempting to setup an ODT entry with address extension != XCP_ADDR_EXT_ABS, XCP_ADDR_EXT_DYN or XCP_ADDR_EXT_REL gives a CRC_ACCESS_DENIED error message
 
  Note 2:
    ApplXcpGetPointer may do address transformations according to active calibration page
@@ -230,24 +298,24 @@ extern uint8_t ApplXcpUserCommand(uint8_t cmd);
 
 /* Switch calibration pages */
 #ifdef XCP_ENABLE_CAL_PAGE
-extern uint8_t ApplXcpSetCalPage(uint8_t segment, uint8_t page, uint8_t mode);
-extern uint8_t ApplXcpGetCalPage(uint8_t segment, uint8_t mode);
-extern uint8_t ApplXcpSetCalPage(uint8_t segment, uint8_t page, uint8_t mode);
+uint8_t ApplXcpSetCalPage(uint8_t segment, uint8_t page, uint8_t mode);
+uint8_t ApplXcpGetCalPage(uint8_t segment, uint8_t mode);
+uint8_t ApplXcpSetCalPage(uint8_t segment, uint8_t page, uint8_t mode);
 #ifdef XCP_ENABLE_COPY_CAL_PAGE
-extern uint8_t ApplXcpCopyCalPage(uint8_t srcSeg, uint8_t srcPage, uint8_t destSeg, uint8_t destPage);
+uint8_t ApplXcpCopyCalPage(uint8_t srcSeg, uint8_t srcPage, uint8_t destSeg, uint8_t destPage);
 #endif
 #ifdef XCP_ENABLE_FREEZE_CAL_PAGE
-extern uint8_t ApplXcpFreezeCalPage(uint8_t segment);
+uint8_t ApplXcpCalFreeze();
 #endif
 #endif
 
 /* DAQ clock */
-extern uint64_t ApplXcpGetClock64(void);
+uint64_t ApplXcpGetClock64(void);
 #define CLOCK_STATE_SYNCH_IN_PROGRESS (0)
 #define CLOCK_STATE_SYNCH (1)
 #define CLOCK_STATE_FREE_RUNNING (7)
 #define CLOCK_STATE_GRANDMASTER_STATE_SYNCH (1 << 3)
-extern uint8_t ApplXcpGetClockState(void);
+uint8_t ApplXcpGetClockState(void);
 
 #ifdef XCP_ENABLE_PTP
 #define CLOCK_STRATUM_LEVEL_UNKNOWN 255
@@ -256,7 +324,7 @@ extern uint8_t ApplXcpGetClockState(void);
 #define CLOCK_EPOCH_TAI 0          // Atomic monotonic time since 1.1.1970 (TAI)
 #define CLOCK_EPOCH_UTC 1          // Universal Coordinated Time (with leap seconds) since 1.1.1970 (UTC)
 #define CLOCK_EPOCH_ARB 2          // Arbitrary (epoch unknown)
-extern bool ApplXcpGetClockInfoGrandmaster(uint8_t *uuid, uint8_t *epoch, uint8_t *stratum);
+bool ApplXcpGetClockInfoGrandmaster(uint8_t *uuid, uint8_t *epoch, uint8_t *stratum);
 #endif
 
 /* DAQ resume */
@@ -270,10 +338,10 @@ uint8_t ApplXcpDaqResumeClear(void);
 /* Get info for GET_ID command (pointer to and length of data) */
 /* Supports IDT_ASCII, IDT_ASAM_NAME, IDT_ASAM_PATH, IDT_ASAM_URL, IDT_ASAM_EPK and IDT_ASAM_UPLOAD */
 /* Returns 0 if not available */
-extern uint32_t ApplXcpGetId(uint8_t id, uint8_t *buf, uint32_t bufLen);
+uint32_t ApplXcpGetId(uint8_t id, uint8_t *buf, uint32_t bufLen);
 
 /* Read a chunk (offset,size) of the A2L file for upload */
 /* Return false if out of bounds */
 #ifdef XCP_ENABLE_IDT_A2L_UPLOAD // Enable A2L content upload to host (IDT_ASAM_UPLOAD)
-extern bool ApplXcpReadA2L(uint8_t size, uint32_t offset, uint8_t *data);
+bool ApplXcpReadA2L(uint8_t size, uint32_t offset, uint8_t *data);
 #endif

@@ -60,19 +60,20 @@
 #include "xcpLite.h" // XCP protocol layer interface functions
 
 #include <assert.h>   // for assert
+#include <inttypes.h> // for PRIx32, PRIu64
+#include <math.h>     // for pow
 #include <stdbool.h>  // for bool
 #include <stdint.h>   // for uint8_t, uint16_t, uint32_t, int32_t, uin...
 #include <stdio.h>    // for printf
-#include <inttypes.h> // for PRIx32, PRIu64
 #include <stdlib.h>   // for free, malloc
 #include <string.h>   // for memcpy, memset, strlen
 
 #include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
+#include "xcp.h"       // XCP protocol definitions
+#include "xcpEthTl.h"  // for xcpTlxxx transport layer interface
+#include "xcpQueue.h"  // for QueueXxx transport queue layer interface
 #include "xcp_cfg.h"   // XCP protocol layer configuration parameters (XCP_xxx)
 #include "xcptl_cfg.h" // XCP transport layer configuration parameters (XCPTL_xxx)
-#include "xcp.h"       // XCP protocol definitions
-#include "xcpQueue.h"  // for QueueXxx transport queue layer interface
-#include "xcpEthTl.h"  // for xcpTlxxx transport layer interface
 
 /****************************************************************************/
 /* Defaults and checks                                                      */
@@ -138,6 +139,10 @@
 #if defined(XCP_ENABLE_DYN_ADDRESSING) && !defined(XCP_ADDR_EXT_DYN)
 #error "Please define XCP_ADDR_EXT_DYN"
 #endif
+// Relative addressing (ext = XCP_ADDR_EXT_REL, addr=offset
+#if defined(XCP_ENABLE_REL_ADDRESSING) && !defined(XCP_ADDR_EXT_REL)
+#error "Please define XCP_ADDR_EXT_REL"
+#endif
 
 /****************************************************************************/
 /* XCP packet                                                               */
@@ -199,8 +204,12 @@ typedef struct {
 
     /* Optional event list */
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
-    uint16_t EventCount;
-    tXcpEvent EventList[XCP_MAX_EVENT_COUNT];
+    tXcpEventList EventList;
+#endif
+
+    /* Optional calibration segment list */
+#ifdef XCP_ENABLE_CALSEG_LIST
+    tXcpCalSegList CalSegList;
 #endif
 
 #if XCP_PROTOCOL_LAYER_VERSION >= 0x0103
@@ -346,6 +355,213 @@ uint64_t XcpGetDaqStartTime(void) { return gXcp.DaqStartClock64; }
 
 uint32_t XcpGetDaqOverflowCount(void) { return gXcp.DaqOverflowCount; }
 
+/**************************************************************************/
+/* CalSeglist                                                             */
+/**************************************************************************/
+
+#ifdef XCP_ENABLE_CALSEG_LIST
+
+// Get a pointer to the list and the size of the list
+tXcpCalSegList *XcpGetCalSegList(void) {
+
+    if (!isInitialized())
+        return NULL;
+    return &gXcp.CalSegList;
+}
+
+// Get a pointer to a calibration segment struct
+tXcpCalSeg *XcpGetCalSeg(uint16_t calseg) {
+    if (!isStarted() || calseg >= gXcp.CalSegList.count)
+        return NULL;
+    return &gXcp.CalSegList.calseg[calseg];
+}
+
+// Create a calibration segment
+// Thread safe
+// Returns the handle or XCP_UNDEFINED_CALSEG when out of memory
+uint16_t XcpCreateCalSeg(const char *name, void *default_page, uint16_t size) {
+
+    uint16_t c;
+
+    if (!isInitialized()) {
+        DBG_PRINT_ERROR("XCP not initialized\n");
+        return XCP_UNDEFINED_CALSEG;
+    }
+
+    mutexLock(&gXcp.CalSegList.mutex);
+    c = gXcp.CalSegList.count;
+    if (gXcp.CalSegList.count >= XCP_MAX_CALSEG_COUNT) {
+        mutexUnlock(&gXcp.CalSegList.mutex);
+        DBG_PRINT_ERROR("too many calibration segments\n");
+        return XCP_UNDEFINED_CALSEG;
+    }
+    gXcp.CalSegList.count++;
+    mutexUnlock(&gXcp.CalSegList.mutex);
+
+    strncpy(gXcp.CalSegList.calseg[c].name, name, XCP_MAX_CALSEG_NAME);
+    gXcp.CalSegList.calseg[c].name[XCP_MAX_CALSEG_NAME] = 0;
+    gXcp.CalSegList.calseg[c].default_page = default_page;
+    gXcp.CalSegList.calseg[c].xcp_page = malloc(size);
+    memcpy(gXcp.CalSegList.calseg[c].xcp_page, default_page, size); // Copy default page to XCP working page copy
+    gXcp.CalSegList.calseg[c].ecu_page = malloc(size);
+    memcpy(gXcp.CalSegList.calseg[c].ecu_page, default_page, size); // Copy default page to ECU working page copy
+    gXcp.CalSegList.calseg[c].size = size;
+    gXcp.CalSegList.calseg[c].ecu_ctr = gXcp.CalSegList.calseg[c].xcp_ctr = 0;
+    gXcp.CalSegList.calseg[c].ecu_access = XCP_CALSEG_WORKING_PAGE; // Default page for ECU access is the working page
+    gXcp.CalSegList.calseg[c].xcp_access = XCP_CALSEG_WORKING_PAGE; // Default page for XCP access is the working page
+    DBG_PRINTF3("  CalSeg %u: %s size=%u\n", c, gXcp.CalSegList.calseg[c].name, gXcp.CalSegList.calseg[c].size);
+    return c;
+}
+
+// Lock a calibration segment and return a pointer to the ECU page
+uint8_t *XcpLockCalSeg(uint16_t calseg) {
+
+    if (!isInitialized() || calseg >= gXcp.CalSegList.count) {
+        DBG_PRINT_ERROR("XCP not initialized or invalid calseg\n");
+        return NULL; // Uninitialized or invalid calseg
+    }
+
+    // ECU access is on default page
+    if (gXcp.CalSegList.calseg[calseg].ecu_access != XCP_CALSEG_WORKING_PAGE) {
+        return gXcp.CalSegList.calseg[calseg].default_page;
+    }
+
+    // Check for updates
+    // Do a fast unsafe check first before locking the mutex
+    if (gXcp.CalSegList.calseg[calseg].ecu_ctr != gXcp.CalSegList.calseg[calseg].xcp_ctr && !gXcp.CalSegList.write_delay) {
+
+        // Lock the complete calibration segment list against XCP modifications while copying
+        mutexLock(&gXcp.CalSegList.mutex);
+
+        // Copy XCP page to ECU page
+        if (gXcp.CalSegList.calseg[calseg].ecu_ctr != gXcp.CalSegList.calseg[calseg].xcp_ctr) {
+            memcpy(gXcp.CalSegList.calseg[calseg].ecu_page, gXcp.CalSegList.calseg[calseg].xcp_page, gXcp.CalSegList.calseg[calseg].size);
+            gXcp.CalSegList.calseg[calseg].ecu_ctr = gXcp.CalSegList.calseg[calseg].xcp_ctr;
+        }
+
+        mutexUnlock(&gXcp.CalSegList.mutex);
+    }
+
+    return gXcp.CalSegList.calseg[calseg].ecu_page;
+}
+
+// Unlock a calibration segment
+void XcpUnlockCalSeg(uint16_t calseg) {
+
+    if (!isInitialized() || calseg >= gXcp.CalSegList.count) {
+        DBG_PRINT_ERROR("XCP not initialized or invalid calseg\n");
+        return; // Uninitialized or invalid calseg
+    }
+
+    // @@@@ Does nothing yet, just a placeholder for future improvements of the locking mechanism
+}
+
+#ifdef XCP_ENABLE_USER_COMMAND
+uint8_t XcpCalSegCommand(uint8_t cmd) {
+    switch (cmd) {
+    case 0x01:                              // Begin atomic calibration operation
+        gXcp.CalSegList.write_delay = true; // Set a flag to delay ECU page updates
+        break;
+    case 0x02:                               // End atomic calibration operation;
+        gXcp.CalSegList.write_delay = false; // Clear the flag and trigger ECU page updates
+        mutexLock(&gXcp.CalSegList.mutex);
+        // Copy all XCP pages to ECU pages if modified
+        for (uint16_t i = 0; i < gXcp.CalSegList.count; i++) {
+            if (gXcp.CalSegList.calseg[i].ecu_ctr != gXcp.CalSegList.calseg[i].xcp_ctr) {
+                memcpy(gXcp.CalSegList.calseg[i].ecu_page, gXcp.CalSegList.calseg[i].xcp_page, gXcp.CalSegList.calseg[i].size);
+                gXcp.CalSegList.calseg[i].ecu_ctr = gXcp.CalSegList.calseg[i].xcp_ctr;
+            }
+        }
+        mutexUnlock(&gXcp.CalSegList.mutex);
+        break;
+    }
+    return CRC_CMD_UNKNOWN;
+}
+#endif
+
+uint8_t XcpCalSegReadMemory(uint32_t src, uint8_t size, uint8_t *dst) {
+    // Decode the source address into calibration segment and offset
+    uint16_t calseg = (uint16_t)(src >> 16) & 0x7FFF; // Get the calibration segment number
+    uint16_t offset = (uint16_t)(src & 0xFFFF);       // Get the offset within the calibration segment
+    if (calseg >= gXcp.CalSegList.count || offset + size > gXcp.CalSegList.calseg[calseg].size) {
+        DBG_PRINT_ERROR("invalid calseg access\n");
+        return CRC_ACCESS_DENIED;
+    }
+    memcpy(dst, gXcp.CalSegList.calseg[calseg].xcp_page + offset, size);
+    return CRC_ACCESS_DENIED;
+}
+
+uint8_t XcpCalSegWriteMemory(uint32_t dst, uint8_t size, const uint8_t *src) {
+    // Decode the destination address into calibration segment and offset
+    uint16_t calseg = (uint16_t)(dst >> 16) & 0x7FFF; // Get the calibration segment number from the address
+    uint16_t offset = (uint16_t)(dst & 0xFFFF);       // Get the offset within the calibration segment
+    if (calseg >= gXcp.CalSegList.count || offset + size > gXcp.CalSegList.calseg[calseg].size) {
+        DBG_PRINT_ERROR("invalid calseg access\n");
+        return CRC_ACCESS_DENIED;
+    }
+    memcpy(gXcp.CalSegList.calseg[calseg].xcp_page + offset, src, size);
+    return CRC_ACCESS_DENIED;
+}
+
+#ifdef XCP_ENABLE_CAL_PAGE
+
+uint8_t XcpCalSegGetCalPage(uint8_t calseg, uint8_t mode) {
+    if (calseg >= gXcp.CalSegList.count) {
+        DBG_PRINT_ERROR("invalid calseg access\n");
+        return XCP_CALSEG_INVALID_PAGE;
+    }
+    if (mode & CAL_PAGE_MODE_ECU) {
+        return gXcp.CalSegList.calseg[calseg].ecu_access;
+    } else if (mode & CAL_PAGE_MODE_XCP) {
+        return gXcp.CalSegList.calseg[calseg].xcp_access;
+    } else {
+        DBG_PRINT_ERROR("invalid cal page mode\n");
+        return XCP_CALSEG_INVALID_PAGE; // Invalid mode
+    }
+}
+
+uint8_t XcpCalSegSetCalPage(uint8_t calseg, uint8_t page, uint8_t mode) {
+    if (calseg >= gXcp.CalSegList.count || page > 1) {
+        DBG_PRINT_ERROR("invalid calseg access\n");
+        return CRC_ACCESS_DENIED; // Invalid calseg
+    }
+    if (page & CAL_PAGE_MODE_ECU) {
+        gXcp.CalSegList.calseg[calseg].ecu_access = page;
+    } else if (mode & CAL_PAGE_MODE_XCP) {
+        gXcp.CalSegList.calseg[calseg].xcp_access = page;
+    } else {
+        DBG_PRINT_ERROR("invalid cal page mode\n");
+        return XCP_CALSEG_INVALID_PAGE; // Invalid mode
+    }
+    return CRC_CMD_OK;
+}
+
+#ifdef XCP_ENABLE_COPY_CAL_PAGE
+uint8_t XcpCalSegCopyCalPage(uint8_t srcSeg, uint8_t srcPage, uint8_t dstSeg, uint8_t dstPage) {
+    if (srcSeg != dstSeg || srcSeg >= gXcp.CalSegList.count || dstPage != XCP_CALSEG_WORKING_PAGE || srcPage != XCP_CALSEG_DEFAULT_PAGE) {
+        DBG_PRINT_ERROR("invalid calseg copy operation\n");
+        return CRC_PAGE_NOT_VALID;
+    }
+    uint16_t size = gXcp.CalSegList.calseg[dstSeg].size;
+    mutexLock(&gXcp.CalSegList.mutex);
+    memcpy(gXcp.CalSegList.calseg[dstSeg].ecu_page, gXcp.CalSegList.calseg[srcSeg].default_page, size);
+    memcpy(gXcp.CalSegList.calseg[dstSeg].xcp_page, gXcp.CalSegList.calseg[srcSeg].default_page, size);
+    mutexUnlock(&gXcp.CalSegList.mutex);
+    return CRC_CMD_OK;
+}
+#endif
+
+#ifdef XCP_ENABLE_FREEZE_CAL_PAGE
+uint8_t XcpCalSegCalFreeze() {
+    // not implemented
+    return CRC_CMD_UNKNOWN;
+}
+#endif // XCP_ENABLE_FREEZE_CAL_PAGE
+
+#endif // XCP_ENABLE_CAL_PAGE
+
+#endif // XCP_ENABLE_CALSEG_LIST
+
 /****************************************************************************/
 /* Calibration                                                              */
 /****************************************************************************/
@@ -360,9 +576,19 @@ This is also a requirement to the tool, which must ensure that the data is consi
 
 // Copy of size bytes from data to gXcp.MtaPtr or gXcp.MtaAddr depending on the addressing mode
 static uint8_t XcpWriteMta(uint8_t size, const uint8_t *data) {
-    // EXT == XCP_ADDR_EXT_APP Application specific memory access
+
+    // EXT == XCP_ADDR_EXT_SEG calibration segment memory access
+#ifdef XCP_ENABLE_CALSEG_LIST
+    if (gXcp.MtaExt == XCP_ADDR_EXT_SEG && gXcp.CalSegList.count > 0) {
+        uint8_t res = XcpCalSegWriteMemory(gXcp.MtaAddr, size, data);
+        gXcp.MtaAddr += size;
+        return res;
+    }
+#endif
+
+    // EXT == XCP_ADDR_EXT_SEG Application specific memory access
 #ifdef XCP_ENABLE_APP_ADDRESSING
-    if (gXcp.MtaExt == XCP_ADDR_EXT_APP) {
+    if (gXcp.MtaExt == XCP_ADDR_EXT_SEG) {
         uint8_t res = ApplXcpWriteMemory(gXcp.MtaAddr, size, data);
         gXcp.MtaAddr += size;
         return res;
@@ -409,9 +635,19 @@ static uint8_t XcpWriteMta(uint8_t size, const uint8_t *data) {
 
 // Copying of size bytes from data to gXcp.MtaPtr or gXcp.MtaAddr, depending on the addressing mode
 static uint8_t XcpReadMta(uint8_t size, uint8_t *data) {
-    // EXT == XCP_ADDR_EXT_APP Application specific memory access
+
+    // EXT == XCP_ADDR_EXT_SEG calibration segment memory access
+#ifdef XCP_ENABLE_CALSEG_LIST
+    if (gXcp.MtaExt == XCP_ADDR_EXT_SEG && gXcp.CalSegList.count > 0) {
+        uint8_t res = XcpCalSegReadMemory(gXcp.MtaAddr, size, data);
+        gXcp.MtaAddr += size;
+        return res;
+    }
+#endif
+
+    // EXT == XCP_ADDR_EXT_SEG Application specific memory access
 #ifdef XCP_ENABLE_APP_ADDRESSING
-    if (gXcp.MtaExt == XCP_ADDR_EXT_APP) {
+    if (gXcp.MtaExt == XCP_ADDR_EXT_SEG) {
         uint8_t res = ApplXcpReadMemory(gXcp.MtaAddr, size, data);
         gXcp.MtaAddr += size;
         return res;
@@ -446,14 +682,14 @@ static uint8_t XcpSetMta(uint8_t ext, uint32_t addr) {
     gXcp.MtaExt = ext;
     gXcp.MtaAddr = addr;
 #ifdef XCP_ENABLE_DYN_ADDRESSING
-    // Relative addressing mode, MtaPtr unknown yet
+    // Event relative addressing mode, MtaPtr unknown yet
     if (gXcp.MtaExt == XCP_ADDR_EXT_DYN) {
         gXcp.MtaPtr = NULL; // MtaPtr not used
     } else
 #endif
-#ifdef XCP_ENABLE_APP_ADDRESSING
-        // Application specific addressing mode
-        if (gXcp.MtaExt == XCP_ADDR_EXT_APP) {
+#if defined(XCP_ENABLE_APP_ADDRESSING) || defined(XCP_ENABLE_CALSEG_LIST)
+        // Application specific or segment relative addressing mode
+        if (gXcp.MtaExt == XCP_ADDR_EXT_SEG) {
             gXcp.MtaPtr = NULL; // MtaPtr not used
         } else
 #endif
@@ -465,11 +701,80 @@ static uint8_t XcpSetMta(uint8_t ext, uint32_t addr) {
             } else
 #endif
             {
-                return CRC_OUT_OF_RANGE; // Unsupported addressing mode
+                return CRC_OUT_OF_RANGE; // Unsupported addressing mode for direct memory access
             }
 
     return CRC_CMD_OK;
 }
+
+/**************************************************************************/
+/* Eventlist                                                              */
+/**************************************************************************/
+
+#ifdef XCP_ENABLE_DAQ_EVENT_LIST
+
+// Get a pointer to and the size of the XCP event list
+tXcpEventList *XcpGetEventList(void) {
+
+    if (!isInitialized())
+        return NULL;
+    return &gXcp.EventList;
+}
+
+tXcpEvent *XcpGetEvent(uint16_t event) {
+    if (!isStarted() || event >= gXcp.EventList.count)
+        return NULL;
+    return &gXcp.EventList.event[event];
+}
+
+// Create an XCP event
+// Thread safe
+// Returns the XCP event number for XcpEventXxx() or XCP_UNDEFINED_EVENT_CHANNEL when out of memory
+uint16_t XcpCreateEvent(const char *name, uint32_t cycleTimeNs, uint8_t priority) {
+
+    uint16_t e;
+    uint32_t c;
+
+    if (!isInitialized()) {
+        DBG_PRINT_ERROR("XCP not initialized\n");
+        return XCP_UNDEFINED_EVENT_CHANNEL; // Uninitialized
+    }
+
+    mutexLock(&gXcp.EventList.mutex);
+    e = gXcp.EventList.count;
+    if (e >= XCP_MAX_EVENT_COUNT) {
+        mutexUnlock(&gXcp.EventList.mutex); // Unlock event list mutex
+        DBG_PRINT_ERROR("too many events\n");
+        return XCP_UNDEFINED_EVENT_CHANNEL; // Out of memory
+    }
+    gXcp.EventList.count++;
+    mutexUnlock(&gXcp.EventList.mutex);
+
+    // Convert cycle time to ASAM coding time cycle and time unit
+    // RESOLUTION OF TIMESTAMP "UNIT_1NS" = 0, "UNIT_10NS" = 1, ...
+    c = cycleTimeNs;
+    gXcp.EventList.event[e].timeUnit = 0;
+    while (c >= 256) {
+        c /= 10;
+        gXcp.EventList.event[e].timeUnit++;
+    }
+    gXcp.EventList.event[e].timeCycle = (uint8_t)c;
+
+    strncpy(gXcp.EventList.event[e].name, name, XCP_MAX_EVENT_NAME);
+    gXcp.EventList.event[e].name[XCP_MAX_EVENT_NAME] = 0;
+    gXcp.EventList.event[e].priority = priority;
+
+#ifdef DBG_LEVEL
+    uint64_t ns = (uint64_t)(gXcp.EventList.event[e].timeCycle * pow(10, gXcp.EventList.event[e].timeUnit));
+    DBG_PRINTF3("  Event %u: %s cycle=%" PRIu64 "ns, prio=%u\n", e, gXcp.EventList.event[e].name, ns, gXcp.EventList.event[e].priority);
+    if (cycleTimeNs != ns)
+        DBG_PRINTF_WARNING("WARNING: cycle time %uns, loss of significant digits!\n", cycleTimeNs);
+#endif
+
+    return e;
+}
+
+#endif // XCP_ENABLE_DAQ_EVENT_LIST
 
 /****************************************************************************/
 /* Data Acquisition Setup                                                    */
@@ -651,7 +956,7 @@ static uint8_t XcpSetDaqPtr(uint16_t daq, uint8_t odt, uint8_t idx) {
 // Add an ODT entry to current DAQ/ODT
 // Supports XCP_ADDR_EXT_ABS and XCP_ADDR_EXT_DYN if XCP_ENABLE_DYN_ADDRESSING
 // All ODT entries of a DAQ list must have the same address extension,returns CRC_DAQ_CONFIG if not
-// In XCP_ADDR_EXT_DYN addressing mode, the event must be unique
+// In XCP_ADDR_EXT_DYN and XCP_ADDR_EXT_REL addressing mode, the event must be unique
 static uint8_t XcpAddOdtEntry(uint32_t addr, uint8_t ext, uint8_t size) {
 
     if (size == 0 || size > XCP_MAX_ODT_ENTRY_SIZE)
@@ -682,22 +987,29 @@ static uint8_t XcpAddOdtEntry(uint32_t addr, uint8_t ext, uint8_t size) {
         DaqListEventChannel(gXcp.WriteDaqDaq) = event;
     } else
 #endif
-#ifdef XCP_ENABLE_ABS_ADDRESSING
-        // ABS adressing mode, base pointer will ApplXcpGetBaseAddr()
-        // Max address range 0-0x7FFFFFFF
-        if (ext == XCP_ADDR_EXT_ABS) { // absolute addressing mode{
-            uint8_t *p;
-            int64_t a;
-            p = ApplXcpGetPointer(ext, addr);
-            if (p == NULL)
-                return CRC_ACCESS_DENIED; // Access denied
-            a = p - ApplXcpGetBaseAddr();
-            if (a > 0x7FFFFFFF || a < 0)
-                return CRC_ACCESS_DENIED; // Access out of range
-            base_offset = (int32_t)a;
+#ifdef XCP_ENABLE_REL_ADDRESSING
+        // REL addressing mode, base pointer will given to XcpEventExt()
+        // Max address range base-0x80000000 - base+0x7FFFFFFF
+        if (ext == XCP_ADDR_EXT_REL) {   // relative addressing mode
+            base_offset = (int32_t)addr; // sign extend to 32 bit, the offset may be negative
         } else
 #endif
-            return CRC_ACCESS_DENIED;
+#ifdef XCP_ENABLE_ABS_ADDRESSING
+            // ABS adressing mode, base pointer will ApplXcpGetBaseAddr()
+            // Max address range 0-0x7FFFFFFF
+            if (ext == XCP_ADDR_EXT_ABS) { // absolute addressing mode{
+                uint8_t *p;
+                int64_t a;
+                p = ApplXcpGetPointer(ext, addr);
+                if (p == NULL)
+                    return CRC_ACCESS_DENIED; // Access denied
+                a = p - ApplXcpGetBaseAddr();
+                if (a > 0x7FFFFFFF || a < 0)
+                    return CRC_ACCESS_DENIED; // Access out of range
+                base_offset = (int32_t)a;
+            } else
+#endif
+                return CRC_ACCESS_DENIED;
 
     OdtEntrySizeTable[gXcp.WriteDaqOdtEntry] = size;
     OdtEntryAddrTable[gXcp.WriteDaqOdtEntry] = base_offset; // Signed 32 bit offset relative to base pointer given to XcpEvent
@@ -715,9 +1027,12 @@ static uint8_t XcpSetDaqListMode(uint16_t daq, uint16_t event, uint8_t mode, uin
         return CRC_DAQ_CONFIG;
 
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
-    tXcpEvent *e = XcpGetEvent(event); // Check if event exists
-    if (e == NULL)
-        return CRC_OUT_OF_RANGE;
+    // If any events are registered, check if this event exists
+    if (gXcp.EventList.count > 0) {
+        tXcpEvent *e = XcpGetEvent(event); // Check if event exists
+        if (e == NULL)
+            return CRC_OUT_OF_RANGE;
+    }
 #endif
 
 #ifdef XCP_ENABLE_DYN_ADDRESSING
@@ -813,7 +1128,7 @@ static void XcpStartDaq(void) {
 
     // XcpStartDaq might be called multiple times, if DAQ lists are started individually
     // CANape never does this
-    ApplXcpStartDaq((const tXcpDaqLists *)gXcpDaqLists);
+    ApplXcpStartDaq();
 
     gXcp.SessionStatus |= SS_DAQ; // Start processing DAQ events
 }
@@ -854,13 +1169,11 @@ static void XcpStartDaqList(uint16_t daq) {
 // Do not start DAQ event processing yet
 static void XcpStartSelectedDaqLists(void) {
 
-    uint16_t daq;
-
     if (gXcpDaqLists == NULL)
         return;
 
     // Start all selected DAQ lists, reset the selected state
-    for (daq = 0; daq < gXcpDaqLists->daq_count; daq++) {
+    for (uint16_t daq = 0; daq < gXcpDaqLists->daq_count; daq++) {
         if ((DaqListState(daq) & DAQ_STATE_SELECTED) != 0) {
             DaqListState(daq) &= (uint8_t)~DAQ_STATE_SELECTED;
             XcpStartDaqList(daq);
@@ -877,7 +1190,7 @@ static void XcpStopDaqList(uint16_t daq) {
     DaqListState(daq) &= (uint8_t)(~(DAQ_STATE_OVERRUN | DAQ_STATE_RUNNING));
 
     /* Check if all DAQ lists are stopped */
-    for (daq = 0; daq < gXcpDaqLists->daq_count; daq++) {
+    for (uint16_t daq = 0; daq < gXcpDaqLists->daq_count; daq++) {
         if ((DaqListState(daq) & DAQ_STATE_RUNNING) != 0) {
             return; // Not all DAQ lists stopped yet
         }
@@ -891,13 +1204,11 @@ static void XcpStopDaqList(uint16_t daq) {
 // If all DAQ lists are stopped, stop event processing
 static void XcpStopSelectedDaqLists(void) {
 
-    uint16_t daq;
-
     if (gXcpDaqLists == NULL)
         return;
 
     // Stop all selected DAQ lists, reset the selected state
-    for (daq = 0; daq < gXcpDaqLists->daq_count; daq++) {
+    for (uint16_t daq = 0; daq < gXcpDaqLists->daq_count; daq++) {
         if ((DaqListState(daq) & DAQ_STATE_SELECTED) != 0) {
             XcpStopDaqList(daq);
             DaqListState(daq) = DAQ_STATE_STOPPED_UNSELECTED;
@@ -1001,8 +1312,13 @@ void XcpTriggerDaqEventAt(const tXcpDaqLists *daq_lists, tQueueHandle queueHandl
 
     if (clock == 0)
         clock = ApplXcpGetClock64();
+
+#ifdef XCP_ENABLE_ABS_ADDRESSING
     if (base == NULL)
         base = ApplXcpGetBaseAddr();
+#else
+    assert(base != NULL); // Base must be given in dyn or rel addressing mode
+#endif
 
 #ifndef XCP_MAX_EVENT_COUNT
 
@@ -1026,8 +1342,8 @@ void XcpTriggerDaqEventAt(const tXcpDaqLists *daq_lists, tQueueHandle queueHandl
 #ifdef XCP_ENABLE_TEST_CHECKS
         assert(daq < daq_lists->daq_count);
 #endif
-        if (DaqListState(daq) & DAQ_STATE_RUNNING) {        // DAQ list active
-            XcpTriggerDaqList(daq_lists, daq, base, clock); // Trigger DAQ list
+        if (DaqListState(daq) & DAQ_STATE_RUNNING) {                     // DAQ list active
+            XcpTriggerDaqList(daq_lists, queueHandle, daq, base, clock); // Trigger DAQ list
         }
         daq = DaqListNext(daq);
     }
@@ -1065,8 +1381,8 @@ uint8_t XcpEventExtAt(uint16_t event, const uint8_t *base, uint64_t clock) {
     if (!isStarted())
         return CRC_CMD_OK;
 
-    // Check if a pending command can be executed in this context
-    // @@@@ TODO: Optimize with atomics, this is performance critical as cal events may come from different threads
+// Check if a pending command can be executed in this context
+// @@@@ TODO: Optimize with atomics, this is performance critical as cal events may come from different threads
 #if defined(XCP_ENABLE_MULTITHREAD_CAL_EVENTS)
     mutexLock(&gXcp.CmdPendingMutex);
 #endif
@@ -1241,6 +1557,11 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
         // Initialize Session Status
         gXcp.SessionStatus = (SS_INITIALIZED | SS_STARTED | SS_CONNECTED | SS_LEGACY_MODE);
 
+// Reset calibration states
+#ifdef XCP_ENABLE_CALSEG_LIST
+        gXcp.CalSegList.write_delay = false;
+#endif
+
         /* Reset DAQ */
         XcpClearDaq();
 
@@ -1305,6 +1626,7 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
         } break;
 
         case CC_DISCONNECT: {
+            DBG_PRINT3("DISCONNECT\n");
             XcpDisconnect();
         } break;
 
@@ -1409,7 +1731,14 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
 #endif /* XCP_ENABLE_DAQ_RESUME */
 #ifdef XCP_ENABLE_FREEZE_CAL_PAGE
             case SET_REQUEST_MODE_STORE_CAL:
-                check_error(ApplXcpFreezeCalPage(0));
+#ifdef XCP_ENABLE_CALSEG_LIST
+                if (gXcp.CalSegList.count > 0) {
+                    check_error(XcpCalSegCalFreeze());
+                } else
+#endif
+                {
+                    check_error(ApplXcpCalFreeze());
+                }
                 break;
 #endif // XCP_ENABLE_FREEZE_CAL_PAGE
             default:
@@ -1429,6 +1758,11 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
                     goto no_response;
                 }
 #endif
+#ifdef XCP_ENABLE_REL_ADDRESSING
+            if (gXcp.MtaExt == XCP_ADDR_EXT_REL) {
+                error(CRC_ACCESS_DENIED);
+            }
+#endif
             check_error(XcpWriteMta(size, CRO_DOWNLOAD_DATA));
         } break;
 
@@ -1447,6 +1781,11 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
                 goto no_response;
             }
 #endif
+#ifdef XCP_ENABLE_REL_ADDRESSING
+            if (gXcp.MtaExt == XCP_ADDR_EXT_REL) {
+                error(CRC_ACCESS_DENIED);
+            }
+#endif
             check_error(XcpWriteMta(size, CRO_SHORT_DOWNLOAD_DATA));
         } break;
 
@@ -1460,6 +1799,11 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
                 if (XcpPushCommand(CRO, CRO_LEN) == CRC_CMD_BUSY)
                     goto busy_response;
                 goto no_response;
+            }
+#endif
+#ifdef XCP_ENABLE_REL_ADDRESSING
+            if (gXcp.MtaExt == XCP_ADDR_EXT_REL) {
+                error(CRC_ACCESS_DENIED);
             }
 #endif
             check_error(XcpReadMta(size, CRM_UPLOAD_DATA));
@@ -1481,6 +1825,11 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
                 goto no_response;
             }
 #endif
+#ifdef XCP_ENABLE_REL_ADDRESSING
+            if (gXcp.MtaExt == XCP_ADDR_EXT_REL) {
+                error(CRC_ACCESS_DENIED);
+            }
+#endif
             check_error(XcpReadMta(size, CRM_SHORT_UPLOAD_DATA));
             CRM_LEN = (uint8_t)(CRM_SHORT_UPLOAD_LEN + size);
         } break;
@@ -1488,13 +1837,28 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
 #ifdef XCP_ENABLE_CAL_PAGE
         case CC_SET_CAL_PAGE: {
             check_len(CRO_SET_CAL_PAGE_LEN);
-            check_error(ApplXcpSetCalPage(CRO_SET_CAL_PAGE_SEGMENT, CRO_SET_CAL_PAGE_PAGE, CRO_SET_CAL_PAGE_MODE));
+#ifdef XCP_ENABLE_CALSEG_LIST
+            if (gXcp.CalSegList.count > 0) {
+                check_error(XcpCalSegSetCalPage(CRO_SET_CAL_PAGE_SEGMENT, CRO_SET_CAL_PAGE_PAGE, CRO_SET_CAL_PAGE_MODE));
+            } else
+#endif
+            {
+                check_error(ApplXcpSetCalPage(CRO_SET_CAL_PAGE_SEGMENT, CRO_SET_CAL_PAGE_PAGE, CRO_SET_CAL_PAGE_MODE));
+            }
         } break;
 
         case CC_GET_CAL_PAGE: {
+            uint8_t page;
             check_len(CRO_GET_CAL_PAGE_LEN);
             CRM_LEN = CRM_GET_CAL_PAGE_LEN;
-            uint8_t page = ApplXcpGetCalPage(CRO_GET_CAL_PAGE_SEGMENT, CRO_GET_CAL_PAGE_MODE);
+#ifdef XCP_ENABLE_CALSEG_LIST
+            if (gXcp.CalSegList.count > 0) {
+                page = XcpCalSegGetCalPage(CRO_GET_CAL_PAGE_SEGMENT, CRO_GET_CAL_PAGE_MODE);
+            } else
+#endif
+            {
+                page = ApplXcpGetCalPage(CRO_GET_CAL_PAGE_SEGMENT, CRO_GET_CAL_PAGE_MODE);
+            }
             if (page == 0xFF)
                 error(CRC_MODE_NOT_VALID);
             CRM_GET_CAL_PAGE_PAGE = page;
@@ -1503,7 +1867,14 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
 #ifdef XCP_ENABLE_COPY_CAL_PAGE
         case CC_COPY_CAL_PAGE: {
             CRM_LEN = CRM_COPY_CAL_PAGE_LEN;
-            check_error(ApplXcpCopyCalPage(CRO_COPY_CAL_PAGE_SRC_SEGMENT, CRO_COPY_CAL_PAGE_SRC_PAGE, CRO_COPY_CAL_PAGE_DEST_SEGMENT, CRO_COPY_CAL_PAGE_DEST_PAGE))
+#ifdef XCP_ENABLE_CALSEG_LIST
+            if (gXcp.CalSegList.count > 0) {
+                check_error(XcpCalSegCopyCalPage(CRO_COPY_CAL_PAGE_SRC_SEGMENT, CRO_COPY_CAL_PAGE_SRC_PAGE, CRO_COPY_CAL_PAGE_DEST_SEGMENT, CRO_COPY_CAL_PAGE_DEST_PAGE));
+            } else
+#endif
+            {
+                check_error(ApplXcpCopyCalPage(CRO_COPY_CAL_PAGE_SRC_SEGMENT, CRO_COPY_CAL_PAGE_SRC_PAGE, CRO_COPY_CAL_PAGE_DEST_SEGMENT, CRO_COPY_CAL_PAGE_DEST_PAGE));
+            }
         } break;
 #endif // XCP_ENABLE_COPY_CAL_PAGE
 
@@ -1544,24 +1915,30 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
                 goto no_response;
             } // Execute in async mode
 #endif
-            uint32_t n = CRO_BUILD_CHECKSUM_SIZE;
-            uint32_t s = 0;
-            uint32_t d, i;
+#ifdef XCP_ENABLE_REL_ADDRESSING
+            if (gXcp.MtaExt == XCP_ADDR_EXT_REL) {
+                error(CRC_ACCESS_DENIED);
+            }
+#endif
+            uint32_t checksum_value = 0;
+            uint32_t checksum_size = CRO_BUILD_CHECKSUM_SIZE;
             // Switch to XCP_CHECKSUM_TYPE_ADD41 if n is not a multiple of 4
-            if (n % 4 != 0) {
-                for (i = 0; i < n; i++) {
-                    check_error(XcpReadMta(1, (uint8_t *)&d));
-                    s += d;
+            if (checksum_size % 4 != 0) {
+                for (uint32_t i = 0; i < checksum_size; i++) {
+                    uint8_t memory_value = 0;
+                    check_error(XcpReadMta(sizeof(memory_value), &memory_value));
+                    checksum_value += memory_value;
                 }
-                CRM_BUILD_CHECKSUM_RESULT = s;
+                CRM_BUILD_CHECKSUM_RESULT = checksum_value;
                 CRM_BUILD_CHECKSUM_TYPE = XCP_CHECKSUM_TYPE_ADD11;
             } else {
-                n = n / 4;
-                for (i = 0; i < n; i++) {
-                    check_error(XcpReadMta(4, (uint8_t *)&d));
-                    s += d;
+                checksum_size = checksum_size / 4;
+                for (uint32_t i = 0; i < checksum_size; i++) {
+                    uint32_t memory_value = 0;
+                    check_error(XcpReadMta(sizeof(memory_value), (uint8_t *)&memory_value));
+                    checksum_value += memory_value;
                 }
-                CRM_BUILD_CHECKSUM_RESULT = s;
+                CRM_BUILD_CHECKSUM_RESULT = checksum_value;
                 CRM_BUILD_CHECKSUM_TYPE = XCP_CHECKSUM_TYPE_ADD44;
             }
             CRM_LEN = CRM_BUILD_CHECKSUM_LEN;
@@ -1573,7 +1950,7 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
             CRM_GET_DAQ_PROCESSOR_INFO_MIN_DAQ = 0;                                                    // Total number of predefined DAQ lists
             CRM_GET_DAQ_PROCESSOR_INFO_MAX_DAQ = gXcpDaqLists != NULL ? (gXcpDaqLists->daq_count) : 0; // Number of currently dynamically allocated DAQ lists
 #if defined(XCP_ENABLE_DAQ_EVENT_INFO)
-            CRM_GET_DAQ_PROCESSOR_INFO_MAX_EVENT = gXcp.EventCount; // Number of currently available event channels
+            CRM_GET_DAQ_PROCESSOR_INFO_MAX_EVENT = gXcp.EventList.count; // Number of currently available event channels
 #else
             CRM_GET_DAQ_PROCESSOR_INFO_MAX_EVENT = 0; // 0 - unknown
 #endif
@@ -1767,7 +2144,7 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
 #ifdef XCP_ENABLE_TEST_CHECKS
                 assert(XcpCheckPreparedDaqLists());
 #endif
-                if (!ApplXcpPrepareDaq((const tXcpDaqLists *)gXcpDaqLists))
+                if (!ApplXcpPrepareDaq())
                     error(CRC_RESOURCE_TEMPORARY_NOT_ACCESSIBLE);
                 break;
 #endif
@@ -2000,7 +2377,7 @@ negative_response:
 
 // Transmit busy response, if another command is already pending
 // Interleaved mode is not supported
-// @@@@ ToDo: Find a better solution
+// @@@@ TODO: Find a better solution
 #ifdef XCP_ENABLE_DYN_ADDRESSING
 busy_response:
     CRM_LEN = 2;
@@ -2044,7 +2421,7 @@ void XcpSendEvent(uint8_t evc, const uint8_t *d, uint8_t l) {
 }
 
 // Send terminate session signal event
-void XcpSendTerminateSessionEvent() { XcpSendEvent(EVC_SESSION_TERMINATED, NULL, 0); }
+void XcpSendTerminateSessionEvent(void) { XcpSendEvent(EVC_SESSION_TERMINATED, NULL, 0); }
 
 /****************************************************************************/
 /* Print via SERV/SERV_TEXT                                                 */
@@ -2078,11 +2455,9 @@ void XcpPrint(const char *str) {
 // Init XCP protocol layer singleton once
 // This is a once initialization of the static gXcp singleton data structure
 // Memory for the DAQ lists are provided by the caller if daq_lists != NULL
-void XcpInit(tXcpDaqLists *daq_lists) {
+void XcpInit(void) {
     // Once
-    if (isInitialized()) {         // Already initialized, just ignore
-        assert(daq_lists == NULL); // Assert only if there might have been an intention to provide DAQ list memory with this call
-        assert(gXcpDaqLists != NULL);
+    if (isInitialized()) { // Already initialized, just ignore
         return;
     }
 
@@ -2090,18 +2465,18 @@ void XcpInit(tXcpDaqLists *daq_lists) {
     memset((uint8_t *)&gXcp, 0, sizeof(gXcp));
 
     // Allocate DAQ list memory
-    if (gXcpDaqLists == NULL) {
-        gXcpDaqLists = malloc(sizeof(tXcpDaqLists));
-        gXcpDaqListsExternal = false;
-        assert(gXcpDaqLists != NULL);
-    }
-
-    // DAQ list memory is provided by the application
-    else {
-        gXcpDaqLists = daq_lists;
-        gXcpDaqListsExternal = true;
-    }
+    gXcpDaqLists = malloc(sizeof(tXcpDaqLists));
+    gXcpDaqListsExternal = false;
+    assert(gXcpDaqLists != NULL);
     XcpClearDaq();
+
+#ifdef XCP_ENABLE_CALSEG_LIST
+    mutexInit(&gXcp.CalSegList.mutex, false, 1000);
+#endif
+
+#ifdef XCP_ENABLE_EVENT_LIST
+    mutexInit(&gXcp.EventList.mutex, false, 1000);
+#endif
 
 #ifdef XCP_ENABLE_MULTITHREAD_CAL_EVENTS
     mutexInit(&gXcp.CmdPendingMutex, false, 1000);
@@ -2129,44 +2504,48 @@ void XcpStart(tQueueHandle queueHandle, bool resumeMode) {
         return;
 
 #ifdef DBG_LEVEL
-    DBG_PRINT3("Init XCP protocol layer\n");
-    DBG_PRINTF3("  Version=%u.%u, MAX_CTO=%u, MAX_DTO=%u, DAQ_MEM=%u, MAX_DAQ=%u, MAX_ODT_ENTRY=%u, MAX_ODT_ENTRYSIZE=%u\n", XCP_PROTOCOL_LAYER_VERSION >> 8,
-                XCP_PROTOCOL_LAYER_VERSION & 0xFF, XCPTL_MAX_CTO_SIZE, XCPTL_MAX_DTO_SIZE, XCP_DAQ_MEM_SIZE, (1 << sizeof(uint16_t) * 8) - 1, (1 << sizeof(uint16_t) * 8) - 1,
-                (1 << (sizeof(uint8_t) * 8)) - 1);
-    DBG_PRINTF3("  %u KiB memory used\n", (unsigned int)sizeof(gXcp) / 1024);
-    DBG_PRINT3("  Options=(");
+    if (DBG_LEVEL >= 3) {
+        DBG_PRINT3("Init XCP protocol layer\n");
+        DBG_PRINTF("  Version=%u.%u, MAX_CTO=%u, MAX_DTO=%u, DAQ_MEM=%u, MAX_DAQ=%u, MAX_ODT_ENTRY=%u, MAX_ODT_ENTRYSIZE=%u\n", XCP_PROTOCOL_LAYER_VERSION >> 8,
+                   XCP_PROTOCOL_LAYER_VERSION & 0xFF, XCPTL_MAX_CTO_SIZE, XCPTL_MAX_DTO_SIZE, XCP_DAQ_MEM_SIZE, (1 << sizeof(uint16_t) * 8) - 1, (1 << sizeof(uint16_t) * 8) - 1,
+                   (1 << (sizeof(uint8_t) * 8)) - 1);
+        DBG_PRINTF("  %u KiB memory used\n", (unsigned int)sizeof(gXcp) / 1024);
+        DBG_PRINT("  Options=(");
 
-    // Print activated XCP protocol options
+        // Print activated XCP protocol options
 #ifdef XCP_ENABLE_DAQ_CLOCK_MULTICAST // Enable GET_DAQ_CLOCK_MULTICAST
-    DBG_PRINT3("DAQ_CLK_MULTICAST (not recomended),");
+        DBG_PRINT("DAQ_CLK_MULTICAST (not recomended),");
 #endif
 #ifdef XCP_DAQ_CLOCK_64BIT // Use 64 Bit time stamps
-    DBG_PRINT3("DAQ_CLK_64BIT,");
+        DBG_PRINT("DAQ_CLK_64BIT,");
 #endif
 #ifdef XCP_ENABLE_PTP // Enable server clock synchronized to PTP grandmaster clock
-    DBG_PRINT3("GM_CLK_INFO,");
+        DBG_PRINT("GM_CLK_INFO,");
 #endif
 #ifdef XCP_ENABLE_IDT_A2L_UPLOAD // Enable A2L upload to host
-    DBG_PRINT3("A2L_UPLOAD,");
+        DBG_PRINT("A2L_UPLOAD,");
 #endif
 #ifdef XCP_ENABLE_IDT_A2L_HTTP_GET // Enable A2L upload to hostRust
-    DBG_PRINT3("A2L_URL,");
+        DBG_PRINT("A2L_URL,");
 #endif
-#ifdef XCP_ENABLE_DAQ_EVENT_LIST // Enable XCP event info by protocol or by A2L
-    DBG_PRINT3("DAQ_EVT_LIST,");
+#ifdef XCP_ENABLE_DAQ_EVENT_LIST // Enable XCP event registration and optimization
+        DBG_PRINT("DAQ_EVENT_LIST,");
+#endif
+#ifdef XCP_ENABLE_CALSEG_LIST // Enable XCP calibration segments
+        DBG_PRINT("CALSEG_LIST,");
 #endif
 #ifdef XCP_ENABLE_DAQ_EVENT_INFO // Enable XCP event info by protocol instead of A2L
-    DBG_PRINT3("DAQ_EVT_INFO,");
+        DBG_PRINT("DAQ_EVT_INFO,");
 #endif
 #ifdef XCP_ENABLE_CHECKSUM // Enable BUILD_CHECKSUM command
-    DBG_PRINT3("CHECKSUM,");
+        DBG_PRINT("CHECKSUM,");
 #endif
 #ifdef XCP_ENABLE_INTERLEAVED // Enable interleaved command execution
-    DBG_PRINT3("INTERLEAVED,");
+        DBG_PRINT("INTERLEAVED,");
 #endif
-    DBG_PRINT3(")\n");
+        DBG_PRINT(")\n");
 #endif
-
+    }
     gXcp.Queue = queueHandle;
 
 #ifdef XCP_ENABLE_PROTOCOL_LAYER_ETH
@@ -2227,8 +2606,7 @@ void XcpStart(tQueueHandle queueHandle, bool resumeMode) {
             gXcp.SessionStatus |= SS_RESUME;
             /* Start DAQ */
             XcpStartSelectedDaqLists();
-
-            /* @@@@ TODO Send an event message to indicate resume mode */
+            // @@@@ TODO Send an event message to indicate resume mode
 
 #ifdef DBG_LEVEL
             if (DBG_LEVEL != 0) {
@@ -2260,76 +2638,6 @@ void XcpReset(void) {
 
     memset(&gXcp, 0, sizeof(gXcp));
 }
-
-/**************************************************************************/
-/* Eventlist                                                              */
-/**************************************************************************/
-
-#ifdef XCP_ENABLE_DAQ_EVENT_LIST
-
-// Get a pointer to and the size of the XCP event list
-tXcpEvent *XcpGetEventList(uint16_t *eventCount) {
-
-    if (!isInitialized())
-        return NULL;
-
-    if (eventCount != NULL)
-        *eventCount = gXcp.EventCount;
-    return gXcp.EventList;
-}
-
-void XcpClearEventList() { gXcp.EventCount = 0; }
-
-tXcpEvent *XcpGetEvent(uint16_t event) {
-    if (!isStarted() || event >= gXcp.EventCount)
-        return NULL;
-    return &gXcp.EventList[event];
-}
-
-// Create an XCP event, <rate> in us, 0 = sporadic, <priority> 0-normal, >=1 realtime, <sampleCount> only for packed mode events only, <size> only for extended events
-// Returns the XCP event number for XcpEventXxx() or XCP_UNDEFINED_EVENT_CHANNEL when out of memory
-uint16_t XcpCreateEvent(const char *name, uint32_t cycleTimeNs, uint8_t priority, uint16_t sampleCount, uint32_t size) {
-
-    uint16_t e;
-    uint32_t c;
-
-    if (!isInitialized()) {
-        DBG_PRINT_ERROR("ERROR: XCP driver not initialized\n");
-        return XCP_UNDEFINED_EVENT_CHANNEL; // Uninitialized or out of memory
-    }
-    if (gXcp.EventCount >= XCP_MAX_EVENT_COUNT) {
-        DBG_PRINT_ERROR("ERROR: XCP too many events\n");
-        return XCP_UNDEFINED_EVENT_CHANNEL; // timeUninitialized or out of memory
-    }
-
-    // Convert cycle time to ASAM coding time cycle and time unit
-    // RESOLUTION OF TIMESTAMP "UNIT_1NS" = 0, "UNIT_10NS" = 1, ...
-    e = gXcp.EventCount;
-    c = cycleTimeNs;
-    gXcp.EventList[e].timeUnit = 0;
-    while (c >= 256) {
-        c /= 10;
-        gXcp.EventList[e].timeUnit++;
-    }
-    gXcp.EventList[e].timeCycle = (uint8_t)c;
-
-    strncpy(gXcp.EventList[e].shortName, name, XCP_MAX_EVENT_NAME);
-    gXcp.EventList[e].shortName[XCP_MAX_EVENT_NAME] = 0;
-    gXcp.EventList[e].priority = priority;
-    gXcp.EventList[e].sampleCount = sampleCount;
-    gXcp.EventList[e].size = size;
-#ifdef DBG_LEVEL
-    uint64_t ns = (uint64_t)(gXcp.EventList[e].timeCycle * pow(10, gXcp.EventList[e].timeUnit));
-    DBG_PRINTF3("  Event %u: %s cycle=%" PRIu64 "ns, prio=%u, sc=%u, size=%u\n", e, gXcp.EventList[e].shortName, ns, gXcp.EventList[e].priority, gXcp.EventList[e].sampleCount,
-                gXcp.EventList[e].size);
-    if (cycleTimeNs != ns)
-        DBG_PRINTF_WARNING("WARNING: cycle time %uns, loss of significant digits!\n", cycleTimeNs);
-#endif
-
-    return gXcp.EventCount++;
-}
-
-#endif // XCP_ENABLE_DAQ_EVENT_LIST
 
 /****************************************************************************/
 /* Test printing                                                            */
@@ -2731,7 +3039,6 @@ static void XcpPrintRes(const tXcpCto *crm) {
 }
 
 static void XcpPrintDaqList(uint16_t daq) {
-    int i, e;
 
     if (gXcpDaqLists == NULL || daq >= gXcpDaqLists->daq_count)
         return;
@@ -2744,10 +3051,10 @@ static void XcpPrintDaqList(uint16_t daq) {
     printf(" mode=%02Xh,", DaqListMode(daq));
     printf(" state=%02Xh\n", DaqListState(daq));
 
-    for (i = DaqListFirstOdt(daq); i <= DaqListLastOdt(daq); i++) {
+    for (int i = DaqListFirstOdt(daq); i <= DaqListLastOdt(daq); i++) {
         printf("    ODT %u (%u):", i - DaqListFirstOdt(daq), i);
         printf(" firstOdtEntry=%u, lastOdtEntry=%u, size=%u:\n", DaqListOdtTable[i].first_odt_entry, DaqListOdtTable[i].last_odt_entry, DaqListOdtTable[i].size);
-        for (e = DaqListOdtTable[i].first_odt_entry; e <= DaqListOdtTable[i].last_odt_entry; e++) {
+        for (int e = DaqListOdtTable[i].first_odt_entry; e <= DaqListOdtTable[i].last_odt_entry; e++) {
             printf("      ODT_ENTRY %u (%u): %08X,%u\n", e - DaqListOdtTable[i].first_odt_entry, e, OdtEntryAddrTable[e], OdtEntrySizeTable[e]);
         }
 

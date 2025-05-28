@@ -1,6 +1,6 @@
 pub mod cdr;
 
-use super::{Generator, Struct, IDL};
+use super::{Generator, IDL, Struct};
 use cdr::CdrGenerator;
 use std::{
     collections::HashMap,
@@ -27,7 +27,7 @@ impl GeneratorCollection {
         static mut INSTANCE: Option<GeneratorCollection> = None;
         static INIT: Once = Once::new();
 
-        // @@@@ - unsafe - Mutable static, TODO
+        // @@@@ UNSAFE - Mutable static, TODO
         unsafe {
             INIT.call_once(|| {
                 INSTANCE = Some(GeneratorCollection::new());

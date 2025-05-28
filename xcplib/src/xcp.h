@@ -4,8 +4,6 @@
 /* Copyright(c) Vector Informatik GmbH.All rights reserved.
    Licensed under the MIT license.See LICENSE file in the project root for details. */
 
-#include "xcp_cfg.h" // for XCP_ENABLE_xxx
-
 /***************************************************************************/
 /* Commands                                                                */
 /***************************************************************************/
@@ -1080,8 +1078,6 @@ typedef struct {
     uint64_t valueBeforeWrapAround;
 } T_CLOCK_INFO;
 
-#ifdef XCP_ENABLE_PTP
-
 typedef struct {
     uint8_t UUID[8];
     uint16_t timestampTicks;
@@ -1097,8 +1093,6 @@ typedef struct {
     uint64_t timestampOrigin;
     uint64_t timestampLocal;
 } T_CLOCK_INFO_RELATION;
-
-#endif
 
 #pragma pack(pop)
 

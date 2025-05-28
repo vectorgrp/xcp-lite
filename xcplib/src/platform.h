@@ -95,8 +95,8 @@
 
 #ifdef _LINUX
 #include <termios.h>
-extern int _getch(void);
-extern int _kbhit(void);
+int _getch(void);
+int _kbhit(void);
 #endif
 
 #ifdef _WIN
@@ -120,10 +120,10 @@ extern int _kbhit(void);
 // Delay
 
 // Delay based on clock
-extern void sleepNs(uint32_t ns);
+void sleepNs(uint32_t ns);
 
 // Delay - Less precise and less CPU load, not based on clock, time domain different
-extern void sleepMs(uint32_t ms);
+void sleepMs(uint32_t ms);
 
 //-------------------------------------------------------------------------------
 // Mutex
@@ -223,22 +223,22 @@ typedef pthread_t THREAD;
 #define SOCKET_TIMESTAMP_FREE_RUNNING 0
 #define SOCKET_TIMESTAMP_SOFTWARE_SYNC 1
 
-extern bool socketStartup(void);
-extern int32_t socketGetLastError(void);
-extern void socketCleanup(void);
-extern bool socketOpen(SOCKET *sp, bool useTCP, bool nonBlocking, bool reuseaddr, bool timestamps);
-extern bool socketBind(SOCKET sock, uint8_t *addr, uint16_t port);
-extern bool socketJoin(SOCKET sock, uint8_t *maddr);
-extern bool socketListen(SOCKET sock);
-extern SOCKET socketAccept(SOCKET sock, uint8_t *addr);
-extern int16_t socketRecv(SOCKET sock, uint8_t *buffer, uint16_t bufferSize, bool waitAll);
-extern int16_t socketRecvFrom(SOCKET sock, uint8_t *buffer, uint16_t bufferSize, uint8_t *srcAddr, uint16_t *srcPort, uint64_t *time);
-extern int16_t socketSend(SOCKET sock, const uint8_t *buffer, uint16_t bufferSize);
-extern int16_t socketSendTo(SOCKET sock, const uint8_t *buffer, uint16_t bufferSize, const uint8_t *addr, uint16_t port, uint64_t *time);
-extern bool socketShutdown(SOCKET sock);
-extern bool socketClose(SOCKET *sp);
+bool socketStartup(void);
+int32_t socketGetLastError(void);
+void socketCleanup(void);
+bool socketOpen(SOCKET *sp, bool useTCP, bool nonBlocking, bool reuseaddr, bool timestamps);
+bool socketBind(SOCKET sock, uint8_t *addr, uint16_t port);
+bool socketJoin(SOCKET sock, uint8_t *maddr);
+bool socketListen(SOCKET sock);
+SOCKET socketAccept(SOCKET sock, uint8_t *addr);
+int16_t socketRecv(SOCKET sock, uint8_t *buffer, uint16_t bufferSize, bool waitAll);
+int16_t socketRecvFrom(SOCKET sock, uint8_t *buffer, uint16_t bufferSize, uint8_t *srcAddr, uint16_t *srcPort, uint64_t *time);
+int16_t socketSend(SOCKET sock, const uint8_t *buffer, uint16_t bufferSize);
+int16_t socketSendTo(SOCKET sock, const uint8_t *buffer, uint16_t bufferSize, const uint8_t *addr, uint16_t port, uint64_t *time);
+bool socketShutdown(SOCKET sock);
+bool socketClose(SOCKET *sp);
 #ifdef OPTION_ENABLE_GET_LOCAL_ADDR
-extern bool socketGetLocalAddr(uint8_t *mac, uint8_t *addr);
+bool socketGetLocalAddr(uint8_t *mac, uint8_t *addr);
 #endif
 
 #endif
@@ -267,8 +267,8 @@ extern bool socketGetLocalAddr(uint8_t *mac, uint8_t *addr);
 #endif
 
 // Clock
-extern bool clockInit(void);
-extern uint64_t clockGet(void);
-extern uint64_t clockGetLast(void);
-extern char *clockGetString(char *s, uint32_t l, uint64_t c);
-extern char *clockGetTimeString(char *s, uint32_t l, int64_t c);
+bool clockInit(void);
+uint64_t clockGet(void);
+uint64_t clockGetLast(void);
+char *clockGetString(char *s, uint32_t l, uint64_t c);
+char *clockGetTimeString(char *s, uint32_t l, int64_t c);
