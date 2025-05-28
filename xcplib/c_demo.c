@@ -5,8 +5,9 @@
 #include <stdio.h>   // for fclose, fopen, fread, fseek, ftell
 #include <string.h>  // for strlen, strncpy
 
-#include "platform.h" // for sleepMs
-
+#include "a2l.h"          // for A2lOpen, A2lClose, A2lCreateXxx, A2lSetXxxx
+#include "platform.h"     // for sleepMs, getClock
+#include "xcpAppl.h"      // for ApplXcpRegisterConnectCallback
 #include "xcpEthServer.h" // for XcpEthServerInit, XcpEthServerShutdown, XcpEthServerStatus
 #include "xcpLite.h"      // for XcpInit, XcpEventExt, XcpCreateEvent
 
@@ -25,12 +26,28 @@ uint16_t gOptionPort = OPTION_SERVER_PORT;
 uint8_t gOptionBindAddr[4] = OPTION_SERVER_ADDR;
 
 //-----------------------------------------------------------------------------------------------------
-// A2L file generation options
-
-#include "a2l.h" // for sleepMs
+// A2L file generation
 
 #define OPTION_A2L_NAME "C_Demo"          // A2L name
 #define OPTION_A2L_FILE_NAME "C_Demo.a2l" // A2L filename
+
+// Finalize A2L file generation
+static uint8_t A2lFinalize(void) {
+    // @@@@ TODO: Add a version string for the application here
+    A2lCreate_MOD_PAR("EPK_xxxx");
+    A2lCreate_ETH_IF_DATA(gOptionUseTCP, gOptionBindAddr, gOptionPort);
+    A2lClose();
+    return 0; // Indicate success
+}
+
+// Open the A2L file and register the finalize callback
+static void A2lInit(void) {
+    if (!A2lOpen(OPTION_A2L_FILE_NAME, OPTION_A2L_NAME)) {
+        printf("Failed to open A2L file %s\n", OPTION_A2L_FILE_NAME);
+        return;
+    }
+    // ApplXcpRegisterConnectCallback(A2lFinalize);
+}
 
 //-----------------------------------------------------------------------------------------------------
 
@@ -52,8 +69,8 @@ void c_demo(void) {
 
     printf("\nXCP on Ethernet C xcplib demo\n");
 
-    // Set log level (1-error, 2-warning, 3-info, 4-debug)
-    XcpSetLogLevel(3);
+    // Set log level (1-error, 2-warning, 3-info, 4-show XCP commands)
+    XcpSetLogLevel(4);
 
     // Initialize the XCP singleton, must be called before starting the server
     XcpInit();
@@ -64,10 +81,7 @@ void c_demo(void) {
     }
 
     // Prepare the A2L file
-    if (!A2lOpen(OPTION_A2L_FILE_NAME, OPTION_A2L_NAME)) {
-        printf("Failed to open A2L file %s\n", OPTION_A2L_FILE_NAME);
-        return;
-    }
+    A2lInit();
 
     // Create a calibration segment for parameters
     uint16_t calseg = XcpCreateCalSeg("params", &params, sizeof(params));
@@ -81,8 +95,8 @@ void c_demo(void) {
     uint16_t event_global = XcpCreateEvent("mainloop_global", 0, 0);
 
     // Register measurement variables located on stack
-    // A2lSetAbsAddrMode(); // Enable absolute addressing
-    // A2lCreatePhysMeasurement(counter_global, A2L_TYPE_UINT16, "Measurement variable", 1.0, 0.0, "counts");
+    A2lSetAbsAddrMode(); // Enable absolute addressing
+    A2lCreatePhysMeasurement(counter_global, A2L_TYPE_UINT16, "Measurement variable", 1.0, 0.0, "counts");
 
     // A demo variable on stack
     uint16_t counter = 0;
@@ -94,10 +108,7 @@ void c_demo(void) {
     A2lSetRelAddrMode(&event); // Enable event relative addressing
     A2lCreatePhysMeasurement(counter, A2L_TYPE_UINT16, "Measurement variable", 1.0, 0.0, "counts");
 
-    // Close the A2L file
-    A2lCreate_MOD_PAR("EPK_xxxx");
-    A2lCreate_ETH_IF_DATA(gOptionUseTCP, gOptionBindAddr, gOptionPort);
-    A2lClose();
+    A2lFinalize();
 
     for (;;) {
 
@@ -128,7 +139,10 @@ void c_demo(void) {
             printf("\nXCP Server failed\n");
             break;
         }
-    }
+    } // for(;;)
+
+    // Force disconnect the XCP client
+    XcpDisconnect();
 
     // Stop the XCP server
     XcpEthServerShutdown();

@@ -85,6 +85,8 @@ void ApplXcpRegisterCallbacks(uint8_t (*cb_connect)(void), uint8_t (*cb_prepare_
 #endif
 }
 
+void ApplXcpRegisterConnectCallback(uint8_t (*cb_connect)(void)) { callback_connect = cb_connect; }
+
 /**************************************************************************/
 // General notifications from XCPlite.c
 /**************************************************************************/
@@ -248,7 +250,7 @@ uint8_t *ApplXcpGetBaseAddr(void) {
         dl_iterate_phdr(dump_phdr, NULL);
         assert(baseAddr != NULL);
         baseAddrValid = 1;
-        DBG_PRINTF4("ApplXcpGetBaseAddr = %lX\n", (uint64_t)baseAddr);
+        DBG_PRINTF4("Base address for absolute addressing = 0x%llX\n", (uint64_t)baseAddr);
     }
 
     return baseAddr;
@@ -290,7 +292,7 @@ uint8_t *ApplXcpGetBaseAddr(void) {
         baseAddr = (uint8_t *)_dyld_get_image_header(0); // Module addr
         assert(baseAddr != NULL);
         baseAddrValid = 1;
-        DBG_PRINTF4("ApplXcpGetBaseAddr = %llX\n", (uint64_t)baseAddr);
+        DBG_PRINTF4("Base address for absolute addressing = 0x%llX\n", (uint64_t)baseAddr);
     }
 
     return baseAddr;
@@ -433,12 +435,12 @@ static const char *gXcpEpk = NULL;     // EPK
 
 // Set the A2L filename (without extension)
 void ApplXcpSetA2lName(const char *name) {
-    DBG_PRINTF3("ApplXcpSetA2lName name='%s'\n", name);
+    DBG_PRINTF4("A2L name='%s'\n", name);
     gXcpA2lName = (char *)name; // must be static lifetime
 }
 // Set the EPK (A2l file version string)
 void ApplXcpSetEpk(const char *epk) {
-    DBG_PRINTF3("ApplXcpSetEpk EPK='%s'\n", epk);
+    DBG_PRINTF4("A2L EPK='%s'\n", epk);
     gXcpEpk = (char *)epk; // must be static lifetime
 }
 

@@ -48,7 +48,7 @@ static void mem_check(const char *name, int32_t type, uint8_t ext, uint32_t addr
     (void)name;
     volatile uint8_t *p = ApplXcpGetPointer(ext, addr);
     if (p == NULL) {
-        DBG_PRINTF3("ERROR: memory address 0x%04X of variable %s not accessible !\n", addr, name);
+        DBG_PRINTF3("memory address 0x%04X of variable %s not accessible !\n", addr, name);
         assert(0);
     }
     volatile uint8_t b = *p; // if this leads to a memory protection error, check if address transformation from A2L to uint_8_p* transformation is correct
@@ -80,8 +80,9 @@ static const char *gA2lMemorySegment = "/begin MEMORY_SEGMENT\n"
                                        "/begin IF_DATA XCP\n"
                                        "/begin SEGMENT 0x01 0x02 0x00 0x00 0x00 \n"
                                        "/begin CHECKSUM XCP_ADD_44 MAX_BLOCK_SIZE 0xFFFF EXTERNAL_FUNCTION \"\" /end CHECKSUM\n"
-                                       "/begin PAGE 0x01 ECU_ACCESS_WITH_XCP_ONLY XCP_READ_ACCESS_WITH_ECU_ONLY XCP_WRITE_ACCESS_NOT_ALLOWED /end PAGE\n"
-                                       "/begin PAGE 0x00 ECU_ACCESS_WITH_XCP_ONLY XCP_READ_ACCESS_WITH_ECU_ONLY XCP_WRITE_ACCESS_WITH_ECU_ONLY /end PAGE\n"
+                                       // 2 calibration pages, 0=working page (RAM), 1=initial readonly page (FLASH), independent access to ECU and XCP page possible
+                                       "/begin PAGE 0x01 ECU_ACCESS_DONT_CARE XCP_READ_ACCESS_DONT_CARE XCP_WRITE_ACCESS_NOT_ALLOWED /end PAGE\n"
+                                       "/begin PAGE 0x00 ECU_ACCESS_DONT_CARE XCP_READ_ACCESS_DONT_CARE XCP_WRITE_ACCESS_DONT_CARE /end PAGE\n"
                                        "/end SEGMENT\n"
                                        "/end IF_DATA\n"
                                        "/end MEMORY_SEGMENT\n";
@@ -409,14 +410,14 @@ static const char *getPhysMax(int32_t type, double factor, double offset) {
 
 bool A2lOpen(const char *filename, const char *projectName) {
 
-    DBG_PRINTF3("\nCreate A2L %s\n", filename);
+    DBG_PRINTF3("\nA2L create %s\n", filename);
 
     gA2lFile = NULL;
     gA2lFixedEvent = XCP_UNDEFINED_EVENT_CHANNEL;
     gA2lMeasurements = gA2lParameters = gA2lTypedefs = gA2lInstances = gA2lConversions = gA2lComponents = 0;
     gA2lFile = fopen(filename, "w");
     if (gA2lFile == 0) {
-        DBG_PRINTF_ERROR("ERROR: Could not create A2L file %s!\n", filename);
+        DBG_PRINTF_ERROR("Could not create A2L file %s!\n", filename);
         return false;
     }
 
@@ -525,7 +526,7 @@ void A2lCreate_ETH_IF_DATA(bool useTCP, const uint8_t *addr, uint16_t port) {
 
     fprintf(gA2lFile, gA2lIfDataEnd);
 
-    DBG_PRINTF3("  IF_DATA XCP_ON_%s, ip=%s, port=%u\n", prot, addrs, port);
+    DBG_PRINTF3("A2L IF_DATA XCP_ON_%s, ip=%s, port=%u\n", prot, addrs, port);
 }
 
 void A2lCreateMeasurement_IF_DATA() {

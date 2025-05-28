@@ -15,19 +15,19 @@
 #include "xcpEthTl.h"
 
 #include <assert.h>   // for assert
+#include <inttypes.h> // for PRIu64
 #include <stdbool.h>  // for bool
 #include <stdint.h>   // for uint32_t, uint64_t, uint8_t, int64_t
 #include <stdio.h>    // for printf
-#include <inttypes.h> // for PRIu64
 #include <string.h>   // for memcpy, strcmp
 
+#include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
 #include "main_cfg.h"  // for OPTION_xxx
 #include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
-#include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
 #include "xcp.h"       // for CRC_XXX
 #include "xcpLite.h"   // for tXcpDaqLists, XcpXxx, ApplXcpXxx, ...
-#include "xcptl_cfg.h" // for XCPTL_xxx
 #include "xcpQueue.h"
+#include "xcptl_cfg.h" // for XCPTL_xxx
 
 static struct {
 
@@ -106,7 +106,7 @@ int XcpEthTlSend(const uint8_t *data, uint16_t size, const uint8_t *addr, uint16
             r = socketSendTo(gXcpTl.Sock, data, size, addr, port, NULL);
         } else { // Respond to active master
             if (!gXcpTl.MasterAddrValid) {
-                DBG_PRINT_ERROR("ERROR: invalid master address!\n");
+                DBG_PRINT_ERROR("invalid master address!\n");
                 // gXcpTl.lastError = XCPTL_ERROR_INVALID_MASTER;
                 return 0;
             }
@@ -250,7 +250,7 @@ bool XcpEthTlHandleCommands(uint32_t timeout_ms) {
             DBG_PRINT5("Waiting for TCP connection ...\n");
             gXcpTl.Sock = socketAccept(gXcpTl.ListenSock, gXcpTl.MasterAddr); // Wait here for incoming connection
             if (gXcpTl.Sock == INVALID_SOCKET) {
-                DBG_PRINT_ERROR("ERROR: accept failed!\n");
+                DBG_PRINT_ERROR("accept failed!\n");
                 return true; // Ignore error from accept, when in non blocking mode
             } else {
                 DBG_PRINTF3("XCP master %u.%u.%u.%u accepted!\n", gXcpTl.MasterAddr[0], gXcpTl.MasterAddr[1], gXcpTl.MasterAddr[2], gXcpTl.MasterAddr[3]);
@@ -297,7 +297,7 @@ bool XcpEthTlHandleCommands(uint32_t timeout_ms) {
             return false; // Error
         } else {          // Ok
             if (msgBuf.dlc != n - XCPTL_TRANSPORT_LAYER_HEADER_SIZE) {
-                DBG_PRINT_ERROR("ERROR: corrupt message received!\n");
+                DBG_PRINT_ERROR("Corrupt message received!\n");
                 return false; // Error
             }
             return handleXcpCommand(&msgBuf, srcAddr, srcPort);
@@ -422,7 +422,7 @@ bool XcpEthTlInit(const uint8_t *addr, uint16_t port, bool useTCP, bool blocking
     } else
 #else
     if (useTCP) { // TCP
-        DBG_PRINT_ERROR("ERROR: #define XCPTL_ENABLE_TCP for TCP support\n");
+        DBG_PRINT_ERROR("Must #define XCPTL_ENABLE_TCP for TCP support\n");
         return false;
     } else
 #endif

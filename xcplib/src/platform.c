@@ -203,7 +203,7 @@ bool socketOpen(SOCKET *sp, bool useTCP, bool nonBlocking, bool reuseaddr, bool 
     // Create a socket
     *sp = socket(AF_INET, useTCP ? SOCK_STREAM : SOCK_DGRAM, 0);
     if (*sp < 0) {
-        DBG_PRINT_ERROR("ERROR: cannot open socket!\n");
+        DBG_PRINT_ERROR("cannot open socket!\n");
         return 0;
     }
 
@@ -316,7 +316,7 @@ bool socketGetLocalAddr(uint8_t *mac, uint8_t *addr) {
             if (addr1 != 0 && ifa1 != NULL) {
                 GetMAC(ifa1->ifa_name, mac1);
 #ifdef DBG_LEVEL
-                if (DBG_LEVEL >= 4) {
+                if (DBG_LEVEL >= 5) {
                     inet_ntop(AF_INET, &addr1, strbuf, sizeof(strbuf));
                     printf("  Use IPV4 adapter %s with IP=%s, MAC=%02X-%02X-%02X-%02X-%02X-%02X for A2L info and clock "
                            "UUID\n",
@@ -354,7 +354,7 @@ uint32_t socketGetTimestampMode(uint8_t *clockType) {
 bool socketSetTimestampMode(uint8_t m) {
 
     if (m != SOCKET_TIMESTAMP_NONE && m != SOCKET_TIMESTAMP_PC) {
-        DBG_PRINT_ERROR("ERROR: unsupported timestamp mode!\n");
+        DBG_PRINT_ERROR("unsupported timestamp mode!\n");
         return false;
     }
     return true;
@@ -761,8 +761,8 @@ bool clockInit(void) {
         t1 = clockGet();
         sleepMs(100);
         t2 = clockGet();
-        DBG_PRINTF4("  now      : %" PRIu64 " %s\n", t1, clockGetString(s, sizeof(s), t1));
-        DBG_PRINTF4("  now+100ms: %" PRIu64 " %s (dt=%u)\n", t2, clockGetString(s, sizeof(s), t2), (uint32_t)(t2 - t1));
+        DBG_PRINTF5("  now      : %" PRIu64 " %s\n", t1, clockGetString(s, sizeof(s), t1));
+        DBG_PRINTF5("  now+100ms: %" PRIu64 " %s (dt=%u)\n", t2, clockGetString(s, sizeof(s), t2), (uint32_t)(t2 - t1));
         // t1 = clockGet(); sleepMs(100); t2 = clockGet();
         // DBG_PRINTF4("  +0us:   %" PRIu64 " %s\n", t1, clockGetString(s, sizeof(s), t1));
         // DBG_PRINTF4("  +100ms: %" PRIu64 " %s (dt=%u)\n", t2, clockGetString(s, sizeof(s), t2), (uint32_t)(t2 - t1));
@@ -856,11 +856,11 @@ bool clockInit(void) {
     LARGE_INTEGER tF, tC;
     uint64_t tp;
     if (!QueryPerformanceFrequency(&tF)) {
-        DBG_PRINT_ERROR("ERROR: Performance counter not available on this system!\n");
+        DBG_PRINT_ERROR("Performance counter not available on this system!\n");
         return false;
     }
     if (tF.u.HighPart) {
-        DBG_PRINT_ERROR("ERROR: Unexpected performance counter frequency!\n");
+        DBG_PRINT_ERROR("Unexpected performance counter frequency!\n");
         return false;
     }
 

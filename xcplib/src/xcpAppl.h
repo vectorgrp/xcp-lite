@@ -16,5 +16,7 @@ void ApplXcpRegisterCallbacks(uint8_t (*cb_connect)(void), uint8_t (*cb_prepare_
                               uint8_t (*cb_init_cal)(uint8_t src_page, uint8_t dst_page), uint8_t (*cb_read)(uint32_t src, uint8_t size, uint8_t *dst),
                               uint8_t (*cb_write)(uint32_t dst, uint8_t size, const uint8_t *src, uint8_t delay), uint8_t (*cb_flush)(void));
 
+void ApplXcpRegisterConnectCallback(uint8_t (*cb_connect)(void));
+
 void ApplXcpSetA2lName(const char *name);
 void ApplXcpSetEpk(const char *name);
