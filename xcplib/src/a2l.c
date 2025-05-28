@@ -456,7 +456,7 @@ void A2lCreate_MOD_PAR(char *epk) {
     tXcpCalSegList *calSegList = XcpGetCalSegList();
     for (uint32_t i = 0; i < calSegList->count; i++) {
         tXcpCalSeg *calseg = &calSegList->calseg[i];
-        fprintf(gA2lFile, gA2lMemorySegment, calseg->name, (i << 16) | 0x8000000, calseg->size);
+        fprintf(gA2lFile, gA2lMemorySegment, calseg->name, (i << 16) | 0x80000000, calseg->size);
     }
 
     fprintf(gA2lFile, "/end MOD_PAR\n\n");

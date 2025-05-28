@@ -13,10 +13,11 @@
 //-----------------------------------------------------------------------------------------------------
 
 // XCP parameters
-#define OPTION_USE_TCP false            // TCP or UDP
-#define OPTION_SERVER_PORT 5555         // Port
-#define OPTION_SERVER_ADDR {0, 0, 0, 0} // Bind addr, 0.0.0.0 = ANY
-#define OPTION_QUEUE_SIZE 1024 * 16     // Size of the measurement queue in bytes, must be a multiple of 8
+#define OPTION_USE_TCP false    // TCP or UDP
+#define OPTION_SERVER_PORT 5555 // Port
+// #define OPTION_SERVER_ADDR {0, 0, 0, 0} // Bind addr, 0.0.0.0 = ANY
+#define OPTION_SERVER_ADDR {192, 168, 8, 110} // Bind addr, 0.0.0.0 = ANY
+#define OPTION_QUEUE_SIZE 1024 * 16           // Size of the measurement queue in bytes, must be a multiple of 8
 
 uint32_t gOptionQueueSize = OPTION_QUEUE_SIZE;
 bool gOptionUseTCP = OPTION_USE_TCP;
@@ -99,10 +100,12 @@ void c_demo(void) {
     A2lClose();
 
     for (;;) {
-        sleepMs(100);
 
         // Lock the calibration parameter segment for consistent and thread safe access
         struct params_t *params = (struct params_t *)XcpLockCalSeg(calseg);
+
+        // Sleep for the specified delay parameter in microseconds
+        sleepNs(params->delay_us * 1000);
 
         // Local variable
         counter++;

@@ -503,7 +503,7 @@ uint8_t XcpCalSegReadMemory(uint32_t src, uint8_t size, uint8_t *dst) {
     uint16_t calseg = (uint16_t)(src >> 16) & 0x7FFF; // Get the calibration segment number
     uint16_t offset = (uint16_t)(src & 0xFFFF);       // Get the offset within the calibration segment
     if (calseg >= gXcp.CalSegList.count || offset + size > gXcp.CalSegList.calseg[calseg].size) {
-        DBG_PRINT_ERROR("invalid calseg access\n");
+        DBG_PRINTF_ERROR("invalid calseg read access addr=%08X size=%u\n", src, size);
         return CRC_ACCESS_DENIED;
     }
     memcpy(dst, gXcp.CalSegList.calseg[calseg].xcp_page + offset, size);
@@ -515,10 +515,11 @@ uint8_t XcpCalSegWriteMemory(uint32_t dst, uint8_t size, const uint8_t *src) {
     uint16_t calseg = (uint16_t)(dst >> 16) & 0x7FFF; // Get the calibration segment number from the address
     uint16_t offset = (uint16_t)(dst & 0xFFFF);       // Get the offset within the calibration segment
     if (calseg >= gXcp.CalSegList.count || offset + size > gXcp.CalSegList.calseg[calseg].size) {
-        DBG_PRINT_ERROR("invalid calseg access\n");
+        DBG_PRINTF_ERROR("invalid calseg write access addr=%08X size=%u\n", dst, size);
         return CRC_ACCESS_DENIED;
     }
     memcpy(gXcp.CalSegList.calseg[calseg].xcp_page + offset, src, size);
+    gXcp.CalSegList.calseg[calseg].xcp_ctr++; // Increment the XCP modification counter
     return CRC_CMD_OK;
 }
 
