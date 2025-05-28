@@ -1,9 +1,7 @@
-# xcp-lite
+# xcp-lite V0.3.0
 
 XCP for Rust - based on XCPlite  
   
-Disclaimer: This code is in experimental state. There is no release yet.  
-
 xcp-lite is a Rust API for measurement and calibration, which uses the ASAM XCP protocol for communication with a measurement and calibration tool like CANape and ASAM A2L for data description.  
 
 This is no complete implementation of XCP in Rust, the protocol and transport layer implementation is in C/C++ based on XCPlite.  
@@ -21,6 +19,16 @@ Main purpose was to experiment with Rust and to demonstrate some more advanced f
 
 Requires CANape 23.
   
+## Version History
+
+Disclaimer: This code is in experimental state.  
+There is no release tagging and semantic versioning yet.  
+
+### V0.3.0
+
+Registry data model and user API refactored  
+Bugfixes
+
 ## Introduction
 
 XCP is a measurement and calibration protocol commonly used in the automotive industry. It is an ASAM standard.  
