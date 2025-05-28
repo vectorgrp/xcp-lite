@@ -7,11 +7,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-// @@@@ t.b.d.
-// 1. int64_t size
-// 2. flush
-//
-
 // Handle for queue
 typedef struct tQueueHandleType *tQueueHandle;
 #define UNDEFINED_QUEUE_HANDLE NULL

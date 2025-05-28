@@ -31,7 +31,7 @@
 #include <stdatomic.h>
 #else
 #ifdef _WIN32_
-#error "Windows32 not implemented"
+#error "Windows32 not implemented yet"
 #endif
 
 // On Windows 64 we rely on the x86-64 strong memory model and assume atomic 64 bit load/store
@@ -47,34 +47,30 @@
     }
 #endif
 
-// #define TEST_LOCK_TIMING
-#ifdef TEST_LOCK_TIMING
-static uint64_t lockTimeMax = 0;
-static uint64_t lockTimeSum = 0;
-static uint64_t lockCount = 0;
-#define HISTOGRAM_SIZE 20 // 200us in 10us steps
-#define HISTOGRAM_STEP 10
-static uint64_t lockTimeHistogram[HISTOGRAM_SIZE] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-#endif
-
 // Queue entry states
 #define RESERVED 0  // Reserved by producer
 #define COMMITTED 1 // Committed by producer
 
-#define ENTRY_SIZE (XCPTL_MAX_DTO_SIZE + XCPTL_TRANSPORT_LAYER_HEADER_SIZE)
+#define MAX_ENTRY_SIZE (XCPTL_MAX_DTO_SIZE + XCPTL_TRANSPORT_LAYER_HEADER_SIZE)
+#if MAX_ENTRY_SIZE & 4 == 0
+#error "MAX_ENTRY_SIZE should be mod 4"
+#endif
 
 // Queue header
 typedef struct {
     atomic_uint_fast64_t head; // Consumer reads from head
     atomic_uint_fast64_t tail; // Producers write to tail
-    uint32_t queue_size;       // Size of queue in bytes
-    uint32_t buffer_size;      // Size of buffer in bytes
+    uint32_t queue_size;       // Size of queue in bytes (for entry offset wrapping)
+    uint32_t buffer_size;      // Size of overall queue data buffer in bytes
     uint16_t ctr;              // Next DTO data transmit message packet counter
     uint16_t overruns;         // Overrun counter
     uint16_t flush;            // There is a packet in the queue which has priority
     MUTEX mutex;               // Mutex for queue producers
     bool from_memory;          // Queue memory from QueueInitFromMemory
+    uint8_t reserved[7];       // Header must be 8 byte aligned
 } tQueueHeader;
+
+static_assert(((sizeof(tQueueHeader) % 8) == 0), "QueueHeader size must be %8");
 
 // Queue
 typedef struct {
@@ -82,38 +78,40 @@ typedef struct {
     char buffer[];
 } tQueue;
 
-tQueueHandle QueueInitFromMemory(void *queue_buffer, int64_t queue_buffer_size, bool clear_queue, int64_t *out_buffer_size) {
+//-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+tQueueHandle QueueInitFromMemory(void *queue_memory, int64_t queue_memory_size, bool clear_queue, int64_t *out_buffer_size) {
 
     tQueue *queue = NULL;
-    assert(queue_buffer_size <= 0xFFFFFFFF);
+    assert(queue_memory_size <= 0xFFFFFFFF); // This implementation does not support larger queues
 
     // Allocate the queue memory
-    if (queue_buffer == NULL) {
-        queue = (tQueue *)malloc(queue_buffer_size);
+    if (queue_memory == NULL) {
+        queue = (tQueue *)malloc(queue_memory_size);
         assert(queue != NULL);
         queue->h.from_memory = false;
-        queue->h.buffer_size = (uint32_t)queue_buffer_size;
-        queue->h.queue_size = queue->h.buffer_size - ENTRY_SIZE;
+        queue->h.buffer_size = (uint32_t)queue_memory_size - sizeof(tQueueHeader);
+        queue->h.queue_size = queue->h.buffer_size - MAX_ENTRY_SIZE;
         clear_queue = true;
     }
     // Queue memory is provided by the application
     else if (clear_queue) {
-        queue = (tQueue *)queue_buffer;
+        queue = (tQueue *)queue_memory;
         queue->h.from_memory = true;
-        queue->h.buffer_size = (uint32_t)queue_buffer_size - sizeof(tQueueHeader);
-        queue->h.queue_size = queue->h.buffer_size - ENTRY_SIZE;
+        queue->h.buffer_size = (uint32_t)queue_memory_size - sizeof(tQueueHeader);
+        queue->h.queue_size = queue->h.buffer_size - MAX_ENTRY_SIZE;
     }
 
     // Queue is provided by the application and already initialized
     else {
-        queue = (tQueue *)queue_buffer;
+        queue = (tQueue *)queue_memory;
         assert(queue->h.from_memory == true);
-        assert(queue->h.queue_size == queue->h.buffer_size - ENTRY_SIZE);
+        assert(queue->h.queue_size == queue->h.buffer_size - MAX_ENTRY_SIZE);
     }
 
     DBG_PRINT3("Init XCP transport layer queue\n");
     DBG_PRINTF3("  XCPTL_MAX_SEGMENT_SIZE=%u, XCPTL_PACKET_ALIGNMENT=%u, queue: %u DTOs of max %u bytes, %uKiB\n", XCPTL_MAX_SEGMENT_SIZE, XCPTL_PACKET_ALIGNMENT,
-                queue->h.queue_size / ENTRY_SIZE, ENTRY_SIZE, (uint32_t)((queue->h.buffer_size + sizeof(tQueueHeader)) / 1024));
+                queue->h.queue_size / MAX_ENTRY_SIZE, MAX_ENTRY_SIZE, (uint32_t)((queue->h.buffer_size + sizeof(tQueueHeader)) / 1024));
 
     if (clear_queue) {
         queue->h.overruns = 0;
@@ -125,7 +123,7 @@ tQueueHandle QueueInitFromMemory(void *queue_buffer, int64_t queue_buffer_size, 
     }
 
     if (out_buffer_size != NULL)
-        *out_buffer_size = 0;
+        *out_buffer_size = 0; // Queue does not have a fixed content size in bytes
 
     return (tQueueHandle)queue;
 }
@@ -143,17 +141,6 @@ void QueueClear(tQueueHandle queueHandle) {
 void QueueDeinit(tQueueHandle queueHandle) {
     tQueue *queue = (tQueue *)queueHandle;
     assert(queue != NULL);
-
-#ifdef TEST_LOCK_TIMING
-    printf("QueueDeinit: overruns=%u, lockCount=%" PRIu64 ", maxLockTime=%" PRIu64 "ns,  avgLockTime=%" PRIu64 "ns\n", queue->h.overruns, lockCount, lockTimeMax,
-           lockTimeSum / lockCount);
-    for (int i = 0; i < HISTOGRAM_SIZE - 1; i++) {
-        if (lockTimeHistogram[i])
-            printf("%dus: %" PRIu64 "\n", i * 10, lockTimeHistogram[i]);
-    }
-    if (lockTimeHistogram[HISTOGRAM_SIZE - 1])
-        printf(">: %" PRIu64 "\n", lockTimeHistogram[HISTOGRAM_SIZE - 1]);
-#endif
 
     QueueClear(queueHandle);
     mutexDestroy(&queue->h.mutex);
@@ -176,14 +163,8 @@ tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint64_t packet_len) {
     tXcpDtoMessage *entry = NULL;
 
     assert(queue != NULL);
-
-    if (packet_len > 0xFFFF - XCPTL_TRANSPORT_LAYER_HEADER_SIZE) {
-        tQueueBuffer ret = {
-            .buffer = NULL,
-            .size = 0,
-        };
-        return ret;
-    }
+    assert(packet_len <= XCPTL_MAX_DTO_SIZE);
+    assert(packet_len > 0);
 
     // Align the message length
     uint16_t msg_len = packet_len + XCPTL_TRANSPORT_LAYER_HEADER_SIZE;
@@ -198,10 +179,6 @@ tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint64_t packet_len) {
 #endif
 
     DBG_PRINTF5("QueueAcquire: len=%" PRIu64 "\n", packet_len);
-
-#ifdef TEST_LOCK_TIMING
-    uint64_t c = clockGet();
-#endif
 
     // Producer lock
     mutexLock(&queue->h.mutex);
@@ -220,21 +197,6 @@ tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint64_t packet_len) {
     }
 
     mutexUnlock(&queue->h.mutex);
-
-#ifdef TEST_LOCK_TIMING
-    uint64_t d = clockGet() - c;
-    mutexLock(&queue->h.mutex);
-    if (d > lockTimeMax)
-        lockTimeMax = d;
-    int i = (d / 1000) / 10;
-    if (i < HISTOGRAM_SIZE)
-        lockTimeHistogram[i]++;
-    else
-        lockTimeHistogram[HISTOGRAM_SIZE - 1]++;
-    lockTimeSum += d;
-    lockCount++;
-    mutexUnlock(&queue->h.mutex);
-#endif
 
     if (entry == NULL) {
         queue->h.overruns++;
@@ -312,7 +274,6 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle) {
     // Queue is empty
     assert(head - tail <= queue->h.queue_size); // Overrun not handled
     uint32_t level = (uint32_t)(head - tail);
-    DBG_PRINTF5("QueuePeek: level=%u, ctr=%u\n", level, queue->h.ctr);
 
     uint32_t tail_offset = tail % queue->h.queue_size;
     tXcpDtoMessage *entry1 = (tXcpDtoMessage *)(queue->buffer + tail_offset);
@@ -362,8 +323,6 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle) {
         len += len1;
         entry->ctr = queue->h.ctr++;
     }
-
-    // DBG_PRINTF5("QueuePeek: msg_len = %u\n", len );
 
     tQueueBuffer ret = {
         .buffer = (uint8_t *)entry1,
