@@ -15,19 +15,19 @@
 #include "xcpEthServer.h"
 
 #include <assert.h>   // for assert
+#include <inttypes.h> // for PRIu64
 #include <stdbool.h>  // for bool
 #include <stdint.h>   // for uint32_t, uint64_t, uint8_t, int64_t
 #include <stdio.h>    // for printf
-#include <inttypes.h> // for PRIu64
 
+#include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
 #include "main_cfg.h"  // for OPTION_xxx
 #include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
-#include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
 #include "xcp.h"       // for CRC_XXX
-#include "xcpLite.h"   // for tXcpDaqLists, XcpXxx, ApplXcpXxx, ...
-#include "xcptl_cfg.h" // for XCPTL_xxx
 #include "xcpEthTl.h"  // for tXcpCtoMessage, tXcpDtoMessage, xcpTlXxxx, xcpEthTlxxx
+#include "xcpLite.h"   // for tXcpDaqLists, XcpXxx, ApplXcpXxx, ...
 #include "xcpQueue.h"
+#include "xcptl_cfg.h" // for XCPTL_xxx
 
 #if !defined(_WIN) && !defined(_LINUX) && !defined(_MACOS)
 #error "Please define platform _WIN, _MACOS or _LINUX"
@@ -162,7 +162,7 @@ extern void *XcpServerReceiveThread(void *par)
     gXcpServer.ReceiveThreadRunning = true;
     while (gXcpServer.ReceiveThreadRunning) {
         if (!XcpEthTlHandleCommands(XCPTL_TIMEOUT_INFINITE)) { // Timeout Blocking
-            DBG_PRINT_ERROR("ERROR: XcpEthTlHandleCommands failed!\n");
+            DBG_PRINT_ERROR("XcpEthTlHandleCommands failed!\n");
             break; // error -> terminate thread
         } else {
             // Handle transmit queue after each command, to keep the command latency short
@@ -170,7 +170,7 @@ extern void *XcpServerReceiveThread(void *par)
             int32_t n = XcpTlHandleTransmitQueue();
             mutexUnlock(&gXcpServer.TransmitQueueMutex);
             if (n < 0) {
-                DBG_PRINT_ERROR("ERROR: XcpTlHandleTransmitQueue failed!\n");
+                DBG_PRINT_ERROR("XcpTlHandleTransmitQueue failed!\n");
                 break; // error - terminate thread
             }
         }
@@ -206,7 +206,7 @@ extern void *XcpServerTransmitThread(void *par)
         n = XcpTlHandleTransmitQueue();
         mutexUnlock(&gXcpServer.TransmitQueueMutex);
         if (n < 0) {
-            DBG_PRINT_ERROR("ERROR: XcpTlHandleTransmitQueue failed!\n");
+            DBG_PRINT_ERROR("XcpTlHandleTransmitQueue failed!\n");
             break; // error - terminate thread
         }
 

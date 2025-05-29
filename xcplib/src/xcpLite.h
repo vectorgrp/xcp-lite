@@ -251,6 +251,9 @@ void XcpUnlockCalSeg(uint16_t calseg);
 
 #endif
 
+// Logging
+void XcpSetLogLevel(uint8_t level);
+
 /****************************************************************************/
 /* Protocol layer external dependencies                                     */
 /****************************************************************************/

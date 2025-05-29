@@ -299,6 +299,25 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
 #define isConnected() (0 != (gXcp.SessionStatus & SS_CONNECTED))
 
 /****************************************************************************/
+// Logging
+/****************************************************************************/
+
+#ifdef OPTION_ENABLE_DBG_PRINTS
+uint8_t gDebugLevel = OPTION_DEFAULT_DBG_LEVEL;
+#endif
+
+// This is used by the Rust ffi to set the log level
+void XcpSetLogLevel(uint8_t level) {
+#ifdef OPTION_ENABLE_DBG_PRINTS
+    if (level > 3)
+        DBG_PRINTF_WARNING("Set log level %u -> %u\n", gDebugLevel, level);
+    gDebugLevel = level;
+#else
+    (void)level;
+#endif
+}
+
+/****************************************************************************/
 // Test instrumentation
 /****************************************************************************/
 
@@ -461,7 +480,8 @@ uint8_t XcpCalSegCommand(uint8_t cmd) {
     switch (cmd) {
     case 0x01:                              // Begin atomic calibration operation
         gXcp.CalSegList.write_delay = true; // Set a flag to delay ECU page updates
-        break;
+        DBG_PRINT4("Begin atomic calibration operation\n");
+        return CRC_CMD_OK;
     case 0x02:                               // End atomic calibration operation;
         gXcp.CalSegList.write_delay = false; // Clear the flag and trigger ECU page updates
         mutexLock(&gXcp.CalSegList.mutex);
@@ -473,7 +493,8 @@ uint8_t XcpCalSegCommand(uint8_t cmd) {
             }
         }
         mutexUnlock(&gXcp.CalSegList.mutex);
-        break;
+        DBG_PRINT4("End atomic calibration operation\n");
+        return CRC_CMD_OK;
     }
     return CRC_CMD_UNKNOWN;
 }
@@ -484,11 +505,11 @@ uint8_t XcpCalSegReadMemory(uint32_t src, uint8_t size, uint8_t *dst) {
     uint16_t calseg = (uint16_t)(src >> 16) & 0x7FFF; // Get the calibration segment number
     uint16_t offset = (uint16_t)(src & 0xFFFF);       // Get the offset within the calibration segment
     if (calseg >= gXcp.CalSegList.count || offset + size > gXcp.CalSegList.calseg[calseg].size) {
-        DBG_PRINT_ERROR("invalid calseg access\n");
+        DBG_PRINTF_ERROR("invalid calseg read access addr=%08X size=%u\n", src, size);
         return CRC_ACCESS_DENIED;
     }
     memcpy(dst, gXcp.CalSegList.calseg[calseg].xcp_page + offset, size);
-    return CRC_ACCESS_DENIED;
+    return CRC_CMD_OK;
 }
 
 uint8_t XcpCalSegWriteMemory(uint32_t dst, uint8_t size, const uint8_t *src) {
@@ -496,42 +517,55 @@ uint8_t XcpCalSegWriteMemory(uint32_t dst, uint8_t size, const uint8_t *src) {
     uint16_t calseg = (uint16_t)(dst >> 16) & 0x7FFF; // Get the calibration segment number from the address
     uint16_t offset = (uint16_t)(dst & 0xFFFF);       // Get the offset within the calibration segment
     if (calseg >= gXcp.CalSegList.count || offset + size > gXcp.CalSegList.calseg[calseg].size) {
-        DBG_PRINT_ERROR("invalid calseg access\n");
+        DBG_PRINTF_ERROR("invalid calseg write access addr=%08X size=%u\n", dst, size);
         return CRC_ACCESS_DENIED;
     }
     memcpy(gXcp.CalSegList.calseg[calseg].xcp_page + offset, src, size);
-    return CRC_ACCESS_DENIED;
+    gXcp.CalSegList.calseg[calseg].xcp_ctr++; // Increment the XCP modification counter
+    return CRC_CMD_OK;
 }
 
 #ifdef XCP_ENABLE_CAL_PAGE
 
 uint8_t XcpCalSegGetCalPage(uint8_t calseg, uint8_t mode) {
     if (calseg >= gXcp.CalSegList.count) {
-        DBG_PRINT_ERROR("invalid calseg access\n");
+        DBG_PRINT_ERROR("invalid cal seg number\n");
         return XCP_CALSEG_INVALID_PAGE;
     }
-    if (mode & CAL_PAGE_MODE_ECU) {
+    if (mode == CAL_PAGE_MODE_ECU) {
         return gXcp.CalSegList.calseg[calseg].ecu_access;
-    } else if (mode & CAL_PAGE_MODE_XCP) {
-        return gXcp.CalSegList.calseg[calseg].xcp_access;
-    } else {
-        DBG_PRINT_ERROR("invalid cal page mode\n");
-        return XCP_CALSEG_INVALID_PAGE; // Invalid mode
     }
+    if (mode == CAL_PAGE_MODE_XCP) {
+        return gXcp.CalSegList.calseg[calseg].xcp_access;
+    }
+
+    DBG_PRINT_ERROR("invalid get cal page mode\n");
+    return XCP_CALSEG_INVALID_PAGE; // Invalid mode
 }
 
 uint8_t XcpCalSegSetCalPage(uint8_t calseg, uint8_t page, uint8_t mode) {
-    if (calseg >= gXcp.CalSegList.count || page > 1) {
-        DBG_PRINT_ERROR("invalid calseg access\n");
+    if (page > 1) {
+        DBG_PRINTF_ERROR("invalid cal page number %u\n", page);
         return CRC_ACCESS_DENIED; // Invalid calseg
     }
-    if (page & CAL_PAGE_MODE_ECU) {
-        gXcp.CalSegList.calseg[calseg].ecu_access = page;
-    } else if (mode & CAL_PAGE_MODE_XCP) {
-        gXcp.CalSegList.calseg[calseg].xcp_access = page;
+
+    if (mode & CAL_PAGE_MODE_ALL) { // Set all calibration segments to the same page
+        for (calseg = 0; calseg < gXcp.CalSegList.count; calseg++) {
+            XcpCalSegSetCalPage(calseg, page, mode & (CAL_PAGE_MODE_ECU | CAL_PAGE_MODE_XCP));
+        }
     } else {
-        DBG_PRINT_ERROR("invalid cal page mode\n");
-        return XCP_CALSEG_INVALID_PAGE; // Invalid mode
+        if (calseg >= gXcp.CalSegList.count) {
+            DBG_PRINTF_ERROR("invalid cal seg %u\n", calseg);
+            return CRC_ACCESS_DENIED; // Invalid calseg
+        }
+        if (mode & CAL_PAGE_MODE_ECU) {
+            gXcp.CalSegList.calseg[calseg].ecu_access = page;
+        } else if (mode & CAL_PAGE_MODE_XCP) {
+            gXcp.CalSegList.calseg[calseg].xcp_access = page;
+        } else {
+            DBG_PRINT_ERROR("invalid cal page mode\n");
+            return XCP_CALSEG_INVALID_PAGE; // Invalid mode
+        }
     }
     return CRC_CMD_OK;
 }
@@ -1596,7 +1630,14 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
 #ifdef XCP_ENABLE_USER_COMMAND
         case CC_USER_CMD: {
             check_len(CRO_USER_CMD_LEN);
-            check_error(ApplXcpUserCommand(CRO_USER_CMD_SUBCOMMAND));
+#ifdef XCP_ENABLE_CALSEG_LIST
+            if (gXcp.CalSegList.count > 0) {
+                check_error(XcpCalSegCommand(CRO_USER_CMD_SUBCOMMAND));
+            } else
+#endif
+            {
+                check_error(ApplXcpUserCommand(CRO_USER_CMD_SUBCOMMAND));
+            }
         } break;
 #endif
 
