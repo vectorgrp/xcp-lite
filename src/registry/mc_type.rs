@@ -33,7 +33,7 @@ pub struct McDimType {
 
 impl McDimType {
     /// Type with meta data and dimensions
-    pub fn new_with_metadata(value_type: McValueType, x_dim: u16, y_dim: u16, mc_support_data: McSupportData) -> Self {
+    pub fn new(value_type: McValueType, x_dim: u16, y_dim: u16, mc_support_data: McSupportData) -> Self {
         McDimType {
             value_type,
             x_dim: if x_dim <= 1 { None } else { Some(x_dim) },

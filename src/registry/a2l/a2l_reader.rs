@@ -401,7 +401,7 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
         }
 
         // Dimension and type
-        let dim_type = McDimType::new_with_metadata(value_type, x_dim, y_dim, mc_support_data);
+        let dim_type = McDimType::new(value_type, x_dim, y_dim, mc_support_data);
 
         // Address
         let event_id = get_event_id_from_ifdata(&characteristic.if_data);
@@ -461,7 +461,7 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
         }
 
         // Dimension and type
-        let dim_type = McDimType::new_with_metadata(value_type, x_dim, y_dim, mc_support_data);
+        let dim_type = McDimType::new(value_type, x_dim, y_dim, mc_support_data);
 
         // Address
         let event_id = get_event_id_from_ifdata(&measurement.if_data);
@@ -515,7 +515,7 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
             let offset = field.address_offset as u16;
             let value_type = McValueType::TypeDef(field.component_type.clone().into());
             let mc_support_data = McSupportData::new(McObjectType::Unspecified);
-            let dim_type = McDimType::new_with_metadata(value_type, x_dim, y_dim, mc_support_data);
+            let dim_type = McDimType::new(value_type, x_dim, y_dim, mc_support_data);
             let res = registry.add_typedef_component(typedef_name, field_name, dim_type, offset);
             match res {
                 Ok(_) => {}
@@ -621,7 +621,7 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
         let comment = &instance.long_identifier;
         let value_type = McValueType::TypeDef(instance.type_ref.clone().into());
         let mc_support_data = McSupportData::new(object_type).set_comment(comment.clone());
-        let dim_type = McDimType::new_with_metadata(value_type, x_dim, y_dim, mc_support_data);
+        let dim_type = McDimType::new(value_type, x_dim, y_dim, mc_support_data);
 
         // Address
         let addr = instance.start_address;
