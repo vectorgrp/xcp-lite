@@ -562,7 +562,7 @@ impl McInstance {
             let instance_index = self.get_index(writer.registry);
             let min = dim_type.get_min().unwrap();
             let max = dim_type.get_max().unwrap();
-            let step = self.get_mc_support_data().and_then(|m| m.step);
+            let step = dim_type.get_step();
             let type_str = self.dim_type.value_type.get_type_str(); // UWORD, SWORD, ULONG, SLONG, FLOAT32_IEEE, FLOAT64_IEEE, ...
             let conversion_name = write_conversion(writer, self.name.as_str(), instance_index, dim_type)?;
             let x_fix_axis = dim_type.get_dim()[0] > 1 && dim_type.get_x_axis_conv().is_some();
@@ -644,7 +644,7 @@ impl McInstance {
         let record_layout = dim_type.value_type.get_record_layout_str();
         let min = dim_type.get_min().unwrap();
         let max = dim_type.get_max().unwrap();
-        let step = self.get_mc_support_data().and_then(|m| m.step);
+        let step = dim_type.mc_support_data.get_step();
         let conversion_name = write_conversion(writer, name.as_str(), 0, dim_type)?;
         write!(
             writer,
@@ -692,7 +692,7 @@ impl McInstance {
             assert!(self.dim_type.is_calibration_object());
             let min = dim_type.get_min().unwrap();
             let max = dim_type.get_max().unwrap();
-            let step = self.get_mc_support_data().and_then(|m| m.step);
+            let step = dim_type.mc_support_data.get_step();
             let sub_type_str = get_characteristic_subtype_str(&self.dim_type); // VAL_BLK, VALUE, MAP, CURVE
             let record_layout = self.dim_type.value_type.get_record_layout_str();
 

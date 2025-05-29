@@ -42,8 +42,8 @@ impl McInstance {
         &self.dim_type
     }
 
-    pub fn get_mc_support_data(&self) -> Option<&McSupportData> {
-        Some(&self.dim_type.mc_support_data)
+    pub fn get_mc_support_data(&self) -> &McSupportData {
+        &self.dim_type.mc_support_data
     }
 
     pub fn get_address(&self) -> &McAddress {

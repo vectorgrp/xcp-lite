@@ -148,6 +148,11 @@ impl McDimType {
         self.mc_support_data.unit.as_str()
     }
 
+    /// Get the physical step size
+    pub fn get_step(&self) -> Option<f64> {
+        self.mc_support_data.get_step()
+    }
+
     /// No dimension
     pub fn is_scalar(&self) -> bool {
         let x_dim = self.y_dim.unwrap_or(1);
