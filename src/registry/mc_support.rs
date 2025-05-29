@@ -34,6 +34,7 @@ impl McObjectType {
     // Is constant in target software, so it is never modified by the target ECU
     pub fn is_calibration_object(self) -> bool {
         // @@@@ TODO: McObjectType::Unspecified defaults to calibration object
+        assert!(self != McObjectType::Unspecified);
         self == McObjectType::Characteristic || self == McObjectType::Axis || self == McObjectType::Unspecified
     }
 
