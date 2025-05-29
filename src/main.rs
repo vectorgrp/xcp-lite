@@ -195,7 +195,7 @@ const CAL_PAGE1: CalPage1 = CalPage1 {
             test_i8: -28,
             test_i16: -216,
             test_i32: -232,
-            // @@@@ CANape does not support negative i64 values
+            // @@@@ ISSUE CANape does not support negative i64 values
             test_i64: 264,
             test_f32: 2.32,
             test_f64: 2.64,

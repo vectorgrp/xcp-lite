@@ -216,7 +216,7 @@ impl McAddress {
     fn get_rel_ext_addr(offset: i32) -> (u8, u32) {
         let a2l_ext = McAddress::XCP_ADDR_EXT_REL;
         #[allow(clippy::cast_sign_loss)]
-        let a2l_addr: u32 = offset as u32; // @@@@ Check
+        let a2l_addr: u32 = offset as u32;
         (a2l_ext, a2l_addr)
     }
 

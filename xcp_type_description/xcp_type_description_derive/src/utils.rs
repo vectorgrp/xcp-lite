@@ -121,7 +121,8 @@ pub fn dimensions(ty: &Type) -> (u16, u16) {
             } else if inner_y == 0 {
                 (inner_x, length.try_into().unwrap())
             } else {
-                (inner_x, inner_y) // @@@@ TODO ????
+                // @@@@ TODO ????
+                (inner_x, inner_y)
             }
         }
         _ => (0, 0),

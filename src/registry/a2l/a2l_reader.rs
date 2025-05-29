@@ -113,7 +113,7 @@ fn get_value_type_from_record_layout(s: &str) -> McValueType {
         "VALUE_FLOAT64_IEEE" => McValueType::Float64Ieee,
 
         _ => {
-            // @@@@ TODO Record layout not predefined, add as typedef
+            // @@@@ TODO Suggestion: Record layout not predefined, add as typedef
             warn!("Unknown predefined record layout name '{}'", s);
             McValueType::Ubyte
         }

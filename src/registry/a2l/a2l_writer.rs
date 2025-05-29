@@ -759,12 +759,13 @@ impl<'a> A2lWriter<'a> {
         A2lWriter {
             writer,
             registry,
-            typedef_list: HashMap::new(), // @@@@ temporary solution to avoid duplicate typedefs
+            // @@@@ TODO temporary solution to avoid duplicate typedefs
+            typedef_list: HashMap::new(),
         }
     }
 
     fn check_duplicate(&mut self, ident: &str) -> bool {
-        // @@@@ Improve
+        // @@@@ TODO Improve
         if self.typedef_list.contains_key(ident) {
             //writeln!(self, r#"/* {} duplicate skipped */"#, ident).ok();
             return true;

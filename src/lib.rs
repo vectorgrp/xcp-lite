@@ -56,7 +56,7 @@ pub use xcp::XcpTransportLayer;
 #[doc(hidden)] // For macro use only
 pub use xcp::daq::daq_event::DaqEvent;
 
-// @@@@ Reexport xcplib for xcplib_demo
+// @@@@ TODO temporary Reexport xcplib for xcplib_demo
 pub use xcp::xcplib::*;
 
 // Public submodule registry

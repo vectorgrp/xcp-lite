@@ -1332,7 +1332,7 @@ impl XcpClient {
 
         // Read the A2L file into a registry
         let mut registry = xcp_lite::registry::Registry::new();
-        // @@@@ xcp_client does not support arrays, instances and typedefs yet, flatten the registry and mangle the names
+        // @@@@ TODO xcp_client does not support arrays, instances and typedefs yet, flatten the registry and mangle the names
         registry.load_a2l(&a2l_path, true, true, true, true)?;
         self.registry = Some(registry);
 
