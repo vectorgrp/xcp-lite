@@ -257,7 +257,7 @@ fn update_typedef_component(
     for typedef in registry.typedef_list.iter_mut() {
         for field in typedef.fields.iter_mut() {
             if let McValueType::TypeDef(type_name) = field.dim_type.value_type {
-                if field.dim_type.get_mc_support_data().is_none() && type_name == typedef_name {
+                if type_name == typedef_name {
                     field.dim_type.value_type = value_type;
                     let dim = get_matrix_dim(matrix_dim);
                     field.dim_type.x_dim = Some(dim.0);
@@ -269,7 +269,7 @@ fn update_typedef_component(
                         .set_factor(factor)
                         .set_offset(offset)
                         .set_unit(unit);
-                    field.dim_type.set_mc_support_data(mc_support_data);
+                    field.dim_type.mc_support_data = mc_support_data;
                     log::debug!("Update typedef component {} with type {}", field.name, typedef_name);
                 }
             }

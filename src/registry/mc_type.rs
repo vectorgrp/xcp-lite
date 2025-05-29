@@ -26,9 +26,8 @@ pub struct McDimType {
     pub x_dim: Option<u16>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub y_dim: Option<u16>,
-    // @@@@ TODO: Maybe move this to McInstance and McTypeDefField
-    #[serde(skip_serializing_if = "Option::is_none")]
-    mc_support_data: Option<McSupportData>, // Meta data for the instance
+    // @@@@ TODO: Move this to McInstance and McTypeDefField
+    pub mc_support_data: McSupportData, // Meta data for the instance
 }
 
 impl McDimType {
@@ -38,7 +37,7 @@ impl McDimType {
             value_type,
             x_dim: if x_dim <= 1 { None } else { Some(x_dim) },
             y_dim: if y_dim <= 1 { None } else { Some(y_dim) },
-            mc_support_data: Some(mc_support_data),
+            mc_support_data,
         }
     }
 
@@ -64,161 +63,89 @@ impl McDimType {
     }
 
     // MC semantics
+    // @@@@ TODO remove
     //-----------------------------------------
-
-    pub fn get_mc_support_data(&self) -> Option<&McSupportData> {
-        self.mc_support_data.as_ref()
-    }
-
-    pub fn set_mc_support_data(&mut self, mc_support_data: McSupportData) {
-        self.mc_support_data = Some(mc_support_data);
-    }
 
     /// Get the object type
     /// If there is no MC semantic description (mc_support_data), return McObjectType::Unspecified
     /// May be Measurement, Characteristic, Axis or Unspecified
     pub fn get_object_type(&self) -> McObjectType {
-        if let Some(mc_support_data) = self.mc_support_data.as_ref() {
-            assert!(mc_support_data.object_type != McObjectType::Unspecified);
-            mc_support_data.object_type
-        } else {
-            McObjectType::Unspecified
-        }
+        assert!(self.mc_support_data.object_type != McObjectType::Unspecified);
+        self.mc_support_data.object_type
     }
 
     /// This is a adjustable shared axis (subset of calibration object)
     pub fn is_axis(&self) -> bool {
-        if let Some(mc_support_data) = self.mc_support_data.as_ref() {
-            return mc_support_data.object_type.is_axis();
-        }
-        false
+        self.mc_support_data.object_type.is_axis()
     }
 
     /// This is a characteristic object (subset of calibration object)
     pub fn is_characteristic(&self) -> bool {
-        if let Some(mc_support_data) = self.mc_support_data.as_ref() {
-            return mc_support_data.object_type.is_characteristic();
-        }
-        false
+        self.mc_support_data.object_type.is_characteristic()
     }
 
     /// This describes an instance with calibration semantics
     /// It is never modified by the target and may be modified by the calibration tool
     pub fn is_calibration_object(&self) -> bool {
-        if let Some(mc_support_data) = self.mc_support_data.as_ref() {
-            return mc_support_data.object_type.is_calibration_object();
-        }
-        false
+        self.mc_support_data.object_type.is_calibration_object()
     }
 
     /// This describes a measurement object instance
     /// It is continously or sporadically modified by the target
     pub fn is_measurement_object(&self) -> bool {
-        if let Some(mc_support_data) = self.mc_support_data.as_ref() {
-            return mc_support_data.object_type.is_measurement_object();
-        }
-        false
+        self.mc_support_data.object_type.is_measurement_object()
     }
 
     /// Get the x-axis reference as McIdentifier
     pub fn get_x_axis_ref(&self) -> Option<McIdentifier> {
-        if let Some(mc_support_data) = self.mc_support_data.as_ref() {
-            return mc_support_data.x_axis_ref;
-        }
-        None
+        self.mc_support_data.x_axis_ref
     }
 
     /// Get the y-axis reference as McIdentifier
     pub fn get_y_axis_ref(&self) -> Option<McIdentifier> {
-        if let Some(mc_support_data) = self.mc_support_data.as_ref() {
-            return mc_support_data.y_axis_ref;
-        }
-        None
+        self.mc_support_data.y_axis_ref
     }
 
     /// Get the x-axis conversion as McIdentifier
     pub fn get_x_axis_conv(&self) -> Option<McIdentifier> {
-        if let Some(mc_support_data) = self.mc_support_data.as_ref() {
-            return mc_support_data.x_axis_conv;
-        }
-        None
+        self.mc_support_data.x_axis_conv
     }
 
     /// Get the y-axis conversion as McIdentifier
     pub fn get_y_axis_conv(&self) -> Option<McIdentifier> {
-        if let Some(mc_support_data) = self.mc_support_data.as_ref() {
-            return mc_support_data.y_axis_conv;
-        }
-        None
+        self.mc_support_data.y_axis_conv
     }
 
     /// Get the description (LongIdentifier, Description, Comment, ...) as &'static str
     pub fn get_comment(&self) -> &'static str {
-        if let Some(mc_support_data) = self.mc_support_data.as_ref() {
-            mc_support_data.comment.as_str()
-        } else {
-            ""
-        }
+        self.mc_support_data.comment.as_str()
     }
 
     /// Get the minimum value for the type in physical units as f64
     /// When the value can not be represented, it is rounded down
     pub fn get_min(&self) -> Option<f64> {
-        if let Some(mc_support_data) = self.mc_support_data.as_ref() {
-            if mc_support_data.min.is_some() {
-                return mc_support_data.min;
-            }
-            if let Some(min) = self.value_type.get_min() {
-                return Some(mc_support_data.convert(min));
-            }
-        }
-        self.value_type.get_min()
+        self.mc_support_data.get_min(self.value_type)
     }
 
     /// Get the maximum value for the type in physical units as f64
     /// When the value can not be represented, it is rounded up
     pub fn get_max(&self) -> Option<f64> {
-        if let Some(mc_support_data) = self.mc_support_data.as_ref() {
-            if mc_support_data.max.is_some() {
-                return mc_support_data.max;
-            }
-            if let Some(max) = self.value_type.get_max() {
-                return Some(mc_support_data.convert(max));
-            }
-        }
-        self.value_type.get_max()
+        self.mc_support_data.get_max(self.value_type)
     }
 
     /// Get the physical conversion factor
     pub fn get_factor(&self) -> Option<f64> {
-        if let Some(mc_support_data) = self.mc_support_data.as_ref() {
-            if let Some(factor) = mc_support_data.factor {
-                if factor != 1.0 {
-                    return Some(factor);
-                }
-            }
-        }
-        None
+        self.mc_support_data.get_factor()
     }
 
     // Get the physical conversion offset
     pub fn get_offset(&self) -> Option<f64> {
-        if let Some(mc_support_data) = self.mc_support_data.as_ref() {
-            if let Some(offset) = mc_support_data.offset {
-                if offset != 0.0 {
-                    return Some(offset);
-                }
-            }
-        }
-        None
+        self.mc_support_data.get_offset()
     }
 
     /// Get the physical unit as &'static str
     pub fn get_unit(&self) -> &'static str {
-        if let Some(mc_support_data) = self.mc_support_data.as_ref() {
-            return mc_support_data.unit.as_str();
-        }
-        ""
+        self.mc_support_data.unit.as_str()
     }
 
     /// No dimension

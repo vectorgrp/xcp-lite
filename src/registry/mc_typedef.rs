@@ -183,7 +183,7 @@ impl McTypeDefField {
 
     /// Get metadata
     pub fn get_mc_support_data(&self) -> Option<&McSupportData> {
-        self.dim_type.get_mc_support_data()
+        Some(&self.dim_type.mc_support_data)
     }
 }
 

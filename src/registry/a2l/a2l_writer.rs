@@ -58,31 +58,27 @@ impl McValueType {
 
 // Get the A2L object type of the calibration parameter
 fn get_characteristic_subtype_str(dim_type: &McDimType) -> &'static str {
-    if let Some(mc_support_data) = dim_type.get_mc_support_data() {
-        match mc_support_data.object_type {
-            McObjectType::Axis => "AXIS_PTS",
-            McObjectType::Characteristic => {
-                if dim_type.get_dim()[0] > 1
-                    && mc_support_data.x_axis_ref.is_none()
-                    && mc_support_data.y_axis_ref.is_none()
-                    && mc_support_data.x_axis_conv.is_none()
-                    && mc_support_data.y_axis_conv.is_none()
-                {
-                    "VAL_BLK"
-                } else if dim_type.get_dim()[0] > 1 && dim_type.get_dim()[1] > 1 {
-                    "MAP"
-                } else if dim_type.get_dim()[0] > 1 || dim_type.get_dim()[1] > 1 {
-                    "CURVE"
-                } else {
-                    "VALUE"
-                }
+    let mc_support_data = &dim_type.mc_support_data;
+
+    match mc_support_data.object_type {
+        McObjectType::Axis => "AXIS_PTS",
+        McObjectType::Characteristic => {
+            if dim_type.get_dim()[0] > 1
+                && mc_support_data.x_axis_ref.is_none()
+                && mc_support_data.y_axis_ref.is_none()
+                && mc_support_data.x_axis_conv.is_none()
+                && mc_support_data.y_axis_conv.is_none()
+            {
+                "VAL_BLK"
+            } else if dim_type.get_dim()[0] > 1 && dim_type.get_dim()[1] > 1 {
+                "MAP"
+            } else if dim_type.get_dim()[0] > 1 || dim_type.get_dim()[1] > 1 {
+                "CURVE"
+            } else {
+                "VALUE"
             }
-            _ => panic!("get_characteristic_type_str: Unsupported object type {:?}", mc_support_data.object_type),
         }
-    } else if dim_type.get_dim()[0] > 1 || dim_type.get_dim()[1] > 1 {
-        "VAL_BLK"
-    } else {
-        "VALUE"
+        _ => panic!("get_characteristic_type_str: Unsupported object type {:?}", mc_support_data.object_type),
     }
 }
 
@@ -155,7 +151,7 @@ fn write_dimensions(dim_type: &McDimType, writer: &mut A2lWriter) -> std::io::Re
 fn write_axis_descr(_name: &str, dim_type: &McDimType, writer: &mut A2lWriter) -> std::io::Result<()> {
     let x_dim = dim_type.get_dim()[0];
     let y_dim = dim_type.get_dim()[1];
-    let mc_support_data = dim_type.get_mc_support_data().unwrap();
+    let mc_support_data = &dim_type.mc_support_data;
 
     // MAP
     if x_dim > 1 || y_dim > 1 {
