@@ -33,6 +33,8 @@ impl McObjectType {
     // Could be a explicit calibration or axis object or a typedef instance with calibration semantics
     // Is constant in target software, so it is never modified by the target ECU
     pub fn is_calibration_object(self) -> bool {
+        // @@@@ TODO: McObjectType::Unspecified defaults to calibration object
+        assert!(self != McObjectType::Unspecified);
         self == McObjectType::Characteristic || self == McObjectType::Axis || self == McObjectType::Unspecified
     }
 
@@ -366,44 +368,44 @@ impl McSupportData {
 
     /// This is a adjustable shared axis (subset of calibration object)
     pub fn is_axis(&self) -> bool {
-        return self.object_type.is_axis();
+        self.object_type.is_axis()
     }
 
     /// This is a characteristic object (subset of calibration object)
     pub fn is_characteristic(&self) -> bool {
-        return self.object_type.is_characteristic();
+        self.object_type.is_characteristic()
     }
 
     /// This describes an instance with calibration semantics
     /// It is never modified by the target and may be modified by the calibration tool
     pub fn is_calibration_object(&self) -> bool {
-        return self.object_type.is_calibration_object();
+        self.object_type.is_calibration_object()
     }
 
     /// This describes a measurement object instance
     /// It is continously or sporadically modified by the target
     pub fn is_measurement_object(&self) -> bool {
-        return self.object_type.is_measurement_object();
+        self.object_type.is_measurement_object()
     }
 
     /// Get the x-axis reference as McIdentifier
     pub fn get_x_axis_ref(&self) -> Option<McIdentifier> {
-        return self.x_axis_ref;
+        self.x_axis_ref
     }
 
     /// Get the y-axis reference as McIdentifier
     pub fn get_y_axis_ref(&self) -> Option<McIdentifier> {
-        return self.y_axis_ref;
+        self.y_axis_ref
     }
 
     /// Get the x-axis conversion as McIdentifier
     pub fn get_x_axis_conv(&self) -> Option<McIdentifier> {
-        return self.x_axis_conv;
+        self.x_axis_conv
     }
 
     /// Get the y-axis conversion as McIdentifier
     pub fn get_y_axis_conv(&self) -> Option<McIdentifier> {
-        return self.y_axis_conv;
+        self.y_axis_conv
     }
 
     /// Get the description (LongIdentifier, Description, Comment, ...) as &'static str
@@ -458,6 +460,16 @@ impl McSupportData {
     /// Get the physical unit as &'static str
     pub fn get_unit(&self) -> &'static str {
         return self.unit.as_str();
+    }
+
+    /// Get the physical step size as f64
+    pub fn get_step(&self) -> Option<f64> {
+        if let Some(step) = self.step {
+            if step != 0.0 {
+                return Some(step);
+            }
+        }
+        None
     }
 }
 

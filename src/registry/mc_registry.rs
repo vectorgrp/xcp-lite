@@ -13,6 +13,7 @@ use super::McDimType;
 use super::McEventList;
 use super::McIdentifier;
 use super::McInstanceList;
+use super::McSupportData;
 use super::McText;
 use super::McTypeDef;
 use super::McTypeDefList;
@@ -190,7 +191,14 @@ impl Registry {
     // Typedefs
 
     /// Add a typedef component to a typedef
-    pub fn add_typedef_component<T: Into<McIdentifier>>(&mut self, type_name: &str, field_name: T, dim_type: McDimType, offset: u16) -> Result<(), RegistryError> {
+    pub fn add_typedef_component<T: Into<McIdentifier>>(
+        &mut self,
+        type_name: &str,
+        field_name: T,
+        dim_type: McDimType,
+        mc_support_data: McSupportData,
+        offset: u16,
+    ) -> Result<(), RegistryError> {
         let field_name = field_name.into();
         log::debug!("Registry add_typedef_component: {}.{} dim_type={} offset={}", type_name, field_name, dim_type, offset);
 
@@ -199,7 +207,7 @@ impl Registry {
             if typedef.find_field(&field_name).is_some() {
                 return Err(RegistryError::Duplicate(field_name.to_string()));
             }
-            typedef.add_field(field_name, dim_type, offset)
+            typedef.add_field(field_name, dim_type, mc_support_data, offset)
         } else {
             Err(RegistryError::NotFound(type_name.to_string()))
         }

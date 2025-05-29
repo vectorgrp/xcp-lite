@@ -6,7 +6,7 @@
 // Run the demo
 // cargo run --example lib_demo
 //
-// Run the test XCP client in another terminal or start CANape with the project in folder examples/hello_xcp/CANape
+// Run the test XCP client in another terminal or start CANape with the project in folder examples/xcplib_demo/CANape
 // cargo run --example xcp_client -- -m "counter"
 
 #[allow(unused_imports)]

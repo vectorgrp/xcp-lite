@@ -168,8 +168,11 @@ where
                 if field.is_volatile() {
                     mc_support_data = mc_support_data.set_qualifier(McObjectQualifier::Volatile);
                 }
-                let dim_type = McDimType::new_with_metadata(value_type, field.x_dim(), field.y_dim(), mc_support_data);
-                let _ = get_lock().as_mut().unwrap().add_typedef_component(type_name, field.name(), dim_type, field.addr_offset());
+                let dim_type = McDimType::new(value_type, field.x_dim(), field.y_dim());
+                let _ = get_lock()
+                    .as_mut()
+                    .unwrap()
+                    .add_typedef_component(type_name, field.name(), dim_type, mc_support_data, field.addr_offset());
             }
 
             // Register the instance only if an instance name is provided
@@ -182,11 +185,13 @@ where
             };
             if level == 0 {
                 if let Some(instance_name) = instance_name {
-                    let _ = get_lock()
-                        .as_mut()
-                        .unwrap()
-                        .instance_list
-                        .add_instance(instance_name, McDimType::new_instance(type_name, default_object_type), base_addr);
+                    let mc_support_data = McSupportData::new(default_object_type);
+                    let _ = get_lock().as_mut().unwrap().instance_list.add_instance(
+                        instance_name,
+                        McDimType::new(McValueType::new_typedef(type_name), 1, 1),
+                        mc_support_data,
+                        base_addr,
+                    );
                 }
             }
         }
@@ -227,7 +232,8 @@ where
                     mc_support_data = mc_support_data.set_object_type(McObjectType::Measurement);
                     let _ = get_lock().as_mut().unwrap().instance_list.add_instance(
                         field_name,
-                        McDimType::new_with_metadata(value_type, field.x_dim(), field.y_dim(), mc_support_data),
+                        McDimType::new(value_type, field.x_dim(), field.y_dim()),
+                        mc_support_data,
                         McAddress::new_event_rel(event_id, field.addr_offset() as i32),
                     );
                 }
@@ -238,7 +244,8 @@ where
                         mc_support_data = mc_support_data.set_object_type(McObjectType::Axis);
                         let _ = get_lock().as_mut().unwrap().instance_list.add_instance(
                             field_name,
-                            McDimType::new_with_metadata(value_type, field.x_dim(), 0, mc_support_data),
+                            McDimType::new(value_type, field.x_dim(), 0),
+                            mc_support_data,
                             McAddress::new_calseg_rel(calseg_name, field.addr_offset() as i32),
                         );
                     }
@@ -247,7 +254,8 @@ where
                         mc_support_data = mc_support_data.set_object_type(McObjectType::Characteristic);
                         let _ = get_lock().as_mut().unwrap().instance_list.add_instance(
                             field_name,
-                            McDimType::new_with_metadata(value_type, field.x_dim(), field.y_dim(), mc_support_data),
+                            McDimType::new(value_type, field.x_dim(), field.y_dim()),
+                            mc_support_data,
                             McAddress::new_calseg_rel(calseg_name, field.addr_offset() as i32),
                         );
                     }
@@ -432,7 +440,7 @@ fn collect_flattened_instances(
         } else {
             let mut address = *root_instance_address;
             address.add_addr_offset(root_address_offset + field.offset as i32);
-            let _ = new_instances.add_instance(mangled_name, field.dim_type.clone(), address);
+            let _ = new_instances.add_instance(mangled_name, field.dim_type.clone(), field.mc_support_data.clone(), address);
         }
     }
 }
@@ -464,7 +472,7 @@ fn create_flattened_instance_list(reg: &mut Registry, typedef_index: &HashMap<&'
             }
         } else {
             // No typedef, just add the instance
-            let _ = flat_instance_list.add_instance(name, instance.dim_type.clone(), *instance.get_address());
+            let _ = flat_instance_list.add_instance(name, instance.dim_type.clone(), instance.get_mc_support_data().clone(), *instance.get_address());
         }
     }
     flat_instance_list
@@ -581,7 +589,8 @@ pub mod registry_test {
         reg.instance_list
             .add_instance(
                 "test_characteristic_1",
-                McDimType::new_with_metadata(McValueType::Ubyte, 1, 1, mc_support_data),
+                McDimType::new(McValueType::Ubyte, 1, 1),
+                mc_support_data,
                 McAddress::new_calseg_rel("test_cal_seg_1", 0),
             )
             .unwrap();
@@ -594,7 +603,8 @@ pub mod registry_test {
         reg.instance_list
             .add_instance(
                 "test_characteristic_2",
-                McDimType::new_with_metadata(McValueType::Sbyte, 1, 1, mc_support_data),
+                McDimType::new(McValueType::Sbyte, 1, 1),
+                mc_support_data,
                 McAddress::new_calseg_rel("test_cal_seg_2", 0),
             )
             .unwrap();
@@ -606,7 +616,8 @@ pub mod registry_test {
         reg.instance_list
             .add_instance(
                 "test_measurement",
-                McDimType::new_with_metadata(McValueType::Ubyte, 1, 1, mc_support_data),
+                McDimType::new(McValueType::Ubyte, 1, 1),
+                mc_support_data,
                 McAddress::new_event_rel(event1.get_id(), 8),
             )
             .unwrap();
@@ -661,7 +672,8 @@ pub mod registry_test {
             .instance_list
             .add_instance(
                 "test_measurement_1",
-                McDimType::new_with_metadata(McValueType::Ubyte, 1, 1, mc_support_data),
+                McDimType::new(McValueType::Ubyte, 1, 1),
+                mc_support_data,
                 McAddress::new_event_rel(event1_1.get_id(), 0),
             )
             .unwrap();
@@ -673,7 +685,8 @@ pub mod registry_test {
             .instance_list
             .add_instance(
                 "test_measurement_1",
-                McDimType::new_with_metadata(McValueType::Ubyte, 1, 1, mc_support_data),
+                McDimType::new(McValueType::Ubyte, 1, 1),
+                mc_support_data,
                 McAddress::new_event_rel(event1_2.get_id(), 0), // Event instance 2
             )
             .unwrap();
@@ -685,7 +698,8 @@ pub mod registry_test {
             .instance_list
             .add_instance(
                 "test_measurement_2",
-                McDimType::new_with_metadata(McValueType::Ubyte, 1, 1, mc_support_data),
+                McDimType::new(McValueType::Ubyte, 1, 1),
+                mc_support_data,
                 McAddress::new_event_rel(event2.get_id(), 0),
             )
             .unwrap();
@@ -751,10 +765,10 @@ pub mod registry_test {
 
         let reg = registry::get();
         let c = reg.instance_list.find_instance("calseg.a", McObjectType::Characteristic, None).unwrap();
-        assert_eq!(c.get_dim_type().get_comment(), "Comment");
-        assert_eq!(c.get_dim_type().get_unit(), "Unit");
-        assert_eq!(c.get_dim_type().get_min(), Some(0.0));
-        assert_eq!(c.get_dim_type().get_max(), Some(100.0));
+        assert_eq!(c.get_mc_support_data().get_comment(), "Comment");
+        assert_eq!(c.get_mc_support_data().get_unit(), "Unit");
+        assert_eq!(c.get_mc_support_data().get_min(c.dim_type.value_type), Some(0.0));
+        assert_eq!(c.get_mc_support_data().get_max(c.dim_type.value_type), Some(100.0));
         assert!(c.get_dim_type().get_dim()[0] <= 1);
         assert!(c.get_dim_type().get_dim()[1] <= 1);
         assert_eq!(c.address.get_addr_offset(), 328);
@@ -809,7 +823,8 @@ pub mod registry_test {
         reg.instance_list
             .add_instance(
                 "mea_u8",
-                McDimType::new_with_metadata(McValueType::Ubyte, 1, 1, mc_support_data),
+                McDimType::new(McValueType::Ubyte, 1, 1),
+                mc_support_data,
                 McAddress::new_event_rel(xcp_event_1.get_id(), 0),
             )
             .unwrap();
@@ -817,27 +832,31 @@ pub mod registry_test {
         reg.instance_list
             .add_instance(
                 "mea_f64",
-                McDimType::new_with_metadata(McValueType::Float32Ieee, 1, 1, mc_support_data),
+                McDimType::new(McValueType::Float32Ieee, 1, 1),
+                mc_support_data,
                 McAddress::new_event_rel(xcp_event_2.get_id(), 0),
             )
             .unwrap();
 
         // TypeDef characteristic struct
         let t = reg.add_typedef("typedef_characteristic_1", 8).unwrap();
+        let mc_support_data = McSupportData::new(McObjectType::Characteristic);
         t.add_field(
             "field1_typedef_characteristic_2",
-            McDimType::new_scalar(McValueType::TypeDef("typedef_characteristic_2".into())),
+            McDimType::new(McValueType::TypeDef("typedef_characteristic_2".into()), 1, 1),
+            mc_support_data,
             0,
         )
         .unwrap();
-        t.add_field("field2_f64", McDimType::new_scalar_object(McValueType::Float64Ieee, McObjectType::Characteristic), 0)
-            .unwrap();
-        t.add_field("field3_axis_8_f64", McDimType::new_array_object(McValueType::Float64Ieee, 8, McObjectType::Axis), 0)
+        let mc_support_data = McSupportData::new(McObjectType::Characteristic);
+        t.add_field("field2_f64", McDimType::new(McValueType::Float64Ieee, 1, 1), mc_support_data, 0).unwrap();
+        let mc_support_data = McSupportData::new(McObjectType::Axis);
+        t.add_field("field3_axis_8_f64", McDimType::new(McValueType::Float64Ieee, 8, 0), mc_support_data, 0)
             .unwrap();
 
         let t = reg.add_typedef("typedef_characteristic_2", 8).unwrap();
-        t.add_field("field1_i8", McDimType::new_scalar_object(McValueType::Sbyte, McObjectType::Characteristic), 0)
-            .unwrap();
+        let mc_support_data = McSupportData::new(McObjectType::Characteristic);
+        t.add_field("field1_i8", McDimType::new(McValueType::Sbyte, 1, 1), mc_support_data, 0).unwrap();
 
         // Characteristic (McObjectType Characteristic and Axis)
         let mc_support_data = McSupportData::new(McObjectType::Characteristic)
@@ -846,7 +865,8 @@ pub mod registry_test {
         reg.instance_list
             .add_instance(
                 "characteristic_1",
-                McDimType::new_with_metadata(McValueType::new_typedef("typedef_characteristic_1"), 4, 2, mc_support_data),
+                McDimType::new(McValueType::new_typedef("typedef_characteristic_1"), 4, 2),
+                mc_support_data,
                 McAddress::new_calseg_rel("calseg_1", 0),
             )
             .unwrap();
@@ -856,7 +876,8 @@ pub mod registry_test {
         reg.instance_list
             .add_instance(
                 "characteristic_2",
-                McDimType::new_with_metadata(McValueType::new_typedef("typedef_characteristic_2"), 4, 2, mc_support_data),
+                McDimType::new(McValueType::new_typedef("typedef_characteristic_2"), 4, 2),
+                mc_support_data,
                 McAddress::new_calseg_rel("calseg_2", 0),
             )
             .unwrap();
@@ -864,7 +885,8 @@ pub mod registry_test {
         reg.instance_list
             .add_instance(
                 "axis_1",
-                McDimType::new_with_metadata(McValueType::Float32Ieee, 8, 0, mc_support_data),
+                McDimType::new(McValueType::Float32Ieee, 8, 0),
+                mc_support_data,
                 McAddress::new_calseg_rel("calseg_1", 0),
             )
             .unwrap();
@@ -877,7 +899,8 @@ pub mod registry_test {
         reg.instance_list
             .add_instance(
                 "characteristic_3",
-                McDimType::new_with_metadata(McValueType::Slonglong, 8, 1, mc_support_data),
+                McDimType::new(McValueType::Slonglong, 8, 1),
+                mc_support_data,
                 McAddress::new_calseg_rel("calseg_1", 0),
             )
             .unwrap();

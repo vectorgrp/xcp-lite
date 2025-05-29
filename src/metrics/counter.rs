@@ -27,7 +27,8 @@ pub fn register(name: &'static str) -> XcpEvent {
     let event = Xcp::get().create_event_ext(name, false);
     let _ = get_lock().as_mut().unwrap().instance_list.add_instance(
         name,
-        McDimType::new_scalar_object(McValueType::Ulonglong, McObjectType::Measurement),
+        McDimType::new(McValueType::Ulonglong, 1, 1),
+        McSupportData::new(McObjectType::Measurement),
         McAddress::new_event_dyn(event.get_id(), 0),
     );
     event

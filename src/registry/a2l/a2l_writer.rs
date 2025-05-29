@@ -57,42 +57,36 @@ impl McValueType {
 }
 
 // Get the A2L object type of the calibration parameter
-fn get_characteristic_subtype_str(dim_type: &McDimType) -> &'static str {
-    if let Some(mc_support_data) = dim_type.get_mc_support_data() {
-        match mc_support_data.object_type {
-            McObjectType::Axis => "AXIS_PTS",
-            McObjectType::Characteristic => {
-                if dim_type.get_dim()[0] > 1
-                    && mc_support_data.x_axis_ref.is_none()
-                    && mc_support_data.y_axis_ref.is_none()
-                    && mc_support_data.x_axis_conv.is_none()
-                    && mc_support_data.y_axis_conv.is_none()
-                {
-                    "VAL_BLK"
-                } else if dim_type.get_dim()[0] > 1 && dim_type.get_dim()[1] > 1 {
-                    "MAP"
-                } else if dim_type.get_dim()[0] > 1 || dim_type.get_dim()[1] > 1 {
-                    "CURVE"
-                } else {
-                    "VALUE"
-                }
+fn get_characteristic_subtype_str(dim_type: &McDimType, mc_support_data: &McSupportData) -> &'static str {
+    match mc_support_data.object_type {
+        McObjectType::Axis => "AXIS_PTS",
+        McObjectType::Characteristic => {
+            if dim_type.get_dim()[0] > 1
+                && mc_support_data.x_axis_ref.is_none()
+                && mc_support_data.y_axis_ref.is_none()
+                && mc_support_data.x_axis_conv.is_none()
+                && mc_support_data.y_axis_conv.is_none()
+            {
+                "VAL_BLK"
+            } else if dim_type.get_dim()[0] > 1 && dim_type.get_dim()[1] > 1 {
+                "MAP"
+            } else if dim_type.get_dim()[0] > 1 || dim_type.get_dim()[1] > 1 {
+                "CURVE"
+            } else {
+                "VALUE"
             }
-            _ => panic!("get_characteristic_type_str: Unsupported object type {:?}", mc_support_data.object_type),
         }
-    } else if dim_type.get_dim()[0] > 1 || dim_type.get_dim()[1] > 1 {
-        "VAL_BLK"
-    } else {
-        "VALUE"
+        _ => panic!("get_characteristic_type_str: Unsupported object type {:?}", mc_support_data.object_type),
     }
 }
 
 //-------------------------------------------------------------------------------------------------
 
 // Write a conversion rule and return its name as string
-fn write_conversion<'a>(writer: &mut A2lWriter, name: &'a str, instance_index: u16, dim_type: &McDimType) -> std::io::Result<&'a str> {
-    let factor = dim_type.get_factor().unwrap_or(1.0);
-    let offset = dim_type.get_offset().unwrap_or(0.0);
-    let unit = dim_type.get_unit();
+fn write_conversion<'a>(writer: &mut A2lWriter, name: &'a str, instance_index: u16, dim_type: &McDimType, mc_support_data: &McSupportData) -> std::io::Result<&'a str> {
+    let factor = mc_support_data.get_factor().unwrap_or(1.0);
+    let offset = mc_support_data.get_offset().unwrap_or(0.0);
+    let unit = mc_support_data.get_unit();
 
     // Bool: Use BOOL
     if dim_type.value_type == McValueType::Bool {
@@ -152,10 +146,9 @@ fn write_dimensions(dim_type: &McDimType, writer: &mut A2lWriter) -> std::io::Re
 }
 
 // Write AXIS_DESCR for MAP or CURVE or TYPEDEF_MAP, TYPEDEF_CURVE
-fn write_axis_descr(_name: &str, dim_type: &McDimType, writer: &mut A2lWriter) -> std::io::Result<()> {
+fn write_axis_descr(_name: &str, dim_type: &McDimType, mc_support_data: &McSupportData, writer: &mut A2lWriter) -> std::io::Result<()> {
     let x_dim = dim_type.get_dim()[0];
     let y_dim = dim_type.get_dim()[1];
-    let mc_support_data = dim_type.get_mc_support_data().unwrap();
 
     // MAP
     if x_dim > 1 || y_dim > 1 {
@@ -388,6 +381,7 @@ impl McTypeDef {
                 // TYPEDEF_MEASUREMENT, TYPEDEF_CHARACTERISTIC or TYPEDEF_AXIS do not support DISPLAY_IDENTIFIER, which would have been a solution
                 let field_name = field.name.as_str();
                 let field_dim_type = &field.dim_type;
+                let mc_support_data = field.get_mc_support_data();
                 let value_type = field_dim_type.value_type;
                 let tmp = format!("{type_name}.{field_name}");
                 let ext_field_name = if EXT_FIELD_NAMES { tmp.as_str() } else { field_name };
@@ -396,17 +390,17 @@ impl McTypeDef {
                 // @@@@ TODO Check if this is an error, because or the types are different
                 // @@@@ TODO Avoid the string formating here
                 if !writer.check_duplicate(ext_field_name) {
-                    let conversion_name = write_conversion(writer, ext_field_name, 0, field_dim_type)?;
-                    let unit = field.dim_type.get_unit();
-                    match field_dim_type.get_object_type() {
+                    let conversion_name = write_conversion(writer, ext_field_name, 0, field_dim_type, mc_support_data)?;
+                    let unit = mc_support_data.get_unit();
+                    match mc_support_data.get_object_type() {
                         McObjectType::Measurement => {
                             let type_str = value_type.get_type_str(); // UWORD, SWORD, ULONG, SLONG, FLOAT32_IEEE, FLOAT64_IEEE, ...
                             write!(
                                 writer,
                                 r#"/begin TYPEDEF_MEASUREMENT {ext_field_name} "{}" {type_str} {conversion_name} 0 0 {} {}"#, // 0 0 = resolution accuracy
-                                field_dim_type.get_comment(),
-                                field_dim_type.get_min().unwrap(),
-                                field_dim_type.get_max().unwrap()
+                                mc_support_data.get_comment(),
+                                mc_support_data.get_min(field_dim_type.value_type).unwrap(),
+                                mc_support_data.get_max(field_dim_type.value_type).unwrap()
                             )?;
                             if !unit.is_empty() {
                                 write!(writer, r#" PHYS_UNIT "{unit}""#)?;
@@ -416,13 +410,13 @@ impl McTypeDef {
                         }
                         McObjectType::Characteristic => {
                             let type_str = field_dim_type.value_type.get_record_layout_str();
-                            let sub_type_str = get_characteristic_subtype_str(field_dim_type);
+                            let sub_type_str = get_characteristic_subtype_str(field_dim_type, field.get_mc_support_data());
                             write!(
                                 writer,
                                 r#"/begin TYPEDEF_CHARACTERISTIC {ext_field_name} "{}" {sub_type_str} {type_str} 0 {conversion_name} {} {}"#,
-                                field_dim_type.get_comment(),
-                                field_dim_type.get_min().unwrap(),
-                                field_dim_type.get_max().unwrap()
+                                mc_support_data.get_comment(),
+                                mc_support_data.get_min(field_dim_type.value_type).unwrap(),
+                                mc_support_data.get_max(field_dim_type.value_type).unwrap()
                             )?;
                             if !unit.is_empty() {
                                 write!(writer, r#" PHYS_UNIT "{unit}""#)?;
@@ -433,7 +427,7 @@ impl McTypeDef {
                             }
                             // else if it is MAP or CURVE type
                             else if sub_type_str == "MAP" || sub_type_str == "CURVE" {
-                                write_axis_descr(ext_field_name, field_dim_type, writer)?;
+                                write_axis_descr(ext_field_name, field_dim_type, mc_support_data, writer)?;
                             }
                             writeln!(writer, r#" /end TYPEDEF_CHARACTERISTIC"#,)?;
                         }
@@ -442,10 +436,10 @@ impl McTypeDef {
                             write!(
                                 writer,
                                 r#"/begin TYPEDEF_AXIS {ext_field_name} "{}" NO_INPUT_QUANTITY A_{type_str} 0 {conversion_name} {} {} {}"#,
-                                field_dim_type.get_comment(),
+                                mc_support_data.get_comment(),
                                 field_dim_type.get_dim()[0],
-                                field_dim_type.get_min().unwrap(),
-                                field_dim_type.get_max().unwrap()
+                                mc_support_data.get_min(field_dim_type.value_type).unwrap(),
+                                mc_support_data.get_max(field_dim_type.value_type).unwrap()
                             )?;
                             if !unit.is_empty() {
                                 write!(writer, r#" PHYS_UNIT "{unit}""#)?;
@@ -519,9 +513,10 @@ impl McInstance {
         let (ext, addr) = self.address.get_a2l_addr(writer.registry);
 
         // McSupportData
+        let mc_support_data = self.get_mc_support_data();
         let dim_type = &self.dim_type;
-        let unit = dim_type.get_unit();
-        let comment = dim_type.get_comment();
+        let unit = mc_support_data.get_unit();
+        let comment = mc_support_data.get_comment();
 
         log::debug!("A2L writer: measurement {} {:?} {}:0x{:08X} event={:?}", name, dim_type.value_type, ext, addr, event_id);
 
@@ -564,13 +559,14 @@ impl McInstance {
         else {
             let instance_name = self.get_unique_name(writer.registry);
             let instance_index = self.get_index(writer.registry);
-            let min = dim_type.get_min().unwrap();
-            let max = dim_type.get_max().unwrap();
-            let step = self.get_mc_support_data().and_then(|m| m.step);
+            let mc_support_data = self.get_mc_support_data();
+            let min = mc_support_data.get_min(dim_type.value_type).unwrap();
+            let max = mc_support_data.get_max(dim_type.value_type).unwrap();
+            let step = mc_support_data.get_step();
             let type_str = self.dim_type.value_type.get_type_str(); // UWORD, SWORD, ULONG, SLONG, FLOAT32_IEEE, FLOAT64_IEEE, ...
-            let conversion_name = write_conversion(writer, self.name.as_str(), instance_index, dim_type)?;
-            let x_fix_axis = dim_type.get_dim()[0] > 1 && dim_type.get_x_axis_conv().is_some();
-            let y_fix_axis = dim_type.get_dim()[1] > 1 && dim_type.get_y_axis_conv().is_some();
+            let conversion_name = write_conversion(writer, self.name.as_str(), instance_index, dim_type, mc_support_data)?;
+            let x_fix_axis = dim_type.get_dim()[0] > 1 && mc_support_data.get_x_axis_conv().is_some();
+            let y_fix_axis = dim_type.get_dim()[1] > 1 && mc_support_data.get_y_axis_conv().is_some();
             // MEASUREMENT with multiple dimensions and fix axis is not supported !!!
             // In this special case, write a READ_ONLY CHARACTERISTIC MAP or CURVE, with fixed axis and an event
             if x_fix_axis || y_fix_axis {
@@ -588,7 +584,7 @@ impl McInstance {
                 if step.is_some() {
                     write!(writer, r#" STEP_SIZE {}"#, step.unwrap())?;
                 }
-                write_axis_descr(name, dim_type, writer)?;
+                write_axis_descr(name, dim_type, mc_support_data, writer)?;
                 if ext != 0 {
                     write!(writer, " ECU_ADDRESS_EXTENSION {}", ext)?;
                 }
@@ -597,7 +593,7 @@ impl McInstance {
                 }
                 writeln!(writer, " /end CHARACTERISTIC")?;
             } else {
-                if dim_type.get_dim()[0] > 1 && dim_type.get_x_axis_ref().is_some() {
+                if dim_type.get_dim()[0] > 1 && mc_support_data.get_x_axis_ref().is_some() {
                     log::warn!("A2L writer: MEASUREMENT {} has multiple dimensions", instance_name);
                 }
                 write!(
@@ -634,22 +630,21 @@ impl McInstance {
 // CHARACTERISTIC and AXIS_PTS
 impl McInstance {
     fn write_axis(&self, writer: &mut A2lWriter) -> std::io::Result<()> {
-        assert!(self.dim_type.is_axis());
-
         let name = &self.name;
 
         // Addressing
         let (ext, addr) = self.address.get_a2l_addr(writer.registry);
 
         // McSupportData
+        let mc_support_data = self.get_mc_support_data();
         let dim_type = &self.dim_type;
-        let unit = dim_type.get_unit();
-        let comment = dim_type.get_comment();
+        let unit = mc_support_data.get_unit();
+        let comment = mc_support_data.get_comment();
         let record_layout = dim_type.value_type.get_record_layout_str();
-        let min = dim_type.get_min().unwrap();
-        let max = dim_type.get_max().unwrap();
-        let step = self.get_mc_support_data().and_then(|m| m.step);
-        let conversion_name = write_conversion(writer, name.as_str(), 0, dim_type)?;
+        let min = mc_support_data.get_min(dim_type.value_type).unwrap();
+        let max = mc_support_data.get_max(dim_type.value_type).unwrap();
+        let step = mc_support_data.get_step();
+        let conversion_name = write_conversion(writer, name.as_str(), 0, dim_type, mc_support_data)?;
         write!(
             writer,
             r#"/begin AXIS_PTS {} "{}" 0x{:X} NO_INPUT_QUANTITY A_{} 0 {conversion_name} {}"#,
@@ -681,9 +676,10 @@ impl McInstance {
         let (ext, addr) = self.address.get_a2l_addr(writer.registry);
 
         // McSupportData
+        let mc_support_data = self.get_mc_support_data();
         let dim_type = &self.dim_type;
-        let unit = dim_type.get_unit();
-        let comment = dim_type.get_comment();
+        let unit = mc_support_data.get_unit();
+        let comment = mc_support_data.get_comment();
 
         log::debug!("A2L writer: characteristic or instance {} {:?} {}:0x{:08X}", self.name, self.dim_type.value_type, ext, addr);
 
@@ -693,11 +689,12 @@ impl McInstance {
         }
         // All other value types: -> CHARACTERISTIC
         else {
-            assert!(self.dim_type.is_calibration_object());
-            let min = dim_type.get_min().unwrap();
-            let max = dim_type.get_max().unwrap();
-            let step = self.get_mc_support_data().and_then(|m| m.step);
-            let sub_type_str = get_characteristic_subtype_str(&self.dim_type); // VAL_BLK, VALUE, MAP, CURVE
+            let mc_support_data = self.get_mc_support_data();
+            assert!(mc_support_data.is_calibration_object());
+            let min = mc_support_data.get_min(self.dim_type.value_type).unwrap();
+            let max = mc_support_data.get_max(self.dim_type.value_type).unwrap();
+            let step = mc_support_data.get_step();
+            let sub_type_str = get_characteristic_subtype_str(&self.dim_type, mc_support_data); // VAL_BLK, VALUE, MAP, CURVE
             let record_layout = self.dim_type.value_type.get_record_layout_str();
 
             // Bool: Use BOOL
@@ -706,7 +703,7 @@ impl McInstance {
             }
             // Other type: Use NO_COMPU_METHOD, not supported yet for CHARACTERISTIC
             else {
-                let conversion_name = write_conversion(writer, name.as_str(), 0, dim_type)?;
+                let conversion_name = write_conversion(writer, name.as_str(), 0, dim_type, mc_support_data)?;
                 write!(
                     writer,
                     r#"/begin CHARACTERISTIC {} "{}" {} 0x{:X} {} 0 {conversion_name} {} {}"#,
@@ -720,7 +717,7 @@ impl McInstance {
             }
             // else it is MAP or CURVE type
             else if sub_type_str == "MAP" || sub_type_str == "CURVE" {
-                write_axis_descr(name, dim_type, writer)?;
+                write_axis_descr(name, dim_type, mc_support_data, writer)?;
             }
 
             if !unit.is_empty() {
@@ -762,12 +759,13 @@ impl<'a> A2lWriter<'a> {
         A2lWriter {
             writer,
             registry,
-            typedef_list: HashMap::new(), // @@@@ temporary solution to avoid duplicate typedefs
+            // @@@@ TODO temporary solution to avoid duplicate typedefs
+            typedef_list: HashMap::new(),
         }
     }
 
     fn check_duplicate(&mut self, ident: &str) -> bool {
-        // @@@@ Improve
+        // @@@@ TODO Improve
         if self.typedef_list.contains_key(ident) {
             //writeln!(self, r#"/* {} duplicate skipped */"#, ident).ok();
             return true;

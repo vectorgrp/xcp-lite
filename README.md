@@ -75,6 +75,10 @@ Manually check various measurement and calibration features with the CANape proj
 A very basic example  
 Measure a local variable and calibrate a parameter of basic scalar type
 
+### heap_demo
+
+Shows measurement of struct instances on heap
+
 ### single_thread_demo
 
 Demonstrates how to measure and calibrate variables in a thread

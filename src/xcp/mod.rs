@@ -346,7 +346,8 @@ impl Xcp {
                 Some(cb_prepare_daq),
                 Some(cb_start_daq),
                 Some(cb_stop_daq),
-                None, // @@@@ TODO Implement cb_freeze_daq
+                // @@@@ TODO Implement cb_freeze_daq
+                None,
                 Some(cb_get_cal_page),
                 Some(cb_set_cal_page),
                 Some(cb_freeze_cal),
@@ -400,7 +401,7 @@ impl Xcp {
 
     /// Set software version (will be used as A2L EPK string and for EPK memory segment)
     pub fn set_app_revision(&self, app_revision: &'static str) -> &'static Xcp {
-        assert!(app_revision.len() % 4 == 0); // @@@@
+        assert!(app_revision.len() % 4 == 0); // @@@@ TODO check length of EPK string
         *(self.epk.lock()) = app_revision;
         registry::get_lock().as_mut().unwrap().set_app_version(app_revision, Xcp::XCP_EPK_ADDR);
         &XCP
@@ -704,7 +705,7 @@ const CRC_MODE_NOT_VALID: u8 = 0x27;
 const CRC_ACCESS_DENIED: u8 = 0x24;
 
 // Modes for page switching
-// @@@@ Clarify: Individual segment switching is not supported yet
+// @@@@ TODO Individual segment switching is not supported yet
 const CAL_PAGE_MODE_ECU: u8 = 0x01;
 const CAL_PAGE_MODE_XCP: u8 = 0x02;
 const CAL_PAGE_MODE_ALL: u8 = 0x80; // switch all segments simultaneously
@@ -821,7 +822,7 @@ unsafe extern "C" fn cb_read(addr: u32, len: u8, dst: *mut u8) -> u8 {
         let epk = *m;
         let epk_len = epk.len();
 
-        // @@@@ callbacks should not panic
+        // @@@@ TODO callbacks should not panic
         assert!(
             offset as usize + len as usize <= epk_len && epk_len <= 0xFF,
             "cb_read: EPK length error ! offset={} len={} epk_len={}",

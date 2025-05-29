@@ -113,7 +113,7 @@ fn get_value_type_from_record_layout(s: &str) -> McValueType {
         "VALUE_FLOAT64_IEEE" => McValueType::Float64Ieee,
 
         _ => {
-            // @@@@ TODO Record layout not predefined, add as typedef
+            // @@@@ TODO Suggestion: Record layout not predefined, add as typedef
             warn!("Unknown predefined record layout name '{}'", s);
             McValueType::Ubyte
         }
@@ -257,7 +257,7 @@ fn update_typedef_component(
     for typedef in registry.typedef_list.iter_mut() {
         for field in typedef.fields.iter_mut() {
             if let McValueType::TypeDef(type_name) = field.dim_type.value_type {
-                if field.dim_type.get_mc_support_data().is_none() && type_name == typedef_name {
+                if type_name == typedef_name {
                     field.dim_type.value_type = value_type;
                     let dim = get_matrix_dim(matrix_dim);
                     field.dim_type.x_dim = Some(dim.0);
@@ -269,7 +269,7 @@ fn update_typedef_component(
                         .set_factor(factor)
                         .set_offset(offset)
                         .set_unit(unit);
-                    field.dim_type.set_mc_support_data(mc_support_data);
+                    field.mc_support_data = mc_support_data;
                     log::debug!("Update typedef component {} with type {}", field.name, typedef_name);
                 }
             }
@@ -401,7 +401,7 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
         }
 
         // Dimension and type
-        let dim_type = McDimType::new_with_metadata(value_type, x_dim, y_dim, mc_support_data);
+        let dim_type = McDimType::new(value_type, x_dim, y_dim);
 
         // Address
         let event_id = get_event_id_from_ifdata(&characteristic.if_data);
@@ -413,7 +413,7 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
         let address = get_mc_address(registry, addr, addr_ext, event_id, vector_xcp_mode);
 
         // Add characteristic instance
-        let res = registry.instance_list.add_instance(name, dim_type, address);
+        let res = registry.instance_list.add_instance(name, dim_type, mc_support_data, address);
         match res {
             Ok(_) => {}
             Err(e) => {
@@ -461,7 +461,7 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
         }
 
         // Dimension and type
-        let dim_type = McDimType::new_with_metadata(value_type, x_dim, y_dim, mc_support_data);
+        let dim_type = McDimType::new(value_type, x_dim, y_dim);
 
         // Address
         let event_id = get_event_id_from_ifdata(&measurement.if_data);
@@ -477,7 +477,7 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
         let address = get_mc_address(registry, addr, addr_ext, event_id, vector_xcp_mode);
 
         // Add measurement instance
-        let res = registry.instance_list.add_instance(name, dim_type, address);
+        let res = registry.instance_list.add_instance(name, dim_type, mc_support_data, address);
         match res {
             Ok(_) => {}
             Err(e) => {
@@ -514,8 +514,9 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
             // Add typedef field
             let offset = field.address_offset as u16;
             let value_type = McValueType::TypeDef(field.component_type.clone().into());
+            let mc_support_data = McSupportData::new(McObjectType::Unspecified);
             let dim_type = McDimType::new(value_type, x_dim, y_dim);
-            let res = registry.add_typedef_component(typedef_name, field_name, dim_type, offset);
+            let res = registry.add_typedef_component(typedef_name, field_name, dim_type, mc_support_data, offset);
             match res {
                 Ok(_) => {}
                 Err(e) => {
@@ -620,7 +621,7 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
         let comment = &instance.long_identifier;
         let value_type = McValueType::TypeDef(instance.type_ref.clone().into());
         let mc_support_data = McSupportData::new(object_type).set_comment(comment.clone());
-        let dim_type = McDimType::new_with_metadata(value_type, x_dim, y_dim, mc_support_data);
+        let dim_type = McDimType::new(value_type, x_dim, y_dim);
 
         // Address
         let addr = instance.start_address;
@@ -632,7 +633,7 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
         let address = get_mc_address(registry, addr, addr_ext, event_id, vector_xcp_mode);
 
         // Add instance of a typedef
-        let res = registry.instance_list.add_instance(name, dim_type, address);
+        let res = registry.instance_list.add_instance(name, dim_type, mc_support_data, address);
         match res {
             Ok(_) => {}
             Err(e) => {
