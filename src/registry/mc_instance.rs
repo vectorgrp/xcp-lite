@@ -25,15 +25,17 @@ use serde::Serialize;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct McInstance {
     pub name: McIdentifier,
-    pub dim_type: McDimType, // Type, metadata and matrix dimensions, recursion here if McValueType::TypeDef
-    pub address: McAddress,  // Addressing information for the instance
+    pub dim_type: McDimType,            // Type, metadata and matrix dimensions, recursion here if McValueType::TypeDef
+    pub mc_support_data: McSupportData, // Metadata for the instance
+    pub address: McAddress,             // Addressing information for the instance
 }
 
 impl McInstance {
-    pub fn new<T: Into<McIdentifier>>(name: T, dim_type: McDimType, address: McAddress) -> McInstance {
+    pub fn new<T: Into<McIdentifier>>(name: T, dim_type: McDimType, mc_support_data: McSupportData, address: McAddress) -> McInstance {
         McInstance {
             name: name.into(),
             dim_type,
+            mc_support_data,
             address,
         }
     }
@@ -43,7 +45,7 @@ impl McInstance {
     }
 
     pub fn get_mc_support_data(&self) -> &McSupportData {
-        &self.dim_type.mc_support_data
+        &self.mc_support_data
     }
 
     pub fn get_address(&self) -> &McAddress {
@@ -117,51 +119,52 @@ impl McInstance {
         }
     }
 
-    // Shortcuts to mc_support_data
-    pub fn object_type(&self) -> McObjectType {
-        self.dim_type.get_object_type()
-    }
-    pub fn is_calibration_object(&self) -> bool {
-        self.dim_type.is_calibration_object()
-    }
-    pub fn is_measurement_object(&self) -> bool {
-        self.dim_type.is_measurement_object()
-    }
-    pub fn is_axis(&self) -> bool {
-        self.dim_type.is_axis()
-    }
-    pub fn is_characteristic(&self) -> bool {
-        self.dim_type.is_characteristic()
-    }
     pub fn x_dim(&self) -> u16 {
         self.dim_type.get_dim()[0]
     }
     pub fn y_dim(&self) -> u16 {
         self.dim_type.get_dim()[1]
     }
+
+    // Shortcuts to mc_support_data
+    pub fn object_type(&self) -> McObjectType {
+        self.get_mc_support_data().get_object_type()
+    }
+    pub fn is_calibration_object(&self) -> bool {
+        self.get_mc_support_data().is_calibration_object()
+    }
+    pub fn is_measurement_object(&self) -> bool {
+        self.get_mc_support_data().is_measurement_object()
+    }
+    pub fn is_axis(&self) -> bool {
+        self.get_mc_support_data().is_axis()
+    }
+    pub fn is_characteristic(&self) -> bool {
+        self.get_mc_support_data().is_characteristic()
+    }
     pub fn unit(&self) -> &'static str {
-        self.dim_type.get_unit()
+        self.get_mc_support_data().get_unit()
     }
     pub fn comment(&self) -> &'static str {
-        self.dim_type.get_comment()
+        self.get_mc_support_data().get_comment()
     }
     pub fn x_axis_ref(&self) -> Option<McIdentifier> {
-        self.dim_type.get_x_axis_ref()
+        self.get_mc_support_data().get_x_axis_ref()
     }
     pub fn y_axis_ref(&self) -> Option<McIdentifier> {
-        self.dim_type.get_y_axis_ref()
+        self.get_mc_support_data().get_y_axis_ref()
     }
     pub fn x_axis_conv(&self) -> Option<McIdentifier> {
-        self.dim_type.get_x_axis_conv()
+        self.get_mc_support_data().get_x_axis_conv()
     }
     pub fn y_axis_conv(&self) -> Option<McIdentifier> {
-        self.dim_type.get_y_axis_conv()
+        self.get_mc_support_data().get_y_axis_conv()
     }
     pub fn get_min(&self) -> Option<f64> {
-        self.dim_type.get_min()
+        self.get_mc_support_data().get_min(self.dim_type.value_type)
     }
     pub fn get_max(&self) -> Option<f64> {
-        self.dim_type.get_max()
+        self.get_mc_support_data().get_max(self.dim_type.value_type)
     }
 
     // Shortcuts to address
@@ -235,11 +238,11 @@ impl McInstanceList {
     ///   * `dim_type` - Type, metadata and array dimensions
     ///   * `address` - Addressing information for the instance
     #[allow(clippy::too_many_arguments)]
-    pub fn add_instance<T: Into<McIdentifier>>(&mut self, name: T, dim_type: McDimType, address: McAddress) -> Result<(), RegistryError> {
+    pub fn add_instance<T: Into<McIdentifier>>(&mut self, name: T, dim_type: McDimType, mc_support_data: McSupportData, address: McAddress) -> Result<(), RegistryError> {
         let name = name.into();
 
         log::debug!("Registry add_instance: {} dim_type={:?}  addr={}", name, dim_type, address);
-        assert!(dim_type.get_object_type() != McObjectType::Unspecified, "Object type must be specified");
+        assert!(mc_support_data.get_object_type() != McObjectType::Unspecified, "Object type must be specified");
 
         // Error if duplicate in instance namespace (A2l characteristics, measurements, axis and instances)
         // Names may not be unique, when there is a unique event_id
@@ -248,7 +251,7 @@ impl McInstanceList {
             return Err(RegistryError::Duplicate(name.to_string()));
         }
 
-        let c: McInstance = McInstance::new(name, dim_type, address);
+        let c: McInstance = McInstance::new(name, dim_type, mc_support_data, address);
         self.push(c);
         Ok(())
     }

@@ -103,7 +103,8 @@ impl<const N: usize> Histogram<N> {
 
         let _ = get_lock().as_mut().unwrap().instance_list.add_instance(
             format!("{}.{}", self.name, field_name),
-            McDimType::new(mc_value_type, 1, 1, mc_support_data),
+            McDimType::new(mc_value_type, 1, 1),
+            mc_support_data,
             McAddress::new_event_dyn(self.event.get_id(), offset.try_into().unwrap()),
         );
     }
@@ -119,7 +120,8 @@ impl<const N: usize> Histogram<N> {
             .set_x_axis_conv(Some(format!("{}.step_us", self.name))); // Conversion rule for increments
         let _ = get_lock().as_mut().unwrap().instance_list.add_instance(
             format!("{}.histogram", self.name),
-            McDimType::new(McValueType::Ulong, N as u16, 1, mc_support_data),
+            McDimType::new(McValueType::Ulong, N as u16, 1),
+            mc_support_data,
             McAddress::new_event_dyn(self.event.get_id(), offset.try_into().unwrap()),
         );
 

@@ -8,8 +8,6 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use super::McIdentifier;
-use super::McObjectType;
-use super::McSupportData;
 use super::McText;
 
 /// Dimensional type with meta data
@@ -26,18 +24,15 @@ pub struct McDimType {
     pub x_dim: Option<u16>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub y_dim: Option<u16>,
-    // @@@@ TODO: Move this to McInstance and McTypeDefField
-    pub mc_support_data: McSupportData, // Meta data for the instance
 }
 
 impl McDimType {
     /// Type with meta data and dimensions
-    pub fn new(value_type: McValueType, x_dim: u16, y_dim: u16, mc_support_data: McSupportData) -> Self {
+    pub fn new(value_type: McValueType, x_dim: u16, y_dim: u16) -> Self {
         McDimType {
             value_type,
             x_dim: if x_dim <= 1 { None } else { Some(x_dim) },
             y_dim: if y_dim <= 1 { None } else { Some(y_dim) },
-            mc_support_data,
         }
     }
 
@@ -60,97 +55,6 @@ impl McDimType {
             return true;
         }
         false
-    }
-
-    // MC semantics
-    // @@@@ TODO remove
-    //-----------------------------------------
-
-    /// Get the object type
-    /// If there is no MC semantic description (mc_support_data), return McObjectType::Unspecified
-    /// May be Measurement, Characteristic, Axis or Unspecified
-    pub fn get_object_type(&self) -> McObjectType {
-        assert!(self.mc_support_data.object_type != McObjectType::Unspecified);
-        self.mc_support_data.object_type
-    }
-
-    /// This is a adjustable shared axis (subset of calibration object)
-    pub fn is_axis(&self) -> bool {
-        self.mc_support_data.object_type.is_axis()
-    }
-
-    /// This is a characteristic object (subset of calibration object)
-    pub fn is_characteristic(&self) -> bool {
-        self.mc_support_data.object_type.is_characteristic()
-    }
-
-    /// This describes an instance with calibration semantics
-    /// It is never modified by the target and may be modified by the calibration tool
-    pub fn is_calibration_object(&self) -> bool {
-        self.mc_support_data.object_type.is_calibration_object()
-    }
-
-    /// This describes a measurement object instance
-    /// It is continously or sporadically modified by the target
-    pub fn is_measurement_object(&self) -> bool {
-        self.mc_support_data.object_type.is_measurement_object()
-    }
-
-    /// Get the x-axis reference as McIdentifier
-    pub fn get_x_axis_ref(&self) -> Option<McIdentifier> {
-        self.mc_support_data.x_axis_ref
-    }
-
-    /// Get the y-axis reference as McIdentifier
-    pub fn get_y_axis_ref(&self) -> Option<McIdentifier> {
-        self.mc_support_data.y_axis_ref
-    }
-
-    /// Get the x-axis conversion as McIdentifier
-    pub fn get_x_axis_conv(&self) -> Option<McIdentifier> {
-        self.mc_support_data.x_axis_conv
-    }
-
-    /// Get the y-axis conversion as McIdentifier
-    pub fn get_y_axis_conv(&self) -> Option<McIdentifier> {
-        self.mc_support_data.y_axis_conv
-    }
-
-    /// Get the description (LongIdentifier, Description, Comment, ...) as &'static str
-    pub fn get_comment(&self) -> &'static str {
-        self.mc_support_data.comment.as_str()
-    }
-
-    /// Get the minimum value for the type in physical units as f64
-    /// When the value can not be represented, it is rounded down
-    pub fn get_min(&self) -> Option<f64> {
-        self.mc_support_data.get_min(self.value_type)
-    }
-
-    /// Get the maximum value for the type in physical units as f64
-    /// When the value can not be represented, it is rounded up
-    pub fn get_max(&self) -> Option<f64> {
-        self.mc_support_data.get_max(self.value_type)
-    }
-
-    /// Get the physical conversion factor
-    pub fn get_factor(&self) -> Option<f64> {
-        self.mc_support_data.get_factor()
-    }
-
-    // Get the physical conversion offset
-    pub fn get_offset(&self) -> Option<f64> {
-        self.mc_support_data.get_offset()
-    }
-
-    /// Get the physical unit as &'static str
-    pub fn get_unit(&self) -> &'static str {
-        self.mc_support_data.unit.as_str()
-    }
-
-    /// Get the physical step size
-    pub fn get_step(&self) -> Option<f64> {
-        self.mc_support_data.get_step()
     }
 
     /// No dimension

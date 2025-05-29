@@ -40,7 +40,7 @@ impl McTypeDef {
         self.fields.into_iter().find(|field| field.name == name)
     }
 
-    pub fn add_field<T: Into<McIdentifier>>(&mut self, name: T, dim_type: McDimType, offset: u16) -> Result<(), RegistryError> {
+    pub fn add_field<T: Into<McIdentifier>>(&mut self, name: T, dim_type: McDimType, mc_support_data: McSupportData, offset: u16) -> Result<(), RegistryError> {
         let name: McIdentifier = name.into();
 
         // Error if duplicate field name
@@ -49,7 +49,7 @@ impl McTypeDef {
         }
 
         // Add field
-        self.fields.push(McTypeDefField::new(name, dim_type, offset));
+        self.fields.push(McTypeDefField::new(name, dim_type, mc_support_data, offset));
         Ok(())
     }
 }
@@ -146,15 +146,17 @@ impl McTypeDefList {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct McTypeDefField {
     pub name: McIdentifier,
-    pub dim_type: McDimType, // Type name and matrix dimensions, recursion here if McValueType::TypeDef
-    pub offset: u16,         // Offset of the field in the struct ABI
+    pub dim_type: McDimType,            // Type name and matrix dimensions, recursion here if McValueType::TypeDef
+    pub mc_support_data: McSupportData, // Metadata for the field
+    pub offset: u16,                    // Offset of the field in the struct ABI
 }
 
 impl McTypeDefField {
-    pub fn new<T: Into<McIdentifier>>(field_name: T, dim_type: McDimType, offset: u16) -> McTypeDefField {
+    pub fn new<T: Into<McIdentifier>>(field_name: T, dim_type: McDimType, mc_support_data: McSupportData, offset: u16) -> McTypeDefField {
         McTypeDefField {
             name: field_name.into(),
             dim_type,
+            mc_support_data,
             offset,
         }
     }
@@ -182,8 +184,8 @@ impl McTypeDefField {
     }
 
     /// Get metadata
-    pub fn get_mc_support_data(&self) -> Option<&McSupportData> {
-        Some(&self.dim_type.mc_support_data)
+    pub fn get_mc_support_data(&self) -> &McSupportData {
+        &self.mc_support_data
     }
 }
 
