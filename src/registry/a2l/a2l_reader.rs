@@ -514,7 +514,8 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
             // Add typedef field
             let offset = field.address_offset as u16;
             let value_type = McValueType::TypeDef(field.component_type.clone().into());
-            let dim_type = McDimType::new(value_type, x_dim, y_dim);
+            let mc_support_data = McSupportData::new(McObjectType::Unspecified);
+            let dim_type = McDimType::new_with_metadata(value_type, x_dim, y_dim, mc_support_data);
             let res = registry.add_typedef_component(typedef_name, field_name, dim_type, offset);
             match res {
                 Ok(_) => {}

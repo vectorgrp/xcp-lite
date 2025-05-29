@@ -32,26 +32,6 @@ pub struct McDimType {
 }
 
 impl McDimType {
-    /// Type with no meta data and dimensions
-    pub fn new(value_type: McValueType, x_dim: u16, y_dim: u16) -> Self {
-        McDimType {
-            value_type,
-            x_dim: if x_dim <= 1 { None } else { Some(x_dim) },
-            y_dim: if y_dim <= 1 { None } else { Some(y_dim) },
-            mc_support_data: None,
-        }
-    }
-
-    /// Instance of a typedef
-    pub fn new_instance<T: Into<McIdentifier>>(type_name: T, object_type: McObjectType) -> Self {
-        McDimType {
-            value_type: McValueType::new_typedef(type_name),
-            x_dim: None,
-            y_dim: None,
-            mc_support_data: Some(McSupportData::new(object_type)),
-        }
-    }
-
     /// Type with meta data and dimensions
     pub fn new_with_metadata(value_type: McValueType, x_dim: u16, y_dim: u16, mc_support_data: McSupportData) -> Self {
         McDimType {
@@ -59,85 +39,6 @@ impl McDimType {
             x_dim: if x_dim <= 1 { None } else { Some(x_dim) },
             y_dim: if y_dim <= 1 { None } else { Some(y_dim) },
             mc_support_data: Some(mc_support_data),
-        }
-    }
-
-    /// Scalar type, no meta data
-    pub fn new_scalar(value_type: McValueType) -> Self {
-        McDimType {
-            value_type,
-            x_dim: None,
-            y_dim: None,
-            mc_support_data: None,
-        }
-    }
-
-    /// Scalar type, with defined calibration semantics and meta data
-    pub fn new_scalar_object(value_type: McValueType, object_type: McObjectType) -> Self {
-        McDimType {
-            value_type,
-            x_dim: None,
-            y_dim: None,
-            mc_support_data: Some(McSupportData::new(object_type)),
-        }
-    }
-
-    /// Array type (1 dimension), no meta data
-    pub fn new_array(value_type: McValueType, x_dim: u16) -> Self {
-        if x_dim <= 1 {
-            Self::new_scalar(value_type)
-        } else {
-            McDimType {
-                value_type,
-                x_dim: Some(x_dim),
-                y_dim: None,
-                mc_support_data: None,
-            }
-        }
-    }
-
-    /// Array type (1 dimension), with defined mc semantics (object type)
-    pub fn new_array_object(value_type: McValueType, x_dim: u16, object_type: McObjectType) -> Self {
-        if x_dim <= 1 {
-            Self::new_scalar(value_type)
-        } else {
-            McDimType {
-                value_type,
-                x_dim: Some(x_dim),
-                y_dim: None,
-                mc_support_data: Some(McSupportData::new(object_type)),
-            }
-        }
-    }
-
-    /// Matrix type (2 dimensions), no meta data
-    pub fn new_matrix(value_type: McValueType, x_dim: u16, y_dim: u16) -> Self {
-        if y_dim <= 1 {
-            Self::new_array(value_type, x_dim)
-        } else if x_dim <= 1 {
-            Self::new_scalar(value_type)
-        } else {
-            McDimType {
-                value_type,
-                x_dim: Some(x_dim),
-                y_dim: Some(y_dim),
-                mc_support_data: None,
-            }
-        }
-    }
-    /// Matrix type (2 dimensions), with defined mc semantics (object type)
-    pub fn new_matrix_object(value_type: McValueType, x_dim: u16, y_dim: u16, object_type: McObjectType) -> Self {
-        if y_dim <= 1 {
-            Self::new_array(value_type, x_dim)
-        } else if x_dim <= 1 {
-            Self::new_scalar(value_type)
-        } else {
-            McDimType {
-                value_type,
-                x_dim: Some(x_dim),
-                y_dim: Some(y_dim),
-                mc_support_data: Some(McSupportData::new(object_type)),
-            }
         }
     }
 

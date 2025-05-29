@@ -100,22 +100,10 @@ impl<const N: usize> DaqEvent<N> {
 
     /// Associate a variable to this DaqEvent, register in rel addr mode, allocate space in the capture buffer and register it
     #[allow(clippy::too_many_arguments)]
-    pub fn add_capture(
-        &mut self,
-        name: &'static str,
-        size: usize,
-        value_type: McValueType,
-        x_dim: u16,
-        y_dim: u16,
-        factor: f64,
-        offset: f64,
-        unit: &'static str,
-        comment: &'static str,
-    ) -> i16 {
+    pub fn add_capture(&mut self, name: &'static str, size: usize, value_type: McValueType, x_dim: u16, y_dim: u16, mc_support_data: McSupportData) -> i16 {
         let event_offset: i16 = self.allocate(size); // Address offset (signed) relative to event memory context (XCP_ADDR_EXT_DYN or XCP_ADDR_EXT_REL)
         trace!("Allocate DAQ buffer for {}, TLS OFFSET = {} {:?} and register measurement", name, event_offset, &value_type);
         let event = self.get_xcp_event();
-        let mc_support_data = McSupportData::new(McObjectType::Measurement).set_comment(comment).set_linear(factor, offset, unit);
         if let Some(reg) = registry::get_lock().as_mut() {
             if let Err(e) = reg.instance_list.add_instance(
                 name,
@@ -133,51 +121,16 @@ impl<const N: usize> DaqEvent<N> {
 
     /// Associate a variable on stack to this DaqEvent and register it in rel addr mode
     #[allow(clippy::too_many_arguments)]
-    pub fn add_stack(
-        &self,
-        name: &'static str,
-        ptr: *const u8,
-        value_type: McValueType,
-        x_dim: u16,
-        y_dim: u16,
-        factor: f64,
-        offset: f64,
-        unit: &'static str,
-        comment: &'static str,
-    ) {
+    pub fn add_stack(&self, name: &'static str, ptr: *const u8, value_type: McValueType, x_dim: u16, y_dim: u16, mc_support_data: McSupportData) {
         let p = ptr as usize; // variable address
         let b = &self.buffer as *const _ as usize; // base address
         let o: i64 = p as i64 - b as i64; // variable - base address
         let event_offset: i32 = o.try_into().expect("memory offset out of range");
-        let mc_support_data = McSupportData::new(McObjectType::Measurement).set_comment(comment).set_linear(factor, offset, unit);
         if let Some(reg) = registry::get_lock().as_mut() {
             if let Err(e) = reg.instance_list.add_instance(
                 name,
                 McDimType::new_with_metadata(value_type, x_dim, y_dim, mc_support_data),
                 McAddress::new_event_rel(self.event.get_id(), event_offset),
-            ) {
-                error!("add_instance failed: {}", e);
-            }
-        } else {
-            warn!("Could not register {}, registry already closed", name);
-        }
-    }
-
-    /// Associate a variable on heap to this DaqEvent and register it in event rel addr mode
-    /// Use trigger_ext() to trigger the event
-    /// # Panics
-    /// If offset ptr to base_ptr is not with i32 range
-    #[allow(clippy::too_many_arguments)]
-    pub fn add_heap<T: Into<McIdentifier>, B, V>(&self, name: T, base: *const B, value: *const V, value_type: McValueType, x_dim: u16, y_dim: u16, mc_support_data: McSupportData) {
-        let name = name.into();
-        let base_ptr: *const u8 = base as *const u8;
-        let ptr: *const u8 = value as *const u8;
-        let offset: i32 = unsafe { ptr.offset_from(base_ptr) }.try_into().unwrap();
-        if let Some(reg) = registry::get_lock().as_mut() {
-            if let Err(e) = reg.instance_list.add_instance(
-                name,
-                McDimType::new_with_metadata(value_type, x_dim, y_dim, mc_support_data),
-                McAddress::new_event_rel(self.event.get_id(), offset),
             ) {
                 error!("add_instance failed: {}", e);
             }
@@ -232,16 +185,14 @@ macro_rules! daq_capture {
         let byte_offset;
         match DAQ_OFFSET__.compare_exchange(-32768, 0, std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed) {
             Ok(_) => {
+                let mc_support_data = McSupportData::new(McObjectType::Measurement).set_comment($comment).set_linear($factor, $offset, $unit);
                 byte_offset = $daq_event.add_capture(
                     stringify!($id),
                     std::mem::size_of_val(&$id),
                     $id.get_type(),
                     1, // x_dim
                     1, // y_dim
-                    $factor,
-                    $offset,
-                    $unit,
-                    $comment,
+                    mc_support_data,
                 );
                 DAQ_OFFSET__.store(byte_offset, std::sync::atomic::Ordering::Relaxed);
             }
@@ -257,16 +208,14 @@ macro_rules! daq_capture {
         let byte_offset;
         match DAQ_OFFSET__.compare_exchange(-32768, 0, std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed) {
             Ok(_) => {
+                let mc_support_data = McSupportData::new(McObjectType::Measurement).set_comment($comment).set_unit($unit);
                 byte_offset = $daq_event.add_capture(
                     stringify!($id),
                     std::mem::size_of_val(&$id),
                     $id.get_type(),
                     1, // x_dim
                     1, // y_dim
-                    1.0,
-                    0.0,
-                    $unit,
-                    $comment,
+                    mc_support_data,
                 );
                 DAQ_OFFSET__.store(byte_offset, std::sync::atomic::Ordering::Relaxed);
             }
@@ -281,16 +230,14 @@ macro_rules! daq_capture {
         let byte_offset;
         match DAQ_OFFSET__.compare_exchange(-32768, 0, std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed) {
             Ok(_) => {
+                let mc_support_data = McSupportData::new(McObjectType::Measurement);
                 byte_offset = $daq_event.add_capture(
                     stringify!($id),
                     std::mem::size_of_val(&$id),
                     $id.get_type(),
                     1, // x_dim
                     1, // y_dim
-                    1.0,
-                    0.0,
-                    "",
-                    "",
+                    mc_support_data,
                 );
                 DAQ_OFFSET__.store(byte_offset, std::sync::atomic::Ordering::Relaxed);
             }
@@ -313,16 +260,14 @@ macro_rules! daq_capture_struct {
         let byte_offset;
         match DAQ_OFFSET__.compare_exchange(-32768, 0, std::sync::atomic::Ordering::Relaxed, std::sync::atomic::Ordering::Relaxed) {
             Ok(_) => {
+                let mc_support_data = McSupportData::new(McObjectType::Measurement);
                 byte_offset = $daq_event.add_capture(
                     stringify!($id),
                     std::mem::size_of_val(&$id),
                     (*$id).get_type(),
                     1, // x_dim
                     1, // y_dim
-                    1.0,
-                    0.0,
-                    "",
-                    "",
+                    mc_support_data,
                 );
                 DAQ_OFFSET__.store(byte_offset, std::sync::atomic::Ordering::Relaxed);
             }
@@ -342,24 +287,24 @@ macro_rules! daq_register {
     ( $id:ident, $daq_event:expr, $comment:expr, $unit:expr, $factor:expr, $offset:expr ) => {{
         static ONCE: std::sync::Once = std::sync::Once::new();
         ONCE.call_once(|| {
-            //assert!($daq_event.get_capacity() == 0, "DAQ event with capture buffer");
-            $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, $id.get_type(), 1, 1, $factor, $offset, $unit, $comment);
+            let mc_support_data = McSupportData::new(McObjectType::Measurement).set_comment($comment).set_linear($factor, $offset, $unit);
+            $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, $id.get_type(), 1, 1, mc_support_data);
         });
     }};
     // name, event, comment, unit
     ( $id:ident, $daq_event:expr, $comment:expr, $unit:expr ) => {{
         static ONCE: std::sync::Once = std::sync::Once::new();
         ONCE.call_once(|| {
-            //assert!($daq_event.get_capacity() == 0, "DAQ event with capture buffer");
-            $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, $id.get_type(), 1, 1, 1.0, 0.0, $unit, $comment);
+            let mc_support_data = McSupportData::new(McObjectType::Measurement).set_comment($comment).set_unit($unit);
+            $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, $id.get_type(), 1, 1, mc_support_data);
         });
     }};
     // name, event
     ( $id:ident, $daq_event:expr ) => {{
         static ONCE: std::sync::Once = std::sync::Once::new();
         ONCE.call_once(|| {
-            //assert!($daq_event.get_capacity() == 0, "DAQ event with capture buffer");
-            $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, $id.get_type(), 1, 1, 1.0, 0.0, "", "");
+            let mc_support_data = McSupportData::new(McObjectType::Measurement);
+            $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, $id.get_type(), 1, 1, mc_support_data);
         });
     }};
 }
@@ -378,16 +323,14 @@ macro_rules! daq_register_struct {
                 // Register via RegisterFieldsTrait, don't register instance
                 $id.register_struct_typedef(None, $daq_event.get_event_id());
                 // Create an instance of the typedef with event relative addressing on stack
+                let mc_support_data = McSupportData::new(McObjectType::Measurement);
                 $daq_event.add_stack(
                     stringify!($id),
                     &$id as *const _ as *const u8,
                     McValueType::new_typedef(type_description.name()),
                     1,
                     1,
-                    1.0,
-                    0.0,
-                    "",
-                    "",
+                    mc_support_data,
                 );
             }
         });
@@ -405,23 +348,8 @@ macro_rules! daq_register_array {
         static ONCE: std::sync::Once = std::sync::Once::new();
         ONCE.call_once(|| {
             let dim = (std::mem::size_of_val(&$id) / std::mem::size_of_val(&$id[0])).try_into().expect("dim too large");
-            $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, ($id[0]).get_type(), dim, 1, 1.0, 0.0, "", "");
-        });
-    }};
-}
-
-/// Register a local variable which is a reference to heap with basic type for the given daq event
-/// McAddress format and addressing mode will be absolute addressing mode
-/// Assuming that the memory location is reachable in absolute addressing mode, otherwise panic
-/// No capture buffer required
-#[allow(unused_macros)]
-#[macro_export]
-macro_rules! daq_register_ref {
-    // name, event
-    ( $id:ident, $daq_event:expr ) => {{
-        static ONCE: std::sync::Once = std::sync::Once::new();
-        ONCE.call_once(|| {
-            $daq_event.add_heap(stringify!($id), &(*$id) as *const _ as *const u8, (*$id).get_type(), 1, 1, 1.0, 0.0, "", "", None);
+            let mc_support_data = McSupportData::new(McObjectType::Measurement);
+            $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, ($id[0]).get_type(), dim, 1, mc_support_data);
         });
     }};
 }
@@ -440,16 +368,14 @@ macro_rules! daq_serialize {
             Ok(_) => {
                 // @@@@ TODO Hard coded type here for point_cloud demo
                 let annotation = GeneratorCollection::generate(&IDL::CDR, &$id.description()).unwrap();
+                let mc_support_data = McSupportData::new(McObjectType::Measurement).set_comment($comment);
                 byte_offset = $daq_event.add_capture(
                     stringify!($id),
                     std::mem::size_of_val(&$id),
                     McValueType::new_blob(annotation),
                     $daq_event.buffer.len().try_into().expect("buffer too large"), // x_dim is buffer size in bytes
                     1,                                                             // y_dim
-                    1.0,
-                    0.0,
-                    "",
-                    $comment,
+                    mc_support_data,
                 );
                 DAQ_OFFSET__.store(byte_offset, std::sync::atomic::Ordering::Relaxed);
             }
@@ -459,49 +385,6 @@ macro_rules! daq_serialize {
         $daq_event.capture(&v, byte_offset);
     }};
 }
-
-//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-// XcpEvent
-
-// impl Xcp {
-//     // Create a measurement event and a measurement variable directly associated to the event with memory offset 0
-//     pub fn create_measurement_object(&self, name: &'static str, value_type: McValueType, x_dim: u16, y_dim: u16, comment: &'static str) -> XcpEvent {
-//         let event = self.create_event(name);
-//         if registry::get_lock().instance_list.add_instance(
-//                 name, McDimType::new_with_metadata(value_type, x_dim, y_dim), event, 0, // byte_offset
-//                 0, 1.0, // factor
-//                 0.0, // offset
-//                 comment, "", // unit
-//             )
-//             .is_err()
-//         {
-//             error!("Error: Measurement {} already exists", name);
-//         }
-//         event
-//     }
-// }
-
-// Create a single instance XCP event and register the given variable once, trigger the event
-// #[allow(unused_macros)]
-// #[macro_export]
-// macro_rules! daq_event_ref {
-
-//     ( $id:expr, $value_type: expr, $x_dim: expr, $comment:expr ) => {{
-//         lazy_static::lazy_static! {
-//             static ref XCP_EVENT__: XcpEvent = Xcp::get().create_measurement_object(stringify!($id), $value_type, $x_dim, 1, $comment);
-//         }
-//         XCP_EVENT__.trigger(&(*$id) as *const _ as *const u8, 0 );
-//     }};
-//     ( $id:expr, $value_type: expr, $x_dim: expr, $y_dim: expr, $comment:expr ) => {{
-//         lazy_static::lazy_static! {
-//             static ref XCP_EVENT__: XcpEvent = Xcp::get().create_measurement_object(stringify!($id), $value_type, $x_dim, $y_dim, $comment);
-//         }
-//         // @@@@ UNSAFE - C library call which will dereference the raw pointer base
-//         unsafe { XCP_EVENT__.trigger_ext(&(*$id) as *const _ as *const u8); }
-//     }};
-// }
-
-//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
 // Thread local instances (tli)
@@ -550,16 +433,14 @@ macro_rules! daq_capture_tli {
         }
         let mut offset = DAQ_OFFSET__.get();
         if offset == -32768 {
+            let mc_support_data = McSupportData::new(McObjectType::Measurement).set_comment($comment).set_linear($factor, $offset, $unit);
             offset = $daq_event.add_capture(
                 stringify!($id),
                 std::mem::size_of_val(&$id),
                 $id.get_type(),
                 1, // x_dim
                 1, // y_dim
-                $factor,
-                $offset,
-                $unit,
-                $comment,
+                mc_support_data,
             );
             DAQ_OFFSET__.set(offset)
         };
@@ -573,16 +454,14 @@ macro_rules! daq_capture_tli {
         }
         let mut offset = DAQ_OFFSET__.get();
         if offset == -32768 {
+            let mc_support_data = McSupportData::new(McObjectType::Measurement).set_comment($comment).set_unit($unit);
             offset = $daq_event.add_capture(
                 stringify!($id),
                 std::mem::size_of_val(&$id),
                 $id.get_type(),
                 1, // x_dim
                 1, // y_dim
-                1.0,
-                0.0,
-                $unit,
-                $comment,
+                mc_support_data,
             );
             DAQ_OFFSET__.set(offset)
         };
@@ -596,16 +475,14 @@ macro_rules! daq_capture_tli {
         }
         let mut offset = DAQ_OFFSET__.get();
         if offset == -32768 {
+            let mc_support_data = McSupportData::new(McObjectType::Measurement);
             offset = $daq_event.add_capture(
                 stringify!($id),
                 std::mem::size_of_val(&$id),
                 $id.get_type(),
                 1, // x_dim
                 1, // y_dim
-                1.0,
-                0.0,
-                "",
-                "",
+                mc_support_data,
             );
             DAQ_OFFSET__.set(offset)
         };
@@ -626,8 +503,8 @@ macro_rules! daq_register_tli {
         }
         if DAQ_REGISTERED__.get() == 0 {
             DAQ_REGISTERED__.set(1);
-            //assert!($daq_event.get_capacity() == 0, "DAQ event with capture buffer");
-            $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, $id.get_type(), 1, 1, 1.0, 0.0, "", "");
+            let mc_support_data = McSupportData::new(McObjectType::Measurement);
+            $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, $id.get_type(), 1, 1, mc_support_data);
         };
     }};
     // name, event, comment, unit
@@ -637,8 +514,8 @@ macro_rules! daq_register_tli {
         }
         if DAQ_REGISTERED__.get() == 0 {
             DAQ_REGISTERED__.set(1);
-            //assert!($daq_event.get_capacity() == 0, "DAQ event with capture buffer");
-            $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, $id.get_type(), 1, 1, 1.0, 0.0, $unit, $comment);
+            let mc_support_data = McSupportData::new(McObjectType::Measurement).set_comment($comment).set_unit($unit);
+            $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, $id.get_type(), 1, 1, mc_support_data);
         };
     }};
 }
@@ -667,8 +544,8 @@ macro_rules! daq_create_event_instance {
 macro_rules! daq_register_instance {
     // name, event
     ( $id:ident, $daq_event:expr ) => {{
-        //assert!($daq_event.get_capacity() == 0, "DAQ event with capture buffer");
-        $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, $id.get_type(), 1, 1, 1.0, 0.0, "", "");
+        let mc_support_data = McSupportData::new(McObjectType::Measurement);
+        $daq_event.add_stack(stringify!($id), &$id as *const _ as *const u8, $id.get_type(), 1, 1, mc_support_data);
     }};
 }
 

@@ -182,11 +182,12 @@ where
             };
             if level == 0 {
                 if let Some(instance_name) = instance_name {
-                    let _ = get_lock()
-                        .as_mut()
-                        .unwrap()
-                        .instance_list
-                        .add_instance(instance_name, McDimType::new_instance(type_name, default_object_type), base_addr);
+                    let mc_support_data = McSupportData::new(default_object_type);
+                    let _ = get_lock().as_mut().unwrap().instance_list.add_instance(
+                        instance_name,
+                        McDimType::new_with_metadata(McValueType::new_typedef(type_name), 1, 1, mc_support_data),
+                        base_addr,
+                    );
                 }
             }
         }
@@ -824,19 +825,24 @@ pub mod registry_test {
 
         // TypeDef characteristic struct
         let t = reg.add_typedef("typedef_characteristic_1", 8).unwrap();
+        let mc_support_data = McSupportData::new(McObjectType::Characteristic);
         t.add_field(
             "field1_typedef_characteristic_2",
-            McDimType::new_scalar(McValueType::TypeDef("typedef_characteristic_2".into())),
+            McDimType::new_with_metadata(McValueType::TypeDef("typedef_characteristic_2".into()), 1, 1, mc_support_data),
             0,
         )
         .unwrap();
-        t.add_field("field2_f64", McDimType::new_scalar_object(McValueType::Float64Ieee, McObjectType::Characteristic), 0)
+        let mc_support_data = McSupportData::new(McObjectType::Characteristic);
+        t.add_field("field2_f64", McDimType::new_with_metadata(McValueType::Float64Ieee, 1, 1, mc_support_data), 0)
             .unwrap();
-        t.add_field("field3_axis_8_f64", McDimType::new_array_object(McValueType::Float64Ieee, 8, McObjectType::Axis), 0)
+        let mc_support_data = McSupportData::new(McObjectType::Axis);
+        t.add_field("field3_axis_8_f64", McDimType::new_with_metadata(McValueType::Float64Ieee, 8, 0, mc_support_data), 0)
             .unwrap();
 
         let t = reg.add_typedef("typedef_characteristic_2", 8).unwrap();
-        t.add_field("field1_i8", McDimType::new_scalar_object(McValueType::Sbyte, McObjectType::Characteristic), 0)
+        let mc_support_data = McSupportData::new(McObjectType::Characteristic);
+
+        t.add_field("field1_i8", McDimType::new_with_metadata(McValueType::Sbyte, 1, 1, mc_support_data), 0)
             .unwrap();
 
         // Characteristic (McObjectType Characteristic and Axis)
