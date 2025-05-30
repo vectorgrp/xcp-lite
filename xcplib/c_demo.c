@@ -139,7 +139,10 @@ void c_demo(void) {
         // Insert test_byte1 and test_byte2 into a CANape calibration window, enable indirect calibration, use the update button for the calibration window for consistent
         // modification
         if (params->test_byte1 != -params->test_byte2) {
-            printf("Inconsistent %u:  %d -  %d\n", counter, params->test_byte1, params->test_byte2);
+            char buffer[64];
+            snprintf(buffer, sizeof(buffer), "Inconsistent %u:  %d -  %d", counter, params->test_byte1, params->test_byte2);
+            XcpPrint(buffer);
+            printf("%s\n", buffer);
         }
         // printf("Counter: %u, Delay: %u us, Test Bytes: %d, %d\n", counter, params->delay_us, params->test_byte1, params->test_byte2);
 

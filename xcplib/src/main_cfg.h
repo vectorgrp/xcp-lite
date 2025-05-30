@@ -23,12 +23,11 @@
   // XCP
   #define OPTION_ENABLE_TCP
   #define OPTION_ENABLE_UDP
-  #define OPTION_MTU                        UDP MTU
-  #define OPTION_QUEUE_SIZE                 Size of the DAQ queue in XCP DTO/CRM packets (not messages as in V1.x)
-  #define OPTION_DAQ_MEM_SIZE               Size of memory for DAQ setup in bytes
-  #define OPTION_ENABLE_A2L_UPLOAD          Enable GET_ID A2L upload
-  #define OPTION_ENABLE_GET_LOCAL_ADDR      Determine an existing IP address for A2L file, if bound to ANY
-  #define OPTION_SERVER_FORCEFULL_TERMINATION  Terminate the server threads instead of waiting for the tasks to finish
+  #define OPTION_MTU                          UDP MTU
+  #define OPTION_DAQ_MEM_SIZE                 Size of memory for DAQ setup in bytes (5 byts per signal needed)
+  #define OPTION_ENABLE_A2L_UPLOAD            Enable A2L upload through XCP
+  #define OPTION_ENABLE_GET_LOCAL_ADDR        Determine an existing IP address for A2L file, if bound to ANY
+  #define OPTION_SERVER_FORCEFULL_TERMINATION Terminate the server threads instead of waiting for the tasks to finish
 */
 
 // Application configuration:
@@ -37,11 +36,7 @@
 // XCP options
 #define OPTION_ENABLE_TCP
 #define OPTION_ENABLE_UDP
-#define OPTION_MTU 6000 // UDP MTU size - Jumbo frames supported
-
-// @@@@ TODO: OPTION_QUEUE_SIZE not used anymore
-// #define OPTION_QUEUE_SIZE (1024 * 2)        // Memory bytes used for XCP transmit queue
-
+#define OPTION_MTU 6000                     // UDP MTU size - Jumbo frames supported
 #define OPTION_DAQ_MEM_SIZE (32 * 1024 * 5) // Memory bytes used for XCP DAQ tables - max 5 bytes per signal needed
 #define OPTION_ENABLE_A2L_UPLOAD
 #define OPTION_SERVER_FORCEFULL_TERMINATION

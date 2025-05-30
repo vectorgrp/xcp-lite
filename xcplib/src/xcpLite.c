@@ -564,6 +564,9 @@ static uint8_t XcpCalSegWriteMemory(uint32_t dst, uint8_t size, const uint8_t *s
         return CRC_ACCESS_DENIED;
     }
 
+    // Update data in the current xcp page
+    memcpy(c->xcp_page + offset, src, size);
+
     // Calibration page RCU
     // If write delay is set, we do not update the ECU page yet
     if (gXcp.CalSegList.write_delay) {
@@ -574,8 +577,6 @@ static uint8_t XcpCalSegWriteMemory(uint32_t dst, uint8_t size, const uint8_t *s
             return res;
     }
 
-    // Update data in the current xcp page
-    memcpy(c->xcp_page + offset, src, size);
     return CRC_CMD_OK;
 }
 
