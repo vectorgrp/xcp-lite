@@ -31,17 +31,32 @@
 #define XCP_CALSEG_WORKING_PAGE 0 // RAM page
 #define XCP_CALSEG_INVALID_PAGE 0xFF
 
+/*
+Single thread CalSeg RCU:
+    XCP receive thread command handler:
+        On XCP write access
+        if free_page != NULL
+            Copy xcp_page to free_page
+            NULL -> free_page --> xcp_page --> ecu_page_next
+    ECU thread XcpCalSegLock:
+        if ecu_page_next != ecu_page
+            ecu_page_next --> ecu_page --> free_page
+*/
+
 // Calibration segment
+// Single threaded lockfree safe access
 typedef struct {
-    uint8_t *default_page;
+    const uint8_t *default_page;
     uint8_t *ecu_page;
+    uint8_t *ecu_page_next; // @@@@ TODO atomic pointer
+    uint8_t *free_page;     // @@@@ TODO atomic pointer
     uint8_t *xcp_page;
-    MUTEX mutex;
     uint16_t size;
-    uint16_t xcp_ctr;
-    uint16_t ecu_ctr;
-    uint8_t xcp_access; // page number for XCP access
-    uint8_t ecu_access; // page number for ECU access
+    uint8_t xcp_access;      // page number for XCP access
+    uint8_t ecu_access;      // page number for ECU access
+    uint8_t ecu_access_next; // page number for ECU access sync on next lock
+    uint8_t lock_count;      // recursive lock count for the segment, 0 = unlocked
+    bool write_pending;      // write pending because write delay
     char name[XCP_MAX_CALSEG_NAME + 1];
 } tXcpCalSeg;
 
@@ -231,26 +246,30 @@ tXcpEventList *XcpGetEventList(void);
 // Lookup event
 tXcpEvent *XcpGetEvent(uint16_t event);
 
-#endif
+#endif // XCP_ENABLE_DAQ_EVENT_LIST
 
 /* Calibration segment list */
 #ifdef XCP_ENABLE_CALSEG_LIST
 
-// Get a pointer to the list
-tXcpCalSegList *XcpGetCalSegList(void);
+// Get calibration segment  list
+tXcpCalSegList const *XcpGetCalSegList(void);
 
-// Create a calibration segmment
+// Lookup calibration segment by handle (index)
+tXcpCalSeg const *XcpGetCalSeg(uint16_t calseg);
+
+// Create a calibration segment
 // Thread safe
 // Returns the handle or XCP_UNDEFINED_CALSEG when out of memory
-uint16_t XcpCreateCalSeg(const char *name, void *default_page, uint16_t size);
+uint16_t XcpCreateCalSeg(const char *name, const uint8_t *default_page, uint16_t size);
 
 // Lock a calibration segment and return a pointer to the ECU page
-uint8_t *XcpLockCalSeg(uint16_t calseg);
+uint8_t const *XcpLockCalSeg(uint16_t calseg);
 
 // Unlock a calibration segment
+// Single threaded, must be used in the thread it was created
 void XcpUnlockCalSeg(uint16_t calseg);
 
-#endif
+#endif // XCP_ENABLE_CALSEG_LIST
 
 // Logging
 void XcpSetLogLevel(uint8_t level);

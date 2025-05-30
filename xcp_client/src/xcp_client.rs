@@ -1019,34 +1019,31 @@ impl XcpClient {
     //------------------------------------------------------------------------
     // calibration segment and page control
 
-    pub async fn get_ecu_page(&mut self) -> Result<u8, Box<dyn Error>> {
-        let mode = CAL_PAGE_MODE_ECU | 0x80;
-        let segment = 0;
+    pub async fn get_ecu_page(&mut self, segment: u8) -> Result<u8, Box<dyn Error>> {
+        let mode = CAL_PAGE_MODE_ECU;
+
         let data = self.send_command(XcpCommandBuilder::new(CC_GET_CAL_PAGE).add_u8(mode).add_u8(segment).build()).await?;
         let page = if data[3] != 0 { 1 } else { 0 };
         Ok(page)
     }
 
-    pub async fn get_xcp_page(&mut self) -> Result<u8, Box<dyn Error>> {
-        let mode = CAL_PAGE_MODE_XCP | 0x80;
-        let segment = 0;
+    pub async fn get_xcp_page(&mut self, segment: u8) -> Result<u8, Box<dyn Error>> {
+        let mode = CAL_PAGE_MODE_XCP;
         let data = self.send_command(XcpCommandBuilder::new(CC_GET_CAL_PAGE).add_u8(mode).add_u8(segment).build()).await?;
         let page = if data[3] != 0 { 1 } else { 0 };
         Ok(page)
     }
 
     pub async fn set_ecu_page(&mut self, page: u8) -> Result<(), Box<dyn Error>> {
-        let mode = CAL_PAGE_MODE_ECU | 0x80;
-        let segment = 0;
-        self.send_command(XcpCommandBuilder::new(CC_SET_CAL_PAGE).add_u8(mode).add_u8(segment).add_u8(page).build())
+        let mode = CAL_PAGE_MODE_ECU | 0x80; // All segments
+        self.send_command(XcpCommandBuilder::new(CC_SET_CAL_PAGE).add_u8(mode).add_u8(0).add_u8(page).build())
             .await?;
         Ok(())
     }
 
     pub async fn set_xcp_page(&mut self, page: u8) -> Result<(), Box<dyn Error>> {
-        let mode = CAL_PAGE_MODE_XCP | 0x80;
-        let segment = 0;
-        self.send_command(XcpCommandBuilder::new(CC_SET_CAL_PAGE).add_u8(mode).add_u8(segment).add_u8(page).build())
+        let mode = CAL_PAGE_MODE_XCP | 0x80; // All segments
+        self.send_command(XcpCommandBuilder::new(CC_SET_CAL_PAGE).add_u8(mode).add_u8(0).add_u8(page).build())
             .await?;
         Ok(())
     }

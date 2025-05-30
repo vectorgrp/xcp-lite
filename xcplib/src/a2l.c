@@ -454,9 +454,9 @@ void A2lCreate_MOD_PAR(char *epk) {
         fprintf(gA2lFile, "EPK \"%s\"\n", epk);
     // fprintf(gA2lFile, "ADDR_EPK 0x%08X\n",0)); // @@@@ TODO: EPK address is not implemented yet
 
-    tXcpCalSegList *calSegList = XcpGetCalSegList();
+    tXcpCalSegList const *calSegList = XcpGetCalSegList();
     for (uint32_t i = 0; i < calSegList->count; i++) {
-        tXcpCalSeg *calseg = &calSegList->calseg[i];
+        tXcpCalSeg const *calseg = &calSegList->calseg[i];
         fprintf(gA2lFile, gA2lMemorySegment, calseg->name, (i << 16) | 0x80000000, calseg->size);
     }
 
