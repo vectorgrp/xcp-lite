@@ -437,14 +437,16 @@ uint16_t XcpCreateCalSeg(const char *name, const uint8_t *default_page, uint16_t
     memcpy(c->ecu_page, default_page, size); // Copy default page to ECU working page copy
 
     // Allocate a free uninitialized page
-    c->free_page = malloc(size);
-    c->ecu_page_next = c->ecu_page; // New ECU page version not updated
+    atomic_store_explicit(&c->free_page, (uintptr_t)malloc(size), memory_order_relaxed);
+
+    // New ECU page version not updated
+    atomic_store_explicit(&c->ecu_page_next, (uintptr_t)c->ecu_page, memory_order_relaxed);
 
     c->size = size;
-    c->ecu_access = c->ecu_access_next = XCP_CALSEG_WORKING_PAGE; // Default page for ECU access is the working page
-    c->xcp_access = XCP_CALSEG_WORKING_PAGE;                      // Default page for XCP access is the working page
-    c->lock_count = 0;                                            // No locks
-    c->write_pending = false;                                     // No write pending
+    c->xcp_access = XCP_CALSEG_WORKING_PAGE;                                              // Default page for XCP access is the working page
+    atomic_store_explicit(&c->ecu_access, XCP_CALSEG_WORKING_PAGE, memory_order_relaxed); // Default page for ECU access is the working page
+    c->lock_count = 0;                                                                    // No locks
+    c->write_pending = false;                                                             // No write pending
 
     gXcp.CalSegList.count++;
 
@@ -470,10 +472,9 @@ uint8_t const *XcpLockCalSeg(uint16_t calseg) {
     if (c->lock_count == 0) {
 
         // Update if there is a new page version, free the old page
-        uint8_t *ecu_page_next = c->ecu_page_next; // @@@@ TODO ecu_page_next written by XCP thread, ead access to ecu_page_next should be atomic operation
+        uint8_t *ecu_page_next = (uint8_t *)atomic_load_explicit(&c->ecu_page_next, memory_order_acquire);
         if (c->ecu_page != ecu_page_next) {
-            assert(c->free_page == NULL);
-            c->free_page = c->ecu_page; // @@@@ TODO free_page read by XCP thread, write access should be atomic operation
+            atomic_store_explicit(&c->free_page, (uintptr_t)c->ecu_page, memory_order_release);
             c->ecu_page = ecu_page_next;
         }
     }
@@ -481,11 +482,9 @@ uint8_t const *XcpLockCalSeg(uint16_t calseg) {
     // Increment the lock count
     c->lock_count++;
 
-    // Update ecu access mode
-    c->ecu_access = c->ecu_access_next;
-
     // Return the active ECU page (RAM or FLASH)
-    if (c->ecu_access != XCP_CALSEG_WORKING_PAGE) {
+    uint8_t ecu_access = (uint8_t)atomic_load_explicit(&c->ecu_access, memory_order_relaxed);
+    if (ecu_access != XCP_CALSEG_WORKING_PAGE) {
         return c->default_page;
     } else {
         return c->ecu_page;
@@ -523,16 +522,17 @@ static uint8_t XcpCalSegReadMemory(uint32_t src, uint8_t size, uint8_t *dst) {
 static uint8_t XcpCalSegPublish(tXcpCalSeg *c) {
     // Try allocate a new xcp page
     // Wait and delay the XCP server receive thread, until a free page becomes available
-    // @@@@ TODO free_page written by ECU thread, read access should be atomic operation
-    for (int timeout = 0; timeout < 10 && c->free_page == NULL; timeout++) {
+    uint8_t *free_page = (uint8_t *)atomic_load_explicit(&c->free_page, memory_order_acquire);
+    for (int timeout = 0; timeout < 10 && free_page == NULL; timeout++) {
         sleepMs(1);
+        free_page = (uint8_t *)atomic_load_explicit(&c->free_page, memory_order_acquire);
     }
-    if (c->free_page == NULL) {
+    if (free_page == NULL) {
         DBG_PRINT_ERROR("no free xcp page available\n");
         return CRC_ACCESS_DENIED; // No free page available
     }
-    uint8_t *xcp_page_new = c->free_page;
-    c->free_page = NULL;
+    uint8_t *xcp_page_new = free_page;
+    atomic_store_explicit(&c->free_page, (uintptr_t)NULL, memory_order_release);
 
     // Copy old xcp page to the new xcp page
     uint8_t *xcp_page_old = c->xcp_page;
@@ -540,7 +540,8 @@ static uint8_t XcpCalSegPublish(tXcpCalSeg *c) {
     c->xcp_page = xcp_page_new;
 
     // Publish the old xcp page
-    c->ecu_page_next = xcp_page_old; // @@@@ TODO ecu_page_next read by ECU thread, write access should be atomic operation
+    atomic_store_explicit(&c->ecu_page_next, (uintptr_t)xcp_page_old, memory_order_release);
+
     return CRC_CMD_OK;
 }
 
@@ -589,7 +590,7 @@ static uint8_t XcpCalSegGetCalPage(uint8_t calseg, uint8_t mode) {
         return XCP_CALSEG_INVALID_PAGE;
     }
     if (mode == CAL_PAGE_MODE_ECU) {
-        return gXcp.CalSegList.calseg[calseg].ecu_access_next;
+        return (uint8_t)atomic_load_explicit(&gXcp.CalSegList.calseg[calseg].ecu_access, memory_order_relaxed);
     }
     if (mode == CAL_PAGE_MODE_XCP) {
         return gXcp.CalSegList.calseg[calseg].xcp_access;
@@ -616,7 +617,7 @@ static uint8_t XcpCalSegSetCalPage(uint8_t calseg, uint8_t page, uint8_t mode) {
             return CRC_ACCESS_DENIED; // Invalid calseg
         }
         if (mode & CAL_PAGE_MODE_ECU) {
-            gXcp.CalSegList.calseg[calseg].ecu_access_next = page;
+            atomic_store_explicit(&gXcp.CalSegList.calseg[calseg].ecu_access, page, memory_order_relaxed);
         } else if (mode & CAL_PAGE_MODE_XCP) {
             gXcp.CalSegList.calseg[calseg].xcp_access = page;
         } else {

@@ -41,6 +41,11 @@ Single thread CalSeg RCU:
     ECU thread XcpCalSegLock:
         if ecu_page_next != ecu_page
             ecu_page_next --> ecu_page --> free_page
+
+    Shared state between the XCP thread and the ECU thread is:
+        - ecu_page_next: the next page to be accessed by the ECU thread
+        - free_page: the page freed by the ECU thread
+        - ecu_access
 */
 
 // Calibration segment
@@ -48,15 +53,14 @@ Single thread CalSeg RCU:
 typedef struct {
     const uint8_t *default_page;
     uint8_t *ecu_page;
-    uint8_t *ecu_page_next; // @@@@ TODO atomic pointer
-    uint8_t *free_page;     // @@@@ TODO atomic pointer
+    atomic_uintptr_t ecu_page_next;
+    atomic_uintptr_t free_page;
     uint8_t *xcp_page;
     uint16_t size;
-    uint8_t xcp_access;      // page number for XCP access
-    uint8_t ecu_access;      // page number for ECU access
-    uint8_t ecu_access_next; // page number for ECU access sync on next lock
-    uint8_t lock_count;      // recursive lock count for the segment, 0 = unlocked
-    bool write_pending;      // write pending because write delay
+    uint8_t xcp_access;             // page number for XCP access
+    atomic_uint_fast8_t ecu_access; // page number for ECU access
+    uint8_t lock_count;             // recursive lock count for the segment, 0 = unlocked
+    bool write_pending;             // write pending because write delay
     char name[XCP_MAX_CALSEG_NAME + 1];
 } tXcpCalSeg;
 

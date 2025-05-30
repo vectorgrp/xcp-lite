@@ -65,15 +65,15 @@
 
 #if defined(_WIN)
 
-#include <windows.h>
 #include <time.h>
+#include <windows.h>
 
 #elif defined(_LINUX) || defined(_MACOS) // Linux
 
 #include <pthread.h>
 
-#include <errno.h>
 #include <arpa/inet.h>
+#include <errno.h>
 #include <sys/socket.h>
 
 #else
@@ -124,6 +124,29 @@ void sleepNs(uint32_t ns);
 
 // Delay - Less precise and less CPU load, not based on clock, time domain different
 void sleepMs(uint32_t ms);
+
+//-------------------------------------------------------------------------------
+// Atomic operations
+
+#ifndef _WIN
+#include <stdatomic.h>
+#else
+#ifdef _WIN32_
+#error "Windows32 not implemented yet"
+#endif
+
+// On Windows 64 we rely on the x86-64 strong memory model and assume atomic 64 bit load/store
+// and a mutex for thread safety when incrementing the tail
+#define atomic_uint_fast64_t uint64_t
+#define atomic_store_explicit(a, b, c) (*(a)) = (b)
+#define atomic_load_explicit(a, b) (*(a))
+#define atomic_fetch_add_explicit(a, b, c)                                                                                                                                         \
+    {                                                                                                                                                                              \
+        mutexLock(&queue->h.mutex);                                                                                                                                                \
+        (*(a)) += (b);                                                                                                                                                             \
+        mutexUnlock(&queue->h.mutex);                                                                                                                                              \
+    }
+#endif
 
 //-------------------------------------------------------------------------------
 // Mutex

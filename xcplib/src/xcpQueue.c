@@ -24,28 +24,8 @@
 #include <string.h>   // for memcpy, strcmp
 
 #include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
-#include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
+#include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of atomics, sockets, clock, thread, mutex
 #include "xcpEthTl.h"  // for tXcpDtoMessage
-
-#ifndef _WIN
-#include <stdatomic.h>
-#else
-#ifdef _WIN32_
-#error "Windows32 not implemented yet"
-#endif
-
-// On Windows 64 we rely on the x86-64 strong memory model and assume atomic 64 bit load/store
-// and a mutex for thread safety when incrementing the tail
-#define atomic_uint_fast64_t uint64_t
-#define atomic_store_explicit(a, b, c) (*(a)) = (b)
-#define atomic_load_explicit(a, b) (*(a))
-#define atomic_fetch_add_explicit(a, b, c)                                                                                                                                         \
-    {                                                                                                                                                                              \
-        mutexLock(&queue->h.mutex);                                                                                                                                                \
-        (*(a)) += (b);                                                                                                                                                             \
-        mutexUnlock(&queue->h.mutex);                                                                                                                                              \
-    }
-#endif
 
 // Queue entry states
 #define RESERVED 0  // Reserved by producer
