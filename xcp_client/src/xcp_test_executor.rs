@@ -177,7 +177,7 @@ impl XcpDaqDecoder for DaqDecoder {
 
         // Hardcoded decoding of data (only one ODT)
         assert!(odt == 0);
-        if odt == 0 && data.len() >= 8 {
+        if odt == 0 && data.len() >= 2 {
             let o = 0;
 
             // Check counter_max (+0) and counter (+4)
@@ -204,9 +204,7 @@ impl XcpDaqDecoder for DaqDecoder {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum TestModeDaq {
     None,
-    DaqSingleThread,
-    DaqMultiThread,
-    DaqPerformance,
+    Daq,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -545,7 +543,7 @@ pub async fn test_executor(dest_addr: std::net::SocketAddr, local_addr: std::net
     //-------------------------------------------------------------------------------------------------------------------------------------
     //  Daq test
 
-    if test_mode_daq == TestModeDaq::DaqSingleThread {
+    if test_mode_daq == TestModeDaq::Daq {
         info!("Start DAQ test");
         let (test_ok, actual_duration_ms) = test_daq(&mut xcp_client, test_mode_daq, daq_test_duration_ms).await;
         let packets_lost = DAQ_PACKETS_LOST.load(std::sync::atomic::Ordering::SeqCst);
@@ -571,17 +569,11 @@ pub async fn test_executor(dest_addr: std::net::SocketAddr, local_addr: std::net
             }
             let avg_cycletime_us = (actual_duration_ms as f64 * 1000.0) / d.daq_events as f64;
             info!("  average task cycle time = {:.1}us", avg_cycletime_us,);
-
-            // Test asserts
-            // Performance test does not assert packet_loss and counter errors
-
             assert_ne!(d.tot_events, 0);
             assert!(d.daq_events > 0);
             assert_eq!(d.odt_max, 0);
-            if test_mode_daq != TestModeDaq::DaqPerformance {
-                assert_eq!(d.counter_errors, 0);
-                assert_eq!(d.packets_lost, 0);
-            }
+            assert_eq!(d.counter_errors, 0);
+            assert_eq!(d.packets_lost, 0);
         } else {
             error!("Daq test failed");
         }

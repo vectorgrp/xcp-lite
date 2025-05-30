@@ -1370,7 +1370,7 @@ impl XcpClient {
         //let res = a2l_find_characteristic(self.a2l_file.as_ref().unwrap(), name);
         //let (a2l_addr, a2l_type, a2l_limits) = res.unwrap();
         let registry = self.registry.as_ref().unwrap();
-        match registry.instance_list.find_instance(name, xcp_lite::registry::McObjectType::Characteristic, None) {
+        match registry.instance_list.get_instance(name) {
             None => {
                 error!("Characteristic {} not found", name);
                 Err(Box::new(XcpClientError::new(ERROR_A2L, 0)) as Box<dyn Error>)
@@ -1478,7 +1478,7 @@ impl XcpClient {
 
     pub fn create_measurement_object(&mut self, name: &str) -> Option<XcpMeasurementObjectHandle> {
         let registry = self.registry.as_ref().unwrap();
-        match registry.instance_list.find_instance(name, xcp_lite::registry::McObjectType::Measurement, None) {
+        match registry.instance_list.get_instance(name) {
             None => {
                 debug!("Measurement {} not found", name);
                 None

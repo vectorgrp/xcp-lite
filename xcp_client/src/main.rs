@@ -97,7 +97,7 @@ impl ToLogLevelFilter for u8 {
 // Test (--test) settings
 
 const TEST_CAL: xcp_test_executor::TestModeCal = xcp_test_executor::TestModeCal::Cal; // Execute calibration tests: Cal or None
-const TEST_DAQ: xcp_test_executor::TestModeDaq = xcp_test_executor::TestModeDaq::None; //xcp_test_executor::TestModeDaq::DaqSingleThread; // Execute measurement tests: DaqSingleThread or None
+const TEST_DAQ: xcp_test_executor::TestModeDaq = xcp_test_executor::TestModeDaq::Daq; // Execute measurement tests: Daq or None
 const TEST_DURATION_MS: u64 = 5000;
 
 //------------------------------------------------------------------------
@@ -354,42 +354,16 @@ async fn xcp_client_demo(
         println!("Measurement variables:");
         let mea_objects = xcp_client.find_measurements(&list_mea);
         for name in &mea_objects {
-            let h = xcp_client.create_measurement_object(name).unwrap();
-            let o = xcp_client.get_measurement_object(h);
-            println!(" {} {} {}", o.get_name(), o.get_a2l_addr(), o.get_a2l_type());
+            if let Some(h) = xcp_client.create_measurement_object(name) {
+                let o = xcp_client.get_measurement_object(h);
+                println!(" {} {} {}", o.get_name(), o.get_a2l_addr(), o.get_a2l_type());
+            }
         }
         println!();
         return Ok(());
     }
 
-    // Calibration
-    // Change the value of CalPage1.counter_max to 255 (if exists, available in: main.rs, hello_xcp.rs, multi_thread_demo.rs)
-    // Measure how long this takes
-    /*
-        let start_time = tokio::time::Instant::now();
-        if let Ok(counter_max) = xcp_client.create_calibration_object("counter_max").await {
-            let v = xcp_client.get_value_u64(counter_max);
-            let elapsed_time_1 = start_time.elapsed().as_micros();
-            let new_v = 10;
-            xcp_client.set_value_u64(counter_max, new_v).await.unwrap();
-            let elapsed_time_2 = start_time.elapsed().as_micros();
-            info!("Get cal_seg.counter_max = {} (duration = {}us)", v, elapsed_time_1);
-            info!("Set cal_seg.counter_max to {} (duration = {}us)", new_v, elapsed_time_2);
-        }
-        // Change the value of ampl to 100.0 (if exists, available in XCPlite)
-        // Measure how long this takes
-        let start_time = tokio::time::Instant::now();
-        if let Ok(counter_max) = xcp_client.create_calibration_object("ampl").await {
-            let v = xcp_client.get_value_f64(counter_max);
-            let elapsed_time_1 = start_time.elapsed().as_micros();
-            xcp_client.set_value_f64(counter_max, 123.0).await.unwrap();
-            let elapsed_time_2 = start_time.elapsed().as_micros();
-            info!("Get cal_seg.ampl = {} (duration = {}us)", v, elapsed_time_1);
-            info!("Set cal_seg.ampl to {} (duration = {}us)", 123.0, elapsed_time_2);
-        }
-    */
-
-    // Measurement demo (DAQ)
+    // Measurement
     if !measurement_list.is_empty() {
         let list = if measurement_list.len() == 1 {
             // Regular expression
