@@ -400,36 +400,39 @@ tXcpCalSeg *XcpGetCalSeg(uint16_t calseg) {
 // Returns the handle or XCP_UNDEFINED_CALSEG when out of memory
 uint16_t XcpCreateCalSeg(const char *name, void *default_page, uint16_t size) {
 
-    uint16_t c;
-
     if (!isInitialized()) {
         DBG_PRINT_ERROR("XCP not initialized\n");
         return XCP_UNDEFINED_CALSEG;
     }
 
     mutexLock(&gXcp.CalSegList.mutex);
-    c = gXcp.CalSegList.count;
+
+    uint16_t i = gXcp.CalSegList.count;
     if (gXcp.CalSegList.count >= XCP_MAX_CALSEG_COUNT) {
         mutexUnlock(&gXcp.CalSegList.mutex);
         DBG_PRINT_ERROR("too many calibration segments\n");
         return XCP_UNDEFINED_CALSEG;
     }
+
+    tXcpCalSeg *c = &gXcp.CalSegList.calseg[i];
+    strncpy(c->name, name, XCP_MAX_CALSEG_NAME);
+    c->name[XCP_MAX_CALSEG_NAME] = 0;
+    c->default_page = default_page;
+    c->xcp_page = malloc(size);
+    memcpy(c->xcp_page, default_page, size); // Copy default page to XCP working page copy
+    c->ecu_page = malloc(size);
+    memcpy(c->ecu_page, default_page, size); // Copy default page to ECU working page copy
+    c->size = size;
+    c->ecu_ctr = c->xcp_ctr = 0;
+    c->ecu_access = XCP_CALSEG_WORKING_PAGE; // Default page for ECU access is the working page
+    c->xcp_access = XCP_CALSEG_WORKING_PAGE; // Default page for XCP access is the working page
+    mutexInit(&c->mutex, false, 1000);
     gXcp.CalSegList.count++;
+
     mutexUnlock(&gXcp.CalSegList.mutex);
 
-    strncpy(gXcp.CalSegList.calseg[c].name, name, XCP_MAX_CALSEG_NAME);
-    gXcp.CalSegList.calseg[c].name[XCP_MAX_CALSEG_NAME] = 0;
-    gXcp.CalSegList.calseg[c].default_page = default_page;
-    gXcp.CalSegList.calseg[c].xcp_page = malloc(size);
-    memcpy(gXcp.CalSegList.calseg[c].xcp_page, default_page, size); // Copy default page to XCP working page copy
-    gXcp.CalSegList.calseg[c].ecu_page = malloc(size);
-    memcpy(gXcp.CalSegList.calseg[c].ecu_page, default_page, size); // Copy default page to ECU working page copy
-    gXcp.CalSegList.calseg[c].size = size;
-    gXcp.CalSegList.calseg[c].ecu_ctr = gXcp.CalSegList.calseg[c].xcp_ctr = 0;
-    gXcp.CalSegList.calseg[c].ecu_access = XCP_CALSEG_WORKING_PAGE; // Default page for ECU access is the working page
-    gXcp.CalSegList.calseg[c].xcp_access = XCP_CALSEG_WORKING_PAGE; // Default page for XCP access is the working page
-    DBG_PRINTF3("  CalSeg %u: %s size=%u\n", c, gXcp.CalSegList.calseg[c].name, gXcp.CalSegList.calseg[c].size);
-    return c;
+    DBG_PRINTF3("  CalSeg %u: %s size=%u\n", c, c->name, c->size);
+    return i;
 }
 
 // Lock a calibration segment and return a pointer to the ECU page
@@ -440,28 +443,30 @@ uint8_t *XcpLockCalSeg(uint16_t calseg) {
         return NULL; // Uninitialized or invalid calseg
     }
 
+    tXcpCalSeg *c = &gXcp.CalSegList.calseg[calseg];
+
     // ECU access is on default page
-    if (gXcp.CalSegList.calseg[calseg].ecu_access != XCP_CALSEG_WORKING_PAGE) {
-        return gXcp.CalSegList.calseg[calseg].default_page;
+    if (c->ecu_access != XCP_CALSEG_WORKING_PAGE) {
+        return c->default_page;
     }
 
     // Check for updates
     // Do a fast unsafe check first before locking the mutex
-    if (gXcp.CalSegList.calseg[calseg].ecu_ctr != gXcp.CalSegList.calseg[calseg].xcp_ctr && !gXcp.CalSegList.write_delay) {
+    if (c->ecu_ctr != c->xcp_ctr && gXcp.CalSegList.write_delay) {
 
         // Lock the complete calibration segment list against XCP modifications while copying
-        mutexLock(&gXcp.CalSegList.mutex);
+        mutexLock(&c->mutex);
 
         // Copy XCP page to ECU page
         if (gXcp.CalSegList.calseg[calseg].ecu_ctr != gXcp.CalSegList.calseg[calseg].xcp_ctr) {
-            memcpy(gXcp.CalSegList.calseg[calseg].ecu_page, gXcp.CalSegList.calseg[calseg].xcp_page, gXcp.CalSegList.calseg[calseg].size);
-            gXcp.CalSegList.calseg[calseg].ecu_ctr = gXcp.CalSegList.calseg[calseg].xcp_ctr;
+            memcpy(c->ecu_page, gXcp.CalSegList.calseg[calseg].xcp_page, c->size);
+            c->ecu_ctr = c->xcp_ctr;
         }
 
-        mutexUnlock(&gXcp.CalSegList.mutex);
+        mutexUnlock(&c->mutex);
     }
 
-    return gXcp.CalSegList.calseg[calseg].ecu_page;
+    return c->ecu_page;
 }
 
 // Unlock a calibration segment
@@ -484,15 +489,16 @@ uint8_t XcpCalSegCommand(uint8_t cmd) {
         return CRC_CMD_OK;
     case 0x02:                               // End atomic calibration operation;
         gXcp.CalSegList.write_delay = false; // Clear the flag and trigger ECU page updates
-        mutexLock(&gXcp.CalSegList.mutex);
         // Copy all XCP pages to ECU pages if modified
         for (uint16_t i = 0; i < gXcp.CalSegList.count; i++) {
-            if (gXcp.CalSegList.calseg[i].ecu_ctr != gXcp.CalSegList.calseg[i].xcp_ctr) {
-                memcpy(gXcp.CalSegList.calseg[i].ecu_page, gXcp.CalSegList.calseg[i].xcp_page, gXcp.CalSegList.calseg[i].size);
-                gXcp.CalSegList.calseg[i].ecu_ctr = gXcp.CalSegList.calseg[i].xcp_ctr;
+            tXcpCalSeg *c = &gXcp.CalSegList.calseg[i];
+            mutexLock(&c->mutex);
+            if (c->ecu_ctr != gXcp.CalSegList.calseg[i].xcp_ctr) {
+                memcpy(c->ecu_page, c->xcp_page, c->size);
+                c->ecu_ctr = c->xcp_ctr;
             }
+            mutexUnlock(&c->mutex);
         }
-        mutexUnlock(&gXcp.CalSegList.mutex);
         DBG_PRINT4("End atomic calibration operation\n");
         return CRC_CMD_OK;
     }

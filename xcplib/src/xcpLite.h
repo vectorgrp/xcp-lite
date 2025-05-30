@@ -36,6 +36,7 @@ typedef struct {
     uint8_t *default_page;
     uint8_t *ecu_page;
     uint8_t *xcp_page;
+    MUTEX mutex;
     uint16_t size;
     uint16_t xcp_ctr;
     uint16_t ecu_ctr;
