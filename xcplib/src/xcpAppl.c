@@ -32,7 +32,7 @@
 
 // @@@@  TODO improve
 #ifdef XCP_ENABLE_USER_COMMAND
-static bool write_delay = false;
+static bool write_delayed = false;
 #endif
 
 /**************************************************************************/
@@ -94,7 +94,7 @@ void ApplXcpRegisterConnectCallback(uint8_t (*cb_connect)(void)) { callback_conn
 bool ApplXcpConnect(void) {
     DBG_PRINT4("ApplXcpConnect\n");
 #ifdef XCP_ENABLE_USER_COMMAND
-    write_delay = false;
+    write_delayed = false;
 #endif
     if (callback_connect != NULL)
         return callback_connect();
@@ -328,10 +328,10 @@ uint32_t ApplXcpGetAddr(const uint8_t *p) { return ((uint32_t)(p)); }
 uint8_t ApplXcpUserCommand(uint8_t cmd) {
     switch (cmd) {
     case 0x01: // Begin atomic calibration operation
-        write_delay = true;
+        write_delayed = true;
         break;
     case 0x02: // End atomic calibration operation;
-        write_delay = false;
+        write_delayed = false;
         if (callback_flush != NULL)
             return callback_flush();
         break;
@@ -351,7 +351,7 @@ uint8_t ApplXcpReadMemory(uint32_t src, uint8_t size, uint8_t *dst) {
 }
 uint8_t ApplXcpWriteMemory(uint32_t dst, uint8_t size, const uint8_t *src) {
     if (callback_write != NULL)
-        return callback_write(dst, size, src, write_delay);
+        return callback_write(dst, size, src, write_delayed);
     return CRC_ACCESS_DENIED;
 }
 #endif

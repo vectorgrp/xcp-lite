@@ -27,7 +27,7 @@ pub const OPTION_XCP_LOG_LEVEL: u8 = 2;
 
 //------------------------------------------------------------------------
 // Test parameters
-const CAL_TEST_MAX_ITER: u32 = 1000; // Number of calibrations
+const CAL_TEST_MAX_ITER: u32 = 10000; // Number of calibrations
 const CAL_TEST_TASK_SLEEP_TIME_US: u64 = 100; // Calibration check task cycle time in us
 
 pub const MAX_TASK_COUNT: usize = 255; // Max number of threads 
@@ -370,13 +370,27 @@ async fn test_calibration(xcp_client: &mut XcpClient) -> bool {
     for i in 0..CAL_TEST_MAX_ITER {
         let value1: i8 = (i & 0x7F) as i8;
         let value2: i8 = -value1;
+        xcp_client // SHORT_DOWNLOAD cal_seg.test_u64
+            .short_download(addr_sync_test1.addr, addr_sync_test1.ext, &value1.to_le_bytes())
+            .await
+            .unwrap();
+        xcp_client // SHORT_DOWNLOAD cal_seg.test_u64
+            .short_download(addr_sync_test2.addr, addr_sync_test2.ext, &value2.to_le_bytes())
+            .await
+            .unwrap();
+    }
+    let dt = starttime.elapsed().as_micros() as u64;
+    info!("Average direct calibration cycle time: {}us", dt / (CAL_TEST_MAX_ITER * 2) as u64);
 
+    let starttime = Instant::now();
+    for i in 0..CAL_TEST_MAX_ITER {
+        let value1: i8 = (i & 0x7F) as i8;
+        let value2: i8 = -value1;
         xcp_client.modify_begin().await.unwrap();
         xcp_client // SHORT_DOWNLOAD cal_seg.test_u64
             .short_download(addr_sync_test1.addr, addr_sync_test1.ext, &value1.to_le_bytes())
             .await
             .unwrap();
-        //tokio::time::sleep(Duration::from_micros(100)).await;
         xcp_client // SHORT_DOWNLOAD cal_seg.test_u64
             .short_download(addr_sync_test2.addr, addr_sync_test2.ext, &value2.to_le_bytes())
             .await
@@ -384,7 +398,7 @@ async fn test_calibration(xcp_client: &mut XcpClient) -> bool {
         xcp_client.modify_end().await.unwrap();
     }
     let dt = starttime.elapsed().as_micros() as u64;
-    info!("Average calibration cycle time: {}us", dt / CAL_TEST_MAX_ITER as u64);
+    info!("Average atomic calibration cycle time: {}us", dt / CAL_TEST_MAX_ITER as u64);
 
     true
 }

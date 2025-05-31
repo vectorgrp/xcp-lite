@@ -383,7 +383,7 @@ uint32_t XcpGetDaqOverflowCount(void) { return gXcp.DaqOverflowCount; }
 // Initialize the calibration segment list
 static void XcpInitCalSegList(void) {
     gXcp.CalSegList.count = 0;
-    gXcp.CalSegList.write_delay = false;
+    gXcp.CalSegList.write_delayed = false;
     mutexInit(&gXcp.CalSegList.mutex, false, 0); // Non-recursive mutex, no spin count
 }
 
@@ -519,18 +519,27 @@ static uint8_t XcpCalSegReadMemory(uint32_t src, uint8_t size, uint8_t *dst) {
 }
 
 // Publish a modified calibration segment
-static uint8_t XcpCalSegPublish(tXcpCalSeg *c) {
+static uint8_t XcpCalSegPublish(tXcpCalSeg *c, bool wait) {
     // Try allocate a new xcp page
-    // Wait and delay the XCP server receive thread, until a free page becomes available
     uint8_t *free_page = (uint8_t *)atomic_load_explicit(&c->free_page, memory_order_acquire);
-    for (int timeout = 0; timeout < 10 && free_page == NULL; timeout++) {
-        sleepMs(1);
-        free_page = (uint8_t *)atomic_load_explicit(&c->free_page, memory_order_acquire);
+    if (wait) {
+        // Wait and delay the XCP server receive thread, until a free page becomes available
+        for (int timeout = 0; timeout < XCP_CALSEG_AQUIRE_FREE_PAGE_TIMEOUT && free_page == NULL; timeout++) {
+            sleepMs(1);
+            free_page = (uint8_t *)atomic_load_explicit(&c->free_page, memory_order_acquire);
+        }
+        if (free_page == NULL) {
+            DBG_PRINTF_ERROR("Can not update calibration changes, calseg %s not locked periodically\n", c->name);
+            return CRC_ACCESS_DENIED; // No free page available
+        }
+    } else {
+        if (free_page == NULL) {
+            DBG_PRINTF5("Can not update calibration changes of %s yet\n", c->name);
+            return CRC_CMD_PENDING; // No free page available
+        }
     }
-    if (free_page == NULL) {
-        DBG_PRINT_ERROR("no free xcp page available\n");
-        return CRC_ACCESS_DENIED; // No free page available
-    }
+
+    // Acquire the free page
     uint8_t *xcp_page_new = free_page;
     atomic_store_explicit(&c->free_page, (uintptr_t)NULL, memory_order_release);
 
@@ -543,6 +552,27 @@ static uint8_t XcpCalSegPublish(tXcpCalSeg *c) {
     atomic_store_explicit(&c->ecu_page_next, (uintptr_t)xcp_page_old, memory_order_release);
 
     return CRC_CMD_OK;
+}
+
+// Publish all modified calibration segments
+// Must be call from the same thread that calles XcpCommend
+uint8_t XcpCalSegPublishAll(bool wait) {
+    uint8_t res = CRC_CMD_OK;
+    // If no atomic calibration operation is in progress
+    if (!gXcp.CalSegList.write_delayed) {
+        for (uint16_t i = 0; i < gXcp.CalSegList.count; i++) {
+            tXcpCalSeg *c = &gXcp.CalSegList.calseg[i];
+            if (c->write_pending) {
+                uint8_t res1 = XcpCalSegPublish(c, wait);
+                if (res1 == CRC_CMD_OK) {
+                    c->write_pending = false;
+                } else {
+                    res = res1;
+                }
+            }
+        }
+    }
+    return res; // Return the last error code
 }
 
 // Xcp client memory write
@@ -569,15 +599,22 @@ static uint8_t XcpCalSegWriteMemory(uint32_t dst, uint8_t size, const uint8_t *s
     memcpy(c->xcp_page + offset, src, size);
 
     // Calibration page RCU
-    // If write delay is set, we do not update the ECU page yet
-    if (gXcp.CalSegList.write_delay) {
+    // If write delayed, we do not update the ECU page yet
+    if (gXcp.CalSegList.write_delayed) {
         c->write_pending = true; // Modified
     } else {
-        uint8_t res = XcpCalSegPublish(c);
+#ifdef XCP_ENABLE_CALSEG_LAZY_WRITE
+        // If lazy mode is enabled, we do not need to update the ECU page yet
+        uint8_t res = XcpCalSegPublish(c, false);
+        if (res)
+            c->write_pending = true;
+#else
+        // If not lazy mode, we wait until a free page is available
+        uint8_t res = XcpCalSegPublish(c, true);
         if (res)
             return res;
+#endif
     }
-
     return CRC_CMD_OK;
 }
 
@@ -649,31 +686,19 @@ static uint8_t XcpCalSegCopyCalPage(uint8_t srcSeg, uint8_t srcPage, uint8_t dst
 static uint8_t XcpCalSegCommand(uint8_t cmd) {
     switch (cmd) {
     // Begin atomic calibration operation
-    case 0x01: {
-        gXcp.CalSegList.write_delay = true; // Set a flag to delay ECU page updates
+    case 0x01:
+        gXcp.CalSegList.write_delayed = true; // Set a flag to delay ECU page updates
         for (uint16_t i = 0; i < gXcp.CalSegList.count; i++) {
             gXcp.CalSegList.calseg[i].write_pending = false;
         }
         DBG_PRINT4("Begin atomic calibration operation\n");
         return CRC_CMD_OK;
-    } break;
+
     // End atomic calibration operation
-    case 0x02: {
-        uint8_t res = CRC_CMD_OK;
-        gXcp.CalSegList.write_delay = false; // Reset the write delay flag
-        for (uint16_t i = 0; i < gXcp.CalSegList.count; i++) {
-            tXcpCalSeg *c = &gXcp.CalSegList.calseg[i];
-            if (c->write_pending) {
-                c->write_pending = false;
-                uint8_t res1 = XcpCalSegPublish(c);
-                if (res1) {
-                    res = res1;
-                }
-            }
-        }
+    case 0x02:
+        gXcp.CalSegList.write_delayed = false; // Reset the write delay flag
         DBG_PRINT4("End atomic calibration operation\n");
-        return res;
-    } break;
+        return XcpCalSegPublishAll(true); // Flush all pending writes
     }
     return CRC_CMD_UNKNOWN;
 }
@@ -1562,6 +1587,10 @@ void XcpDisconnect(void) {
             XcpStopDaq();
             XcpTlWaitForTransmitQueueEmpty(200);
         }
+
+#ifdef XCP_ENABLE_CALSEG_LAZY_WRITE
+        XcpCalSegPublishAll(true);
+#endif
 
         gXcp.SessionStatus &= ~SS_CONNECTED;
         ApplXcpDisconnect();
@@ -2523,6 +2552,18 @@ busy_response:
 // - Command will be executed delayed, during execution of the associated synchronisation event
 no_response:
     return CRC_CMD_OK;
+}
+
+/*****************************************************************************
+| Non realtime critical background tasks
+******************************************************************************/
+
+void XcpBackgroundTasks(void) {
+
+// Publish all modified calibration segments
+#ifdef XCP_ENABLE_CALSEG_LAZY_WRITE
+    XcpCalSegPublishAll(false);
+#endif
 }
 
 /*****************************************************************************

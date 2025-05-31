@@ -123,7 +123,7 @@
 #define XCP_ENABLE_DAQ_RESUME
 
 // Enable event list
-// Not needed for Rust xcp-lite
+// Not needed for Rust xcp-lite, has its own event management
 #define XCP_ENABLE_DAQ_EVENT_LIST
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
 
@@ -135,12 +135,22 @@
 #endif
 
 // Enable calibration segment list
-// Not needed for Rust xcp-lite
+// Not needed for Rust xcp-lite, has its own calibration segment management
 #define XCP_ENABLE_CALSEG_LIST
 #ifdef XCP_ENABLE_CALSEG_LIST
 
 #define XCP_MAX_CALSEG_COUNT 4
 #define XCP_MAX_CALSEG_NAME 15
+
+// Enable lazy write mode for calibration segments
+// RCU updates of calibration segments are done in a cyclic manner in the background
+// Calibration write speed is then independent from the lock rate, but single calibration latencies are higher
+// Without this, calibration updates are always delayed by one lock cycle and only one single direct or one atomic calibration change is possible per lock
+// If the latency of a single, sporadic calibration change is extremely important, this can be disabled
+#define XCP_ENABLE_CALSEG_LAZY_WRITE
+
+// Timeout for acquiring a free calibration segment page
+#define XCP_CALSEG_AQUIRE_FREE_PAGE_TIMEOUT 500 // 500 ms timeout
 
 #endif
 
