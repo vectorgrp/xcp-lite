@@ -104,7 +104,7 @@ bool ApplXcpConnect(void) {
 void ApplXcpDisconnect(void) { DBG_PRINT4("ApplXcpDisconnect\n"); }
 
 #if XCP_PROTOCOL_LAYER_VERSION >= 0x0104
-bool ApplXcpPrepareDaq() {
+bool ApplXcpPrepareDaq(void) {
     DBG_PRINT4("ApplXcpPrepareDaq\n");
     if (callback_prepare_daq != NULL) {
         if (!callback_prepare_daq()) {
@@ -116,7 +116,7 @@ bool ApplXcpPrepareDaq() {
 }
 #endif
 
-void ApplXcpStartDaq() {
+void ApplXcpStartDaq(void) {
     DBG_PRINT4("ApplXcpStartDaq\n");
     if (callback_start_daq != NULL)
         callback_start_daq();
@@ -385,7 +385,7 @@ uint8_t ApplXcpCopyCalPage(uint8_t srcSeg, uint8_t srcPage, uint8_t dstSeg, uint
 #endif
 
 #ifdef XCP_ENABLE_FREEZE_CAL_PAGE
-uint8_t ApplXcpCalFreeze() {
+uint8_t ApplXcpCalFreeze(void) {
     if (callback_freeze_cal != NULL)
         return callback_freeze_cal(); // return CRC_CMD_xxx return code
     return CRC_CMD_UNKNOWN;

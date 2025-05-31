@@ -464,7 +464,7 @@ void A2lCreate_MOD_PAR(char *epk) {
 #endif
 }
 
-static void A2lCreate_IF_DATA_DAQ() {
+static void A2lCreate_IF_DATA_DAQ(void) {
 
 #if defined(XCP_ENABLE_DAQ_EVENT_LIST) && !defined(XCP_ENABLE_DAQ_EVENT_INFO)
     tXcpEventList *eventList;
@@ -529,7 +529,7 @@ void A2lCreate_ETH_IF_DATA(bool useTCP, const uint8_t *addr, uint16_t port) {
     }
 }
 
-void A2lCreateMeasurement_IF_DATA() {
+void A2lCreateMeasurement_IF_DATA(void) {
     if (gA2lFile != NULL) {
         if (gA2lFixedEvent != XCP_UNDEFINED_EVENT_CHANNEL) {
             fprintf(gA2lFile, " /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT 0x%X /end DAQ_EVENT /end IF_DATA", gA2lFixedEvent);
@@ -545,7 +545,7 @@ uint8_t gAl2AddrExt = XCP_ADDR_EXT_ABS; // Address extension
 const uint8_t *gA2lAddrBase = NULL;     // Event or calseg address for XCP_ADDR_EXT_REL, XCP_ADDR_EXT_SEG
 uint16_t gA2lAddrIndex = 0;             // Segment index for XCP_ADDR_EXT_SEG
 
-void A2lSetAbsAddrMode() {
+void A2lSetAbsAddrMode(void) {
     gAl2AddrExt = XCP_ADDR_EXT_ABS;
     A2lRstFixedEvent();
 }
@@ -562,7 +562,7 @@ void A2lSetSegAddrMode(uint16_t calseg_index, const uint8_t *calseg) {
     gAl2AddrExt = XCP_ADDR_EXT_SEG;
 }
 
-uint8_t A2lGetAddrExt() { return gAl2AddrExt; }
+uint8_t A2lGetAddrExt(void) { return gAl2AddrExt; }
 
 uint32_t A2lGetAddr(uint8_t const *p) {
     switch (gAl2AddrExt) {
@@ -595,11 +595,11 @@ void A2lSetDefaultEvent(uint16_t event) {
 
 void A2lSetFixedEvent(uint16_t event) { gA2lFixedEvent = event; }
 
-uint16_t A2lGetFixedEvent() { return gA2lFixedEvent; }
+uint16_t A2lGetFixedEvent(void) { return gA2lFixedEvent; }
 
-void A2lRstDefaultEvent() { gA2lDefaultEvent = XCP_UNDEFINED_EVENT_CHANNEL; }
+void A2lRstDefaultEvent(void) { gA2lDefaultEvent = XCP_UNDEFINED_EVENT_CHANNEL; }
 
-void A2lRstFixedEvent() { gA2lFixedEvent = XCP_UNDEFINED_EVENT_CHANNEL; }
+void A2lRstFixedEvent(void) { gA2lFixedEvent = XCP_UNDEFINED_EVENT_CHANNEL; }
 
 //----------------------------------------------------------------------------------
 
@@ -637,7 +637,7 @@ void A2lTypedefParameterComponent_(const char *name, int32_t type, uint32_t offs
     gA2lComponents++;
 }
 
-void A2lTypedefEnd_() {
+void A2lTypedefEnd_(void) {
 
     assert(gA2lFile != NULL);
     fprintf(gA2lFile, "/end TYPEDEF_STRUCTURE\n");
@@ -821,7 +821,7 @@ void A2lMeasurementGroupFromList(const char *name, char *names[], uint32_t count
     fprintf(gA2lFile, "\n/end GROUP\n\n");
 }
 
-void A2lClose() {
+void A2lClose(void) {
 
     if (gA2lFile != NULL) {
         fprintf(gA2lFile, "%s", gA2lFooter);
@@ -833,6 +833,6 @@ void A2lClose() {
 }
 
 bool A2lOnce(atomic_bool *value) {
-    atomic_bool old_value;
+    bool old_value = false;
     return atomic_compare_exchange_strong_explicit(value, &old_value, true, memory_order_acquire, memory_order_relaxed);
 }

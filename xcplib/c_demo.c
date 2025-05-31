@@ -178,3 +178,8 @@ void c_demo(void) {
     // Stop the XCP server
     XcpEthServerShutdown();
 }
+
+int main(void) {
+    c_demo();
+    return 0;
+}

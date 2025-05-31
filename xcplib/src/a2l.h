@@ -3,9 +3,10 @@
 /* Copyright(c) Vector Informatik GmbH.All rights reserved.
    Licensed under the MIT license.See LICENSE file in the project root for details. */
 
-#include <platform.h> // for atomic_bool
-#include <stdbool.h>  // for bool
-#include <stdint.h>   // for uint8_t, uint32_t, uint64_t
+#include <stdbool.h> // for bool
+#include <stdint.h>  // for uint8_t, uint32_t, uint64_t
+
+#include "platform.h" // for atomic_bool
 
 #define A2L_TYPE_UINT8 1
 #define A2L_TYPE_UINT16 2
@@ -70,13 +71,13 @@ void A2lCreate_MOD_PAR(char *epk);
 void A2lCreate_ETH_IF_DATA(bool useTCP, const uint8_t *addr, uint16_t port);
 
 // Set for all following A2lCreateXxxx
-void A2lSetAbsAddrMode();
+void A2lSetAbsAddrMode(void);
 void A2lSetSegAddrMode(uint16_t calseg_index, const uint8_t *calseg);
 void A2lSetRelAddrMode(const uint16_t *event);
 void A2lSetFixedEvent(uint16_t event);
-void A2lRstFixedEvent();
+void A2lRstFixedEvent(void);
 void A2lSetDefaultEvent(uint16_t event);
-void A2lRstDefaultEvent();
+void A2lRstDefaultEvent(void);
 
 // Create measurements
 void A2lCreateMeasurement_(const char *instanceName, const char *name, int32_t type, uint8_t ext, uint32_t addr, double factor, double offset, const char *unit,
@@ -87,7 +88,7 @@ void A2lCreateMeasurementArray_(const char *instanceName, const char *name, int3
 void A2lTypedefBegin_(const char *name, uint32_t size, const char *comment);
 void A2lTypedefMeasurementComponent_(const char *name, int32_t type, uint32_t offset);
 void A2lTypedefParameterComponent_(const char *name, int32_t type, uint32_t offset);
-void A2lTypedefEnd_();
+void A2lTypedefEnd_(void);
 void A2lCreateTypedefInstance_(const char *instanceName, const char *typeName, uint8_t ext, uint32_t addr, const char *comment);
 
 // Create parameters
@@ -103,9 +104,9 @@ void A2lMeasurementGroup(const char *name, int count, ...);
 void A2lMeasurementGroupFromList(const char *name, char *names[], uint32_t count);
 
 // Finish A2L generation
-void A2lClose();
+void A2lClose(void);
 
 // Helpers for A2L generation macros
 uint32_t A2lGetAddr(const uint8_t *addr);
-uint8_t A2lGetAddrExt();
+uint8_t A2lGetAddrExt(void);
 bool A2lOnce(atomic_bool *once);

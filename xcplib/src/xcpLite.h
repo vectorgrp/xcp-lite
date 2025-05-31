@@ -326,7 +326,7 @@ uint8_t ApplXcpSetCalPage(uint8_t segment, uint8_t page, uint8_t mode);
 uint8_t ApplXcpCopyCalPage(uint8_t srcSeg, uint8_t srcPage, uint8_t destSeg, uint8_t destPage);
 #endif
 #ifdef XCP_ENABLE_FREEZE_CAL_PAGE
-uint8_t ApplXcpCalFreeze();
+uint8_t ApplXcpCalFreeze(void);
 #endif
 #endif
 

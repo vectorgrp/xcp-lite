@@ -60,7 +60,7 @@ typedef struct {
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
 
-tQueueHandle QueueInitFromMemory(void *queue_memory, int64_t queue_memory_size, bool clear_queue, int64_t *out_buffer_size) {
+tQueueHandle QueueInitFromMemory(void *queue_memory, uint32_t queue_memory_size, bool clear_queue) {
 
     tQueue *queue = NULL;
     assert(queue_memory_size <= 0xFFFFFFFF); // This implementation does not support larger queues
@@ -70,7 +70,7 @@ tQueueHandle QueueInitFromMemory(void *queue_memory, int64_t queue_memory_size, 
         queue = (tQueue *)malloc(queue_memory_size);
         assert(queue != NULL);
         queue->h.from_memory = false;
-        queue->h.buffer_size = (uint32_t)queue_memory_size - sizeof(tQueueHeader);
+        queue->h.buffer_size = queue_memory_size - sizeof(tQueueHeader);
         queue->h.queue_size = queue->h.buffer_size - MAX_ENTRY_SIZE;
         clear_queue = true;
     }
@@ -102,13 +102,10 @@ tQueueHandle QueueInitFromMemory(void *queue_memory, int64_t queue_memory_size, 
         atomic_store_explicit(&queue->h.tail, 0, memory_order_relaxed);
     }
 
-    if (out_buffer_size != NULL)
-        *out_buffer_size = 0; // Queue does not have a fixed content size in bytes
-
     return (tQueueHandle)queue;
 }
 
-tQueueHandle QueueInit(int64_t queue_buffer_size) { return QueueInitFromMemory(NULL, queue_buffer_size + sizeof(tQueueHeader), true, NULL); }
+tQueueHandle QueueInit(uint32_t queue_buffer_size) { return QueueInitFromMemory(NULL, queue_buffer_size + sizeof(tQueueHeader), true); }
 
 void QueueClear(tQueueHandle queueHandle) {
     tQueue *queue = (tQueue *)queueHandle;
@@ -137,7 +134,7 @@ void QueueDeinit(tQueueHandle queueHandle) {
 // For multiple producers !!
 
 // Get a buffer for a message with size
-tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint64_t packet_len) {
+tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint16_t packet_len) {
 
     tQueue *queue = (tQueue *)queueHandle;
     tXcpDtoMessage *entry = NULL;
@@ -158,7 +155,7 @@ tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint64_t packet_len) {
     msg_len = (uint16_t)((msg_len + 7) & 0xFFF8); // Add fill %8
 #endif
 
-    DBG_PRINTF5("QueueAcquire: len=%" PRIu64 "\n", packet_len);
+    DBG_PRINTF5("QueueAcquire: len=%u\n", packet_len);
 
     // Producer lock
     mutexLock(&queue->h.mutex);
@@ -192,7 +189,7 @@ tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint64_t packet_len) {
 
     tQueueBuffer ret = {
         .buffer = entry->data,
-        .size = (int16_t)packet_len,
+        .size = packet_len,
     };
     return ret;
 }

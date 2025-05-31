@@ -509,7 +509,7 @@ void XcpUnlockCalSeg(uint16_t calseg) {
 // XCP client memory read
 // Read xcp or default page
 // Read ecu page is not supported, calibration changes might be stale
-static uint8_t XcpCalSegReadMemory(uint32_t src, uint8_t size, uint8_t *dst) {
+static uint8_t XcpCalSegReadMemory(uint32_t src, uint16_t size, uint8_t *dst) {
     // Decode the source address into calibration segment and offset
     uint16_t calseg = (uint16_t)(src >> 16) & 0x7FFF; // Get the calibration segment number
     uint16_t offset = (uint16_t)(src & 0xFFFF);       // Get the offset within the calibration segment
@@ -581,7 +581,7 @@ uint8_t XcpCalSegPublishAll(bool wait) {
 
 // Xcp client memory write
 // Write xcp page, error on write to default page
-static uint8_t XcpCalSegWriteMemory(uint32_t dst, uint8_t size, const uint8_t *src) {
+static uint8_t XcpCalSegWriteMemory(uint32_t dst, uint16_t size, const uint8_t *src) {
     // Decode the destination address into calibration segment and offset
     uint16_t calseg = (uint16_t)(dst >> 16) & 0x7FFF; // Get the calibration segment number from the address
     uint16_t offset = (uint16_t)(dst & 0xFFFF);       // Get the offset within the calibration segment
@@ -710,7 +710,7 @@ static uint8_t XcpCalSegCommand(uint8_t cmd) {
 
 // Freeze calibration page
 #ifdef XCP_ENABLE_FREEZE_CAL_PAGE
-static uint8_t XcpCalSegCalFreeze() {
+static uint8_t XcpCalSegCalFreeze(void) {
     // not implemented
     return CRC_CMD_UNKNOWN;
 }
@@ -1348,8 +1348,8 @@ static void XcpStopDaqList(uint16_t daq) {
     DaqListState(daq) &= (uint8_t)(~(DAQ_STATE_OVERRUN | DAQ_STATE_RUNNING));
 
     /* Check if all DAQ lists are stopped */
-    for (uint16_t daq = 0; daq < gXcpDaqLists->daq_count; daq++) {
-        if ((DaqListState(daq) & DAQ_STATE_RUNNING) != 0) {
+    for (uint16_t d = 0; d < gXcpDaqLists->daq_count; d++) {
+        if ((DaqListState(d) & DAQ_STATE_RUNNING) != 0) {
             return; // Not all DAQ lists stopped yet
         }
     }
@@ -1384,7 +1384,7 @@ static void XcpStopSelectedDaqLists(void) {
 static void XcpTriggerDaqList(const tXcpDaqLists *daq_lists, tQueueHandle queueHandle, uint16_t daq, const uint8_t *base, uint64_t clock) {
 
     uint8_t *d0;
-    uint32_t odt, hs;
+    uint16_t odt, hs;
 
     // Outer loop
     // Loop over all ODTs of the current DAQ list
@@ -2613,7 +2613,7 @@ void XcpPrint(const char *str) {
     uint8_t i;
     uint16_t l = (uint16_t)strlen(str);
     for (i = 0; i < l && i < XCPTL_MAX_CTO_SIZE - 4; i++)
-        crm.b[i + 2] = str[i];
+        crm.b[i + 2] = (uint8_t)str[i];
     crm.b[i + 2] = '\n';
     crm.b[i + 3] = 0;
     XcpSendCrm((const uint8_t *)&crm, l + 4);

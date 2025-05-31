@@ -234,6 +234,8 @@ typedef pthread_t THREAD;
 #define SOCKET_ERROR_RESET WSAECONNRESET
 #define SOCKET_ERROR_INTR WSAEINTR
 
+int32_t socketGetLastError(void);
+
 #endif
 
 // Timestamp mode
@@ -247,7 +249,6 @@ typedef pthread_t THREAD;
 #define SOCKET_TIMESTAMP_SOFTWARE_SYNC 1
 
 bool socketStartup(void);
-int32_t socketGetLastError(void);
 void socketCleanup(void);
 bool socketOpen(SOCKET *sp, bool useTCP, bool nonBlocking, bool reuseaddr, bool timestamps);
 bool socketBind(SOCKET sock, uint8_t *addr, uint16_t port);
