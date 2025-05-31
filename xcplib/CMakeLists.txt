@@ -13,6 +13,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 project(xcplib VERSION 6.0 LANGUAGES C)
 
+# xcplib
 set(xcplib_SOURCES ./src/xcpAppl.c ./src/xcpLite.c ./src/xcpEthServer.c ./src/xcpEthTl.c  ./src/xcpQueue.c ./src/a2l.c ./src/platform.c   )
 set_source_files_properties(${xcplib_SOURCES} PROPERTIES LANGUAGE C)
 add_library(xcplib ${xcplib_SOURCES})
@@ -27,11 +28,17 @@ target_compile_options(xcplib
         -Wshadow
 )
 
-set(c_demo_SOURCES c_demo.c ${xcplib_SOURCES} )
+# Example hello_xcp
+set(hello_xcp_SOURCES examples/hello_xcp/src/main.c ${xcplib_SOURCES} )
+add_executable(hello_xcp ${hello_xcp_SOURCES})
+target_include_directories(hello_xcp PUBLIC "${PROJECT_SOURCE_DIR}/src" )
+target_link_libraries( hello_xcp PRIVATE xcplib)
+
+# Example c_demo
+set(c_demo_SOURCES examples/c_demo/src/main.c ${xcplib_SOURCES} )
 add_executable(c_demo ${c_demo_SOURCES})
 target_include_directories(c_demo PUBLIC "${PROJECT_SOURCE_DIR}/src" )
 target_link_libraries(c_demo PRIVATE xcplib)
-
 
 if (WINDOWS)
 
@@ -44,5 +51,6 @@ else ()
   #target_link_libraries(c_demo PRIVATE m)
 
   set_target_properties(c_demo PROPERTIES SUFFIX ".out")
+  set_target_properties(hello_xcp PROPERTIES SUFFIX ".out")
 
 endif ()

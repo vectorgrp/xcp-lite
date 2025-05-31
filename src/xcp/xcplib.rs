@@ -124,7 +124,7 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn ApplXcpRegisterCallbacks(
-        cb_connect: ::std::option::Option<unsafe extern "C" fn() -> u8>,
+        cb_connect: ::std::option::Option<unsafe extern "C" fn() -> bool>,
         cb_prepare_daq: ::std::option::Option<unsafe extern "C" fn() -> u8>,
         cb_start_daq: ::std::option::Option<unsafe extern "C" fn() -> u8>,
         cb_stop_daq: ::std::option::Option<unsafe extern "C" fn()>,
@@ -158,7 +158,4 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn XcpEthTlGetInfo(isTCP: *mut bool, mac: *mut u8, addr: *mut u8, port: *mut u16);
-}
-unsafe extern "C" {
-    pub fn c_demo();
 }

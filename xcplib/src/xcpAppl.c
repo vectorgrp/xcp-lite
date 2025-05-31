@@ -46,7 +46,7 @@ void ApplXcpSetLogLevel(uint8_t level) { XcpSetLogLevel(level); }
 // Callbacks
 /**************************************************************************/
 
-static uint8_t (*callback_connect)(void) = NULL;
+static bool (*callback_connect)(void) = NULL;
 static uint8_t (*callback_prepare_daq)(void) = NULL;
 static uint8_t (*callback_start_daq)(void) = NULL;
 static void (*callback_stop_daq)(void) = NULL;
@@ -59,7 +59,7 @@ static uint8_t (*callback_read)(uint32_t src, uint8_t size, uint8_t *dst) = NULL
 static uint8_t (*callback_write)(uint32_t dst, uint8_t size, const uint8_t *src, uint8_t delay) = NULL;
 static uint8_t (*callback_flush)(void) = NULL;
 
-void ApplXcpRegisterCallbacks(uint8_t (*cb_connect)(void), uint8_t (*cb_prepare_daq)(void), uint8_t (*cb_start_daq)(void), void (*cb_stop_daq)(void),
+void ApplXcpRegisterCallbacks(bool (*cb_connect)(void), uint8_t (*cb_prepare_daq)(void), uint8_t (*cb_start_daq)(void), void (*cb_stop_daq)(void),
                               uint8_t (*cb_freeze_daq)(uint8_t clear, uint16_t config_id), uint8_t (*cb_get_cal_page)(uint8_t segment, uint8_t mode),
                               uint8_t (*cb_set_cal_page)(uint8_t segment, uint8_t page, uint8_t mode), uint8_t (*cb_freeze_cal)(void),
                               uint8_t (*cb_init_cal)(uint8_t src_page, uint8_t dst_page),
@@ -85,7 +85,7 @@ void ApplXcpRegisterCallbacks(uint8_t (*cb_connect)(void), uint8_t (*cb_prepare_
 #endif
 }
 
-void ApplXcpRegisterConnectCallback(uint8_t (*cb_connect)(void)) { callback_connect = cb_connect; }
+void ApplXcpRegisterConnectCallback(bool (*cb_connect)(void)) { callback_connect = cb_connect; }
 
 /**************************************************************************/
 // General notifications from XCPlite.c

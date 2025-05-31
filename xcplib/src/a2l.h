@@ -61,15 +61,6 @@
 #define A2lTypedefComponent(fieldName, type, instanceName) A2lTypedefMeasurementComponent_(#fieldName, type, ((uint8_t *)&(instanceName.fieldName) - (uint8_t *)&instanceName))
 #define A2lTypedefEnd() A2lTypedefEnd_()
 
-// Init A2L generation
-bool A2lOpen(const char *filename, const char *projectName);
-
-// Create memory segments
-void A2lCreate_MOD_PAR(char *epk);
-
-// Create XCP IF_DATA
-void A2lCreate_ETH_IF_DATA(bool useTCP, const uint8_t *addr, uint16_t port);
-
 // Set for all following A2lCreateXxxx
 void A2lSetAbsAddrMode(void);
 void A2lSetSegAddrMode(uint16_t calseg_index, const uint8_t *calseg);
@@ -103,10 +94,13 @@ void A2lParameterGroupFromList(const char *name, const char *pNames[], int count
 void A2lMeasurementGroup(const char *name, int count, ...);
 void A2lMeasurementGroupFromList(const char *name, char *names[], uint32_t count);
 
-// Finish A2L generation
-void A2lClose(void);
-
 // Helpers for A2L generation macros
 uint32_t A2lGetAddr(const uint8_t *addr);
 uint8_t A2lGetAddrExt(void);
 bool A2lOnce(atomic_bool *once);
+
+// Init A2L generation
+bool A2lInit(const char *a2l_filename, const char *a2l_projectname, const uint8_t *addr, uint16_t port, bool useTCP, bool finalize_on_connect);
+
+// Finish A2L generation
+bool A2lFinalize(void);

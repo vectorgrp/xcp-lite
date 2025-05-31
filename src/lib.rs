@@ -56,9 +56,6 @@ pub use xcp::XcpTransportLayer;
 #[doc(hidden)] // For macro use only
 pub use xcp::daq::daq_event::DaqEvent;
 
-// @@@@ TODO temporary Reexport xcplib for xcplib_demo
-pub use xcp::xcplib::*;
-
 // Public submodule registry
 pub mod registry;
 pub use registry::McValueTypeTrait;

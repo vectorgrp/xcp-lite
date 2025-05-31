@@ -408,7 +408,7 @@ static const char *getPhysMax(int32_t type, double factor, double offset) {
     return str;
 }
 
-bool A2lOpen(const char *filename, const char *projectName) {
+static bool A2lOpen(const char *filename, const char *projectName) {
 
     DBG_PRINTF3("\nA2L create %s\n", filename);
 
@@ -443,7 +443,7 @@ bool A2lOpen(const char *filename, const char *projectName) {
 }
 
 // Memory segments
-void A2lCreate_MOD_PAR(char *epk) {
+static void A2lCreate_MOD_PAR(char *epk) {
     if (gA2lFile != NULL) {
 
         ApplXcpSetEpk(epk);
@@ -500,7 +500,7 @@ static void A2lCreate_IF_DATA_DAQ(void) {
     fprintf(gA2lFile, gA2lIfDataEndDAQ);
 }
 
-void A2lCreate_ETH_IF_DATA(bool useTCP, const uint8_t *addr, uint16_t port) {
+static void A2lCreate_ETH_IF_DATA(bool useTCP, const uint8_t *addr, uint16_t port) {
     if (gA2lFile != NULL) {
 
         fprintf(gA2lFile, gA2lIfDataBegin);
@@ -529,7 +529,7 @@ void A2lCreate_ETH_IF_DATA(bool useTCP, const uint8_t *addr, uint16_t port) {
     }
 }
 
-void A2lCreateMeasurement_IF_DATA(void) {
+static void A2lCreateMeasurement_IF_DATA(void) {
     if (gA2lFile != NULL) {
         if (gA2lFixedEvent != XCP_UNDEFINED_EVENT_CHANNEL) {
             fprintf(gA2lFile, " /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT 0x%X /end DAQ_EVENT /end IF_DATA", gA2lFixedEvent);
@@ -821,18 +821,52 @@ void A2lMeasurementGroupFromList(const char *name, char *names[], uint32_t count
     fprintf(gA2lFile, "\n/end GROUP\n\n");
 }
 
-void A2lClose(void) {
+//----------------------------------------------------------------------------------
+
+bool A2lOnce(atomic_bool *value) {
+    bool old_value = false;
+    return atomic_compare_exchange_strong_explicit(value, &old_value, true, memory_order_acquire, memory_order_relaxed);
+}
+
+//-----------------------------------------------------------------------------------------------------
+// A2L file generation and finalization on XCP connect
+
+static bool gA2lUseTCP = false;
+static uint16_t gA2lOptionPort = 5555;
+static uint8_t gA2lOptionBindAddr[4] = {0, 0, 0, 0};
+
+// Finalize A2L file generation
+bool A2lFinalize(void) {
 
     if (gA2lFile != NULL) {
+
+        // @@@@ TODO: Add a version string for the application here
+        A2lCreate_MOD_PAR("EPK_xxxx");
+
+        A2lCreate_ETH_IF_DATA(gA2lUseTCP, gA2lOptionBindAddr, gA2lOptionPort);
+
         fprintf(gA2lFile, "%s", gA2lFooter);
         fclose(gA2lFile);
         gA2lFile = NULL;
         DBG_PRINTF3("A2L created: %u measurements, %u params, %u typedefs, %u components, %u instances, %u conversions\n\n", gA2lMeasurements, gA2lParameters, gA2lTypedefs,
                     gA2lComponents, gA2lInstances, gA2lConversions);
     }
+    return true;
 }
 
-bool A2lOnce(atomic_bool *value) {
-    bool old_value = false;
-    return atomic_compare_exchange_strong_explicit(value, &old_value, true, memory_order_acquire, memory_order_relaxed);
+// Open the A2L file and register the finalize callback
+bool A2lInit(const char *a2l_filename, const char *a2l_projectname, const uint8_t *addr, uint16_t port, bool useTCP, bool finalize_on_connect) {
+    assert(a2l_filename != NULL);
+    assert(a2l_projectname != NULL);
+    assert(addr != NULL);
+    memcpy(&gA2lOptionBindAddr, addr, 4);
+    gA2lOptionPort = port;
+    gA2lUseTCP = useTCP;
+    if (!A2lOpen(a2l_filename, a2l_projectname)) {
+        printf("Failed to open A2L file %s\n", a2l_filename);
+        return false;
+    }
+    if (finalize_on_connect)
+        ApplXcpRegisterConnectCallback(A2lFinalize);
+    return true;
 }
