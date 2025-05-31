@@ -831,3 +831,8 @@ void A2lClose() {
                     gA2lComponents, gA2lInstances, gA2lConversions);
     }
 }
+
+bool A2lOnce(atomic_bool *value) {
+    atomic_bool old_value;
+    return atomic_compare_exchange_strong_explicit(value, &old_value, true, memory_order_acquire, memory_order_relaxed);
+}

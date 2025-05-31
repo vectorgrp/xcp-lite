@@ -26,7 +26,7 @@ uint16_t gOptionPort = OPTION_SERVER_PORT;
 uint8_t gOptionBindAddr[4] = OPTION_SERVER_ADDR;
 
 //-----------------------------------------------------------------------------------------------------
-// A2L file generation
+// A2L file generation and finalization on XCP connect
 
 #define OPTION_A2L_NAME "C_Demo"          // A2L name
 #define OPTION_A2L_FILE_NAME "C_Demo.a2l" // A2L filename
@@ -34,7 +34,7 @@ uint8_t gOptionBindAddr[4] = OPTION_SERVER_ADDR;
 // Finalize A2L file generation
 static uint8_t A2lFinalize(void) {
 
-        // @@@@ TODO: Add a version string for the application here
+    // @@@@ TODO: Add a version string for the application here
     A2lCreate_MOD_PAR("EPK_xxxx");
     A2lCreate_ETH_IF_DATA(gOptionUseTCP, gOptionBindAddr, gOptionPort);
     A2lClose();
@@ -146,13 +146,7 @@ void c_demo(void) {
         // Insert test_byte1 and test_byte2 into a CANape calibration window, enable indirect calibration, use the update button for the calibration window for consistent
         // modification
         params_t params_copy = *params; // Test: for measure of the calibration parameters, copy the current calibration parameters to a local variable
-        {
-            static bool __a2l_register_once = true;
-            if (__a2l_register_once) {
-                __a2l_register_once = false;
-                A2lCreateTypedefInstance(params_copy, params_t, "A copy of the current calibration parameters");
-            }
-        }
+        A2lCreateTypedefInstance(params_copy, params_t, "A copy of the current calibration parameters");
         if (params->test_byte1 != -params->test_byte2) {
             char buffer[64];
             snprintf(buffer, sizeof(buffer), "Inconsistent %u:  %d -  %d", counter, params->test_byte1, params->test_byte2);
