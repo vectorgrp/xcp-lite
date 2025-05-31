@@ -33,11 +33,12 @@ uint8_t gOptionBindAddr[4] = OPTION_SERVER_ADDR;
 
 // Finalize A2L file generation
 static uint8_t A2lFinalize(void) {
-    // @@@@ TODO: Add a version string for the application here
+
+        // @@@@ TODO: Add a version string for the application here
     A2lCreate_MOD_PAR("EPK_xxxx");
     A2lCreate_ETH_IF_DATA(gOptionUseTCP, gOptionBindAddr, gOptionPort);
     A2lClose();
-    return 0; // Indicate success
+    return true; // Indicate success
 }
 
 // Open the A2L file and register the finalize callback
@@ -46,20 +47,20 @@ static void A2lInit(void) {
         printf("Failed to open A2L file %s\n", OPTION_A2L_FILE_NAME);
         return;
     }
-    // ApplXcpRegisterConnectCallback(A2lFinalize);
+    ApplXcpRegisterConnectCallback(A2lFinalize);
 }
 
 //-----------------------------------------------------------------------------------------------------
 
 // Demo calibration parameters
-struct params_t {
+typedef struct params {
     uint16_t counter_max; // Maximum value for the counters
     uint32_t delay_us;    // Delay in microseconds for the main loop
     int8_t test_byte1;
     int8_t test_byte2;
-};
+} params_t;
 
-const struct params_t params = {.counter_max = 1000, .delay_us = 1000, .test_byte1 = -1, .test_byte2 = 1};
+const params_t params = {.counter_max = 1000, .delay_us = 1000, .test_byte1 = -1, .test_byte2 = 1};
 
 //-----------------------------------------------------------------------------------------------------
 
@@ -94,7 +95,7 @@ void c_demo(void) {
     // Note that it can be used in only one ECU thread (in Rust terminology, it is Send, but not Sync)
     uint16_t calseg = XcpCreateCalSeg("params", (const uint8_t *)&params, sizeof(params));
 
-    // Register calibration parameters in the calibration segment for A2L file generation
+    // Register individual calibration parameters in the calibration segment
     A2lSetSegAddrMode(calseg, (uint8_t *)&params);
     A2lCreateParameterWithLimits(params.counter_max, A2L_TYPE_UINT16, "maximum counter value", "", 0, 2000);
     A2lCreateParameterWithLimits(params.delay_us, A2L_TYPE_UINT32, "mainloop delay time in ue", "us", 0, 1000000);
@@ -108,7 +109,7 @@ void c_demo(void) {
     A2lSetAbsAddrMode(); // Set absolute addressing
     A2lCreatePhysMeasurement(counter_global, A2L_TYPE_UINT16, "Measurement variable", 1.0, 0.0, "counts");
 
-    // A demo variable on stack
+    // Variables on stack
     uint16_t counter = 0;
 
     // Create a measurement event for local variables
@@ -118,13 +119,19 @@ void c_demo(void) {
     A2lSetRelAddrMode(&event); // Set event relative addressing
     A2lCreatePhysMeasurement(counter, A2L_TYPE_UINT16, "Measurement variable", 1.0, 0.0, "counts");
 
-    A2lFinalize();
+    // Create a typedef for the calibration parameter struct
+    A2lTypedefBegin(params_t, "The calibration parameter struct as measurement typedef");
+    A2lTypedefComponent(test_byte1, A2L_TYPE_INT8, params);
+    A2lTypedefComponent(test_byte2, A2L_TYPE_INT8, params);
+    A2lTypedefComponent(counter_max, A2L_TYPE_UINT16, params);
+    A2lTypedefComponent(delay_us, A2L_TYPE_UINT32, params);
+    A2lTypedefEnd();
 
     for (;;) {
         // Lock the calibration parameter segment for consistent and safe access
         // Calibration segment locking is completely lock-free and wait-free (no mutexes, system calls or CAS operations )
         // It returns a pointer to the active page (working or reference) of the calibration segment
-        struct params_t *params = (struct params_t *)XcpLockCalSeg(calseg);
+        params_t *params = (params_t *)XcpLockCalSeg(calseg);
 
         // Sleep for the specified delay parameter in microseconds
         sleepNs(params->delay_us * 1000);
@@ -138,6 +145,14 @@ void c_demo(void) {
         // Demonstrate calibration consistency
         // Insert test_byte1 and test_byte2 into a CANape calibration window, enable indirect calibration, use the update button for the calibration window for consistent
         // modification
+        params_t params_copy = *params; // Test: for measure of the calibration parameters, copy the current calibration parameters to a local variable
+        {
+            static bool __a2l_register_once = true;
+            if (__a2l_register_once) {
+                __a2l_register_once = false;
+                A2lCreateTypedefInstance(params_copy, params_t, "A copy of the current calibration parameters");
+            }
+        }
         if (params->test_byte1 != -params->test_byte2) {
             char buffer[64];
             snprintf(buffer, sizeof(buffer), "Inconsistent %u:  %d -  %d", counter, params->test_byte1, params->test_byte2);

@@ -444,29 +444,27 @@ bool A2lOpen(const char *filename, const char *projectName) {
 
 // Memory segments
 void A2lCreate_MOD_PAR(char *epk) {
+    if (gA2lFile != NULL) {
 
-    ApplXcpSetEpk(epk);
+        ApplXcpSetEpk(epk);
 
 #ifdef XCP_ENABLE_CALSEG_LIST
-    assert(gA2lFile != NULL);
-    fprintf(gA2lFile, "\n/begin MOD_PAR \"\"\n");
-    if (epk)
-        fprintf(gA2lFile, "EPK \"%s\"\n", epk);
-    // fprintf(gA2lFile, "ADDR_EPK 0x%08X\n",0)); // @@@@ TODO: EPK address is not implemented yet
+        fprintf(gA2lFile, "\n/begin MOD_PAR \"\"\n");
+        if (epk)
+            fprintf(gA2lFile, "EPK \"%s\"\n", epk);
 
-    tXcpCalSegList const *calSegList = XcpGetCalSegList();
-    for (uint32_t i = 0; i < calSegList->count; i++) {
-        tXcpCalSeg const *calseg = &calSegList->calseg[i];
-        fprintf(gA2lFile, gA2lMemorySegment, calseg->name, (i << 16) | 0x80000000, calseg->size);
+        tXcpCalSegList const *calSegList = XcpGetCalSegList();
+        for (uint32_t i = 0; i < calSegList->count; i++) {
+            tXcpCalSeg const *calseg = &calSegList->calseg[i];
+            fprintf(gA2lFile, gA2lMemorySegment, calseg->name, (i << 16) | 0x80000000, calseg->size);
+        }
+
+        fprintf(gA2lFile, "/end MOD_PAR\n\n");
     }
-
-    fprintf(gA2lFile, "/end MOD_PAR\n\n");
 #endif
 }
 
 static void A2lCreate_IF_DATA_DAQ() {
-
-    assert(gA2lFile != NULL);
 
 #if defined(XCP_ENABLE_DAQ_EVENT_LIST) && !defined(XCP_ENABLE_DAQ_EVENT_INFO)
     tXcpEventList *eventList;
@@ -503,39 +501,41 @@ static void A2lCreate_IF_DATA_DAQ() {
 }
 
 void A2lCreate_ETH_IF_DATA(bool useTCP, const uint8_t *addr, uint16_t port) {
+    if (gA2lFile != NULL) {
 
-    fprintf(gA2lFile, gA2lIfDataBegin);
+        fprintf(gA2lFile, gA2lIfDataBegin);
 
-    // Protocol Layer info
-    fprintf(gA2lFile, gA2lIfDataProtocolLayer, XCP_PROTOCOL_LAYER_VERSION, XCPTL_MAX_CTO_SIZE, XCPTL_MAX_DTO_SIZE);
+        // Protocol Layer info
+        fprintf(gA2lFile, gA2lIfDataProtocolLayer, XCP_PROTOCOL_LAYER_VERSION, XCPTL_MAX_CTO_SIZE, XCPTL_MAX_DTO_SIZE);
 
-    // DAQ info
-    A2lCreate_IF_DATA_DAQ();
+        // DAQ info
+        A2lCreate_IF_DATA_DAQ();
 
-    // Transport Layer info
-    uint8_t addr0[] = {127, 0, 0, 1}; // Use localhost if no other option
-    if (addr != NULL && addr[0] != 0) {
-        memcpy(addr0, addr, 4);
-    } else {
-        socketGetLocalAddr(NULL, addr0);
+        // Transport Layer info
+        uint8_t addr0[] = {127, 0, 0, 1}; // Use localhost if no other option
+        if (addr != NULL && addr[0] != 0) {
+            memcpy(addr0, addr, 4);
+        } else {
+            socketGetLocalAddr(NULL, addr0);
+        }
+        char addrs[17];
+        SPRINTF(addrs, "%u.%u.%u.%u", addr0[0], addr0[1], addr0[2], addr0[3]);
+        char *prot = useTCP ? (char *)"TCP" : (char *)"UDP";
+        fprintf(gA2lFile, gA2lIfDataEth, prot, XCP_TRANSPORT_LAYER_VERSION, port, addrs, prot);
+
+        fprintf(gA2lFile, gA2lIfDataEnd);
+
+        DBG_PRINTF3("A2L IF_DATA XCP_ON_%s, ip=%s, port=%u\n", prot, addrs, port);
     }
-    char addrs[17];
-    SPRINTF(addrs, "%u.%u.%u.%u", addr0[0], addr0[1], addr0[2], addr0[3]);
-    char *prot = useTCP ? (char *)"TCP" : (char *)"UDP";
-    fprintf(gA2lFile, gA2lIfDataEth, prot, XCP_TRANSPORT_LAYER_VERSION, port, addrs, prot);
-
-    fprintf(gA2lFile, gA2lIfDataEnd);
-
-    DBG_PRINTF3("A2L IF_DATA XCP_ON_%s, ip=%s, port=%u\n", prot, addrs, port);
 }
 
 void A2lCreateMeasurement_IF_DATA() {
-
-    assert(gA2lFile != NULL);
-    if (gA2lFixedEvent != XCP_UNDEFINED_EVENT_CHANNEL) {
-        fprintf(gA2lFile, " /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT 0x%X /end DAQ_EVENT /end IF_DATA", gA2lFixedEvent);
-    } else if (gA2lDefaultEvent != XCP_UNDEFINED_EVENT_CHANNEL) {
-        fprintf(gA2lFile, " /begin IF_DATA XCP /begin DAQ_EVENT VARIABLE DEFAULT_EVENT_LIST EVENT 0x%X /end DAQ_EVENT /end IF_DATA", gA2lDefaultEvent);
+    if (gA2lFile != NULL) {
+        if (gA2lFixedEvent != XCP_UNDEFINED_EVENT_CHANNEL) {
+            fprintf(gA2lFile, " /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT 0x%X /end DAQ_EVENT /end IF_DATA", gA2lFixedEvent);
+        } else if (gA2lDefaultEvent != XCP_UNDEFINED_EVENT_CHANNEL) {
+            fprintf(gA2lFile, " /begin IF_DATA XCP /begin DAQ_EVENT VARIABLE DEFAULT_EVENT_LIST EVENT 0x%X /end DAQ_EVENT /end IF_DATA", gA2lDefaultEvent);
+        }
     }
 }
 
@@ -546,33 +546,23 @@ const uint8_t *gA2lAddrBase = NULL;     // Event or calseg address for XCP_ADDR_
 uint16_t gA2lAddrIndex = 0;             // Segment index for XCP_ADDR_EXT_SEG
 
 void A2lSetAbsAddrMode() {
-
-    assert(gA2lFile != NULL);
-
     gAl2AddrExt = XCP_ADDR_EXT_ABS;
     A2lRstFixedEvent();
 }
 
 void A2lSetRelAddrMode(const uint16_t *event) {
-
-    assert(gA2lFile != NULL);
     gA2lAddrBase = (uint8_t *)event;
     gAl2AddrExt = XCP_ADDR_EXT_REL;
     A2lSetFixedEvent(*event);
 }
 
 void A2lSetSegAddrMode(uint16_t calseg_index, const uint8_t *calseg) {
-
-    assert(gA2lFile != NULL);
     gA2lAddrIndex = calseg_index;
     gA2lAddrBase = calseg;
     gAl2AddrExt = XCP_ADDR_EXT_SEG;
 }
 
-uint8_t A2lGetAddrExt() {
-    assert(gA2lFile != NULL);
-    return gAl2AddrExt;
-}
+uint8_t A2lGetAddrExt() { return gAl2AddrExt; }
 
 uint32_t A2lGetAddr(uint8_t const *p) {
     switch (gAl2AddrExt) {
@@ -599,7 +589,6 @@ uint32_t A2lGetAddr(uint8_t const *p) {
 //----------------------------------------------------------------------------------
 
 void A2lSetDefaultEvent(uint16_t event) {
-
     A2lRstFixedEvent();
     gA2lDefaultEvent = event;
 }
@@ -617,21 +606,34 @@ void A2lRstFixedEvent() { gA2lFixedEvent = XCP_UNDEFINED_EVENT_CHANNEL; }
 void A2lTypedefBegin_(const char *name, uint32_t size, const char *comment) {
 
     assert(gA2lFile != NULL);
-    fprintf(gA2lFile, "/begin TYPEDEF_STRUCTURE %s \"%s\" 0x%X SYMBOL_TYPE_LINK \"%s\"\n", name, comment, size, name);
+    fprintf(gA2lFile, "/begin TYPEDEF_STRUCTURE %s \"%s\" 0x%X", name, comment, size);
+#ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
+    fprintf(gA2lFile, " SYMBOL_TYPE_LINK \"%s\"", name, 0);
+#endif
+    fprintf(gA2lFile, "\n");
     gA2lTypedefs++;
 }
 
 void A2lTypedefMeasurementComponent_(const char *name, int32_t type, uint32_t offset) {
 
     assert(gA2lFile != NULL);
-    fprintf(gA2lFile, "  /begin STRUCTURE_COMPONENT %s M_%s 0x%X SYMBOL_TYPE_LINK \"%s\" /end STRUCTURE_COMPONENT\n", name, getTypeName(type), offset, name);
+    fprintf(gA2lFile, "  /begin STRUCTURE_COMPONENT %s M_%s 0x%X", name, getTypeName(type), offset);
+#ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
+    fprintf(gA2lFile, " SYMBOL_TYPE_LINK \"%s\"", name, 0);
+#endif
+    fprintf(gA2lFile, " /end STRUCTURE_COMPONENT\n");
+
     gA2lComponents++;
 }
 
 void A2lTypedefParameterComponent_(const char *name, int32_t type, uint32_t offset) {
 
     assert(gA2lFile != NULL);
-    fprintf(gA2lFile, "  /begin STRUCTURE_COMPONENT %s C_%s 0x%X SYMBOL_TYPE_LINK \"%s\" /end STRUCTURE_COMPONENT\n", name, getTypeName(type), offset, name);
+    fprintf(gA2lFile, "  /begin STRUCTURE_COMPONENT %s C_%s 0x%X", name, getTypeName(type), offset);
+#ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
+    fprintf(gA2lFile, " SYMBOL_TYPE_LINK \"%s\"", name, 0);
+#endif
+    fprintf(gA2lFile, " /end STRUCTURE_COMPONENT\n");
     gA2lComponents++;
 }
 

@@ -145,6 +145,12 @@
 #endif
 
 /****************************************************************************/
+/* Forward declarations of static functions                                 */
+/****************************************************************************/
+
+static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLen);
+
+/****************************************************************************/
 /* XCP packet                                                               */
 /****************************************************************************/
 
@@ -274,8 +280,6 @@ static bool gXcpDaqListsExternal = false;
 #define CRM_BYTE(x) (gXcp.Crm.b[x])
 #define CRM_WORD(x) (gXcp.Crm.w[x])
 #define CRM_DWORD(x) (gXcp.Crm.dw[x])
-
-static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLen);
 
 /* Error handling */
 #define error(e)                                                                                                                                                                   \
@@ -1670,12 +1674,9 @@ static uint8_t XcpPushCommand(const tXcpCto *cmdBuf, uint8_t cmdLen) {
 // Execute XCP commands
 // Returns
 //  CRC_CMD_IGNORED if not in connected state and no response was sent
-//  CRC_CMD_BUSY if a command response is pending, while receiving another command
+//  CRC_CMD_BUSY if a command response is pending, while receiving another command or connect denied
 //  The XCP error if an error response was pushed to the queue
-uint8_t XcpCommand(const uint32_t *cmdBuf, uint8_t cmdLen) {
-    //
-    return XcpAsyncCommand(false, cmdBuf, cmdLen);
-}
+uint8_t XcpCommand(const uint32_t *cmdBuf, uint8_t cmdLen) { return XcpAsyncCommand(false, cmdBuf, cmdLen); }
 
 //  Handles incoming or async XCP commands
 static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLen) {
@@ -1710,7 +1711,7 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
 
         // Check application is ready for XCP connect
         if (!ApplXcpConnect())
-            error(CRC_ACCESS_DENIED);
+            return CRC_CMD_OK; // Application not ready, ignore
 
         // Initialize Session Status
         gXcp.SessionStatus = (SS_INITIALIZED | SS_STARTED | SS_CONNECTED | SS_LEGACY_MODE);

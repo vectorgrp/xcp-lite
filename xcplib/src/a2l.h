@@ -27,18 +27,15 @@
 // Create measurements
 #define A2lCreateMeasurement(name, type, comment) A2lCreateMeasurement_(NULL, #name, type, A2lGetAddrExt(), A2lGetAddr((uint8_t *)&(name)), 1.0, 0.0, NULL, comment)
 #define A2lCreatePhysMeasurement(name, type, comment, factor, offset, unit)                                                                                                        \
-    A2lCreateMeasurement_(NULL, #name, type, A2lGetAddrExt(), A2lGetAddr((uint8_t *)&name), factor, offset, unit,                                                                  \
-                          comment) // unsigned integer (8/16/32) with linear physical conversion rule
-#define A2lCreateMeasurementArray(name, type)                                                                                                                                      \
-    A2lCreateMeasurementArray_(NULL, #name, type, sizeof(name) / sizeof(name[0]), A2lGetAddrExt(), A2lGetAddr(&name[0])) // unsigned integer (8/16/32) or double array
+    A2lCreateMeasurement_(NULL, #name, type, A2lGetAddrExt(), A2lGetAddr((uint8_t *)&name), factor, offset, unit, comment)
+#define A2lCreateMeasurementArray(name, type) A2lCreateMeasurementArray_(NULL, #name, type, sizeof(name) / sizeof(name[0]), A2lGetAddrExt(), A2lGetAddr(&name[0]))
 
 // Create typedefs
-#define A2lTypedefComponent(name, type, offset) A2lTypedefMeasurementComponent_(#name, type, offset)
 #define A2lTypedefBegin(name, comment) A2lTypedefBegin_(#name, (uint32_t)sizeof(name), comment)
+#define A2lTypedefComponent(fieldName, type, instanceName) A2lTypedefMeasurementComponent_(#fieldName, type, ((uint8_t *)&(instanceName.fieldName) - (uint8_t *)&instanceName))
 #define A2lTypedefEnd() A2lTypedefEnd_()
-#define A2lCreateTypedefInstance(instanceName, typeName, ext, addr, comment)                                                                                                       \
-    A2lCreateTypedefInstance_(instanceName, typeName, A2lGetAddrExt(), A2lGetAddr((uint8_t *)&instanceName), comment)
-#define A2lCreateDynTypedefInstance(instanceName, typeName, comment) A2lCreateTypedefInstance_(instanceName, typeName, 1, 0, comment)
+#define A2lCreateTypedefInstance(instanceName, typeName, comment)                                                                                                                  \
+    A2lCreateTypedefInstance_(#instanceName, #typeName, A2lGetAddrExt(), A2lGetAddr((uint8_t *)&instanceName), comment)
 
 // Init A2L generation
 extern bool A2lOpen(const char *filename, const char *projectName);

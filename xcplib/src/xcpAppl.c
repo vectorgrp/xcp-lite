@@ -449,14 +449,13 @@ void ApplXcpSetEpk(const char *epk) {
 static FILE *gXcpFile = NULL;       // A2l file content
 static uint32_t gXcpFileLength = 0; // A2L file length
 
-void closeA2lFile(void) {
+static void closeA2lFile(void) {
     assert(gXcpFile != NULL);
     fclose(gXcpFile);
     gXcpFile = NULL;
-    DBG_PRINT3("Close A2L file\n");
 }
 
-uint32_t openA2lFile(void) {
+static uint32_t openA2lFile(void) {
     char filename[256];
     if (gXcpA2lName == NULL)
         return 0; // A2L file is not available

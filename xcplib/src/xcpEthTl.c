@@ -518,34 +518,6 @@ void XcpEthTlGetInfo(bool *isTcp, uint8_t *mac, uint8_t *addr, uint16_t *port) {
 //----------------------------------------------------------------------------
 // Generic transport layer functions
 
-// Execute XCP command
-// Returns XCP error code
-uint8_t XcpTlCommand(uint16_t msgLen, const uint8_t *msgBuf) {
-
-    bool connected = XcpIsConnected();
-    tXcpCtoMessage *p = (tXcpCtoMessage *)msgBuf;
-    assert(msgLen >= p->dlc + XCPTL_TRANSPORT_LAYER_HEADER_SIZE);
-
-    /* Connected */
-    if (connected) {
-        if (p->dlc > XCPTL_MAX_CTO_SIZE)
-            return CRC_CMD_SYNTAX;
-        return XcpCommand((const uint32_t *)&p->packet[0], p->dlc); // Handle command
-    }
-
-    /* Not connected yet */
-    else {
-        /* Check for CONNECT command ? */
-        if (p->dlc == 2 && p->packet[0] == CC_CONNECT) {
-            QueueClear(gXcpTl.queue_handle);
-            return XcpCommand((const uint32_t *)&p->packet[0], (uint8_t)p->dlc); // Handle CONNECT command
-        } else {
-            DBG_PRINTF_WARNING("WARNING: XcpTlCommand: no valid CONNECT command, dlc=%u, data=%02X\n", p->dlc, p->packet[0]);
-            return CRC_CMD_SYNTAX;
-        }
-    }
-}
-
 // Transmit all completed and fully commited UDP frames
 // Returns number of bytes sent or -1 on error
 int32_t XcpTlHandleTransmitQueue(void) {
