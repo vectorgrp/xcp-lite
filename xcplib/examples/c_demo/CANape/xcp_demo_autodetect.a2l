@@ -51,7 +51,7 @@ ALIGNMENT_INT64 1
 /begin CHARACTERISTIC params.test_byte1 "" VALUE 0x80000008 S8 0 NO_COMPU_METHOD -128 127 /end CHARACTERISTIC
 /begin CHARACTERISTIC params.test_byte2 "" VALUE 0x80000009 S8 0 NO_COMPU_METHOD -128 127 /end CHARACTERISTIC
 /begin COMPU_METHOD counter_global.Conversion "" LINEAR "%6.3" "counts" COEFFS_LINEAR 1 0 /end COMPU_METHOD
-/begin MEASUREMENT counter_global "Measurement variable" UWORD counter_global.Conversion 0 0 0.000000 65535.000000 ECU_ADDRESS 0xF05A2 ECU_ADDRESS_EXTENSION 1 PHYS_UNIT "counts" READ_WRITE /end MEASUREMENT
+/begin MEASUREMENT counter_global "Measurement variable" UWORD counter_global.Conversion 0 0 0.000000 65535.000000 ECU_ADDRESS 0x1C03A ECU_ADDRESS_EXTENSION 1 PHYS_UNIT "counts" READ_WRITE /end MEASUREMENT
 /begin COMPU_METHOD counter.Conversion "" LINEAR "%6.3" "counts" COEFFS_LINEAR 1 0 /end COMPU_METHOD
 /begin MEASUREMENT counter "Measurement variable" UWORD counter.Conversion 0 0 0.000000 65535.000000 ECU_ADDRESS 0x2 ECU_ADDRESS_EXTENSION 3 PHYS_UNIT "counts" READ_WRITE /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT 0x1 /end DAQ_EVENT /end IF_DATA /end MEASUREMENT
 /begin TYPEDEF_STRUCTURE params_t "The calibration parameter struct as measurement typedef" 0xC

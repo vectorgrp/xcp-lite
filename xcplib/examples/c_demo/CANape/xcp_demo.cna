@@ -1,8 +1,8 @@
 [FILE_INFO]
 Identification=CANape-Configuration-File
 FileName=xcp_demo.cna
-FileNameAbsolute=Y:\xcp-lite-RainerZ\examples\xcplib_demo\CANape\xcp_demo.cna
-WorkingDirectory=Y:\xcp-lite-RainerZ\examples\xcplib_demo\CANape
+FileNameAbsolute=Y:\xcp-lite-RainerZ\xcplib\examples\c_demo\CANape\xcp_demo.cna
+WorkingDirectory=Y:\xcp-lite-RainerZ\xcplib\examples\c_demo\CANape
 ProjectId=07e8-0007-0007-0015-0002-0030-0000
 FileVersion=2200
 PrgVersion=Version 23.0.11.121 HF1
@@ -10,7 +10,7 @@ PrgDate=29.04.2025
 Description=
 CreationTime=21:05
 CreationDate=07/07/2024 ; Month/Day/Year
-ModificationTime=15:05
+ModificationTime=23:30
 ModificationDate=05/31/2025 ; Month/Day/Year
 Protected=0
 CurrentWindowsACP=1252
@@ -920,7 +920,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_95c73533-0136-4921-9d72-431cbd0c65ed
+GUID=DISPLAY_fe109560-eacd-42f9-b5c5-f4f0257d386f
 
 [WINDOW_1_OBJECT_2]
 Type=2
@@ -969,7 +969,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_1f79ec2c-abc0-422e-a5dd-8fc4b36c5d66
+GUID=DISPLAY_ffd45584-07a5-47e3-b4c3-1e104a2e9b67
 
 [WINDOW_1_OBJECT_3]
 Type=2
@@ -1018,7 +1018,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_37e54709-ea88-40ef-a9de-d7e99406a316
+GUID=DISPLAY_c75263b8-6406-4531-afdc-dd3dffbab26a
 
 [WINDOW_1_OBJECT_4]
 Type=2
@@ -1067,7 +1067,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_d7efa738-e61c-4a19-aced-a08331d7b4e3
+GUID=DISPLAY_2e338630-c65f-4197-b78c-17269d04ab15
 
 [WINDOW_2]
 ComponentCount=1
@@ -1089,8 +1089,8 @@ DisplayMask=1 ; pages 1
 XLen=14356
 XMin=0
 XMinNs=0
-XMax=47680
-XMaxNs=47680931309
+XMax=32641
+XMaxNs=32641468506
 Grid=1
 Mark=1
 YValue=2
