@@ -711,14 +711,14 @@ const CAL_PAGE_MODE_XCP: u8 = 0x02;
 const CAL_PAGE_MODE_ALL: u8 = 0x80; // switch all segments simultaneously
 
 #[unsafe(no_mangle)]
-extern "C" fn cb_connect() -> u8 {
+extern "C" fn cb_connect() -> bool {
     {
         log::trace!("cb_connect: generate and write Al2 file");
         if let Err(e) = XCP.finalize_registry() {
             log::error!("connect refused, A2L file write failed, {}", e);
-            return FALSE;
+            return false;
         }
-        TRUE
+        true
     }
 }
 

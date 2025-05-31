@@ -9,8 +9,65 @@
 
 use parking_lot::Mutex;
 use std::{error::Error, sync::Arc};
+
 mod xcp_client;
 use xcp_client::*;
+
+mod xcp_test_executor;
+use xcp_test_executor::test_executor;
+
+//-----------------------------------------------------------------------------
+// Command line arguments
+
+use clap::Parser;
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    // -l --log-level
+    /// Log level (Off=0, Error=1, Warn=2, Info=3, Debug=4, Trace=5)
+    #[arg(short, long, default_value_t = 3)]
+    log_level: u8,
+
+    // -d --dest_addr
+    /// XCP server address
+    #[arg(short, long, default_value = "127.0.0.1:5555")]
+    dest_addr: String,
+
+    // -p --port
+    /// XCP server port number
+    #[arg(short, long, default_value_t = 5555)]
+    port: u16,
+
+    // -b -- bind-addr
+    /// Bind address, master port number
+    #[arg(short, long, default_value = "0.0.0.0:9999")]
+    bind_addr: String,
+
+    // --list_mea
+    /// Lists all matchin measurement variables found in the A2L file
+    #[clap(long, default_value = "")]
+    list_mea: String,
+
+    // --list-cal
+    /// Lists all matching calibration variables found in the A2L file
+    #[clap(long, default_value = "")]
+    list_cal: String,
+
+    // -m --mea
+    /// Specify variable names for DAQ measurement, may be list of names separated by space or single regular expressions (e.g. ".*")
+    #[arg(short, long, value_delimiter = ' ', num_args = 1..)]
+    mea: Vec<String>,
+
+    // -t --time
+    /// Specify measurement duration in ms
+    #[arg(short, long, default_value_t = 5000)]
+    time_ms: u64, // -t --time
+
+    /// --test
+    #[arg(long, default_value_t = false)]
+    test: bool,
+}
 
 //----------------------------------------------------------------------------------------------
 // Logging
@@ -36,13 +93,21 @@ impl ToLogLevelFilter for u8 {
     }
 }
 
+//-----------------------------------------------------------------------------
+// Test (--test) settings
+
+const TEST_CAL: xcp_test_executor::TestModeCal = xcp_test_executor::TestModeCal::Cal; // Execute calibration tests: Cal or None
+const TEST_DAQ: xcp_test_executor::TestModeDaq = xcp_test_executor::TestModeDaq::Daq; // Execute measurement tests: Daq or None
+const TEST_DURATION_MS: u64 = 5000;
+
 //------------------------------------------------------------------------
-// DaqDecoder
-// Handle incoming DAQ data
-// This is a simple example of a DAQ decoder that prints the decoded data to the console
-// It can be used as a template for more advanced DAQ decoders
+// Demo
 
 const MAX_EVENT: usize = 16;
+
+// DaqDecoder for xcp_client_demo - handle incoming DAQ data
+// This is a simple example of a DAQ decoder that prints the decoded data to the console
+// It can be used as a template for more advanced DAQ decoders
 
 #[derive(Debug)]
 struct DaqDecoder {
@@ -228,55 +293,6 @@ impl XcpTextDecoder for ServTextDecoder {
     }
 }
 
-//-----------------------------------------------------------------------------
-// Command line arguments
-
-use clap::Parser;
-
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    // -l --log-level
-    /// Log level (Off=0, Error=1, Warn=2, Info=3, Debug=4, Trace=5)
-    #[arg(short, long, default_value_t = 3)]
-    log_level: u8,
-
-    // -d --dest_addr
-    /// XCP server address
-    #[arg(short, long, default_value = "127.0.0.1:5555")]
-    dest_addr: String,
-
-    // -p --port
-    /// XCP server port number
-    #[arg(short, long, default_value_t = 5555)]
-    port: u16,
-
-    // -b -- bind-addr
-    /// Bind address, master port number
-    #[arg(short, long, default_value = "0.0.0.0:9999")]
-    bind_addr: String,
-
-    // --list_mea
-    /// Lists all matchin measurement variables found in the A2L file
-    #[clap(long, default_value = "")]
-    list_mea: String,
-
-    // --list-cal
-    /// Lists all matching calibration variables found in the A2L file
-    #[clap(long, default_value = "")]
-    list_cal: String,
-
-    // -m --mea
-    /// Specify variable names for DAQ measurement, may be list of names separated by space or single regular expressions (e.g. ".*")
-    #[arg(short, long, value_delimiter = ' ', num_args = 1..)]
-    mea: Vec<String>,
-
-    // -t --time
-    /// Specify measurement duration in ms
-    #[arg(short, long, default_value_t = 5000)]
-    time_ms: u64,
-}
-
 //------------------------------------------------------------------------
 // A simple example how to use the XCP client
 
@@ -338,42 +354,16 @@ async fn xcp_client_demo(
         println!("Measurement variables:");
         let mea_objects = xcp_client.find_measurements(&list_mea);
         for name in &mea_objects {
-            let h = xcp_client.create_measurement_object(name).unwrap();
-            let o = xcp_client.get_measurement_object(h);
-            println!(" {} {} {}", o.get_name(), o.get_a2l_addr(), o.get_a2l_type());
+            if let Some(h) = xcp_client.create_measurement_object(name) {
+                let o = xcp_client.get_measurement_object(h);
+                println!(" {} {} {}", o.get_name(), o.get_a2l_addr(), o.get_a2l_type());
+            }
         }
         println!();
         return Ok(());
     }
 
-    // Calibration
-    // Change the value of CalPage1.counter_max to 255 (if exists, available in: main.rs, hello_xcp.rs, multi_thread_demo.rs)
-    // Measure how long this takes
-    /*
-        let start_time = tokio::time::Instant::now();
-        if let Ok(counter_max) = xcp_client.create_calibration_object("counter_max").await {
-            let v = xcp_client.get_value_u64(counter_max);
-            let elapsed_time_1 = start_time.elapsed().as_micros();
-            let new_v = 10;
-            xcp_client.set_value_u64(counter_max, new_v).await.unwrap();
-            let elapsed_time_2 = start_time.elapsed().as_micros();
-            info!("Get cal_seg.counter_max = {} (duration = {}us)", v, elapsed_time_1);
-            info!("Set cal_seg.counter_max to {} (duration = {}us)", new_v, elapsed_time_2);
-        }
-        // Change the value of ampl to 100.0 (if exists, available in XCPlite)
-        // Measure how long this takes
-        let start_time = tokio::time::Instant::now();
-        if let Ok(counter_max) = xcp_client.create_calibration_object("ampl").await {
-            let v = xcp_client.get_value_f64(counter_max);
-            let elapsed_time_1 = start_time.elapsed().as_micros();
-            xcp_client.set_value_f64(counter_max, 123.0).await.unwrap();
-            let elapsed_time_2 = start_time.elapsed().as_micros();
-            info!("Get cal_seg.ampl = {} (duration = {}us)", v, elapsed_time_1);
-            info!("Set cal_seg.ampl to {} (duration = {}us)", 123.0, elapsed_time_2);
-        }
-    */
-
-    // Measurement demo (DAQ)
+    // Measurement
     if !measurement_list.is_empty() {
         let list = if measurement_list.len() == 1 {
             // Regular expression
@@ -419,6 +409,7 @@ async fn xcp_client_demo(
 }
 
 //------------------------------------------------------------------------
+// Main function
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -433,16 +424,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .format_target(false)
         .init();
 
-    // Measurement variable list from command line
-    let measurement_list = args.mea;
-    if !measurement_list.is_empty() {
-        info!("measurement_list: {:?}", measurement_list);
-    }
-
-    // Start XCP client
     let dest_addr: std::net::SocketAddr = args.dest_addr.parse().map_err(|e| format!("{}", e))?;
     let local_addr: std::net::SocketAddr = args.bind_addr.parse().map_err(|e| format!("{}", e))?;
     info!("dest_addr: {}", dest_addr);
     info!("local_addr: {}", local_addr);
-    xcp_client_demo(dest_addr, local_addr, args.list_cal, args.list_mea, measurement_list, args.time_ms).await
+
+    // Run the test executor if --test is specified
+    if args.test {
+        test_executor(dest_addr, local_addr, TEST_CAL, TEST_DAQ, TEST_DURATION_MS).await; // Start the test executor
+        Ok(())
+    } else {
+        // Measurement variable list from command line
+        let measurement_list = args.mea;
+        if !measurement_list.is_empty() {
+            info!("measurement_list: {:?}", measurement_list);
+        }
+
+        // Start XCP client
+
+        xcp_client_demo(dest_addr, local_addr, args.list_cal, args.list_mea, measurement_list, args.time_ms).await
+    }
 }

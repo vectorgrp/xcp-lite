@@ -14,22 +14,21 @@ typedef struct tQueueHandleType *tQueueHandle;
 // Buffer acquired from the queue with `QueueAcquire` (producer) or obtained with `QueuePop`/`QueuePeek` (consumer)
 typedef struct {
     uint8_t *buffer;
-    // void *msg;
     uint16_t size;
 } tQueueBuffer;
 
 // Create new heap allocated queue. Free using `QueueDeinit`
-tQueueHandle QueueInit(int64_t buffer_size);
+tQueueHandle QueueInit(uint32_t buffer_size);
 
 // Creates a queue inside the user provided buffer.
 // This can be used to place the queue inside shared memory to be used by multiple applications
-tQueueHandle QueueInitFromMemory(void *queue_buffer, int64_t queue_buffer_size, bool clear_queue, int64_t *out_buffer_size);
+tQueueHandle QueueInitFromMemory(void *queue_buffer, uint32_t queue_buffer_size, bool clear_queue);
 
 // Deinitialize queue. Does **not** free user allocated memory provided by `QueueInitFromMemory`
 void QueueDeinit(tQueueHandle queueHandle);
 
 // Acquire a queue buffer of size bytes
-tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint64_t size);
+tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint16_t size);
 
 // Push an aquired buffer to the queue
 void QueuePush(tQueueHandle queueHandle, tQueueBuffer *const handle, bool flush);

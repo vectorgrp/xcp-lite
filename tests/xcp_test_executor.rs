@@ -484,9 +484,9 @@ async fn test_calibration(xcp_client: &mut XcpClient, task_cycle_us: u64) -> boo
     // Check page switching
     // Check page is ram
     info!("Check ecu cal page");
-    let mut page: u8 = xcp_client.get_ecu_page().await.unwrap();
+    let mut page: u8 = xcp_client.get_ecu_page(0).await.unwrap();
     assert!(page == 0);
-    page = xcp_client.get_xcp_page().await.unwrap();
+    page = xcp_client.get_xcp_page(0).await.unwrap();
     assert!(page == 0);
 
     // Mark the ram page in variable cal_seg.page
@@ -510,9 +510,9 @@ async fn test_calibration(xcp_client: &mut XcpClient, task_cycle_us: u64) -> boo
     page = xcp_client.get_value_u64(cal_seg_page).try_into().unwrap();
     assert_eq!(page, 1);
     // Check if get cal page returns default
-    page = xcp_client.get_xcp_page().await.unwrap();
+    page = xcp_client.get_xcp_page(0).await.unwrap();
     assert_eq!(page, 1);
-    page = xcp_client.get_ecu_page().await.unwrap();
+    page = xcp_client.get_ecu_page(0).await.unwrap();
     assert_eq!(page, 1);
     // Switch back to ram
     xcp_client.set_xcp_page(0).await.unwrap();

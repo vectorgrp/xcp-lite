@@ -50,8 +50,6 @@ fn main() {
         .allowlist_function("ApplXcpRegisterCallbacks")
         .allowlist_function("ApplXcpGetClock64")
         //
-        .allowlist_function("c_demo")
-        //
         .generate()
         .expect("Unable to generate bindings");
     bindings.write_to_file("src/xcp/xcplib.rs").expect("Couldn't write bindings!");
@@ -63,10 +61,6 @@ fn main() {
         //
         .include("xcplib/src/")
         .include("xcplib/")
-        //
-        // @@@@ TODO temporary file for testing XCPlite compatibility
-        .file("xcplib/c_demo.c")
-        .file("xcplib/src/a2l.c")
         //
         // xcplib source files
         .file("xcplib/src/xcpAppl.c")

@@ -1,54 +1,26 @@
-﻿
+﻿// c_demo xcplib example
+
 #include <assert.h>  // for assert
 #include <stdbool.h> // for bool
 #include <stdint.h>  // for uint8_t, uint32_t, uint64_t
-#include <stdio.h>   // for fclose, fopen, fread, fseek, ftell
-#include <string.h>  // for strlen, strncpy
+#include <stdio.h>   // for printf
+#include <string.h>  // for sprintf
 
-#include "a2l.h"          // for A2lOpen, A2lClose, A2lCreateXxx, A2lSetXxxx
-#include "platform.h"     // for sleepMs, getClock
-#include "xcpAppl.h"      // for ApplXcpRegisterConnectCallback
+#include "a2l.h"          // for A2l generation
+#include "platform.h"     // for sleepMs, clockGet
 #include "xcpEthServer.h" // for XcpEthServerInit, XcpEthServerShutdown, XcpEthServerStatus
-#include "xcpLite.h"      // for XcpInit, XcpEventExt, XcpCreateEvent
+#include "xcpLite.h"      // for XcpInit, XcpEventExt, XcpCreateEvent, XcpCreateCalSeg, ...
 
 //-----------------------------------------------------------------------------------------------------
 
 // XCP parameters
-#define OPTION_USE_TCP false    // TCP or UDP
-#define OPTION_SERVER_PORT 5555 // Port
+#define OPTION_A2L_PROJECT_NAME "C_Demo"  // A2L project name
+#define OPTION_A2L_FILE_NAME "C_Demo.a2l" // A2L file name
+#define OPTION_USE_TCP false              // TCP or UDP
+#define OPTION_SERVER_PORT 5555           // Port
 // #define OPTION_SERVER_ADDR {0, 0, 0, 0} // Bind addr, 0.0.0.0 = ANY
 #define OPTION_SERVER_ADDR {192, 168, 8, 110} // Bind addr, 0.0.0.0 = ANY
 #define OPTION_QUEUE_SIZE 1024 * 16           // Size of the measurement queue in bytes, must be a multiple of 8
-
-uint32_t gOptionQueueSize = OPTION_QUEUE_SIZE;
-bool gOptionUseTCP = OPTION_USE_TCP;
-uint16_t gOptionPort = OPTION_SERVER_PORT;
-uint8_t gOptionBindAddr[4] = OPTION_SERVER_ADDR;
-
-//-----------------------------------------------------------------------------------------------------
-// A2L file generation and finalization on XCP connect
-
-#define OPTION_A2L_NAME "C_Demo"          // A2L name
-#define OPTION_A2L_FILE_NAME "C_Demo.a2l" // A2L filename
-
-// Finalize A2L file generation
-static uint8_t A2lFinalize(void) {
-
-    // @@@@ TODO: Add a version string for the application here
-    A2lCreate_MOD_PAR("EPK_xxxx");
-    A2lCreate_ETH_IF_DATA(gOptionUseTCP, gOptionBindAddr, gOptionPort);
-    A2lClose();
-    return true; // Indicate success
-}
-
-// Open the A2L file and register the finalize callback
-static void A2lInit(void) {
-    if (!A2lOpen(OPTION_A2L_FILE_NAME, OPTION_A2L_NAME)) {
-        printf("Failed to open A2L file %s\n", OPTION_A2L_FILE_NAME);
-        return;
-    }
-    ApplXcpRegisterConnectCallback(A2lFinalize);
-}
 
 //-----------------------------------------------------------------------------------------------------
 
@@ -70,7 +42,7 @@ static uint16_t counter_global = 0;
 //-----------------------------------------------------------------------------------------------------
 
 // Demo main
-void c_demo(void) {
+int main(void) {
 
     printf("\nXCP on Ethernet C xcplib demo\n");
 
@@ -81,12 +53,15 @@ void c_demo(void) {
     XcpInit();
 
     // Initialize the XCP Server
-    if (!XcpEthServerInit(gOptionBindAddr, gOptionPort, gOptionUseTCP, NULL, gOptionQueueSize)) {
-        return;
+    uint8_t addr[4] = OPTION_SERVER_ADDR;
+    if (!XcpEthServerInit(addr, OPTION_SERVER_PORT, OPTION_USE_TCP, NULL, OPTION_QUEUE_SIZE)) {
+        return 1;
     }
 
     // Prepare the A2L file
-    A2lInit();
+    if (!A2lInit(OPTION_A2L_FILE_NAME, OPTION_A2L_PROJECT_NAME, addr, OPTION_SERVER_PORT, OPTION_USE_TCP, true)) {
+        return 1;
+    }
 
     // Create a calibration segment for the calibration parameter struct
     // This segment has a working page (RAM) and a reference page (FLASH), it creates a MEMORY_SEGMENT in the A2L file
@@ -177,9 +152,6 @@ void c_demo(void) {
 
     // Stop the XCP server
     XcpEthServerShutdown();
-}
 
-int main(void) {
-    c_demo();
     return 0;
 }
