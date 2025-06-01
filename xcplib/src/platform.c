@@ -4,12 +4,13 @@
 |
 | Description:
 |   Platform (Linux/Windows) abstraction layer
-|     Keyboard
+|     Atomics
 |     Sleep
 |     Threads
 |     Mutex
 |     Sockets
 |     Clock
+|     Keyboard
 |
 |   Code released into public domain, no attribution required
  ----------------------------------------------------------------------------*/

@@ -8,6 +8,7 @@
 
 #include "platform.h" // for atomic_bool
 
+// Basic A2L types
 #define A2L_TYPE_UINT8 1
 #define A2L_TYPE_UINT16 2
 #define A2L_TYPE_UINT32 4
@@ -19,15 +20,29 @@
 #define A2L_TYPE_FLOAT -9
 #define A2L_TYPE_DOUBLE -10
 
-// Create parameters
+// Set mode for all following A2lCreateXxxx macros and functions
+void A2lSetAbsAddrMode(void);
+void A2lSetSegAddrMode(uint16_t calseg_index, const uint8_t *calseg);
+void A2lSetRelAddrMode(const uint16_t *event);
+void A2lSetFixedEvent(uint16_t event);
+void A2lRstFixedEvent(void);
+void A2lSetDefaultEvent(uint16_t event);
+void A2lRstDefaultEvent(void);
+
+// Create parameters in a calibration segment or in global memory
+
 #define A2lCreateParameter(name, type, comment, unit) A2lCreateParameter_(#name, type, A2lGetAddrExt(), A2lGetAddr((uint8_t *)&name), comment, unit)
+
 #define A2lCreateParameterWithLimits(name, type, comment, unit, min, max)                                                                                                          \
     A2lCreateParameterWithLimits_(#name, type, A2lGetAddrExt(), A2lGetAddr((uint8_t *)&name), comment, unit, min, max)
+
 #define A2lCreateCurve(name, type, xdim, comment, unit) A2lCreateCurve_(#name, type, A2lGetAddrExt(), A2lGetAddr((uint8_t *)&name[0]), xdim, comment, unit)
+
 #define A2lCreateMap(name, type, xdim, ydim, comment, unit) A2lCreateMap_(#name, type, A2lGetAddrExt(), A2lGetAddr((uint8_t *)&name[0][0]), xdim, ydim, comment, unit)
 
-// Create measurements
+// Create measurements on stack or in global memory
 // Measurements are registered once, it is allowed to use the following macros in local scope which is run multiple times
+
 #define A2lCreateMeasurement(name, type, comment)                                                                                                                                  \
     {                                                                                                                                                                              \
         static atomic_bool __once = false;                                                                                                                                         \
@@ -61,14 +76,24 @@
 #define A2lTypedefComponent(fieldName, type, instanceName) A2lTypedefMeasurementComponent_(#fieldName, type, ((uint8_t *)&(instanceName.fieldName) - (uint8_t *)&instanceName))
 #define A2lTypedefEnd() A2lTypedefEnd_()
 
-// Set for all following A2lCreateXxxx
-void A2lSetAbsAddrMode(void);
-void A2lSetSegAddrMode(uint16_t calseg_index, const uint8_t *calseg);
-void A2lSetRelAddrMode(const uint16_t *event);
-void A2lSetFixedEvent(uint16_t event);
-void A2lRstFixedEvent(void);
-void A2lSetDefaultEvent(uint16_t event);
-void A2lRstDefaultEvent(void);
+// Create groups
+void A2lParameterGroup(const char *name, int count, ...);
+void A2lParameterGroupFromList(const char *name, const char *pNames[], int count);
+void A2lMeasurementGroup(const char *name, int count, ...);
+void A2lMeasurementGroupFromList(const char *name, char *names[], uint32_t count);
+
+// Init A2L generation
+bool A2lInit(const char *a2l_filename, const char *a2l_projectname, const uint8_t *addr, uint16_t port, bool useTCP, bool finalize_on_connect);
+
+// Finish A2L generation
+bool A2lFinalize(void);
+
+// --------------------------------------------------------------------------------------------
+// Functions used in the for A2L generation macros
+
+uint32_t A2lGetAddr(const uint8_t *addr);
+uint8_t A2lGetAddrExt(void);
+bool A2lOnce(atomic_bool *once);
 
 // Create measurements
 void A2lCreateMeasurement_(const char *instanceName, const char *name, int32_t type, uint8_t ext, uint32_t addr, double factor, double offset, const char *unit,
@@ -87,20 +112,3 @@ void A2lCreateParameter_(const char *name, int32_t type, uint8_t ext, uint32_t a
 void A2lCreateParameterWithLimits_(const char *name, int32_t type, uint8_t ext, uint32_t addr, const char *comment, const char *unit, double min, double max);
 void A2lCreateMap_(const char *name, int32_t type, uint8_t ext, uint32_t addr, uint32_t xdim, uint32_t ydim, const char *comment, const char *unit);
 void A2lCreateCurve_(const char *name, int32_t type, uint8_t ext, uint32_t addr, uint32_t xdim, const char *comment, const char *unit);
-
-// Create groups
-void A2lParameterGroup(const char *name, int count, ...);
-void A2lParameterGroupFromList(const char *name, const char *pNames[], int count);
-void A2lMeasurementGroup(const char *name, int count, ...);
-void A2lMeasurementGroupFromList(const char *name, char *names[], uint32_t count);
-
-// Helpers for A2L generation macros
-uint32_t A2lGetAddr(const uint8_t *addr);
-uint8_t A2lGetAddrExt(void);
-bool A2lOnce(atomic_bool *once);
-
-// Init A2L generation
-bool A2lInit(const char *a2l_filename, const char *a2l_projectname, const uint8_t *addr, uint16_t port, bool useTCP, bool finalize_on_connect);
-
-// Finish A2L generation
-bool A2lFinalize(void);

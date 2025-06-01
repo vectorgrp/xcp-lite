@@ -40,22 +40,6 @@ static uint32_t gA2lInstances;
 static uint32_t gA2lConversions;
 
 //----------------------------------------------------------------------------------
-// Check for memory accessibility
-// #define A2L_ENABLE_MEMORY_CHECK
-#ifdef A2L_ENABLE_MEMORY_CHECK
-static void mem_check(const char *name, int32_t type, uint8_t ext, uint32_t addr) {
-    (void)type;
-    (void)name;
-    volatile uint8_t *p = ApplXcpGetPointer(ext, addr);
-    if (p == NULL) {
-        DBG_PRINTF3("memory address 0x%04X of variable %s not accessible !\n", addr, name);
-        assert(0);
-    }
-    volatile uint8_t b = *p; // if this leads to a memory protection error, check if address transformation from A2L to uint_8_p* transformation is correct
-}
-#endif
-
-//----------------------------------------------------------------------------------
 static const char *gA2lHeader = "ASAP2_VERSION 1 71\n"
                                 "/begin PROJECT %s \"\"\n\n"
                                 "/begin HEADER \"\" VERSION \"1.0\" PROJECT_NO VECTOR /end HEADER\n\n"

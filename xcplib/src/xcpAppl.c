@@ -88,7 +88,7 @@ void ApplXcpRegisterCallbacks(bool (*cb_connect)(void), uint8_t (*cb_prepare_daq
 void ApplXcpRegisterConnectCallback(bool (*cb_connect)(void)) { callback_connect = cb_connect; }
 
 /**************************************************************************/
-// General notifications from XCPlite.c
+// General notifications from protocol layer
 /**************************************************************************/
 
 bool ApplXcpConnect(void) {
@@ -131,6 +131,7 @@ void ApplXcpStopDaq(void) {
 /**************************************************************************/
 // Clock
 // Get clock for DAQ timestamps
+// Get information about clock synchronization state and grandmaster UUID
 /**************************************************************************/
 
 uint64_t ApplXcpGetClock64(void) {
@@ -164,7 +165,7 @@ bool ApplXcpGetClockInfoGrandmaster(uint8_t *uuid, uint8_t *epoch, uint8_t *stra
 }
 
 /**************************************************************************/
-// Pointer - Address conversion
+// Pointer - XCP/A2L address conversion for absolute addressing mode
 /**************************************************************************/
 
 // 64 Bit and 32 Bit platform pointer to XCP/A2L address conversions
@@ -320,11 +321,12 @@ uint32_t ApplXcpGetAddr(const uint8_t *p) { return ((uint32_t)(p)); }
 #endif // XCP_ENABLE_ABS_ADDRESSING
 
 /**************************************************************************/
-// Memory access
+// Calibration memory segment access
 /**************************************************************************/
 
+// CANape specific user commands for atomic consistent calibration operations
+// Used only, when internal calibration segments are not used
 #ifdef XCP_ENABLE_USER_COMMAND
-
 uint8_t ApplXcpUserCommand(uint8_t cmd) {
     switch (cmd) {
     case 0x01: // Begin atomic calibration operation
@@ -340,9 +342,10 @@ uint8_t ApplXcpUserCommand(uint8_t cmd) {
     }
     return CRC_CMD_OK;
 }
-
 #endif
 
+// Access calibration memory segments
+// Called for SEG addressing mode, only when internal calibration segments are not enabled or used
 #ifdef XCP_ENABLE_APP_ADDRESSING
 uint8_t ApplXcpReadMemory(uint32_t src, uint8_t size, uint8_t *dst) {
     if (callback_read != NULL)
@@ -360,18 +363,21 @@ uint8_t ApplXcpWriteMemory(uint32_t dst, uint8_t size, const uint8_t *src) {
 // Calibration page switching callbacks
 /**************************************************************************/
 
+// Operations on  calibration memory segments
+
+// Called only when internal calibration segments are not enabled or used
 #ifdef XCP_ENABLE_CAL_PAGE
 
 uint8_t ApplXcpGetCalPage(uint8_t segment, uint8_t mode) {
     if (callback_get_cal_page != NULL)
         return callback_get_cal_page(segment, mode); // return cal page number
-    return 0;                                        // page 0 is default
+    return XCP_CALPAGE_WORKING_PAGE;                 // page 0 = working page (RAM) is default
 }
 
 uint8_t ApplXcpSetCalPage(uint8_t segment, uint8_t page, uint8_t mode) {
     if (callback_set_cal_page != NULL)
         return callback_set_cal_page(segment, page, mode); // return CRC_CMD_xxx return code
-    return CRC_CMD_OK;
+    return CRC_CMD_UNKNOWN;
 }
 
 #ifdef XCP_ENABLE_COPY_CAL_PAGE
@@ -392,38 +398,25 @@ uint8_t ApplXcpCalFreeze(void) {
 }
 #endif
 
-#endif
+#endif // XCP_ENABLE_CAL_PAGE
 
 /**************************************************************************/
 // DAQ resume
 /**************************************************************************/
 
+// Cold start data acquisition
+// Not implemented
 #ifdef XCP_ENABLE_DAQ_RESUME
-
 uint8_t ApplXcpDaqResumeStore(uint16_t config_id) {
 
     DBG_PRINTF3("ApplXcpResumeStore config-id=%u\n", config_id);
-
-    //   FILE *f = fopen("XCPsim.DAQ","wb");
-    //   if (f) {
-    //     fwrite(&xcp.Daq,sizeof(xcp.Daq),1,f);
-    //     fwrite(&gRemoteAddr,sizeof(gRemoteAddr),1,f);
-    //     fclose(f);
-    //   }
-    // return CRC_CMD_IGNORED;
-
-    return CRC_CMD_OK;
+    return CRC_CMD_IGNORED;
 }
-
 uint8_t ApplXcpDaqResumeClear(void) {
 
     DBG_PRINT3("ApplXcpResumeClear\n");
-
-    // remove("XCPsim.DAQ");
-    // return CRC_CMD_IGNORED;
-    return CRC_CMD_OK;
+    return CRC_CMD_IGNORED;
 }
-
 #endif
 
 /**************************************************************************/
@@ -432,7 +425,7 @@ uint8_t ApplXcpDaqResumeClear(void) {
 
 static const char *gXcpA2lName = NULL; // A2L filename (without extension .a2l)
 
-// Set the A2L filename (without extension)
+// Set the A2L filename (without extension) to be provided to the host for upload
 void ApplXcpSetA2lName(const char *name) {
     assert(name != NULL);
     DBG_PRINTF4("A2L name='%s'\n", name);
@@ -472,6 +465,7 @@ static uint32_t openA2lFile(void) {
     return gXcpFileLength;
 }
 
+// Called by the protocol layer to read a chunk of the A2L file for upload
 bool ApplXcpReadA2L(uint8_t size, uint32_t addr, uint8_t *data) {
     if (gXcpFile == NULL)
         return false;
@@ -492,6 +486,7 @@ bool ApplXcpReadA2L(uint8_t size, uint32_t addr, uint8_t *data) {
 // Returns the length in bytes or 0, when the requested information is not available
 /**************************************************************************/
 
+// Called by the protocol layer to get identification information
 uint32_t ApplXcpGetId(uint8_t id, uint8_t *buf, uint32_t bufLen) {
 
     uint32_t len = 0;
