@@ -379,18 +379,26 @@ uint64_t XcpGetDaqStartTime(void) { return gXcp.DaqStartClock64; }
 uint32_t XcpGetDaqOverflowCount(void) { return gXcp.DaqOverflowCount; }
 
 /**************************************************************************/
-/* EPK                                                                    */
+/* EPK version string                                                     */
 /**************************************************************************/
 
-static const char *gXcpEpk = NULL; // EPK string with terminating zero
+#define XCP_EPK_MAX_LENGTH 32                      // Max length of the EPK (A2L file version string)
+static char gXcpEpk[XCP_EPK_MAX_LENGTH + 1] = {0}; // EPK string, null terminated
 
 // Set/get the EPK (A2l file version string)
 void XcpSetEpk(const char *epk) {
     assert(epk != NULL);
-    DBG_PRINTF4("A2L EPK='%s'\n", epk);
-    gXcpEpk = (char *)epk; // must be static lifetime
+    size_t epk_len = strnlen(epk, XCP_EPK_MAX_LENGTH);
+    strncpy(gXcpEpk, epk, epk_len);
+    gXcpEpk[XCP_EPK_MAX_LENGTH] = 0;  // Ensure null termination
+    assert(strlen(gXcpEpk) % 4 == 0); // @@@@ EPK length must be a %4 because of  4 byte XCP checksum calculation granularity
+    DBG_PRINTF3("EPK = '%s'\n", gXcpEpk);
 }
-const char *XcpGetEpk(void) { return gXcpEpk; }
+const char *XcpGetEpk(void) {
+    if (strnlen(gXcpEpk, XCP_EPK_MAX_LENGTH) == 0)
+        return NULL;
+    return gXcpEpk;
+}
 
 /**************************************************************************/
 /* Calibration segments                                                   */
