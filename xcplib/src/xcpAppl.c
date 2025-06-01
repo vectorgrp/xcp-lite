@@ -431,17 +431,12 @@ uint8_t ApplXcpDaqResumeClear(void) {
 /**************************************************************************/
 
 static const char *gXcpA2lName = NULL; // A2L filename (without extension .a2l)
-static const char *gXcpEpk = NULL;     // EPK
 
 // Set the A2L filename (without extension)
 void ApplXcpSetA2lName(const char *name) {
+    assert(name != NULL);
     DBG_PRINTF4("A2L name='%s'\n", name);
     gXcpA2lName = (char *)name; // must be static lifetime
-}
-// Set the EPK (A2l file version string)
-void ApplXcpSetEpk(const char *epk) {
-    DBG_PRINTF4("A2L EPK='%s'\n", epk);
-    gXcpEpk = (char *)epk; // must be static lifetime
 }
 
 #ifdef XCP_ENABLE_IDT_A2L_UPLOAD // Enable GET_ID A2L content upload to host
@@ -528,19 +523,20 @@ uint32_t ApplXcpGetId(uint8_t id, uint8_t *buf, uint32_t bufLen) {
         break;
 
 #ifdef XCP_ENABLE_IDT_A2L_UPLOAD
-    case IDT_ASAM_EPK:
-        if (gXcpEpk == NULL)
+    case IDT_ASAM_EPK: {
+        const char *epk = XcpGetEpk();
+        if (epk == NULL)
             return 0;
-        len = (uint32_t)strlen(gXcpEpk);
+        len = (uint32_t)strlen(epk);
         if (buf) {
             if (len > bufLen - 1)
                 return 0; // Insufficient buffer space
-            strncpy((char *)buf, gXcpEpk, len);
-            DBG_PRINTF3("ApplXcpGetId GET_ID%u EPK=%s\n", id, gXcpEpk);
+            strncpy((char *)buf, epk, len);
+            DBG_PRINTF3("ApplXcpGetId GET_ID%u EPK=%s\n", id, epk);
         } else {
-            DBG_PRINTF3("ApplXcpGetId GET_ID%u EPK as upload (len=%u,value=%s)\n", id, len, gXcpEpk);
+            DBG_PRINTF3("ApplXcpGetId GET_ID%u EPK as upload (len=%u,value=%s)\n", id, len, epk);
         }
-        break;
+    } break;
 
     case IDT_ASAM_UPLOAD:
         assert(buf == NULL); // Not implemented

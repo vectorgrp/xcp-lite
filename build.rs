@@ -42,10 +42,10 @@ fn main() {
         .allowlist_function("XcpEventExt")
         // Misc
         .allowlist_function("XcpPrint")
+        .allowlist_function("XcpSetEpk")
         .allowlist_function("XcpSendTerminateSessionEvent")
         .allowlist_function("ApplXcpSetLogLevel")
         .allowlist_function("ApplXcpSetA2lName")
-        .allowlist_function("ApplXcpSetEpk")
         .allowlist_function("ApplXcpGetAddr")
         .allowlist_function("ApplXcpRegisterCallbacks")
         .allowlist_function("ApplXcpGetClock64")

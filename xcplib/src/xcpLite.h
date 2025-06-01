@@ -192,25 +192,28 @@ tXcpEvent *XcpGetEvent(uint16_t event);
 #endif // XCP_ENABLE_DAQ_EVENT_LIST
 
 /****************************************************************************/
-/* Calibration segments                                                     */
+/* EPK                                                                      */
 /****************************************************************************/
 
-#define XCP_UNDEFINED_CALSEG 0xFFFF
+void XcpSetEpk(const char *epk);
+const char *XcpGetEpk(void);
+
+/****************************************************************************/
+/* Calibration segments                                                     */
+/****************************************************************************/
 
 #ifdef XCP_ENABLE_CALSEG_LIST
 
 #ifndef XCP_MAX_CALSEG_COUNT
 #error "Please define XCP_MAX_CALSEG_COUNT!"
 #endif
+#if XCP_MAX_CALSEG_COUNT < 1 || XCP_MAX_CALSEG_COUNT > 255
+#error "XCP_MAX_CALSEG_COUNT must be between 1 and 255!"
+#endif
 
 #ifndef XCP_MAX_CALSEG_NAME
 #define XCP_MAX_CALSEG_NAME 15
 #endif
-
-// Page numbers for calibration segments
-#define XCP_CALSEG_DEFAULT_PAGE 1 // FLASH page
-#define XCP_CALSEG_WORKING_PAGE 0 // RAM page
-#define XCP_CALSEG_INVALID_PAGE 0xFF
 
 /*
 Single thread lock-free, wait-free CalSeg RCU:
@@ -228,6 +231,14 @@ Single thread lock-free, wait-free CalSeg RCU:
         - free_page: the page freed by the ECU thread
         - ecu_access
 */
+
+#define XCP_UNDEFINED_CALSEG 0xFFFF
+typedef uint16_t tXcpCalSegIndex;
+
+// Calibration segment index
+// Maybe the the index of the calibration segment in the calibration segment list or XCP_UNDEFINED_CALSEG
+#define XCP_UNDEFINED_CALSEG 0xFFFF
+typedef uint16_t tXcpCalSegIndex;
 
 // Calibration segment
 typedef struct {
@@ -255,20 +266,20 @@ typedef struct {
 // Get calibration segment  list
 tXcpCalSegList const *XcpGetCalSegList(void);
 
-// Lookup calibration segment by handle (index)
-tXcpCalSeg const *XcpGetCalSeg(uint16_t calseg);
+// Get the XCP/A2L address of a calibration segment
+uint32_t XcpGetCalSegBaseAddress(tXcpCalSegIndex calseg);
 
 // Create a calibration segment
 // Thread safe
 // Returns the handle or XCP_UNDEFINED_CALSEG when out of memory
-uint16_t XcpCreateCalSeg(const char *name, const uint8_t *default_page, uint16_t size);
+tXcpCalSegIndex XcpCreateCalSeg(const char *name, const uint8_t *default_page, uint16_t size);
 
 // Lock a calibration segment and return a pointer to the ECU page
-uint8_t const *XcpLockCalSeg(uint16_t calseg);
+uint8_t const *XcpLockCalSeg(tXcpCalSegIndex calseg);
 
 // Unlock a calibration segment
 // Single threaded, must be used in the thread it was created
-void XcpUnlockCalSeg(uint16_t calseg);
+void XcpUnlockCalSeg(tXcpCalSegIndex calseg);
 
 #endif // XCP_ENABLE_CALSEG_LIST
 
@@ -318,12 +329,23 @@ uint8_t ApplXcpUserCommand(uint8_t cmd);
 */
 
 /* Switch calibration pages */
+
+// Calibration segment index number
+// Is the value used by XCP commends like GET_SEGMENT_INFO, SET_CAL_PAGE, ...
+typedef uint8_t tXcpCalSegNumber;
+
+// Calibration page number type
+#define XCP_CALPAGE_DEFAULT_PAGE 1 // FLASH page
+#define XCP_CALPAGE_WORKING_PAGE 0 // RAM page
+#define XCP_CALPAGE_INVALID_PAGE 0xFF
+typedef uint8_t tXcpCalPageNumber;
+
 #ifdef XCP_ENABLE_CAL_PAGE
-uint8_t ApplXcpSetCalPage(uint8_t segment, uint8_t page, uint8_t mode);
-uint8_t ApplXcpGetCalPage(uint8_t segment, uint8_t mode);
-uint8_t ApplXcpSetCalPage(uint8_t segment, uint8_t page, uint8_t mode);
+uint8_t ApplXcpSetCalPage(tXcpCalSegNumber segment, tXcpCalPageNumber page, uint8_t mode);
+uint8_t ApplXcpGetCalPage(tXcpCalSegNumber segment, uint8_t mode);
+uint8_t ApplXcpSetCalPage(tXcpCalSegNumber segment, tXcpCalPageNumber page, uint8_t mode);
 #ifdef XCP_ENABLE_COPY_CAL_PAGE
-uint8_t ApplXcpCopyCalPage(uint8_t srcSeg, uint8_t srcPage, uint8_t destSeg, uint8_t destPage);
+uint8_t ApplXcpCopyCalPage(tXcpCalSegNumber srcSeg, tXcpCalPageNumber srcPage, tXcpCalSegNumber destSeg, tXcpCalPageNumber destPage);
 #endif
 #ifdef XCP_ENABLE_FREEZE_CAL_PAGE
 uint8_t ApplXcpCalFreeze(void);

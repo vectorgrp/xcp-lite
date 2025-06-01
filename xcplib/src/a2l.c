@@ -57,9 +57,9 @@ static void mem_check(const char *name, int32_t type, uint8_t ext, uint32_t addr
 
 //----------------------------------------------------------------------------------
 static const char *gA2lHeader = "ASAP2_VERSION 1 71\n"
-                                "/begin PROJECT %s \"\"\n"
-                                "/begin HEADER \"\" VERSION \"1.0\" /end HEADER\n"
-                                "/begin MODULE %s \"\"\n"
+                                "/begin PROJECT %s \"\"\n\n"
+                                "/begin HEADER \"\" VERSION \"1.0\" PROJECT_NO VECTOR /end HEADER\n\n"
+                                "/begin MODULE %s \"\"\n\n"
                                 "/include \"XCP_104.aml\"\n\n"
 
                                 "/begin MOD_COMMON \"\"\n"
@@ -87,6 +87,8 @@ static const char *gA2lMemorySegment = "/begin MEMORY_SEGMENT\n"
                                        "/end IF_DATA\n"
                                        "/end MEMORY_SEGMENT\n";
 
+static const char *gA2lEpkMemorySegment = "/begin MEMORY_SEGMENT epk  \"\" DATA FLASH INTERN 0x80000000 %u -1 -1 -1 -1 -1 /end MEMORY_SEGMENT\n";
+
 //----------------------------------------------------------------------------------
 static const char *const gA2lIfDataBegin = "\n/begin IF_DATA XCP\n";
 
@@ -99,6 +101,7 @@ static const char *gA2lIfDataProtocolLayer = // Parameter: XCP_PROTOCOL_LAYER_VE
     "BYTE_ORDER_MSB_LAST ADDRESS_GRANULARITY_BYTE\n" // Intel and BYTE pointers
     "OPTIONAL_CMD GET_COMM_MODE_INFO\n"              // Optional commands
     "OPTIONAL_CMD GET_ID\n"
+    "OPTIONAL_CMD SET_REQUEST\n"
     "OPTIONAL_CMD SET_MTA\n"
     "OPTIONAL_CMD UPLOAD\n"
     "OPTIONAL_CMD SHORT_UPLOAD\n"
@@ -107,18 +110,18 @@ static const char *gA2lIfDataProtocolLayer = // Parameter: XCP_PROTOCOL_LAYER_VE
 #ifdef XCP_ENABLE_CAL_PAGE
     "OPTIONAL_CMD GET_CAL_PAGE\n"
     "OPTIONAL_CMD SET_CAL_PAGE\n"
+    "OPTIONAL_CMD COPY_CAL_PAGE\n"
 //"OPTIONAL_CMD CC_GET_PAG_PROCESSOR_INFO\n"
 //"OPTIONAL_CMD CC_GET_SEGMENT_INFO\n"
 //"OPTIONAL_CMD CC_GET_PAGE_INFO\n"
 //"OPTIONAL_CMD CC_SET_SEGMENT_MODE\n"
 //"OPTIONAL_CMD CC_GET_SEGMENT_MODE\n"
-//"OPTIONAL_CMD CC_COPY_CAL_PAGE\n"
 #endif
 #ifdef XCP_ENABLE_CHECKSUM
     "OPTIONAL_CMD BUILD_CHECKSUM\n"
 #endif
     //"OPTIONAL_CMD TRANSPORT_LAYER_CMD\n"
-    //"OPTIONAL_CMD USER_CMD\n"
+    "OPTIONAL_CMD USER_CMD\n"
     "OPTIONAL_CMD GET_DAQ_RESOLUTION_INFO\n"
     "OPTIONAL_CMD GET_DAQ_PROCESSOR_INFO\n"
 #ifdef XCP_ENABLE_DAQ_EVENT_INFO
@@ -443,20 +446,23 @@ static bool A2lOpen(const char *filename, const char *projectName) {
 }
 
 // Memory segments
-static void A2lCreate_MOD_PAR(char *epk) {
+static void A2lCreate_MOD_PAR(const char *epk) {
     if (gA2lFile != NULL) {
 
-        ApplXcpSetEpk(epk);
+        XcpSetEpk(epk);
 
 #ifdef XCP_ENABLE_CALSEG_LIST
         fprintf(gA2lFile, "\n/begin MOD_PAR \"\"\n");
-        if (epk)
-            fprintf(gA2lFile, "EPK \"%s\"\n", epk);
-
+        if (epk) {
+            fprintf(gA2lFile, "EPK \"%s\" ADDR_EPK 0x80000000\n", epk);
+            fprintf(gA2lFile, gA2lEpkMemorySegment, strlen(epk));
+        }
+        // Calibration segments are implicitly indexed
+        // The segment number used in XCP commands XCP_SET_CAL_PAGE, GET_CAL_PAGE, XCP_GET_SEGMENT_INFO, ... are the indices of the segments starting with 0
         tXcpCalSegList const *calSegList = XcpGetCalSegList();
         for (uint32_t i = 0; i < calSegList->count; i++) {
             tXcpCalSeg const *calseg = &calSegList->calseg[i];
-            fprintf(gA2lFile, gA2lMemorySegment, calseg->name, (i << 16) | 0x80000000, calseg->size);
+            fprintf(gA2lFile, gA2lMemorySegment, calseg->name, ((i + 1) << 16) | 0x80000000, calseg->size);
         }
 
         fprintf(gA2lFile, "/end MOD_PAR\n\n");
@@ -543,7 +549,7 @@ static void A2lCreateMeasurement_IF_DATA(void) {
 
 uint8_t gAl2AddrExt = XCP_ADDR_EXT_ABS; // Address extension
 const uint8_t *gA2lAddrBase = NULL;     // Event or calseg address for XCP_ADDR_EXT_REL, XCP_ADDR_EXT_SEG
-uint16_t gA2lAddrIndex = 0;             // Segment index for XCP_ADDR_EXT_SEG
+tXcpCalSegIndex gA2lAddrIndex = 0;      // Segment index for XCP_ADDR_EXT_SEG
 
 void A2lSetAbsAddrMode(void) {
     gAl2AddrExt = XCP_ADDR_EXT_ABS;
@@ -556,7 +562,7 @@ void A2lSetRelAddrMode(const uint16_t *event) {
     A2lSetFixedEvent(*event);
 }
 
-void A2lSetSegAddrMode(uint16_t calseg_index, const uint8_t *calseg) {
+void A2lSetSegAddrMode(tXcpCalSegIndex calseg_index, const uint8_t *calseg) {
     gA2lAddrIndex = calseg_index;
     gA2lAddrBase = calseg;
     gAl2AddrExt = XCP_ADDR_EXT_SEG;
@@ -566,8 +572,9 @@ uint8_t A2lGetAddrExt(void) { return gAl2AddrExt; }
 
 uint32_t A2lGetAddr(uint8_t const *p) {
     switch (gAl2AddrExt) {
-    case XCP_ADDR_EXT_ABS:
+    case XCP_ADDR_EXT_ABS: {
         return ApplXcpGetAddr(p); // Calculate the XCP address from a pointer
+    }
     case XCP_ADDR_EXT_REL: {
         uint64_t addr_diff = (uint64_t)p - (uint64_t)gA2lAddrBase;
         // Ensure the relative address does not overflow the 32 Bit A2L address space
@@ -579,7 +586,7 @@ uint32_t A2lGetAddr(uint8_t const *p) {
         uint64_t addr_diff = (uint64_t)p - (uint64_t)gA2lAddrBase;
         // Ensure the relative address does not overflow the 16 Bit A2L address offset for calibration segment relative addressing
         assert((addr_diff >> 16) == 0);
-        return (uint32_t)(0x80000000 | ((((uint32_t)gA2lAddrIndex << 16)) | (addr_diff & 0xFFFF)));
+        return XcpGetCalSegBaseAddress(gA2lAddrIndex) + (addr_diff & 0xFFFF);
     }
     }
     DBG_PRINTF_ERROR("A2L address extension %u is not supported!\n", gAl2AddrExt);
@@ -834,15 +841,20 @@ bool A2lOnce(atomic_bool *value) {
 static bool gA2lUseTCP = false;
 static uint16_t gA2lOptionPort = 5555;
 static uint8_t gA2lOptionBindAddr[4] = {0, 0, 0, 0};
+static const char *gA2lEpk = "EPK_xxx1"; // EPK version string for the A2L file
 
 // Finalize A2L file generation
 bool A2lFinalize(void) {
 
     if (gA2lFile != NULL) {
 
-        // @@@@ TODO: Add a version string for the application here
-        A2lCreate_MOD_PAR("EPK_xxxx");
+        // @@@@ TODO: EPK problem
+        // Note that a different A2L EPK version is required, even if only the order of events or calibration segments is different !!!!
 
+        // Create MOD_PAR section with EPK and calibration segments
+        A2lCreate_MOD_PAR(gA2lEpk);
+
+        // Create IF_DATA section with event list and transport layer info
         A2lCreate_ETH_IF_DATA(gA2lUseTCP, gA2lOptionBindAddr, gA2lOptionPort);
 
         fprintf(gA2lFile, "%s", gA2lFooter);

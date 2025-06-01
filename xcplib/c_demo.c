@@ -35,7 +35,7 @@ uint8_t gOptionBindAddr[4] = OPTION_SERVER_ADDR;
 static uint8_t A2lFinalize(void) {
 
     // @@@@ TODO: Add a version string for the application here
-    A2lCreate_MOD_PAR("EPK_xxxx");
+    A2lCreate_MOD_PAR("EPK_V1.0");
     A2lCreate_ETH_IF_DATA(gOptionUseTCP, gOptionBindAddr, gOptionPort);
     A2lClose();
     return true; // Indicate success

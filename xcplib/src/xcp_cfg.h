@@ -45,7 +45,8 @@
 #define XCP_ENABLE_ABS_ADDRESSING
 #define XCP_ADDR_EXT_ABS 0x01 // Absolute address format
 
-// Use addr_ext XCP_ADDR_EXT_SEG to indicate application specific addr format and use ApplXcpReadMemory and ApplXcpWriteMemory
+// Use addr_ext XCP_ADDR_EXT_SEG to indicate application specific addr format
+// Use ApplXcpReadMemory and ApplXcpWriteMemory or the XCP lite calibration segments (#ifdef XCP_ENABLE_CALSEG_LIST) to access memory
 #define XCP_ENABLE_APP_ADDRESSING // Segment relative memory access handled by application
 #define XCP_ADDR_EXT_SEG 0x00     // Segment relative address format
 

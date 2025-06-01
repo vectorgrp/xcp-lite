@@ -2,7 +2,12 @@
     ASAP2_VERSION 1 71
     /begin PROJECT cal_demo ""
 
-    /begin HEADER "Written by Vector xcp_lite A2L registry" VERSION "0.2.0" PROJECT_NO VECTOR /end HEADER
+    /begin HEADER 
+    "Written by Vector xcp_lite A2L registry" 
+    VERSION "0.2.0" 
+    PROJECT_NO 
+    VECTOR 
+    /end HEADER
 
     /begin MODULE cal_demo ""
             

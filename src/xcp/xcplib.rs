@@ -114,6 +114,9 @@ unsafe extern "C" {
     pub fn XcpPrint(str_: *const ::std::os::raw::c_char);
 }
 unsafe extern "C" {
+    pub fn XcpSetEpk(epk: *const ::std::os::raw::c_char);
+}
+unsafe extern "C" {
     pub fn ApplXcpGetAddr(p: *const u8) -> u32;
 }
 unsafe extern "C" {
@@ -140,9 +143,6 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn ApplXcpSetA2lName(name: *const ::std::os::raw::c_char);
-}
-unsafe extern "C" {
-    pub fn ApplXcpSetEpk(name: *const ::std::os::raw::c_char);
 }
 unsafe extern "C" {
     #[doc = " Initialize the XCP on Ethernet server instance.\n @pre User has called XcpInit.\n @param address Address to bind to.\n @param port Port to bind to.\n @param use_tcp Use TCP if true, otherwise UDP.\n @param measurement_queue Optional external memory to place the measurement queue.\n Pass NULL if server should allocate it.\n @param measurement_queue_size Measurement queue size in bytes. Includes the bytes occupied by the queue header.\n @return True on success, otherwise false."]

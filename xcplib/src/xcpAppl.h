@@ -19,4 +19,6 @@ void ApplXcpRegisterCallbacks(bool (*cb_connect)(void), uint8_t (*cb_prepare_daq
 void ApplXcpRegisterConnectCallback(bool (*cb_connect)(void));
 
 void ApplXcpSetA2lName(const char *name);
-void ApplXcpSetEpk(const char *name);
+
+void cpSetEpk(const char *name);
+const char *XcpGetEpk(void);

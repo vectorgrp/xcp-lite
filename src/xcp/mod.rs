@@ -609,7 +609,7 @@ impl Xcp {
 
                     let epk = std::ffi::CString::new(reg.get_app_version()).unwrap();
                     // @@@@ UNSAFE - C library call
-                    xcplib::ApplXcpSetEpk(epk.as_ptr());
+                    xcplib::XcpSetEpk(epk.as_ptr());
                     std::mem::forget(epk); // This memory is never dropped, it is moved to xcplib singleton
                 }
             }
