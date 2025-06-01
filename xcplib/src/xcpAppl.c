@@ -32,7 +32,7 @@
 
 // @@@@  TODO improve
 #ifdef XCP_ENABLE_USER_COMMAND
-static bool write_delay = false;
+static bool write_delayed = false;
 #endif
 
 /**************************************************************************/
@@ -46,7 +46,7 @@ void ApplXcpSetLogLevel(uint8_t level) { XcpSetLogLevel(level); }
 // Callbacks
 /**************************************************************************/
 
-static uint8_t (*callback_connect)(void) = NULL;
+static bool (*callback_connect)(void) = NULL;
 static uint8_t (*callback_prepare_daq)(void) = NULL;
 static uint8_t (*callback_start_daq)(void) = NULL;
 static void (*callback_stop_daq)(void) = NULL;
@@ -59,7 +59,7 @@ static uint8_t (*callback_read)(uint32_t src, uint8_t size, uint8_t *dst) = NULL
 static uint8_t (*callback_write)(uint32_t dst, uint8_t size, const uint8_t *src, uint8_t delay) = NULL;
 static uint8_t (*callback_flush)(void) = NULL;
 
-void ApplXcpRegisterCallbacks(uint8_t (*cb_connect)(void), uint8_t (*cb_prepare_daq)(void), uint8_t (*cb_start_daq)(void), void (*cb_stop_daq)(void),
+void ApplXcpRegisterCallbacks(bool (*cb_connect)(void), uint8_t (*cb_prepare_daq)(void), uint8_t (*cb_start_daq)(void), void (*cb_stop_daq)(void),
                               uint8_t (*cb_freeze_daq)(uint8_t clear, uint16_t config_id), uint8_t (*cb_get_cal_page)(uint8_t segment, uint8_t mode),
                               uint8_t (*cb_set_cal_page)(uint8_t segment, uint8_t page, uint8_t mode), uint8_t (*cb_freeze_cal)(void),
                               uint8_t (*cb_init_cal)(uint8_t src_page, uint8_t dst_page),
@@ -85,7 +85,7 @@ void ApplXcpRegisterCallbacks(uint8_t (*cb_connect)(void), uint8_t (*cb_prepare_
 #endif
 }
 
-void ApplXcpRegisterConnectCallback(uint8_t (*cb_connect)(void)) { callback_connect = cb_connect; }
+void ApplXcpRegisterConnectCallback(bool (*cb_connect)(void)) { callback_connect = cb_connect; }
 
 /**************************************************************************/
 // General notifications from XCPlite.c
@@ -94,7 +94,7 @@ void ApplXcpRegisterConnectCallback(uint8_t (*cb_connect)(void)) { callback_conn
 bool ApplXcpConnect(void) {
     DBG_PRINT4("ApplXcpConnect\n");
 #ifdef XCP_ENABLE_USER_COMMAND
-    write_delay = false;
+    write_delayed = false;
 #endif
     if (callback_connect != NULL)
         return callback_connect();
@@ -104,7 +104,7 @@ bool ApplXcpConnect(void) {
 void ApplXcpDisconnect(void) { DBG_PRINT4("ApplXcpDisconnect\n"); }
 
 #if XCP_PROTOCOL_LAYER_VERSION >= 0x0104
-bool ApplXcpPrepareDaq() {
+bool ApplXcpPrepareDaq(void) {
     DBG_PRINT4("ApplXcpPrepareDaq\n");
     if (callback_prepare_daq != NULL) {
         if (!callback_prepare_daq()) {
@@ -116,7 +116,7 @@ bool ApplXcpPrepareDaq() {
 }
 #endif
 
-void ApplXcpStartDaq() {
+void ApplXcpStartDaq(void) {
     DBG_PRINT4("ApplXcpStartDaq\n");
     if (callback_start_daq != NULL)
         callback_start_daq();
@@ -328,10 +328,10 @@ uint32_t ApplXcpGetAddr(const uint8_t *p) { return ((uint32_t)(p)); }
 uint8_t ApplXcpUserCommand(uint8_t cmd) {
     switch (cmd) {
     case 0x01: // Begin atomic calibration operation
-        write_delay = true;
+        write_delayed = true;
         break;
     case 0x02: // End atomic calibration operation;
-        write_delay = false;
+        write_delayed = false;
         if (callback_flush != NULL)
             return callback_flush();
         break;
@@ -351,7 +351,7 @@ uint8_t ApplXcpReadMemory(uint32_t src, uint8_t size, uint8_t *dst) {
 }
 uint8_t ApplXcpWriteMemory(uint32_t dst, uint8_t size, const uint8_t *src) {
     if (callback_write != NULL)
-        return callback_write(dst, size, src, write_delay);
+        return callback_write(dst, size, src, write_delayed);
     return CRC_ACCESS_DENIED;
 }
 #endif
@@ -385,7 +385,7 @@ uint8_t ApplXcpCopyCalPage(uint8_t srcSeg, uint8_t srcPage, uint8_t dstSeg, uint
 #endif
 
 #ifdef XCP_ENABLE_FREEZE_CAL_PAGE
-uint8_t ApplXcpCalFreeze() {
+uint8_t ApplXcpCalFreeze(void) {
     if (callback_freeze_cal != NULL)
         return callback_freeze_cal(); // return CRC_CMD_xxx return code
     return CRC_CMD_UNKNOWN;
@@ -431,17 +431,12 @@ uint8_t ApplXcpDaqResumeClear(void) {
 /**************************************************************************/
 
 static const char *gXcpA2lName = NULL; // A2L filename (without extension .a2l)
-static const char *gXcpEpk = NULL;     // EPK
 
 // Set the A2L filename (without extension)
 void ApplXcpSetA2lName(const char *name) {
+    assert(name != NULL);
     DBG_PRINTF4("A2L name='%s'\n", name);
     gXcpA2lName = (char *)name; // must be static lifetime
-}
-// Set the EPK (A2l file version string)
-void ApplXcpSetEpk(const char *epk) {
-    DBG_PRINTF4("A2L EPK='%s'\n", epk);
-    gXcpEpk = (char *)epk; // must be static lifetime
 }
 
 #ifdef XCP_ENABLE_IDT_A2L_UPLOAD // Enable GET_ID A2L content upload to host
@@ -449,14 +444,13 @@ void ApplXcpSetEpk(const char *epk) {
 static FILE *gXcpFile = NULL;       // A2l file content
 static uint32_t gXcpFileLength = 0; // A2L file length
 
-void closeA2lFile(void) {
+static void closeA2lFile(void) {
     assert(gXcpFile != NULL);
     fclose(gXcpFile);
     gXcpFile = NULL;
-    DBG_PRINT3("Close A2L file\n");
 }
 
-uint32_t openA2lFile(void) {
+static uint32_t openA2lFile(void) {
     char filename[256];
     if (gXcpA2lName == NULL)
         return 0; // A2L file is not available
@@ -529,19 +523,20 @@ uint32_t ApplXcpGetId(uint8_t id, uint8_t *buf, uint32_t bufLen) {
         break;
 
 #ifdef XCP_ENABLE_IDT_A2L_UPLOAD
-    case IDT_ASAM_EPK:
-        if (gXcpEpk == NULL)
+    case IDT_ASAM_EPK: {
+        const char *epk = XcpGetEpk();
+        if (epk == NULL)
             return 0;
-        len = (uint32_t)strlen(gXcpEpk);
+        len = (uint32_t)strlen(epk);
         if (buf) {
             if (len > bufLen - 1)
                 return 0; // Insufficient buffer space
-            strncpy((char *)buf, gXcpEpk, len);
-            DBG_PRINTF3("ApplXcpGetId GET_ID%u EPK=%s\n", id, gXcpEpk);
+            strncpy((char *)buf, epk, len);
+            DBG_PRINTF3("ApplXcpGetId GET_ID%u EPK=%s\n", id, epk);
         } else {
-            DBG_PRINTF3("ApplXcpGetId GET_ID%u EPK as upload (len=%u,value=%s)\n", id, len, gXcpEpk);
+            DBG_PRINTF3("ApplXcpGetId GET_ID%u EPK as upload (len=%u,value=%s)\n", id, len, epk);
         }
-        break;
+    } break;
 
     case IDT_ASAM_UPLOAD:
         assert(buf == NULL); // Not implemented

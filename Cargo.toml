@@ -17,7 +17,6 @@ categories = ["MC"]
 members = [
     "xcp_client",  
     "examples/hello_xcp",
-    "examples/xcplib_demo",
     "examples/calibration_demo",      
     "examples/struct_measurement_demo",    
     "examples/single_thread_demo",
@@ -41,10 +40,6 @@ path = "xcp_client/src/main.rs"
 [[example]]
 name = "hello_xcp"
 path = "examples/hello_xcp/src/main.rs"
-
-[[example]]
-name = "xcplib_demo"
-path = "examples/xcplib_demo/src/main.rs"
 
 [[example]]
 name = "calibration_demo"

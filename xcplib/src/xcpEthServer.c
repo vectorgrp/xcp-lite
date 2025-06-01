@@ -173,6 +173,8 @@ extern void *XcpServerReceiveThread(void *par)
                 DBG_PRINT_ERROR("XcpTlHandleTransmitQueue failed!\n");
                 break; // error - terminate thread
             }
+
+            XcpBackgroundTasks(); // Handle background tasks, e.g. pending calibration updates
         }
     }
     gXcpServer.ReceiveThreadRunning = false;

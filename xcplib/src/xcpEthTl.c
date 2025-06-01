@@ -436,16 +436,16 @@ bool XcpEthTlInit(const uint8_t *addr, uint16_t port, bool useTCP, bool blocking
 
 #ifdef OPTION_ENABLE_GET_LOCAL_ADDR
     {
-        uint8_t addr[4] = {0, 0, 0, 0};
-        uint8_t mac[6] = {0, 0, 0, 0, 0, 0};
-        socketGetLocalAddr(mac, addr); // Store actual MAC and IP addr for later use
-        DBG_PRINTF3("  MAC=%02X.%02X.%02X.%02X.%02X.%02X IP=%u.%u.%u.%u\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], addr[0], addr[1], addr[2], addr[3]);
+        uint8_t s_addr[4] = {0, 0, 0, 0};
+        uint8_t s_mac[6] = {0, 0, 0, 0, 0, 0};
+        socketGetLocalAddr(s_mac, s_addr); // Store actual MAC and IP addr for later use
+        DBG_PRINTF3("  MAC=%02X.%02X.%02X.%02X.%02X.%02X IP=%u.%u.%u.%u\n", s_mac[0], s_mac[1], s_mac[2], s_mac[3], s_mac[4], s_mac[5], s_addr[0], s_addr[1], s_addr[2], s_addr[3]);
         if (bind_addr[0] == 0) {
-            memcpy(gXcpTl.ServerAddr, addr, 4); // Store IP address for XcpEthTlGetInfo
+            memcpy(gXcpTl.ServerAddr, s_addr, 4); // Store IP address for XcpEthTlGetInfo
         } else {
             memcpy(gXcpTl.ServerAddr, bind_addr, 4);
         }
-        memcpy(gXcpTl.ServerMac, mac, 6); // Store MAC address for XcpEthTlGetInfo
+        memcpy(gXcpTl.ServerMac, s_mac, 6); // Store MAC address for XcpEthTlGetInfo
     }
 #endif
 
@@ -517,34 +517,6 @@ void XcpEthTlGetInfo(bool *isTcp, uint8_t *mac, uint8_t *addr, uint16_t *port) {
 
 //----------------------------------------------------------------------------
 // Generic transport layer functions
-
-// Execute XCP command
-// Returns XCP error code
-uint8_t XcpTlCommand(uint16_t msgLen, const uint8_t *msgBuf) {
-
-    bool connected = XcpIsConnected();
-    tXcpCtoMessage *p = (tXcpCtoMessage *)msgBuf;
-    assert(msgLen >= p->dlc + XCPTL_TRANSPORT_LAYER_HEADER_SIZE);
-
-    /* Connected */
-    if (connected) {
-        if (p->dlc > XCPTL_MAX_CTO_SIZE)
-            return CRC_CMD_SYNTAX;
-        return XcpCommand((const uint32_t *)&p->packet[0], p->dlc); // Handle command
-    }
-
-    /* Not connected yet */
-    else {
-        /* Check for CONNECT command ? */
-        if (p->dlc == 2 && p->packet[0] == CC_CONNECT) {
-            QueueClear(gXcpTl.queue_handle);
-            return XcpCommand((const uint32_t *)&p->packet[0], (uint8_t)p->dlc); // Handle CONNECT command
-        } else {
-            DBG_PRINTF_WARNING("WARNING: XcpTlCommand: no valid CONNECT command, dlc=%u, data=%02X\n", p->dlc, p->packet[0]);
-            return CRC_CMD_SYNTAX;
-        }
-    }
-}
 
 // Transmit all completed and fully commited UDP frames
 // Returns number of bytes sent or -1 on error

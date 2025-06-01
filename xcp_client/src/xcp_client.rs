@@ -1019,34 +1019,31 @@ impl XcpClient {
     //------------------------------------------------------------------------
     // calibration segment and page control
 
-    pub async fn get_ecu_page(&mut self) -> Result<u8, Box<dyn Error>> {
-        let mode = CAL_PAGE_MODE_ECU | 0x80;
-        let segment = 0;
+    pub async fn get_ecu_page(&mut self, segment: u8) -> Result<u8, Box<dyn Error>> {
+        let mode = CAL_PAGE_MODE_ECU;
+
         let data = self.send_command(XcpCommandBuilder::new(CC_GET_CAL_PAGE).add_u8(mode).add_u8(segment).build()).await?;
         let page = if data[3] != 0 { 1 } else { 0 };
         Ok(page)
     }
 
-    pub async fn get_xcp_page(&mut self) -> Result<u8, Box<dyn Error>> {
-        let mode = CAL_PAGE_MODE_XCP | 0x80;
-        let segment = 0;
+    pub async fn get_xcp_page(&mut self, segment: u8) -> Result<u8, Box<dyn Error>> {
+        let mode = CAL_PAGE_MODE_XCP;
         let data = self.send_command(XcpCommandBuilder::new(CC_GET_CAL_PAGE).add_u8(mode).add_u8(segment).build()).await?;
         let page = if data[3] != 0 { 1 } else { 0 };
         Ok(page)
     }
 
     pub async fn set_ecu_page(&mut self, page: u8) -> Result<(), Box<dyn Error>> {
-        let mode = CAL_PAGE_MODE_ECU | 0x80;
-        let segment = 0;
-        self.send_command(XcpCommandBuilder::new(CC_SET_CAL_PAGE).add_u8(mode).add_u8(segment).add_u8(page).build())
+        let mode = CAL_PAGE_MODE_ECU | 0x80; // All segments
+        self.send_command(XcpCommandBuilder::new(CC_SET_CAL_PAGE).add_u8(mode).add_u8(0).add_u8(page).build())
             .await?;
         Ok(())
     }
 
     pub async fn set_xcp_page(&mut self, page: u8) -> Result<(), Box<dyn Error>> {
-        let mode = CAL_PAGE_MODE_XCP | 0x80;
-        let segment = 0;
-        self.send_command(XcpCommandBuilder::new(CC_SET_CAL_PAGE).add_u8(mode).add_u8(segment).add_u8(page).build())
+        let mode = CAL_PAGE_MODE_XCP | 0x80; // All segments
+        self.send_command(XcpCommandBuilder::new(CC_SET_CAL_PAGE).add_u8(mode).add_u8(0).add_u8(page).build())
             .await?;
         Ok(())
     }
@@ -1373,7 +1370,7 @@ impl XcpClient {
         //let res = a2l_find_characteristic(self.a2l_file.as_ref().unwrap(), name);
         //let (a2l_addr, a2l_type, a2l_limits) = res.unwrap();
         let registry = self.registry.as_ref().unwrap();
-        match registry.instance_list.find_instance(name, xcp_lite::registry::McObjectType::Characteristic, None) {
+        match registry.instance_list.get_instance(name) {
             None => {
                 error!("Characteristic {} not found", name);
                 Err(Box::new(XcpClientError::new(ERROR_A2L, 0)) as Box<dyn Error>)
@@ -1481,7 +1478,7 @@ impl XcpClient {
 
     pub fn create_measurement_object(&mut self, name: &str) -> Option<XcpMeasurementObjectHandle> {
         let registry = self.registry.as_ref().unwrap();
-        match registry.instance_list.find_instance(name, xcp_lite::registry::McObjectType::Measurement, None) {
+        match registry.instance_list.get_instance(name) {
             None => {
                 debug!("Measurement {} not found", name);
                 None

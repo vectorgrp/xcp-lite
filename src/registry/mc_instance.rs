@@ -256,6 +256,12 @@ impl McInstanceList {
         Ok(())
     }
 
+    /// Get an instance by name
+    /// Returns the instance or None
+    pub fn get_instance(&self, name: &str) -> Option<&McInstance> {
+        self.into_iter().find(|i| name == i.name.as_str())
+    }
+
     /// Find an instance by regular expression, optional by object type (set to Unspecified if any) or by event_id (set to None if any)
     /// Returns the first instance that matches the criteria or None
     pub fn find_instance(&self, regex: &str, object_type: McObjectType, event_id: Option<u16>) -> Option<&McInstance> {

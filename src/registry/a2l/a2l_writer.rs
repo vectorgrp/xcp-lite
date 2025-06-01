@@ -780,8 +780,7 @@ impl<'a> A2lWriter<'a> {
             r#"
     ASAP2_VERSION 1 71
     /begin PROJECT {project_name} ""
-
-    /begin HEADER "Written by Vector xcp_lite A2L registry" VERSION "0.2.0" PROJECT_NO VECTOR /end HEADER
+    /begin HEADER "" VERSION "1.0" PROJECT_NO VECTOR /end HEADER
 
     /begin MODULE {module_name} ""
             
