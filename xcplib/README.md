@@ -3,7 +3,7 @@
 
 XCPlite is a lightweight pure C implementation of the ASAM XCP V1.4 standard protocol for measurement and calibration of electronic control units.  
 It supports XCP on TCP or UDP with jumboframes.  
-Runs on POSIX based (LINUX, MACOS) or Windows Operating Systems.  
+Runs on 64 Bit platforms with POSIX based (LINUX, MACOS) or Windows Operating Systems.  
 The A2L measurement and calibration object database is generated during runtime and uploaded by the XCP client on connect.
 
 XCPlite is provided to test and demonstrate calibration tools such as CANape or any other XCP client implementation.  

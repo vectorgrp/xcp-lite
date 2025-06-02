@@ -15,7 +15,7 @@
 
 #include <assert.h>  // for assert
 #include <stdbool.h> // for bool
-#include <stdint.h>  // for uint8_t, uint32_t, uint64_t
+#include <stdint.h>  // for uintxx_t
 #include <stdio.h>   // for fclose, fopen, fread, fseek, ftell
 #include <string.h>  // for strlen, strncpy
 

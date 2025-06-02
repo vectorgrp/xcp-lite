@@ -466,8 +466,8 @@ void XcpSetEpk(const char *epk) {
     assert(epk != NULL);
     size_t epk_len = strnlen(epk, XCP_EPK_MAX_LENGTH);
     strncpy(gXcpEpk, epk, epk_len);
-    gXcpEpk[XCP_EPK_MAX_LENGTH] = 0;  // Ensure null termination
-    assert(strlen(gXcpEpk) % 4 == 0); // @@@@ EPK length must be a %4 because of  4 byte XCP checksum calculation granularity
+    gXcpEpk[XCP_EPK_MAX_LENGTH] = 0;    // Ensure null termination
+    assert((strlen(gXcpEpk) % 4) == 0); // @@@@ EPK length must be a %4 because of  4 byte XCP checksum calculation granularity
     DBG_PRINTF3("EPK = '%s'\n", gXcpEpk);
 }
 const char *XcpGetEpk(void) {
@@ -1102,14 +1102,13 @@ static uint8_t XcpCheckMemory(void) {
         return CRC_MEMORY_OVERFLOW;
     }
 
-    // Recalculate the pointers
 #ifdef XCP_ENABLE_TEST_CHECKS
-    assert(sizeof(tXcpDaqList) == 12);                // Check size
-    assert(sizeof(tXcpOdt) == 8);                     // Check size
-    assert((uint64_t)gXcpDaqLists % 4 == 0);          // Check alignment
-    assert((uint64_t)&DaqListOdtTable[0] % 4 == 0);   // Check alignment
-    assert((uint64_t)&OdtEntryAddrTable[0] % 4 == 0); // Check alignment
-    assert((uint64_t)&OdtEntrySizeTable[0] % 4 == 0); // Check alignment
+    assert(sizeof(tXcpDaqList) == 12);                  // Check size
+    assert(sizeof(tXcpOdt) == 8);                       // Check size
+    assert(((uint64_t)gXcpDaqLists % 4) == 0);          // Check alignment
+    assert(((uint64_t)&DaqListOdtTable[0] % 4) == 0);   // Check alignment
+    assert(((uint64_t)&OdtEntryAddrTable[0] % 4) == 0); // Check alignment
+    assert(((uint64_t)&OdtEntrySizeTable[0] % 4) == 0); // Check alignment
 #endif
 
     DBG_PRINTF5("[XcpCheckMemory] %u of %u Bytes used\n", s, XCP_DAQ_MEM_SIZE);
@@ -1582,7 +1581,7 @@ static void XcpTriggerDaqEventAt(const tXcpDaqLists *daq_lists, tQueueHandle que
     uint16_t daq;
 
 #ifdef XCP_ENABLE_TEST_CHECKS
-    assert(daq_lists != NULL && daq_lists->res == 0xBEAC && (uint64_t)daq_lists % 4 == 0);
+    assert(daq_lists != NULL && daq_lists->res == 0xBEAC && ((uint64_t)daq_lists % 4) == 0);
 #endif
 
     if (clock == 0)
@@ -2201,7 +2200,7 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
             uint32_t checksum_value = 0;
             uint32_t checksum_size = CRO_BUILD_CHECKSUM_SIZE;
             // Switch to XCP_CHECKSUM_TYPE_ADD41 if n is not a multiple of 4
-            if (checksum_size % 4 != 0) {
+            if ((checksum_size % 4) != 0) {
                 for (uint32_t i = 0; i < checksum_size; i++) {
                     uint8_t memory_value = 0;
                     check_error(XcpReadMta(sizeof(memory_value), &memory_value));

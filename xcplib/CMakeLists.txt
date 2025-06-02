@@ -2,19 +2,48 @@
 
 cmake_minimum_required(VERSION 3.5)
 
-set(MACOS TRUE) # Build for macOS Darwin ARM
-set(WINDOWS FALSE) # Build for Windows x64
-set(LINUX FALSE) # Build for Linus x64
+project(xcplib VERSION 6.0 LANGUAGES C)
+
+
+
+if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    message("Building for 64-bit platform")
+    set(PLATFORM_64BIT TRUE)
+else()
+    message("Building for 32-bit platform")
+    set(PLATFORM_32BIT TRUE)
+endif()
+
+
+if(WIN32)
+   message("Building for WINDOWS")
+   set(WINDOWS FALSE) # Build for Windows
+elseif(APPLE)
+   message("Building for APPLE")
+   set(MACOS TRUE) # Build for macOS Darwin ARM
+elseif(UNIX)
+    message("Building for UNIX")
+    set(LINUX FALSE) # Build for Linus x64
+endif()
+
+
+
 
 set(CMAKE_C_COMPILER "gcc")
 set(CMAKE_CXX_COMPILER "g++")
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-project(xcplib VERSION 6.0 LANGUAGES C)
+
 
 # xcplib
-set(xcplib_SOURCES ./src/xcpAppl.c ./src/xcpLite.c ./src/xcpEthServer.c ./src/xcpEthTl.c  ./src/xcpQueue.c ./src/a2l.c ./src/platform.c   )
+if(PLATFORM_64BIT)
+set(xcplib_SOURCES ./src/xcpAppl.c ./src/xcpLite.c ./src/xcpEthServer.c ./src/xcpEthTl.c  ./src/xcpQueue64.c ./src/a2l.c ./src/platform.c   )   
+else()
+set(xcplib_SOURCES ./src/xcpAppl.c ./src/xcpLite.c ./src/xcpEthServer.c ./src/xcpEthTl.c  ./src/xcpQueue32.c ./src/a2l.c ./src/platform.c   )   
+endif()
+
+
 set_source_files_properties(${xcplib_SOURCES} PROPERTIES LANGUAGE C)
 add_library(xcplib ${xcplib_SOURCES})
 target_include_directories(xcplib PUBLIC "${PROJECT_SOURCE_DIR}/src" )

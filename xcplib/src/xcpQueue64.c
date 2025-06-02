@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------------
 | File:
-|   xcpQueue.c
+|   xcpQueue64.c
 |
 | Description:
 |   XCP transport layer queue
@@ -18,7 +18,7 @@
 #include <assert.h>   // for assert
 #include <inttypes.h> // for PRIu64
 #include <stdbool.h>  // for bool
-#include <stdint.h>   // for uint32_t, uint64_t, uint8_t, int64_t
+#include <stdint.h>   // for uintxx_t
 #include <stdio.h>    // for NULL, snprintf
 #include <stdlib.h>   // for free, malloc
 #include <string.h>   // for memcpy, strcmp
@@ -27,12 +27,18 @@
 #include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of atomics, sockets, clock, thread, mutex
 #include "xcpEthTl.h"  // for tXcpDtoMessage
 
+// Check platform
+#if (!defined(_LINUX64) && !defined(_MACOS)) || !defined(PLATFORM_64BIT)
+#error "This implementation requires a 64 Bit Posix platform (_LINUX64 or _MACOS)"
+#endif
+static_assert(sizeof(void *) == 8, "This implementation requires a 64 Bit Posix platform (_LINUX64 or _MACOS)"); // This implementation requires 64 Bit Posix platforms
+
 // Queue entry states
 #define RESERVED 0  // Reserved by producer
 #define COMMITTED 1 // Committed by producer
 
 #define MAX_ENTRY_SIZE (XCPTL_MAX_DTO_SIZE + XCPTL_TRANSPORT_LAYER_HEADER_SIZE)
-#if MAX_ENTRY_SIZE & 4 == 0
+#if (MAX_ENTRY_SIZE % 4) != 0
 #error "MAX_ENTRY_SIZE should be mod 4"
 #endif
 
@@ -101,6 +107,9 @@ tQueueHandle QueueInitFromMemory(void *queue_memory, uint32_t queue_memory_size,
         atomic_store_explicit(&queue->h.head, 0, memory_order_relaxed);
         atomic_store_explicit(&queue->h.tail, 0, memory_order_relaxed);
     }
+
+    // Check for lock free atomic head and tail
+    assert(atomic_is_lock_free(&((tQueue *)queue_memory)->h.head));
 
     return (tQueueHandle)queue;
 }

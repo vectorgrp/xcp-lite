@@ -4,7 +4,7 @@
 // Additional functions for users of the XCP library xcplib
 
 #include <stdbool.h> // for bool
-#include <stdint.h>  // for uint32_t, uint64_t, uint8_t, int64_t
+#include <stdint.h>  // for uintxx_t
 
 #include "xcpLite.h" // for tXcpDaqLists
 

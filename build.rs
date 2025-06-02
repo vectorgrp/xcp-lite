@@ -63,7 +63,7 @@ fn main() {
         .file("xcplib/src/xcpAppl.c")
         .file("xcplib/src/platform.c")
         .file("xcplib/src/xcpLite.c")
-        .file("xcplib/src/xcpQueue.c")
+        .file("xcplib/src/xcpQueue64.c")
         .file("xcplib/src/xcpEthTl.c")
         .file("xcplib/src/xcpEthServer.c")
         .flag("-std=c11");
@@ -88,7 +88,7 @@ fn main() {
     println!("cargo:rerun-if-changed=xcplib/src/xcpAppl.c");
     println!("cargo:rerun-if-changed=xcplib/src/platform.h");
     println!("cargo:rerun-if-changed=xcplib/src/platform.c");
-    println!("cargo:rerun-if-changed=xcplib/src/xcpQueue.h");
+    println!("cargo:rerun-if-changed=xcplib/src/xcpQueue64.h");
     println!("cargo:rerun-if-changed=xcplib/src/xcpQueue.c");
     println!("cargo:rerun-if-changed=xcplib/src/xcpEthTl.h");
     println!("cargo:rerun-if-changed=xcplib/src/xcpEthTl.c");

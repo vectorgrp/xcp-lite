@@ -4,7 +4,7 @@
    Licensed under the MIT license.See LICENSE file in the project root for details. */
 
 #include <stdbool.h> // for bool
-#include <stdint.h>  // for uint8_t, uint32_t, uint64_t
+#include <stdint.h>  // for uintxx_t
 
 #include "platform.h" // for atomic_bool
 
