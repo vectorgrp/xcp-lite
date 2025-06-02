@@ -88,8 +88,8 @@ fn main() {
     println!("cargo:rerun-if-changed=xcplib/src/xcpAppl.c");
     println!("cargo:rerun-if-changed=xcplib/src/platform.h");
     println!("cargo:rerun-if-changed=xcplib/src/platform.c");
-    println!("cargo:rerun-if-changed=xcplib/src/xcpQueue64.h");
-    println!("cargo:rerun-if-changed=xcplib/src/xcpQueue.c");
+    println!("cargo:rerun-if-changed=xcplib/src/xcpQueue.h");
+    println!("cargo:rerun-if-changed=xcplib/src/xcpQueue64.c");
     println!("cargo:rerun-if-changed=xcplib/src/xcpEthTl.h");
     println!("cargo:rerun-if-changed=xcplib/src/xcpEthTl.c");
     println!("cargo:rerun-if-changed=xcplib/src/xcpEthServer.h");

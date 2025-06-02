@@ -33,14 +33,15 @@
 #endif
 static_assert(sizeof(void *) == 8, "This implementation requires a 64 Bit Posix platform (_LINUX64 or _MACOS)"); // This implementation requires 64 Bit Posix platforms
 
-// Queue entry states
-#define RESERVED 0  // Reserved by producer
-#define COMMITTED 1 // Committed by producer
-
+// Check preconditions
 #define MAX_ENTRY_SIZE (XCPTL_MAX_DTO_SIZE + XCPTL_TRANSPORT_LAYER_HEADER_SIZE)
 #if (MAX_ENTRY_SIZE % 4) != 0
 #error "MAX_ENTRY_SIZE should be mod 4"
 #endif
+
+// Queue entry states
+#define RESERVED 0  // Reserved by producer
+#define COMMITTED 1 // Committed by producer
 
 // Queue header
 typedef struct {
@@ -180,12 +181,13 @@ tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint16_t packet_len) {
         entry->ctr = RESERVED;
 
         atomic_store_explicit(&queue->h.head, head + msg_len, memory_order_relaxed);
+    } else {
+        queue->h.overruns++;
     }
 
     mutexUnlock(&queue->h.mutex);
 
     if (entry == NULL) {
-        queue->h.overruns++;
         tQueueBuffer ret = {
             .buffer = NULL,
             .size = 0,
