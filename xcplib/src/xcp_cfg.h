@@ -33,7 +33,7 @@
 /*----------------------------------------------------------------------------*/
 /* Address, address extension coding */
 
-// Use addr_ext XCP_ADDR_EXT_REL to indicate relative addr format offset as uint64_t
+// Use addr_ext XCP_ADDR_EXT_REL to indicate relative addr format offset as uint64
 #define XCP_ENABLE_REL_ADDRESSING
 #define XCP_ADDR_EXT_REL 0x03 // Event relative address format
 
@@ -41,7 +41,7 @@
 #define XCP_ENABLE_DYN_ADDRESSING
 #define XCP_ADDR_EXT_DYN 0x02 // Relative address format
 
-// Use addr_ext XCP_ADDR_EXT_ABS to indicate absulute addr format (ApplXcpGetBaseAddr()+ addr as uint64_t)
+// Use addr_ext XCP_ADDR_EXT_ABS to indicate absulute addr format (ApplXcpGetBaseAddr()+ addr as uint64)
 #define XCP_ENABLE_ABS_ADDRESSING
 #define XCP_ADDR_EXT_ABS 0x01 // Absolute address format
 

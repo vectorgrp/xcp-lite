@@ -161,6 +161,82 @@ typedef union {
 } tXcpCto;
 
 /****************************************************************************/
+/* DAQ tables                                                               */
+/****************************************************************************/
+
+#define XCP_UNDEFINED_DAQ_LIST 0xFFFF
+
+// ODT
+// size = 8 byte
+#pragma pack(push, 1)
+typedef struct {
+    uint16_t first_odt_entry; /* Absolute odt entry number */
+    uint16_t last_odt_entry;  /* Absolute odt entry number */
+    uint16_t size;            /* Number of bytes */
+    uint16_t res;
+} tXcpOdt;
+#pragma pack(pop)
+// static_assert(sizeof(tXcpOdt) == 8, "Error: size of tXcpOdt is not equal to 8");
+
+/* DAQ list */
+// size = 12 byte
+#pragma pack(push, 1)
+typedef struct {
+    uint16_t last_odt;      /* Absolute odt number */
+    uint16_t first_odt;     /* Absolute odt number */
+    uint16_t event_channel; /* Associated event */
+#ifdef XCP_MAX_EVENT_COUNT
+    uint16_t next; /* Next DAQ list associated to event_channel */
+#else
+    uint16_t res1;
+#endif
+    uint8_t mode;
+    uint8_t state;
+    uint8_t priority;
+    uint8_t addr_ext;
+} tXcpDaqList;
+#pragma pack(pop)
+// static_assert(sizeof(tXcpDaqList) == 12, "Error: size of tXcpDaqList is not equal to 12");
+
+/* Dynamic DAQ list structure in a linear memory block with size XCP_DAQ_MEM_SIZE + 8  */
+#pragma pack(push, 1)
+typedef struct {
+    uint16_t odt_entry_count; // Total number of ODT entries in ODT entry addr and size arrays
+    uint16_t odt_count;       // Total number of ODTs in ODT array
+    uint16_t daq_count;       // Number of DAQ lists in DAQ list array
+    uint16_t res;
+#ifdef XCP_ENABLE_DAQ_RESUME
+    uint16_t config_id;
+    uint16_t res1;
+#endif
+#ifdef XCP_MAX_EVENT_COUNT
+    uint16_t daq_first[XCP_MAX_EVENT_COUNT]; // Event channel to DAQ list mapping
+#endif
+
+    // DAQ array
+    // size and alignment % 8
+    // memory layout:
+    //  tXcpDaqList[] - DAQ list array
+    //  tXcpOdt[]     - ODT array
+    //  uint32_t[]    - ODT entry addr array
+    //  uint8_t[]     - ODT entry size array
+    union {
+        // DAQ array
+        tXcpDaqList daq_list[XCP_DAQ_MEM_SIZE / sizeof(tXcpDaqList)];
+        // ODT array
+        tXcpOdt odt[XCP_DAQ_MEM_SIZE / sizeof(tXcpOdt)];
+        // ODT entry addr array
+        uint32_t odt_entry_addr[XCP_DAQ_MEM_SIZE / 4];
+        // ODT entry size array
+        uint8_t odt_entry_size[XCP_DAQ_MEM_SIZE / 1];
+
+        uint64_t b[XCP_DAQ_MEM_SIZE / 8 + 1];
+    } u;
+
+} tXcpDaqLists;
+#pragma pack(pop)
+
+/****************************************************************************/
 /* Protocol layer data                                                      */
 /****************************************************************************/
 
@@ -379,18 +455,26 @@ uint64_t XcpGetDaqStartTime(void) { return gXcp.DaqStartClock64; }
 uint32_t XcpGetDaqOverflowCount(void) { return gXcp.DaqOverflowCount; }
 
 /**************************************************************************/
-/* EPK                                                                    */
+/* EPK version string                                                     */
 /**************************************************************************/
 
-static const char *gXcpEpk = NULL; // EPK string with terminating zero
+#define XCP_EPK_MAX_LENGTH 32                      // Max length of the EPK (A2L file version string)
+static char gXcpEpk[XCP_EPK_MAX_LENGTH + 1] = {0}; // EPK string, null terminated
 
 // Set/get the EPK (A2l file version string)
 void XcpSetEpk(const char *epk) {
     assert(epk != NULL);
-    DBG_PRINTF4("A2L EPK='%s'\n", epk);
-    gXcpEpk = (char *)epk; // must be static lifetime
+    size_t epk_len = strnlen(epk, XCP_EPK_MAX_LENGTH);
+    strncpy(gXcpEpk, epk, epk_len);
+    gXcpEpk[XCP_EPK_MAX_LENGTH] = 0;    // Ensure null termination
+    assert((strlen(gXcpEpk) % 4) == 0); // @@@@ EPK length must be a %4 because of  4 byte XCP checksum calculation granularity
+    DBG_PRINTF3("EPK = '%s'\n", gXcpEpk);
 }
-const char *XcpGetEpk(void) { return gXcpEpk; }
+const char *XcpGetEpk(void) {
+    if (strnlen(gXcpEpk, XCP_EPK_MAX_LENGTH) == 0)
+        return NULL;
+    return gXcpEpk;
+}
 
 /**************************************************************************/
 /* Calibration segments                                                   */
@@ -1018,14 +1102,13 @@ static uint8_t XcpCheckMemory(void) {
         return CRC_MEMORY_OVERFLOW;
     }
 
-    // Recalculate the pointers
 #ifdef XCP_ENABLE_TEST_CHECKS
-    assert(sizeof(tXcpDaqList) == 12);                // Check size
-    assert(sizeof(tXcpOdt) == 8);                     // Check size
-    assert((uint64_t)gXcpDaqLists % 4 == 0);          // Check alignment
-    assert((uint64_t)&DaqListOdtTable[0] % 4 == 0);   // Check alignment
-    assert((uint64_t)&OdtEntryAddrTable[0] % 4 == 0); // Check alignment
-    assert((uint64_t)&OdtEntrySizeTable[0] % 4 == 0); // Check alignment
+    assert(sizeof(tXcpDaqList) == 12);                  // Check size
+    assert(sizeof(tXcpOdt) == 8);                       // Check size
+    assert(((uint64_t)gXcpDaqLists % 4) == 0);          // Check alignment
+    assert(((uint64_t)&DaqListOdtTable[0] % 4) == 0);   // Check alignment
+    assert(((uint64_t)&OdtEntryAddrTable[0] % 4) == 0); // Check alignment
+    assert(((uint64_t)&OdtEntrySizeTable[0] % 4) == 0); // Check alignment
 #endif
 
     DBG_PRINTF5("[XcpCheckMemory] %u of %u Bytes used\n", s, XCP_DAQ_MEM_SIZE);
@@ -1493,12 +1576,12 @@ static void XcpTriggerDaqList(const tXcpDaqLists *daq_lists, tQueueHandle queueH
 
 // Trigger event
 // DAQ must be running
-void XcpTriggerDaqEventAt(const tXcpDaqLists *daq_lists, tQueueHandle queueHandle, uint16_t event, const uint8_t *base, uint64_t clock) {
+static void XcpTriggerDaqEventAt(const tXcpDaqLists *daq_lists, tQueueHandle queueHandle, uint16_t event, const uint8_t *base, uint64_t clock) {
 
     uint16_t daq;
 
 #ifdef XCP_ENABLE_TEST_CHECKS
-    assert(daq_lists != NULL && daq_lists->res == 0xBEAC && (uint64_t)daq_lists % 4 == 0);
+    assert(daq_lists != NULL && daq_lists->res == 0xBEAC && ((uint64_t)daq_lists % 4) == 0);
 #endif
 
     if (clock == 0)
@@ -2117,7 +2200,7 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
             uint32_t checksum_value = 0;
             uint32_t checksum_size = CRO_BUILD_CHECKSUM_SIZE;
             // Switch to XCP_CHECKSUM_TYPE_ADD41 if n is not a multiple of 4
-            if (checksum_size % 4 != 0) {
+            if ((checksum_size % 4) != 0) {
                 for (uint32_t i = 0; i < checksum_size; i++) {
                     uint8_t memory_value = 0;
                     check_error(XcpReadMta(sizeof(memory_value), &memory_value));

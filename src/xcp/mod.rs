@@ -387,7 +387,7 @@ impl Xcp {
     pub fn set_log_level(&self, level: u8) -> &'static Xcp {
         unsafe {
             // @@@@ UNSAFE - C library call
-            xcplib::ApplXcpSetLogLevel(level);
+            xcplib::XcpSetLogLevel(level);
         }
 
         &XCP

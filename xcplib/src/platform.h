@@ -8,6 +8,13 @@
 //-------------------------------------------------------------------------------------------------
 // Platform defines
 
+// 64 Bit or 32 Bit platform
+#if defined(__x86_64__) || defined(_M_X64) || defined(__aarch64__) || defined(_WIN64)
+#define PLATFORM_64BIT
+#else
+#define PLATFORM_32BIT
+#endif
+
 // Windows or Linux/macOS ?
 #if defined(_WIN32) || defined(_WIN64)
 
@@ -61,7 +68,7 @@
 // Platform specific functions
 
 #include <stdbool.h> // for bool
-#include <stdint.h>  // for uint32_t, uint64_t, uint8_t, int64_t
+#include <stdint.h>  // for uintxx_t
 
 #if defined(_WIN)
 
@@ -136,7 +143,8 @@ void sleepMs(uint32_t ms);
 #endif
 
 // On Windows 64 we rely on the x86-64 strong memory model and assume atomic 64 bit load/store
-// and a mutex for thread safety when incrementing the tail
+// and a mutex for thread safe atomic_fetch_add_explicit
+// The windows version is for demonstration and test purposes, not optimized for minimal locking overhead
 #define atomic_uint_fast64_t uint64_t
 #define atomic_store_explicit(a, b, c) (*(a)) = (b)
 #define atomic_load_explicit(a, b) (*(a))

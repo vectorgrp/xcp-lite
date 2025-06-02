@@ -17,7 +17,7 @@
 #include <assert.h>   // for assert
 #include <inttypes.h> // for PRIu64
 #include <stdbool.h>  // for bool
-#include <stdint.h>   // for uint32_t, uint64_t, uint8_t, int64_t
+#include <stdint.h>   // for uintxx_t
 #include <stdio.h>    // for printf
 #include <string.h>   // for memcpy, strcmp
 

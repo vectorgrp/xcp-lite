@@ -4,7 +4,7 @@
 // Additional functions for users of the XCP library xcplib
 
 #include <stdbool.h> // for bool
-#include <stdint.h>  // for uint32_t, uint64_t, uint8_t, int64_t
+#include <stdint.h>  // for uintxx_t
 
 #include "xcpLite.h" // for tXcpDaqLists
 
@@ -19,6 +19,3 @@ void ApplXcpRegisterCallbacks(bool (*cb_connect)(void), uint8_t (*cb_prepare_daq
 void ApplXcpRegisterConnectCallback(bool (*cb_connect)(void));
 
 void ApplXcpSetA2lName(const char *name);
-
-void cpSetEpk(const char *name);
-const char *XcpGetEpk(void);

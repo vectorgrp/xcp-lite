@@ -29,24 +29,26 @@ fn main() {
         // Protocol layer
         .allowlist_function("XcpInit")
         .allowlist_function("XcpDisconnect")
-        // ETH server mode
+        // Transport layer
+        .allowlist_function("XcpEthTlGetInfo")
+        // Server
         .allowlist_function("XcpEthServerInit")
         .allowlist_function("XcpEthServerShutdown")
         .allowlist_function("XcpEthServerStatus")
-        .allowlist_function("XcpEthTlGetInfo")
         // DAQ
-        .allowlist_function("XcpTriggerDaqEventAt")
-        //.allowlist_function("XcpEventAt")
         .allowlist_function("XcpEvent")
-        //.allowlist_function("XcpEventExtAt")
         .allowlist_function("XcpEventExt")
+        //.allowlist_function("XcpTriggerDaqEventAt")
+        //.allowlist_function("XcpEventAt")
+        //.allowlist_function("XcpEventExtAt")
         // Misc
+        .allowlist_function("XcpSetLogLevel")
         .allowlist_function("XcpPrint")
         .allowlist_function("XcpSetEpk")
         .allowlist_function("XcpSendTerminateSessionEvent")
-        .allowlist_function("ApplXcpSetLogLevel")
+        //
+        //.allowlist_function("ApplXcpGetAddr")
         .allowlist_function("ApplXcpSetA2lName")
-        .allowlist_function("ApplXcpGetAddr")
         .allowlist_function("ApplXcpRegisterCallbacks")
         .allowlist_function("ApplXcpGetClock64")
         //
@@ -55,21 +57,15 @@ fn main() {
     bindings.write_to_file("src/xcp/xcplib.rs").expect("Couldn't write bindings!");
 
     // Build xcplib
-
     let mut builder = cc::Build::new();
     let builder = builder
-        //
         .include("xcplib/src/")
-        .include("xcplib/")
-        //
-        // xcplib source files
         .file("xcplib/src/xcpAppl.c")
         .file("xcplib/src/platform.c")
         .file("xcplib/src/xcpLite.c")
-        .file("xcplib/src/xcpQueue.c")
+        .file("xcplib/src/xcpQueue64.c")
         .file("xcplib/src/xcpEthTl.c")
         .file("xcplib/src/xcpEthServer.c")
-        // Flags
         .flag("-std=c11");
 
     if is_release {
@@ -93,7 +89,7 @@ fn main() {
     println!("cargo:rerun-if-changed=xcplib/src/platform.h");
     println!("cargo:rerun-if-changed=xcplib/src/platform.c");
     println!("cargo:rerun-if-changed=xcplib/src/xcpQueue.h");
-    println!("cargo:rerun-if-changed=xcplib/src/xcpQueue.c");
+    println!("cargo:rerun-if-changed=xcplib/src/xcpQueue64.c");
     println!("cargo:rerun-if-changed=xcplib/src/xcpEthTl.h");
     println!("cargo:rerun-if-changed=xcplib/src/xcpEthTl.c");
     println!("cargo:rerun-if-changed=xcplib/src/xcpEthServer.h");

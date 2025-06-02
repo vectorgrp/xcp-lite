@@ -15,7 +15,7 @@
 #include <assert.h>  // for assert
 #include <stdarg.h>  // for va_
 #include <stdbool.h> // for bool
-#include <stdint.h>  // for uint8_t, uint32_t, uint64_t
+#include <stdint.h>  // for uintxx_t
 #include <stdio.h>   // for fclose, fopen, fread, fseek, ftell
 #include <string.h>  // for strlen, strncpy
 
@@ -38,22 +38,6 @@ static uint32_t gA2lTypedefs;
 static uint32_t gA2lComponents;
 static uint32_t gA2lInstances;
 static uint32_t gA2lConversions;
-
-//----------------------------------------------------------------------------------
-// Check for memory accessibility
-// #define A2L_ENABLE_MEMORY_CHECK
-#ifdef A2L_ENABLE_MEMORY_CHECK
-static void mem_check(const char *name, int32_t type, uint8_t ext, uint32_t addr) {
-    (void)type;
-    (void)name;
-    volatile uint8_t *p = ApplXcpGetPointer(ext, addr);
-    if (p == NULL) {
-        DBG_PRINTF3("memory address 0x%04X of variable %s not accessible !\n", addr, name);
-        assert(0);
-    }
-    volatile uint8_t b = *p; // if this leads to a memory protection error, check if address transformation from A2L to uint_8_p* transformation is correct
-}
-#endif
 
 //----------------------------------------------------------------------------------
 static const char *gA2lHeader = "ASAP2_VERSION 1 71\n"
@@ -263,16 +247,16 @@ static const char *getTypeName(int32_t type) {
     const char *types;
     switch (type) {
     case A2L_TYPE_INT8:
-        types = "S8";
+        types = "I8";
         break;
     case A2L_TYPE_INT16:
-        types = "S16";
+        types = "I16";
         break;
     case A2L_TYPE_INT32:
-        types = "S32";
+        types = "I32";
         break;
     case A2L_TYPE_INT64:
-        types = "S64";
+        types = "I64";
         break;
     case A2L_TYPE_UINT8:
         types = "U8";
@@ -446,13 +430,12 @@ static bool A2lOpen(const char *filename, const char *projectName) {
 }
 
 // Memory segments
-static void A2lCreate_MOD_PAR(const char *epk) {
+static void A2lCreate_MOD_PAR(void) {
     if (gA2lFile != NULL) {
-
-        XcpSetEpk(epk);
 
 #ifdef XCP_ENABLE_CALSEG_LIST
         fprintf(gA2lFile, "\n/begin MOD_PAR \"\"\n");
+        const char *epk = XcpGetEpk();
         if (epk) {
             fprintf(gA2lFile, "EPK \"%s\" ADDR_EPK 0x80000000\n", epk);
             fprintf(gA2lFile, gA2lEpkMemorySegment, strlen(epk));
@@ -841,18 +824,21 @@ bool A2lOnce(atomic_bool *value) {
 static bool gA2lUseTCP = false;
 static uint16_t gA2lOptionPort = 5555;
 static uint8_t gA2lOptionBindAddr[4] = {0, 0, 0, 0};
-static const char *gA2lEpk = "EPK_xxx1"; // EPK version string for the A2L file
 
 // Finalize A2L file generation
 bool A2lFinalize(void) {
 
     if (gA2lFile != NULL) {
 
-        // @@@@ TODO: EPK problem
-        // Note that a different A2L EPK version is required, even if only the order of events or calibration segments is different !!!!
+        // @@@@ TODO: EPK problem, should set a better EPK here
+        // A different A2L EPK version is  be required for the same build, if the order of events or calibration segments is different !!!!
+        // Set the EPK (software version number) for the A2L file
+        char epk[64];
+        sprintf(epk, "EPK_%s", __TIME__);
+        XcpSetEpk(epk);
 
         // Create MOD_PAR section with EPK and calibration segments
-        A2lCreate_MOD_PAR(gA2lEpk);
+        A2lCreate_MOD_PAR();
 
         // Create IF_DATA section with event list and transport layer info
         A2lCreate_ETH_IF_DATA(gA2lUseTCP, gA2lOptionBindAddr, gA2lOptionPort);
@@ -868,16 +854,23 @@ bool A2lFinalize(void) {
 
 // Open the A2L file and register the finalize callback
 bool A2lInit(const char *a2l_filename, const char *a2l_projectname, const uint8_t *addr, uint16_t port, bool useTCP, bool finalize_on_connect) {
+
     assert(a2l_filename != NULL);
     assert(a2l_projectname != NULL);
     assert(addr != NULL);
+
+    // Save transport layer parameters for A2l finalization
     memcpy(&gA2lOptionBindAddr, addr, 4);
     gA2lOptionPort = port;
     gA2lUseTCP = useTCP;
+
+    // Open A2L file
     if (!A2lOpen(a2l_filename, a2l_projectname)) {
         printf("Failed to open A2L file %s\n", a2l_filename);
         return false;
     }
+
+    // Register finalize callback on XCP connect
     if (finalize_on_connect)
         ApplXcpRegisterConnectCallback(A2lFinalize);
     return true;
