@@ -23,7 +23,7 @@
   // XCP
   #define OPTION_ENABLE_TCP
   #define OPTION_ENABLE_UDP
-  #define OPTION_MTU                          UDP MTU
+  #define OPTION_MTU                          Ethernet MTU, must be %8
   #define OPTION_DAQ_MEM_SIZE                 Size of memory for DAQ setup in bytes (5 byts per signal needed)
   #define OPTION_ENABLE_A2L_UPLOAD            Enable A2L upload through XCP
   #define OPTION_ENABLE_GET_LOCAL_ADDR        Determine an existing IP address for A2L file, if bound to ANY
@@ -31,12 +31,12 @@
 */
 
 // Application configuration:
-// (More specific XCP configuration is in xcp_cfg.h (Protocol Layer) and xcptl_cfg.h (Transport Layer))
+// (More specific XCP configuration is in xcp_cfg.h (Protocol Layer) and xcpTl_cfg.h (Transport Layer))
 
 // XCP options
 #define OPTION_ENABLE_TCP
 #define OPTION_ENABLE_UDP
-#define OPTION_MTU 6000                     // UDP MTU size - Jumbo frames supported
+#define OPTION_MTU 7000                     // Ethernet packet size (MTU ) - Jumbo frames supported
 #define OPTION_DAQ_MEM_SIZE (32 * 1024 * 5) // Memory bytes used for XCP DAQ tables - max 5 bytes per signal needed
 #define OPTION_ENABLE_A2L_UPLOAD
 #define OPTION_SERVER_FORCEFULL_TERMINATION

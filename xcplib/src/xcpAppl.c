@@ -30,7 +30,7 @@
 #error "Please define platform _WIN, _MACOS or _LINUX"
 #endif
 
-// @@@@  TODO improve
+// @@@@ TODO improve
 #ifdef XCP_ENABLE_USER_COMMAND
 static bool write_delayed = false;
 #endif

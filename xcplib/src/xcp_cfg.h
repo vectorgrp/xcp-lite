@@ -63,12 +63,6 @@
 // Undefined address extension
 #define XCP_UNDEFINED_ADDR_EXT 0xFF // Undefined address extension
 
-// Make XcpEvent thread safe for same CAL event coming from different threads
-// Needed for xcp-lite, because CalSeg cal sync events may come from different threads
-#ifdef XCP_ENABLE_DYN_ADDRESSING
-#define XCP_ENABLE_MULTITHREAD_CAL_EVENTS
-#endif
-
 /*----------------------------------------------------------------------------*/
 /* Protocol features */
 

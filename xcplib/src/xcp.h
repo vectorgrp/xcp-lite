@@ -224,7 +224,6 @@
 // Internal states (high byte) */
 #define SS_BLOCK_UPLOAD ((uint16_t)0x0100) /* Block upload in progress */
 #define SS_LEGACY_MODE ((uint16_t)0x0200)  /* XCP 1.3 legacy mode */
-#define SS_CMD_PENDING ((uint16_t)0x0800)  /* async command pending */
 #define SS_INITIALIZED ((uint16_t)0x8000)  /* initialized */
 #define SS_STARTED ((uint16_t)0x4000)      /* started*/
 #define SS_CONNECTED ((uint16_t)0x2000)    /* connected */
@@ -449,7 +448,7 @@
 #define PGM_NON_SEQ_REQUIRED (3 << 6)
 
 /***************************************************************************/
-/* XCP Protocol Commands and Responces, Type Definition */
+/* XCP Protocol Commands and Responses, Type Definition */
 /***************************************************************************/
 
 /* Protocol command structure definition */
@@ -1097,7 +1096,7 @@ typedef struct {
 #pragma pack(pop)
 
 /***************************************************************************/
-/* XCP Transport Layer Commands and Responces, Type Definition */
+/* XCP Transport Layer Commands and Responses, Type Definition */
 /***************************************************************************/
 
 /* Transport Layer commands */

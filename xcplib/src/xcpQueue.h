@@ -20,10 +20,6 @@ typedef struct {
 // Create new heap allocated queue. Free using `QueueDeinit`
 tQueueHandle QueueInit(uint32_t buffer_size);
 
-// Creates a queue inside the user provided buffer.
-// This can be used to place the queue inside shared memory to be used by multiple applications
-tQueueHandle QueueInitFromMemory(void *queue_buffer, uint32_t queue_buffer_size, bool clear_queue);
-
 // Deinitialize queue. Does **not** free user allocated memory provided by `QueueInitFromMemory`
 void QueueDeinit(tQueueHandle queueHandle);
 
@@ -34,10 +30,10 @@ tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint16_t size);
 void QueuePush(tQueueHandle queueHandle, tQueueBuffer *const handle, bool flush);
 
 // Single consumer: Get next buffer from the queue
-/// Buffers must be released in the order they were acquired !!!
-tQueueBuffer QueuePeek(tQueueHandle queueHandle);
+// Buffers must be released before aquiring a new one
+tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_lost);
 
-// Release buffer from `QueuePeek` or `QueuePop`
+// Release buffer from `QueuePeek`
 // This is required to notify the queue that it can reuse a memory region.
 void QueueRelease(tQueueHandle queueHandle, tQueueBuffer *const queueBuffer);
 
@@ -46,6 +42,3 @@ uint32_t QueueLevel(tQueueHandle queueHandle);
 
 // Clear queue content
 void QueueClear(tQueueHandle queueHandle);
-
-// Flush queue content
-void QueueFlush(tQueueHandle queueHandle);
