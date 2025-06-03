@@ -54,7 +54,7 @@ target_compile_options(xcplib
         -Wconversion
         -Werror
         -pedantic
-        -Wshadow
+#        -Wshadow
 )
 
 # Example hello_xcp

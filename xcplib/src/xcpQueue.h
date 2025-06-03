@@ -11,7 +11,7 @@
 typedef struct tQueueHandleType *tQueueHandle;
 #define UNDEFINED_QUEUE_HANDLE NULL
 
-// Buffer acquired from the queue with `QueueAcquire` (producer) or obtained with `QueuePop`/`QueuePeek` (consumer)
+// Buffer acquired from the queue with `QueueAcquire` (producer) or from QueuePeek` (consumer)
 typedef struct {
     uint8_t *buffer;
     uint16_t size;
@@ -36,9 +36,6 @@ void QueuePush(tQueueHandle queueHandle, tQueueBuffer *const handle, bool flush)
 // Single consumer: Get next buffer from the queue
 /// Buffers must be released in the order they were acquired !!!
 tQueueBuffer QueuePeek(tQueueHandle queueHandle);
-
-// Multi consumer: Not implemented
-//  tQueueBuffer QueuePop(tQueueHandle handle);
 
 // Release buffer from `QueuePeek` or `QueuePop`
 // This is required to notify the queue that it can reuse a memory region.
