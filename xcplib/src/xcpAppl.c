@@ -55,19 +55,25 @@ static uint8_t (*callback_get_cal_page)(uint8_t segment, uint8_t mode) = NULL;
 static uint8_t (*callback_set_cal_page)(uint8_t segment, uint8_t page, uint8_t mode) = NULL;
 static uint8_t (*callback_init_cal)(uint8_t src_page, uint8_t dst_page) = NULL;
 static uint8_t (*callback_freeze_cal)(void) = NULL;
+
+#ifdef XCP_ENABLE_APP_ADDRESSING
 static uint8_t (*callback_read)(uint32_t src, uint8_t size, uint8_t *dst) = NULL;
 static uint8_t (*callback_write)(uint32_t dst, uint8_t size, const uint8_t *src, uint8_t delay) = NULL;
 static uint8_t (*callback_flush)(void) = NULL;
-
 void ApplXcpRegisterCallbacks(bool (*cb_connect)(void), uint8_t (*cb_prepare_daq)(void), uint8_t (*cb_start_daq)(void), void (*cb_stop_daq)(void),
                               uint8_t (*cb_freeze_daq)(uint8_t clear, uint16_t config_id), uint8_t (*cb_get_cal_page)(uint8_t segment, uint8_t mode),
                               uint8_t (*cb_set_cal_page)(uint8_t segment, uint8_t page, uint8_t mode), uint8_t (*cb_freeze_cal)(void),
-                              uint8_t (*cb_init_cal)(uint8_t src_page, uint8_t dst_page),
-#ifdef XCP_ENABLE_APP_ADDRESSING
-                              uint8_t (*cb_read)(uint32_t src, uint8_t size, uint8_t *dst), uint8_t (*cb_write)(uint32_t dst, uint8_t size, const uint8_t *src, uint8_t delay),
-                              uint8_t (*cb_flush)(void)
+                              uint8_t (*cb_init_cal)(uint8_t src_page, uint8_t dst_page), uint8_t (*cb_read)(uint32_t src, uint8_t size, uint8_t *dst),
+                              uint8_t (*cb_write)(uint32_t dst, uint8_t size, const uint8_t *src, uint8_t delay), uint8_t (*cb_flush)(void))
+
+#else
+void ApplXcpRegisterCallbacks(bool (*cb_connect)(void), uint8_t (*cb_prepare_daq)(void), uint8_t (*cb_start_daq)(void), void (*cb_stop_daq)(void),
+                              uint8_t (*cb_freeze_daq)(uint8_t clear, uint16_t config_id), uint8_t (*cb_get_cal_page)(uint8_t segment, uint8_t mode),
+                              uint8_t (*cb_set_cal_page)(uint8_t segment, uint8_t page, uint8_t mode), uint8_t (*cb_freeze_cal)(void),
+                              uint8_t (*cb_init_cal)(uint8_t src_page, uint8_t dst_page))
+
 #endif
-) {
+{
 
     callback_connect = cb_connect;
     callback_prepare_daq = cb_prepare_daq;
@@ -334,8 +340,10 @@ uint8_t ApplXcpUserCommand(uint8_t cmd) {
         break;
     case 0x02: // End atomic calibration operation;
         write_delayed = false;
+#ifdef XCP_ENABLE_APP_ADDRESSING
         if (callback_flush != NULL)
             return callback_flush();
+#endif
         break;
     default:
         return CRC_CMD_UNKNOWN;

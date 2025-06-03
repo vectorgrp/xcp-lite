@@ -323,7 +323,7 @@ tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint16_t packet_len) {
     mutexLock(&lockMutex);
     if (d > lockTimeMax)
         lockTimeMax = d;
-    int i = (d / 1000) / 10;
+    int i = (int)((d / 1000) / 10);
     if (i < HISTOGRAM_SIZE)
         lockTimeHistogram[i]++;
     else

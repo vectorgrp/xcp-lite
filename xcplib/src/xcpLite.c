@@ -861,9 +861,9 @@ static uint8_t XcpWriteMta(uint8_t size, const uint8_t *data) {
     }
 #endif
 
-    // EXT == XCP_ADDR_EXT_SEG Application specific memory access
+    // EXT == XCP_ADDR_EXT_APP Application specific memory access
 #ifdef XCP_ENABLE_APP_ADDRESSING
-    if (gXcp.MtaExt == XCP_ADDR_EXT_SEG) {
+    if (gXcp.MtaExt == XCP_ADDR_EXT_APP) {
         uint8_t res = ApplXcpWriteMemory(gXcp.MtaAddr, size, data);
         gXcp.MtaAddr += size;
         return res;
@@ -920,9 +920,9 @@ static uint8_t XcpReadMta(uint8_t size, uint8_t *data) {
     }
 #endif
 
-    // EXT == XCP_ADDR_EXT_SEG Application specific memory access
+    // EXT == XCP_ADDR_EXT_APP Application specific memory access
 #ifdef XCP_ENABLE_APP_ADDRESSING
-    if (gXcp.MtaExt == XCP_ADDR_EXT_SEG) {
+    if (gXcp.MtaExt == XCP_ADDR_EXT_APP) {
         uint8_t res = ApplXcpReadMemory(gXcp.MtaAddr, size, data);
         gXcp.MtaAddr += size;
         return res;
@@ -962,22 +962,28 @@ static uint8_t XcpSetMta(uint8_t ext, uint32_t addr) {
         gXcp.MtaPtr = NULL; // MtaPtr not used
     } else
 #endif
-#if defined(XCP_ENABLE_APP_ADDRESSING) || defined(XCP_ENABLE_CALSEG_LIST)
-        // Application specific or segment relative addressing mode
+#ifdef XCP_ENABLE_CALSEG_LIST
+        // Segment relative addressing mode
         if (gXcp.MtaExt == XCP_ADDR_EXT_SEG) {
             gXcp.MtaPtr = NULL; // MtaPtr not used
         } else
 #endif
-#ifdef XCP_ENABLE_ABS_ADDRESSING
-            // Absolute addressing mode
-            if (gXcp.MtaExt == XCP_ADDR_EXT_ABS) {
-                gXcp.MtaPtr = ApplXcpGetPointer(gXcp.MtaExt, gXcp.MtaAddr);
-                gXcp.MtaExt = XCP_ADDR_EXT_PTR;
+#if defined(XCP_ENABLE_APP_ADDRESSING)
+            // Application specific addressing mode
+            if (gXcp.MtaExt == XCP_ADDR_EXT_APP) {
+                gXcp.MtaPtr = NULL; // MtaPtr not used
             } else
 #endif
-            {
-                return CRC_OUT_OF_RANGE; // Unsupported addressing mode for direct memory access
-            }
+#ifdef XCP_ENABLE_ABS_ADDRESSING
+                // Absolute addressing mode
+                if (gXcp.MtaExt == XCP_ADDR_EXT_ABS) {
+                    gXcp.MtaPtr = ApplXcpGetPointer(gXcp.MtaExt, gXcp.MtaAddr);
+                    gXcp.MtaExt = XCP_ADDR_EXT_PTR;
+                } else
+#endif
+                {
+                    return CRC_OUT_OF_RANGE; // Unsupported addressing mode for direct memory access
+                }
 
     return CRC_CMD_OK;
 }
