@@ -25,6 +25,5 @@
 
 #include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
 #include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of atomics, sockets, clock, thread, mutex
-#include "xcpEthTl.h"  // for tXcpDtoMessage
 
 #error "Not implemented yet"

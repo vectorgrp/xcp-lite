@@ -16,7 +16,7 @@
 /// Pass NULL if server should allocate it.
 /// @param measurement_queue_size Measurement queue size in bytes. Includes the bytes occupied by the queue header.
 /// @return True on success, otherwise false.
-bool XcpEthServerInit(uint8_t const *address, uint16_t port, bool use_tcp, void *measurement_queue, uint32_t measurement_queue_size);
+bool XcpEthServerInit(uint8_t const *address, uint16_t port, bool use_tcp, uint32_t measurement_queue_size);
 
 /// Shutdown the XCP on Ethernet server instance.
 bool XcpEthServerShutdown(void);

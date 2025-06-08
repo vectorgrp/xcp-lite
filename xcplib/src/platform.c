@@ -25,7 +25,7 @@
 #include <string.h>   // for memcpy, strcmp
 #include <time.h>     // for timespec, nanosleep, CLOCK_MONOTONIC_RAW
 #if defined(_LINUX) || defined(_MACOS)
-#include <unistd.h> // for sleep (@@@@ not found unistd.h on windows ???????)
+#include <unistd.h> // for sleep
 #endif
 
 #include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
@@ -153,6 +153,32 @@ void sleepMs(uint32_t ms) {
 }
 
 #endif // Windows
+
+/**************************************************************************/
+// Spinlock
+/**************************************************************************/
+
+// Hint to the CPU to reduce power consumption and improve performance
+static inline void spin_loop_hint(void) {
+#if defined(__x86_64__) || defined(__i386__)
+    __asm__ volatile("pause" ::: "memory");
+#elif defined(__aarch64__) || defined(__arm__)
+    __asm__ volatile("yield" ::: "memory");
+#else
+    // Fallback: do nothing
+#endif
+}
+
+void spinLock(atomic_int_fast64_t *lock) {
+    int64_t expected = 0;
+    int64_t const desired = 1;
+    while (!atomic_compare_exchange_weak_explicit(lock, &expected, desired, memory_order_acquire, memory_order_relaxed)) {
+        expected = 0;
+        spin_loop_hint();
+    }
+}
+
+void spinUnlock(atomic_int_fast64_t *lock) { atomic_store_explicit(lock, 0, memory_order_release); }
 
 /**************************************************************************/
 // Mutex

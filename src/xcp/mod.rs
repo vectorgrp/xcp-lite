@@ -440,7 +440,7 @@ impl Xcp {
             // Initialize the XCP server and ETH transport layer in xcplib
             unsafe {
                 // @@@@ UNSAFE - C library call
-                if !xcplib::XcpEthServerInit(&ipv4_addr.octets() as *const u8, port, tl == XcpTransportLayer::Tcp, std::ptr::null_mut(), queue_size) {
+                if !xcplib::XcpEthServerInit(&ipv4_addr.octets() as *const u8, port, tl == XcpTransportLayer::Tcp, queue_size) {
                     return Err(XcpError::XcpLib("Error: XcpEthServerInit() failed"));
                 }
             }

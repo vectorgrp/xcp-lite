@@ -3,7 +3,7 @@
 
 /*----------------------------------------------------------------------------
 | File:
-|   xcptl_cfg.h
+|   xcpTl_cfg.h
 |
 | Description:
 |   Parameter configuration for XCP transport layer
@@ -29,13 +29,12 @@
 
 // DTO size
 // Maximum size of a XCP data packet (DAQ,STIM)
-#define XCPTL_MAX_DTO_SIZE (XCPTL_MAX_SEGMENT_SIZE - 8) // Segment size - XCP transport layer header size, size must be mod 8
-// #define XCPTL_MAX_DTO_SIZE (248) // Segment size - XCP transport layer header size, size must be mod 8
+#define XCPTL_MAX_DTO_SIZE (1024 - XCPTL_TRANSPORT_LAYER_HEADER_SIZE)
 
 // Segment size is the maximum data buffer size given to sockets send/sendTo, for UDP it is the UDP MTU
 // Jumbo frames are supported, but it might be more efficient to use a smaller segment sizes
 #ifdef OPTION_MTU
-#define XCPTL_MAX_SEGMENT_SIZE (OPTION_MTU - 20 - 8) // UDP MTU (MTU - IP-header - UDP-header)
+#define XCPTL_MAX_SEGMENT_SIZE (OPTION_MTU - 32) // UDP MTU (- IP-header)
 #else
 #error "Please define XCPTL_MAX_SEGMENT_SIZE"
 #define XCPTL_MAX_SEGMENT_SIZE (1500 - 20 - 8)
@@ -43,12 +42,6 @@
 
 // Alignment for packet concatenation
 #define XCPTL_PACKET_ALIGNMENT 4 // Packet alignment for multiple XCP transport layer packets in a XCP transport layer message
-
-// Maximum queue (producer->consumer) event rate (Windows only, Linux uses polling on the consumer side)
-#define XCPTL_QUEUE_TRANSMIT_CYCLE_TIME (1 * CLOCK_TICKS_PER_MS)
-
-// Flush cycle
-#define XCPTL_QUEUE_FLUSH_CYCLE_MS 100 // Send a DTO packet at least every x ms, XCPTL_TIMEOUT_INFINITE to turn off
 
 // Transport layer message header size
 // This is fixed, no other options supported

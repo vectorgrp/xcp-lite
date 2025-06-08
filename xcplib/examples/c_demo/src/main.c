@@ -20,7 +20,7 @@
 #define OPTION_SERVER_PORT 5555           // Port
 // #define OPTION_SERVER_ADDR {0, 0, 0, 0} // Bind addr, 0.0.0.0 = ANY
 #define OPTION_SERVER_ADDR {192, 168, 8, 110} // Bind addr, 0.0.0.0 = ANY
-#define OPTION_QUEUE_SIZE 1024 * 16           // Size of the measurement queue in bytes, must be a multiple of 8
+#define OPTION_QUEUE_SIZE 1024 * 32           // Size of the measurement queue in bytes, must be a multiple of 8
 
 //-----------------------------------------------------------------------------------------------------
 
@@ -54,7 +54,7 @@ int main(void) {
 
     // Initialize the XCP Server
     uint8_t addr[4] = OPTION_SERVER_ADDR;
-    if (!XcpEthServerInit(addr, OPTION_SERVER_PORT, OPTION_USE_TCP, NULL, OPTION_QUEUE_SIZE)) {
+    if (!XcpEthServerInit(addr, OPTION_SERVER_PORT, OPTION_USE_TCP, OPTION_QUEUE_SIZE)) {
         return 1;
     }
 
@@ -91,7 +91,7 @@ int main(void) {
     uint16_t event = XcpCreateEvent("mainloop_local", 0, 0);
 
     // Register measurement variables located on stack
-    A2lSetRelAddrMode(&event); // Set event relative addressing
+    A2lSetDynAddrMode(&event); // Set event relative addressing
     A2lCreatePhysMeasurement(counter, A2L_TYPE_UINT16, "Measurement variable", 1.0, 0.0, "counts");
 
     // Create a typedef for the calibration parameter struct

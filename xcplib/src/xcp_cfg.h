@@ -48,7 +48,7 @@
 // Use addr_ext XCP_ADDR_EXT_SEG to indicate application specific addr format
 // Use ApplXcpReadMemory and ApplXcpWriteMemory or the XCP lite calibration segments (#ifdef XCP_ENABLE_CALSEG_LIST) to access memory
 #define XCP_ENABLE_APP_ADDRESSING // Segment relative memory access handled by application
-#define XCP_ADDR_EXT_SEG 0x00     // Segment relative address format
+#define XCP_ADDR_EXT_APP 0x00     // Segment relative address format, must be 0, CANape does not support memory segment address extensions
 
 // Internally used address extensions
 // Use addr_ext XCP_ADDR_EXT_EPK to indicate EPK upload memory space
@@ -62,12 +62,6 @@
 
 // Undefined address extension
 #define XCP_UNDEFINED_ADDR_EXT 0xFF // Undefined address extension
-
-// Make XcpEvent thread safe for same CAL event coming from different threads
-// Needed for xcp-lite, because CalSeg cal sync events may come from different threads
-#ifdef XCP_ENABLE_DYN_ADDRESSING
-#define XCP_ENABLE_MULTITHREAD_CAL_EVENTS
-#endif
 
 /*----------------------------------------------------------------------------*/
 /* Protocol features */
@@ -142,6 +136,8 @@
 
 #define XCP_MAX_CALSEG_COUNT 4
 #define XCP_MAX_CALSEG_NAME 15
+
+#define XCP_ADDR_EXT_SEG 0x00 // Segment relative address format, must be 0, CANape does not support memory segment address extensions
 
 // Enable lazy write mode for calibration segments
 // RCU updates of calibration segments are done in a cyclic manner in the background
