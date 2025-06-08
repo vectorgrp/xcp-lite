@@ -54,7 +54,7 @@ static_assert(sizeof(void *) == 8, "This implementation requires a 64 Bit Posix 
 #define QUEUE_ACCUMULATE_PACKETS // Accumulate XCP packets to multiple XCP messages obtained with QueuePeek
 
 // Wait for at least QUEUE_PEEK_THRESHOLD bytes in the queue before returning a segmentto optimize efficienca
-// #define QUEUE_PEEK_THRESHOLD XCPTL_MAX_SEGMENT_SIZE
+#define QUEUE_PEEK_THRESHOLD XCPTL_MAX_SEGMENT_SIZE
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
 // Test queue acquire lock timing
@@ -474,7 +474,7 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
     // The producer lock was used to protect the entry commit state and to avoid queue overruns
     // On ARM architectures without TSO (Total Store Order) memory model, the commit state must be read before the data and a memory fences is needed to garantuee visibilty of the
     // data
-    atomic_thread_fence(memory_order_release); // Ensure visibility of the data before reading the commit state
+    atomic_thread_fence(memory_order_acquire); // Ensure visibility of the data before reading the commit state
     ctr = first_entry->ctr;
 
     // Check the commit state
@@ -516,7 +516,7 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
         }
 
         tXcpDtoMessage *entry = (tXcpDtoMessage *)(queue->buffer + offset);
-        atomic_thread_fence(memory_order_release); // Ensure visibility of the data before reading the commit state
+        atomic_thread_fence(memory_order_acquire); // Ensure visibility of the data before reading the commit state
 
         // Check the entry commit state
         uint16_t ctr = entry->ctr;

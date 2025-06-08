@@ -36,7 +36,7 @@
 // XCP options
 #define OPTION_ENABLE_TCP
 #define OPTION_ENABLE_UDP
-#define OPTION_MTU 7000                     // Ethernet packet size (MTU ) - Jumbo frames supported
+#define OPTION_MTU 8000                     // Ethernet packet size (MTU ) - Jumbo frames supported
 #define OPTION_DAQ_MEM_SIZE (32 * 1024 * 5) // Memory bytes used for XCP DAQ tables - max 5 bytes per signal needed
 #define OPTION_ENABLE_A2L_UPLOAD
 #define OPTION_SERVER_FORCEFULL_TERMINATION
@@ -44,8 +44,8 @@
 // Platform options
 
 // Clock
-// #define OPTION_CLOCK_EPOCH_ARB // -> use CLOCK_MONOTONIC_RAW
-#define OPTION_CLOCK_EPOCH_PTP // -> use CLOCK_REALTIME
+#define OPTION_CLOCK_EPOCH_ARB // -> use CLOCK_MONOTONIC_RAW
+// #define OPTION_CLOCK_EPOCH_PTP // -> use CLOCK_REALTIME
 #define OPTION_CLOCK_TICKS_1NS
 
 // Enable socketGetLocalAddr and XcpEthTlGetInfo
