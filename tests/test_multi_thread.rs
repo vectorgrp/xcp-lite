@@ -24,10 +24,12 @@ use xcp_test_executor::test_executor;
 
 const TEST_CAL: xcp_test_executor::TestModeCal = xcp_test_executor::TestModeCal::Cal; // Execute calibration tests: Cal or None
 const TEST_DAQ: xcp_test_executor::TestModeDaq = xcp_test_executor::TestModeDaq::DaqMultiThread; // Execute measurement tests: MultiThreadDAQ or None
-const TEST_TASK_COUNT: usize = 16; // Number of test tasks to create
-const TEST_SIGNAL_COUNT: usize = 10; // Number of signals is TEST_SIGNAL_COUNT + 5 for each task
-const TEST_DURATION_MS: u64 = 5000;
-const TEST_CYCLE_TIME_US: u32 = 1000; // Cycle time in microseconds
+
+const TEST_TASK_COUNT: usize = 50; // Number of test tasks to create
+const TEST_SIGNAL_COUNT: usize = 32; // Number of signals is TEST_SIGNAL_COUNT + 5 for each task
+const TEST_DURATION_MS: u64 = 10 * 1000; // Stop after TEST_DURATION_MS milliseconds
+const TEST_CYCLE_TIME_US: u32 = 100; // Cycle time in microseconds
+const TEST_QUEUE_SIZE: u32 = 1024 * 256; // Size of the XCP server transmit queue in Bytes
 
 //-----------------------------------------------------------------------------
 // Calibration Segment
@@ -104,6 +106,7 @@ fn task(index: usize) {
     let mut loop_counter: u64 = 0;
     let mut changes: u64 = 0;
     let mut counter_max: u32 = 0;
+    let mut time: u64 = 0;
     let mut test0: u64 = 0;
     let mut test1: u64 = 0;
     let mut test2: u64 = 0;
@@ -114,12 +117,36 @@ fn task(index: usize) {
     let mut test7: u64 = 0;
     let mut test8: u64 = 0;
     let mut test9: u64 = 0;
+    let mut test10: u64 = 0;
+    let mut test11: u64 = 0;
+    let mut test12: u64 = 0;
+    let mut test13: u64 = 0;
+    let mut test14: u64 = 0;
+    let mut test15: u64 = 0;
+    let mut test16: u64 = 0;
+    let mut test17: u64 = 0;
+    let mut test18: u64 = 0;
+    let mut test19: u64 = 0;
+    let mut test20: u64 = 0;
+    let mut test21: u64 = 0;
+    let mut test22: u64 = 0;
+    let mut test23: u64 = 0;
+    let mut test24: u64 = 0;
+    let mut test25: u64 = 0;
+    let mut test26: u64 = 0;
+    let mut test27: u64 = 0;
+    let mut test28: u64 = 0;
+    let mut test29: u64 = 0;
+    let mut test30: u64 = 0;
+    let mut test31: u64 = 0;
 
     let mut event = daq_create_event_tli!("task", 16);
     daq_register_tli!(counter, event);
     daq_register_tli!(loop_counter, event);
-    daq_register_tli!(changes, event);
     daq_register_tli!(counter_max, event);
+    // daq_register_tli!(cal_test, event); // captured
+    // daq_register_tli!(time, event); // captured
+    daq_register_tli!(changes, event);
     daq_register_tli!(test0, event);
     daq_register_tli!(test1, event);
     daq_register_tli!(test2, event);
@@ -130,6 +157,28 @@ fn task(index: usize) {
     daq_register_tli!(test7, event);
     daq_register_tli!(test8, event);
     daq_register_tli!(test9, event);
+    daq_register_tli!(test10, event);
+    daq_register_tli!(test11, event);
+    daq_register_tli!(test12, event);
+    daq_register_tli!(test13, event);
+    daq_register_tli!(test14, event);
+    daq_register_tli!(test15, event);
+    daq_register_tli!(test16, event);
+    daq_register_tli!(test17, event);
+    daq_register_tli!(test18, event);
+    daq_register_tli!(test19, event);
+    daq_register_tli!(test20, event);
+    daq_register_tli!(test21, event);
+    daq_register_tli!(test22, event);
+    daq_register_tli!(test23, event);
+    daq_register_tli!(test24, event);
+    daq_register_tli!(test25, event);
+    daq_register_tli!(test26, event);
+    daq_register_tli!(test27, event);
+    daq_register_tli!(test28, event);
+    daq_register_tli!(test29, event);
+    daq_register_tli!(test30, event);
+    daq_register_tli!(test31, event);
 
     loop {
         let cal_seg = cal_seg.read_lock();
@@ -137,18 +186,46 @@ fn task(index: usize) {
         // Sleep for a calibratable amount of time
         thread::sleep(Duration::from_micros(cal_seg.cycle_time_us as u64));
 
+        time = Xcp::get().get_clock();
+        let _ = time;
+
         // Modify measurement variables on stack
         loop_counter += 1;
-        test0 = loop_counter + 1;
-        test1 = test0 + 1;
-        test2 = test1 + 1;
-        test3 = test2 + 1;
-        test4 = test3 + 1;
-        test5 = test4 + 1;
-        test6 = test5 + 1;
-        test7 = test6 + 1;
-        test8 = test7 + 1;
-        test9 = test8 + 1;
+
+        let offset: u64 = 0x0001_0001_0001_0001;
+        test0 = 0x0400_0300_0200_0100;
+        test1 = test0 + offset;
+        test2 = test1 + offset;
+        test3 = test2 + offset;
+        test4 = test3 + offset;
+        test5 = test4 + offset;
+        test6 = test5 + offset;
+        test7 = test6 + offset;
+        test8 = test7 + offset;
+        test9 = test8 + offset;
+        test10 = test9 + offset;
+        test11 = test10 + offset;
+        test12 = test11 + offset;
+        test13 = test12 + offset;
+        test14 = test13 + offset;
+        test15 = test14 + offset;
+        test16 = test15 + offset;
+        test17 = test16 + offset;
+        test18 = test17 + offset;
+        test19 = test18 + offset;
+        test20 = test19 + offset;
+        test21 = test20 + offset;
+        test22 = test21 + offset;
+        test23 = test22 + offset;
+        test24 = test23 + offset;
+        test25 = test24 + offset;
+        test26 = test25 + offset;
+        test27 = test26 + offset;
+        test28 = test27 + offset;
+        test29 = test28 + offset;
+        test30 = test29 + offset;
+        test31 = test30 + offset;
+        _ = test31;
 
         // Calculate a counter wrapping at cal_seg.counter_max
         counter_max = cal_seg.counter_max;
@@ -170,6 +247,7 @@ fn task(index: usize) {
 
         // Capture variable cal_test, to test capture buffer measurement mode
         daq_capture_tli!(cal_test, event);
+        daq_capture_tli!(time, event);
 
         // Trigger the measurement event for this task instance
         event.trigger();
@@ -215,7 +293,7 @@ async fn test_multi_thread() {
         .set_app_name("test_multi_thread")
         .set_app_revision("EPK1.0.0")
         .set_log_level(OPTION_XCP_LOG_LEVEL)
-        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555, 1024 * 256)
+        .start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555, TEST_QUEUE_SIZE)
     {
         Err(res) => {
             error!("XCP initialization failed: {:?}", res);

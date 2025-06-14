@@ -25,8 +25,8 @@
 #include "xcp.h"       // for CRC_XXX
 #include "xcpAppl.h"   // for ApplSetXxxx and registering callbacks
 #include "xcpLite.h"   // for tXcpDaqLists, XcpXxx, ApplXcpXxx, ...
-#include "xcpTl_cfg.h" // for XCPTL_xxx
 #include "xcp_cfg.h"   // for XCP_xxx
+#include "xcptl_cfg.h" // for XCPTL_xxx
 
 static FILE *gA2lFile = NULL;
 static uint16_t gA2lFixedEvent = XCP_UNDEFINED_EVENT_CHANNEL;
@@ -828,7 +828,7 @@ void A2lMeasurementGroupFromList(const char *name, char *names[], uint32_t count
 
 bool A2lOnce(atomic_bool *value) {
     bool old_value = false;
-    return atomic_compare_exchange_weak_explicit(value, &old_value, true, memory_order_acquire, memory_order_release);
+    return atomic_compare_exchange_weak_explicit(value, &old_value, true, memory_order_release, memory_order_relaxed);
 }
 
 //-----------------------------------------------------------------------------------------------------

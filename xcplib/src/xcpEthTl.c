@@ -27,7 +27,7 @@
 #include "xcp.h"       // for CRC_XXX
 #include "xcpLite.h"   // for tXcpDaqLists, XcpXxx, ApplXcpXxx, ...
 #include "xcpQueue.h"
-#include "xcpTl_cfg.h" // for XCPTL_xxx
+#include "xcptl_cfg.h" // for XCPTL_xxx
 
 // Parameter checks
 #if XCPTL_TRANSPORT_LAYER_HEADER_SIZE != 4
@@ -36,8 +36,8 @@
 #if ((XCPTL_MAX_CTO_SIZE & 0x07) != 0)
 #error "XCPTL_MAX_CTO_SIZE should be aligned to 8!"
 #endif
-#if ((XCPTL_MAX_DTO_SIZE & 0x03) != 0)
-#error "XCPTL_MAX_DTO_SIZE should be aligned to 4!"
+#if ((XCPTL_MAX_DTO_SIZE & 0x07) != 0)
+#error "XCPTL_MAX_DTO_SIZE should be aligned to 8!"
 #endif
 #if ((XCPTL_MAX_SEGMENT_SIZE & 0x07) != 0)
 #error "XCPTL_MAX_SEGMENT_SIZE should be aligned to 8!"
