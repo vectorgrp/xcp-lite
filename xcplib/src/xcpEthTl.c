@@ -27,11 +27,36 @@
 #include "xcp.h"       // for CRC_XXX
 #include "xcpLite.h"   // for tXcpDaqLists, XcpXxx, ApplXcpXxx, ...
 #include "xcpQueue.h"
-#include "xcptl_cfg.h" // for XCPTL_xxx
+#include "xcpTl_cfg.h" // for XCPTL_xxx
+
+// Parameter checks
+#if XCPTL_TRANSPORT_LAYER_HEADER_SIZE != 4
+#error "Transportlayer supports only 4 byte headers!"
+#endif
+#if ((XCPTL_MAX_CTO_SIZE & 0x07) != 0)
+#error "XCPTL_MAX_CTO_SIZE should be aligned to 8!"
+#endif
+#if ((XCPTL_MAX_DTO_SIZE & 0x07) != 0)
+#error "XCPTL_MAX_DTO_SIZE should be aligned to 8!"
+#endif
+#if ((XCPTL_MAX_SEGMENT_SIZE & 0x07) != 0)
+#error "XCPTL_MAX_SEGMENT_SIZE should be aligned to 8!"
+#endif
+
+#pragma pack(push, 1)
+typedef struct {
+    uint16_t dlc;
+    uint16_t ctr;
+    uint8_t packet[XCPTL_MAX_CTO_SIZE];
+} tXcpCtoMessage;
+#pragma pack(pop)
 
 static struct {
 
-    tQueueHandle queue_handle;
+    tQueueHandle Queue; // Transmit queue handle, used to transmit XCP DTO and EVENT messages
+
+    MUTEX CtrMutex; // Transmit queue handler mutex, used to keep the consistency of the message counter
+    uint16_t Ctr;   // Next CRM response message packet counter
 
 #if defined(_WIN) // Windows
     HANDLE queue_event;
@@ -75,23 +100,18 @@ static struct {
 static int handleXcpMulticastCommand(int n, tXcpCtoMessage *p, uint8_t *dstAddr, uint16_t dstPort);
 #endif
 
-// #define XCPTL_OK                   0
-// #define XCPTL_ERROR_WOULD_BLOCK    1
-// #define XCPTL_ERROR_SEND_FAILED    2
-// #define XCPTL_ERROR_INVALID_MASTER 3
-
 //------------------------------------------------------------------------------
 // Ethernet transport layer socket functions
 
 // Transmit a UDP datagramm or TCP segment (contains multiple XCP DTO messages or a single CRM message
 // (len+ctr+packet+fill)) Must be thread safe, because it is called from CMD and from DAQ thread Returns -1 on would
 // block, 1 if ok, 0 on error
-int XcpEthTlSend(const uint8_t *data, uint16_t size, const uint8_t *addr, uint16_t port) {
+static int XcpEthTlSend(const uint8_t *data, uint16_t size, const uint8_t *addr, uint16_t port) {
 
     int r;
 
-    assert(size <= XCPTL_MAX_SEGMENT_SIZE); // Check for buffer overflow
-
+    assert(size > 0 && size <= XCPTL_MAX_SEGMENT_SIZE);
+    assert(data != NULL);
     DBG_PRINTF5("XcpEthTlSend: msg_len = %u\n", size);
 
 #ifdef XCPTL_ENABLE_TCP
@@ -131,6 +151,27 @@ int XcpEthTlSend(const uint8_t *data, uint16_t size, const uint8_t *addr, uint16
 
 //------------------------------------------------------------------------------
 
+// Transmit a packet (the packet contains a single XCP CRM command response message)
+void XcpTlSendCrm(const uint8_t *data, uint8_t size) {
+    assert(size <= XCPTL_MAX_CTO_SIZE); // Check for buffer overflow
+
+    DBG_PRINTF5("XcpEthTlSendCrm: msg_len = %u\n", size);
+
+    mutexLock(&gXcpTl.CtrMutex);
+
+    // Build XCP CTO message (ctr+dlc+packet)
+    tXcpCtoMessage p;
+    p.dlc = size;
+    p.ctr = gXcpTl.Ctr++; // Get next response packet counter
+    memcpy(p.packet, data, size);
+
+    // Send the packet
+    // No error handling, loosing a CRM message will lead to a timeout in the XCP client
+    XcpEthTlSend((const uint8_t *)&p, (uint16_t)(size + XCPTL_TRANSPORT_LAYER_HEADER_SIZE), NULL, 0);
+
+    mutexUnlock(&gXcpTl.CtrMutex);
+}
+
 // Transmit XCP multicast response
 #ifdef XCPTL_ENABLE_MULTICAST
 void XcpEthTlSendMulticastCrm(const uint8_t *packet, uint16_t packet_size, const uint8_t *addr, uint16_t port) {
@@ -140,7 +181,7 @@ void XcpEthTlSendMulticastCrm(const uint8_t *packet, uint16_t packet_size, const
     // Build XCP CTO message (ctr+dlc+packet)
     tXcpCtoMessage p;
     p.dlc = (uint16_t)packet_size;
-    p.ctr = 0;
+    p.Ctr = 0;
     memcpy(p.packet, packet, packet_size);
     r = XcpEthTlSend((uint8_t *)&p, (uint16_t)(packet_size + XCPTL_TRANSPORT_LAYER_HEADER_SIZE), addr, port);
     if (r == (-1)) { // Would block
@@ -209,7 +250,7 @@ static bool handleXcpCommand(tXcpCtoMessage *p, uint8_t *srcAddr, uint16_t srcPo
             }
 #endif // UDP
 
-            QueueClear(gXcpTl.queue_handle);
+            QueueClear(gXcpTl.Queue);
             XcpCommand((const uint32_t *)&p->packet[0], (uint8_t)p->dlc); // Handle CONNECT command
         } else {
             DBG_PRINT_WARNING("WARNING: handleXcpCommand: no valid CONNECT command\n");
@@ -379,8 +420,8 @@ extern void *XcpTlMulticastThread(void *par)
 //-------------------------------------------------------------------------------------------------------
 
 // Initialize transport layer
-// Queue can be provided externally in queue_handle, if *queue_handle==NULL queue is returned
-bool XcpEthTlInit(const uint8_t *addr, uint16_t port, bool useTCP, bool blockingRx, tQueueHandle queue_handle) {
+// Queue can be provided externally in Queue, if *Queue==NULL queue is returned
+bool XcpEthTlInit(const uint8_t *addr, uint16_t port, bool useTCP, bool blockingRx, tQueueHandle Queue) {
 
     DBG_PRINT3("Init XCP transport layer\n");
     DBG_PRINTF3("  MAX_CTO_SIZE=%u\n", XCPTL_MAX_CTO_SIZE);
@@ -388,9 +429,12 @@ bool XcpEthTlInit(const uint8_t *addr, uint16_t port, bool useTCP, bool blocking
     DBG_PRINT3("        Option ENABLE_MULTICAST (not recommended)\n");
 #endif
 
-    assert(queue_handle != NULL);
-    gXcpTl.queue_handle = queue_handle;
+    assert(Queue != NULL);
+    gXcpTl.Queue = Queue;
+    mutexInit(&gXcpTl.CtrMutex, false, 0);
+    gXcpTl.Ctr = 0; // Reset packet counter
 
+    // Initialize transport layer event
 #if defined(_WIN) // Windows
     gXcpTl.queue_event = CreateEvent(NULL, true, false, NULL);
     assert(gXcpTl.queue_event != NULL);
@@ -476,6 +520,8 @@ bool XcpEthTlInit(const uint8_t *addr, uint16_t port, bool useTCP, bool blocking
 
 void XcpEthTlShutdown(void) {
 
+    mutexDestroy(&gXcpTl.CtrMutex);
+
     // Close all sockets to enable all threads to terminate
 #ifdef XCPTL_ENABLE_MULTICAST
     socketClose(&gXcpTl.MulticastSock);
@@ -522,111 +568,85 @@ void XcpEthTlGetInfo(bool *isTcp, uint8_t *mac, uint8_t *addr, uint16_t *port) {
 // Returns number of bytes sent or -1 on error
 int32_t XcpTlHandleTransmitQueue(void) {
 
-    const uint32_t max_loops = 20; // maximum number of packets to send without sleep(0)
-    int32_t n = 0;
+    // Simply polling transmit queue
+    // @@@@ TODO Optimize efficiency, use a convdar or something like that to wakeup/sleep the transmit thread
+    // @@@@ TODO Optimize the mutex
+    // This is needed to assure XCP transport layer header counter consistency among response and DAQ packets
+    // In fact this is a XCP design flaw, CANape supports independand DAQ and response packet counters, but other tools don't
 
-    for (;;) {
-        for (uint32_t i = 0; i < max_loops; i++) {
+    // Timeout to give the caller a chance to do other heath checking or shutdown the server gracefully
+    const uint32_t max_outer_loops = 100; // Number of outer loops before return
+    // Burst rate
+    const uint32_t max_inner_loops = 1000; // Maximum number of ethernet packets to send in a burst without sleeping
+    // Sleep time in ms after burst or queue empty
+    const uint32_t outer_loop_sleep_ms = 1; // Sleep time in ms for each outer loop
 
-            // Check
-            tQueueBuffer queueBuffer = QueuePeek(gXcpTl.queue_handle);
+    int32_t n = 0;      // Numer of bytes sent
+    bool flush = false; // Flush queue in regular intervalls
+
+    for (uint32_t j = 0; j < max_outer_loops; j++) {
+        for (uint32_t i = 0; i < max_inner_loops; i++) {
+
+            // Check if there is a segment with multiple messages in the transmit queue
+            mutexLock(&gXcpTl.CtrMutex);
+            uint32_t lost;
+            tQueueBuffer queueBuffer = QueuePeek(gXcpTl.Queue, flush, &lost);
+            gXcpTl.Ctr += lost; // Increase packet counter by lost packets
             uint16_t l = queueBuffer.size;
             const uint8_t *b = queueBuffer.buffer;
-            if (b == NULL)
-                return n; // Ok, queue is empty or not fully commited
+            if (b == NULL) {
+                assert(l == 0);
+                mutexUnlock(&gXcpTl.CtrMutex);
+                break; // queue is empty
+            } else {
+                // Send this frame
+                int r = XcpEthTlSend(b, l, NULL, 0);
+                mutexUnlock(&gXcpTl.CtrMutex);
 
-            // Send this frame
-            int r = XcpEthTlSend(b, l, NULL, 0);
-            if (r == (-1)) { // would block
-                b = NULL;
-                break;
+                // Free this buffer
+                QueueRelease(gXcpTl.Queue, &queueBuffer);
+
+                // Check result
+                if (r == (-1)) { // would block, packet lost
+                    b = NULL;
+                    break;
+                }
+                if (r == 0) { // error
+                    return -1;
+                }
+                n += l;
             }
-            if (r == 0) { // error
-                return -1;
-            }
-            n += l;
 
-            // Free this buffer when successfully sent
-            QueueRelease(gXcpTl.queue_handle, &queueBuffer);
+        } // for(i)
 
-        } // for (max_loops)
+        // Flush queue every cycle
+        if (n == 0 && j == max_outer_loops - 2) {
+            flush = true;
+            DBG_PRINT5("XcpTlHandleTransmitQueue: flushing transmit queue\n");
+        }
 
-        sleepMs(0);
-
-    } // for (ever)
+        sleepMs(outer_loop_sleep_ms);
+    } // for(j)
+    return n;
 }
 
 // Wait (sleep) until transmit queue is empty
 // This function is thread safe, any thread can wait for transmit queue empty
-// Timeout after 1s
+// Timeout after timeout_ms milliseconds
 bool XcpTlWaitForTransmitQueueEmpty(uint16_t timeout_ms) {
-
-    if (gXcpTl.queue_handle == NULL)
-        return true;
-
+    DBG_PRINTF5("XcpTlWaitForTransmitQueueEmpty: timeout=%u\n", timeout_ms);
     do {
-        QueueFlush(gXcpTl.queue_handle); // Flush the current message
         sleepMs(20);
         if (timeout_ms < 20) { // Wait max timeout_ms until the transmit queue is empty
-            DBG_PRINTF_ERROR("XcpTlWaitForTransmitQueueEmpty: timeout! (level=%u)\n", QueueLevel(gXcpTl.queue_handle));
+            DBG_PRINT5("XcpTlWaitForTransmitQueueEmpty: timeout reached\n");
             return false;
         };
         timeout_ms -= 20;
-
-    } while (QueueLevel(gXcpTl.queue_handle) != 0);
+    } while (QueueLevel(gXcpTl.Queue) != 0);
     return true;
 }
 
 //-------------------------------------------------------------------------------------------------------
 
-// Notify transmit queue handler thread
-bool XcpTlNotifyTransmitQueueHandler(tQueueHandle queueHandle) {
-
-    (void)queueHandle;
-
-    // Windows only, Linux version uses polling
-#if defined(_WIN) // Windows
-
-    // Notify that there is data in the queue
-    // Notify at most every XCPTL_QUEUE_TRANSMIT_CYCLE_TIME to save CPU load
-    uint64_t clock = clockGetLast();
-    if (clock >= gXcpTl.queue_event_time + XCPTL_QUEUE_TRANSMIT_CYCLE_TIME) {
-        gXcpTl.queue_event_time = clock;
-        SetEvent(gXcpTl.queue_event);
-        return true;
-    }
-#endif
-    return false;
-}
-
-// Wait for outgoing data or timeout after timeout_us
-// Return false in case of timeout
-bool XcpTlWaitForTransmitData(uint32_t timeout_ms) {
-
-#if defined(_WIN) // Windows
-
-    // Use event triggered for Windows
-    if (WAIT_OBJECT_0 == WaitForSingleObject(gXcpTl.queue_event, timeout_ms)) {
-        ResetEvent(gXcpTl.queue_event);
-        return true;
-    }
-    return false;
-
-#elif defined(_LINUX) // Linux
-
-// Use polling for Linux
-#define XCPTL_QUEUE_TRANSMIT_POLLING_TIME_MS 1
-    uint32_t t = 0;
-
-    while (0 == QueueLevel(gXcpTl.queue_handle)) {
-        sleepMs(XCPTL_QUEUE_TRANSMIT_POLLING_TIME_MS);
-        t = t + XCPTL_QUEUE_TRANSMIT_POLLING_TIME_MS;
-        if (t >= timeout_ms)
-            return false;
-    }
-    return true;
-
-#endif
-}
-
-void XcpTlFlushTransmitQueue(void) { QueueFlush(gXcpTl.queue_handle); }
+// Get the next transmit message counter
+uint16_t XcpTlGetCtr(void) { return gXcpTl.Ctr++; }

@@ -157,6 +157,15 @@ void sleepMs(uint32_t ms);
 #endif
 
 //-------------------------------------------------------------------------------
+// SpinLock
+
+#define SPINLOCK atomic_int_fast64_t
+
+void spinLockInit(SPINLOCK *lock);
+void spinLock(atomic_int_fast64_t *lock);
+void spinUnlock(atomic_int_fast64_t *lock);
+
+//-------------------------------------------------------------------------------
 // Mutex
 
 #if defined(_WIN) // Windows

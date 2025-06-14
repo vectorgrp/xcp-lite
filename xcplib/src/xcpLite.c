@@ -69,11 +69,12 @@
 #include <string.h>   // for memcpy, memset, strlen
 
 #include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
+#include "platform.h"  // for atomics
 #include "xcp.h"       // XCP protocol definitions
-#include "xcpEthTl.h"  // for xcpTlxxx transport layer interface
+#include "xcpEthTl.h"  // for transport layer XcpTlWaitForTransmitQueueEmpty and XcpTlSendCrm
 #include "xcpQueue.h"  // for QueueXxx transport queue layer interface
+#include "xcpTl_cfg.h" // XCP transport layer configuration parameters (XCPTL_xxx)
 #include "xcp_cfg.h"   // XCP protocol layer configuration parameters (XCP_xxx)
-#include "xcptl_cfg.h" // XCP transport layer configuration parameters (XCPTL_xxx)
 
 /****************************************************************************/
 /* Defaults and checks                                                      */
@@ -92,7 +93,7 @@
 #endif
 
 #if defined(XCPTL_MAX_DTO_SIZE)
-#if (XCPTL_MAX_DTO_SIZE > (XCPTL_MAX_SEGMENT_SIZE - 4))
+#if (XCPTL_MAX_DTO_SIZE > (XCPTL_MAX_SEGMENT_SIZE - XCPTL_HEADER_SIZE))
 #error "XCPTL_MAX_DTO_SIZE too large"
 #endif
 #if (XCPTL_MAX_DTO_SIZE < 8)
@@ -248,21 +249,15 @@ typedef struct {
     uint8_t CrmLen; /* RES,ERR message length */
 
 #ifdef XCP_ENABLE_DYN_ADDRESSING
-    tXcpCto CmdPending;    /* pending command message buffer */
-    uint8_t CmdPendingLen; /* pending command message length */
-
-#ifdef XCP_ENABLE_MULTITHREAD_CAL_EVENTS
-    MUTEX CmdPendingMutex;
-#endif
+    atomic_bool CmdPending;
+    tXcpCto CmdPendingCrm;    /* pending command message buffer */
+    uint8_t CmdPendingCrmLen; /* pending command message length */
 #endif
 
 #ifdef DBG_LEVEL
     uint8_t CmdLast;
     uint8_t CmdLast1;
 #endif
-
-    /* queue */
-    tQueueHandle Queue;
 
     /* Memory Transfer Address as pointer (ApplXcpGetPointer) */
     uint8_t *MtaPtr;
@@ -274,11 +269,12 @@ typedef struct {
     uint16_t WriteDaqOdt;      // Absolute odt index
     uint16_t WriteDaqDaq;
 
-    /* DAQ runtime state*/
-    uint64_t DaqStartClock64;
-
-    /* DAQ queue overflow */
-    uint32_t DaqOverflowCount;
+    /* DAQ */
+    tQueueHandle Queue;        // Daq queue handle
+    tXcpDaqLists *DaqLists;    // DAQ lists
+    atomic_bool DaqRunning;    // DAQ is running
+    uint64_t DaqStartClock64;  // DAQ start time
+    uint32_t DaqOverflowCount; // DAQ queue overflow
 
 #ifdef XCP_ENABLE_FREEZE_CAL_PAGE
     uint8_t SegmentMode;
@@ -322,32 +318,28 @@ typedef struct {
 // Static initialization of gXcp.SessionStatus to 0 allows to check this condition
 static tXcpData gXcp = {0};
 
-// DAQ setup data
-static tXcpDaqLists *gXcpDaqLists = NULL;
-static bool gXcpDaqListsExternal = false;
-
 /****************************************************************************/
 /* Macros                                                                   */
 /****************************************************************************/
 
-/* Shortcuts for gXcpDaqLists */
+/* Shortcuts for gXcp.DaqLists */
 /* j is absolute odt number */
 /* i is daq number */
-#define OdtEntryAddrTable ((int32_t *)&DaqListOdtTable[gXcpDaqLists->odt_count])
-#define OdtEntrySizeTable ((uint8_t *)&OdtEntryAddrTable[gXcpDaqLists->odt_entry_count])
-#define DaqListOdtTable ((tXcpOdt *)&gXcpDaqLists->u.daq_list[gXcpDaqLists->daq_count])
+#define OdtEntryAddrTable ((int32_t *)&DaqListOdtTable[gXcp.DaqLists->odt_count])
+#define OdtEntrySizeTable ((uint8_t *)&OdtEntryAddrTable[gXcp.DaqLists->odt_entry_count])
+#define DaqListOdtTable ((tXcpOdt *)&gXcp.DaqLists->u.daq_list[gXcp.DaqLists->daq_count])
 #define DaqListOdtEntryCount(j) ((DaqListOdtTable[j].last_odt_entry - DaqListOdtTable[j].first_odt_entry) + 1)
-#define DaqListOdtCount(i) ((gXcpDaqLists->u.daq_list[i].last_odt - gXcpDaqLists->u.daq_list[i].first_odt) + 1)
-#define DaqListLastOdt(i) gXcpDaqLists->u.daq_list[i].last_odt
-#define DaqListFirstOdt(i) gXcpDaqLists->u.daq_list[i].first_odt
-#define DaqListMode(i) gXcpDaqLists->u.daq_list[i].mode
-#define DaqListState(i) gXcpDaqLists->u.daq_list[i].state
-#define DaqListEventChannel(i) gXcpDaqLists->u.daq_list[i].event_channel
-#define DaqListAddrExt(i) gXcpDaqLists->u.daq_list[i].addr_ext
-#define DaqListPriority(i) gXcpDaqLists->u.daq_list[i].priority
+#define DaqListOdtCount(i) ((gXcp.DaqLists->u.daq_list[i].last_odt - gXcp.DaqLists->u.daq_list[i].first_odt) + 1)
+#define DaqListLastOdt(i) gXcp.DaqLists->u.daq_list[i].last_odt
+#define DaqListFirstOdt(i) gXcp.DaqLists->u.daq_list[i].first_odt
+#define DaqListMode(i) gXcp.DaqLists->u.daq_list[i].mode
+#define DaqListState(i) gXcp.DaqLists->u.daq_list[i].state
+#define DaqListEventChannel(i) gXcp.DaqLists->u.daq_list[i].event_channel
+#define DaqListAddrExt(i) gXcp.DaqLists->u.daq_list[i].addr_ext
+#define DaqListPriority(i) gXcp.DaqLists->u.daq_list[i].priority
 #ifdef XCP_MAX_EVENT_COUNT
-#define DaqListFirst(event) gXcpDaqLists->daq_first[event]
-#define DaqListNext(daq) gXcpDaqLists->u.daq_list[daq].next
+#define DaqListFirst(event) gXcp.DaqLists->daq_first[event]
+#define DaqListNext(daq) gXcp.DaqLists->u.daq_list[daq].next
 #endif
 
 /* Shortcuts for gXcpCrm */
@@ -370,13 +362,15 @@ static bool gXcpDaqListsExternal = false;
             goto negative_response;                                                                                                                                                \
     }
 
-/* State checking */
+// State checks
 #define isInitialized() (0 != (gXcp.SessionStatus & SS_INITIALIZED))
 #define isStarted() (0 != (gXcp.SessionStatus & SS_STARTED))
 #define isConnected() (0 != (gXcp.SessionStatus & SS_CONNECTED))
-#define isDaqRunning() (0 != (gXcp.SessionStatus & SS_DAQ) && gXcpDaqLists != NULL)
 #define isLegacyMode() (0 != (gXcp.SessionStatus & SS_LEGACY_MODE))
 #define isConnected() (0 != (gXcp.SessionStatus & SS_CONNECTED))
+
+// Thread safe state checks
+#define isDaqRunning() atomic_load_explicit(&gXcp.DaqRunning, memory_order_acquire)
 
 /****************************************************************************/
 // Logging
@@ -436,7 +430,7 @@ bool XcpIsDaqEventRunning(uint16_t event) {
     if (!isDaqRunning())
         return false; // DAQ not running
 
-    for (uint16_t daq = 0; daq < gXcpDaqLists->daq_count; daq++) {
+    for (uint16_t daq = 0; daq < gXcp.DaqLists->daq_count; daq++) {
         if ((DaqListState(daq) & DAQ_STATE_RUNNING) == 0)
             continue; // DAQ list not active
         if (DaqListEventChannel(daq) == event)
@@ -467,7 +461,7 @@ void XcpSetEpk(const char *epk) {
     size_t epk_len = strnlen(epk, XCP_EPK_MAX_LENGTH);
     strncpy(gXcpEpk, epk, epk_len);
     gXcpEpk[XCP_EPK_MAX_LENGTH] = 0;    // Ensure null termination
-    assert((strlen(gXcpEpk) % 4) == 0); // @@@@ EPK length must be a %4 because of  4 byte XCP checksum calculation granularity
+    assert((strlen(gXcpEpk) % 4) == 0); // @@@@ EPK length must be a %4 because of 4 byte XCP checksum calculation granularity
     DBG_PRINTF3("EPK = '%s'\n", gXcpEpk);
 }
 const char *XcpGetEpk(void) {
@@ -861,9 +855,9 @@ static uint8_t XcpWriteMta(uint8_t size, const uint8_t *data) {
     }
 #endif
 
-    // EXT == XCP_ADDR_EXT_SEG Application specific memory access
+    // EXT == XCP_ADDR_EXT_APP Application specific memory access
 #ifdef XCP_ENABLE_APP_ADDRESSING
-    if (gXcp.MtaExt == XCP_ADDR_EXT_SEG) {
+    if (gXcp.MtaExt == XCP_ADDR_EXT_APP) {
         uint8_t res = ApplXcpWriteMemory(gXcp.MtaAddr, size, data);
         gXcp.MtaAddr += size;
         return res;
@@ -920,9 +914,9 @@ static uint8_t XcpReadMta(uint8_t size, uint8_t *data) {
     }
 #endif
 
-    // EXT == XCP_ADDR_EXT_SEG Application specific memory access
+    // EXT == XCP_ADDR_EXT_APP Application specific memory access
 #ifdef XCP_ENABLE_APP_ADDRESSING
-    if (gXcp.MtaExt == XCP_ADDR_EXT_SEG) {
+    if (gXcp.MtaExt == XCP_ADDR_EXT_APP) {
         uint8_t res = ApplXcpReadMemory(gXcp.MtaAddr, size, data);
         gXcp.MtaAddr += size;
         return res;
@@ -962,22 +956,28 @@ static uint8_t XcpSetMta(uint8_t ext, uint32_t addr) {
         gXcp.MtaPtr = NULL; // MtaPtr not used
     } else
 #endif
-#if defined(XCP_ENABLE_APP_ADDRESSING) || defined(XCP_ENABLE_CALSEG_LIST)
-        // Application specific or segment relative addressing mode
+#ifdef XCP_ENABLE_CALSEG_LIST
+        // Segment relative addressing mode
         if (gXcp.MtaExt == XCP_ADDR_EXT_SEG) {
             gXcp.MtaPtr = NULL; // MtaPtr not used
         } else
 #endif
-#ifdef XCP_ENABLE_ABS_ADDRESSING
-            // Absolute addressing mode
-            if (gXcp.MtaExt == XCP_ADDR_EXT_ABS) {
-                gXcp.MtaPtr = ApplXcpGetPointer(gXcp.MtaExt, gXcp.MtaAddr);
-                gXcp.MtaExt = XCP_ADDR_EXT_PTR;
+#if defined(XCP_ENABLE_APP_ADDRESSING)
+            // Application specific addressing mode
+            if (gXcp.MtaExt == XCP_ADDR_EXT_APP) {
+                gXcp.MtaPtr = NULL; // MtaPtr not used
             } else
 #endif
-            {
-                return CRC_OUT_OF_RANGE; // Unsupported addressing mode for direct memory access
-            }
+#ifdef XCP_ENABLE_ABS_ADDRESSING
+                // Absolute addressing mode
+                if (gXcp.MtaExt == XCP_ADDR_EXT_ABS) {
+                    gXcp.MtaPtr = ApplXcpGetPointer(gXcp.MtaExt, gXcp.MtaAddr);
+                    gXcp.MtaExt = XCP_ADDR_EXT_PTR;
+                } else
+#endif
+                {
+                    return CRC_OUT_OF_RANGE; // Unsupported addressing mode for direct memory access
+                }
 
     return CRC_CMD_OK;
 }
@@ -1070,16 +1070,17 @@ uint16_t XcpCreateEvent(const char *name, uint32_t cycleTimeNs, uint8_t priority
 static void XcpClearDaq(void) {
 
     gXcp.SessionStatus &= ~SS_DAQ;
+    atomic_store_explicit(&gXcp.DaqRunning, false, memory_order_release);
 
-    if (gXcpDaqLists == NULL)
+    if (gXcp.DaqLists == NULL)
         return;
-    memset((uint8_t *)gXcpDaqLists, 0, sizeof(tXcpDaqLists));
-    gXcpDaqLists->res = 0xBEAC;
+    memset((uint8_t *)gXcp.DaqLists, 0, sizeof(tXcpDaqLists));
+    gXcp.DaqLists->res = 0xBEAC;
 
 #ifdef XCP_MAX_EVENT_COUNT
     uint16_t event;
     for (event = 0; event < XCP_MAX_EVENT_COUNT; event++) {
-        gXcpDaqLists->daq_first[event] = XCP_UNDEFINED_DAQ_LIST;
+        gXcp.DaqLists->daq_first[event] = XCP_UNDEFINED_DAQ_LIST;
     }
 #endif
 }
@@ -1090,12 +1091,12 @@ static uint8_t XcpCheckMemory(void) {
 
     uint32_t s;
 
-    if (gXcpDaqLists == NULL)
+    if (gXcp.DaqLists == NULL)
         return CRC_MEMORY_OVERFLOW;
 
     /* Check memory overflow */
-    s = (gXcpDaqLists->daq_count * (uint32_t)sizeof(tXcpDaqList) + (gXcpDaqLists->odt_count * (uint32_t)sizeof(tXcpOdt)) +
-         (gXcpDaqLists->odt_entry_count * ((uint32_t)sizeof(uint32_t) + (uint32_t)sizeof(uint8_t))));
+    s = (gXcp.DaqLists->daq_count * (uint32_t)sizeof(tXcpDaqList) + (gXcp.DaqLists->odt_count * (uint32_t)sizeof(tXcpOdt)) +
+         (gXcp.DaqLists->odt_entry_count * ((uint32_t)sizeof(uint32_t) + (uint32_t)sizeof(uint8_t))));
 
     if (s >= XCP_DAQ_MEM_SIZE) {
         DBG_PRINTF_ERROR("DAQ memory overflow, %u of %u Bytes required\n", s, XCP_DAQ_MEM_SIZE);
@@ -1105,7 +1106,7 @@ static uint8_t XcpCheckMemory(void) {
 #ifdef XCP_ENABLE_TEST_CHECKS
     assert(sizeof(tXcpDaqList) == 12);                  // Check size
     assert(sizeof(tXcpOdt) == 8);                       // Check size
-    assert(((uint64_t)gXcpDaqLists % 4) == 0);          // Check alignment
+    assert(((uint64_t)gXcp.DaqLists % 4) == 0);         // Check alignment
     assert(((uint64_t)&DaqListOdtTable[0] % 4) == 0);   // Check alignment
     assert(((uint64_t)&OdtEntryAddrTable[0] % 4) == 0); // Check alignment
     assert(((uint64_t)&OdtEntrySizeTable[0] % 4) == 0); // Check alignment
@@ -1121,7 +1122,7 @@ static uint8_t XcpAllocDaq(uint16_t daqCount) {
     uint16_t daq;
     uint8_t r;
 
-    if (gXcpDaqLists == NULL || gXcpDaqLists->odt_count != 0 || gXcpDaqLists->odt_entry_count != 0)
+    if (gXcp.DaqLists == NULL || gXcp.DaqLists->odt_count != 0 || gXcp.DaqLists->odt_entry_count != 0)
         return CRC_SEQUENCE;
     if (daqCount == 0 || daqCount > XCP_MAX_DAQ_COUNT)
         return CRC_OUT_OF_RANGE;
@@ -1136,7 +1137,7 @@ static uint8_t XcpAllocDaq(uint16_t daqCount) {
         DaqListNext(daq) = XCP_UNDEFINED_DAQ_LIST;
 #endif
     }
-    gXcpDaqLists->daq_count = daqCount;
+    gXcp.DaqLists->daq_count = daqCount;
     return 0;
 }
 
@@ -1147,9 +1148,9 @@ static uint8_t XcpAllocOdt(uint16_t daq, uint8_t odtCount) {
 
     if (odtCount == 0)
         return CRC_DAQ_CONFIG;
-    if (gXcpDaqLists == NULL || gXcpDaqLists->daq_count == 0 || gXcpDaqLists->odt_entry_count != 0)
+    if (gXcp.DaqLists == NULL || gXcp.DaqLists->daq_count == 0 || gXcp.DaqLists->odt_entry_count != 0)
         return CRC_SEQUENCE;
-    if (daq >= gXcpDaqLists->daq_count)
+    if (daq >= gXcp.DaqLists->daq_count)
         return CRC_DAQ_CONFIG;
 
 #ifdef XCP_ENABLE_OVERRUN_INDICATION_PID
@@ -1159,12 +1160,12 @@ static uint8_t XcpAllocOdt(uint16_t daq, uint8_t odtCount) {
     if (odtCount == 0 || odtCount >= 0xFC)
         return CRC_OUT_OF_RANGE; // 0xFC-0xFF for response, error, event and service
 #endif
-    n = (uint32_t)gXcpDaqLists->odt_count + (uint32_t)odtCount;
+    n = (uint32_t)gXcp.DaqLists->odt_count + (uint32_t)odtCount;
     if (n > 0xFFFF)
         return CRC_OUT_OF_RANGE; // Overall number of ODTs limited to 64K
-    gXcpDaqLists->u.daq_list[daq].first_odt = gXcpDaqLists->odt_count;
-    gXcpDaqLists->odt_count = (uint16_t)n;
-    gXcpDaqLists->u.daq_list[daq].last_odt = (uint16_t)(gXcpDaqLists->odt_count - 1);
+    gXcp.DaqLists->u.daq_list[daq].first_odt = gXcp.DaqLists->odt_count;
+    gXcp.DaqLists->odt_count = (uint16_t)n;
+    gXcp.DaqLists->u.daq_list[daq].last_odt = (uint16_t)(gXcp.DaqLists->odt_count - 1);
     return XcpCheckMemory();
 }
 
@@ -1192,20 +1193,20 @@ static uint8_t XcpAllocOdtEntry(uint16_t daq, uint8_t odt, uint8_t odtEntryCount
 
     if (odtEntryCount == 0)
         return CRC_DAQ_CONFIG;
-    if (gXcpDaqLists == NULL || gXcpDaqLists->daq_count == 0 || gXcpDaqLists->odt_count == 0)
+    if (gXcp.DaqLists == NULL || gXcp.DaqLists->daq_count == 0 || gXcp.DaqLists->odt_count == 0)
         return CRC_SEQUENCE;
-    if (daq >= gXcpDaqLists->daq_count || odtEntryCount == 0 || odt >= DaqListOdtCount(daq))
+    if (daq >= gXcp.DaqLists->daq_count || odtEntryCount == 0 || odt >= DaqListOdtCount(daq))
         return CRC_OUT_OF_RANGE;
 
     /* Absolute ODT entry count is limited to 64K */
-    n = (uint32_t)gXcpDaqLists->odt_entry_count + (uint32_t)odtEntryCount;
+    n = (uint32_t)gXcp.DaqLists->odt_entry_count + (uint32_t)odtEntryCount;
     if (n > 0xFFFF)
         return CRC_MEMORY_OVERFLOW;
 
-    xcpFirstOdt = gXcpDaqLists->u.daq_list[daq].first_odt;
-    DaqListOdtTable[xcpFirstOdt + odt].first_odt_entry = gXcpDaqLists->odt_entry_count;
-    gXcpDaqLists->odt_entry_count = (uint16_t)n;
-    DaqListOdtTable[xcpFirstOdt + odt].last_odt_entry = (uint16_t)(gXcpDaqLists->odt_entry_count - 1);
+    xcpFirstOdt = gXcp.DaqLists->u.daq_list[daq].first_odt;
+    DaqListOdtTable[xcpFirstOdt + odt].first_odt_entry = gXcp.DaqLists->odt_entry_count;
+    gXcp.DaqLists->odt_entry_count = (uint16_t)n;
+    DaqListOdtTable[xcpFirstOdt + odt].last_odt_entry = (uint16_t)(gXcp.DaqLists->odt_entry_count - 1);
     DaqListOdtTable[xcpFirstOdt + odt].size = 0;
     return XcpCheckMemory();
 }
@@ -1213,7 +1214,7 @@ static uint8_t XcpAllocOdtEntry(uint16_t daq, uint8_t odt, uint8_t odtEntryCount
 // Set ODT entry pointer
 static uint8_t XcpSetDaqPtr(uint16_t daq, uint8_t odt, uint8_t idx) {
 
-    if (gXcpDaqLists == NULL || daq >= gXcpDaqLists->daq_count || odt >= DaqListOdtCount(daq))
+    if (gXcp.DaqLists == NULL || daq >= gXcp.DaqLists->daq_count || odt >= DaqListOdtCount(daq))
         return CRC_OUT_OF_RANGE;
     if (XcpIsDaqRunning())
         return CRC_DAQ_ACTIVE;
@@ -1235,7 +1236,7 @@ static uint8_t XcpAddOdtEntry(uint32_t addr, uint8_t ext, uint8_t size) {
 
     if (size == 0 || size > XCP_MAX_ODT_ENTRY_SIZE)
         return CRC_OUT_OF_RANGE;
-    if (gXcpDaqLists == NULL || 0 == gXcpDaqLists->daq_count || 0 == gXcpDaqLists->odt_count || 0 == gXcpDaqLists->odt_entry_count)
+    if (gXcp.DaqLists == NULL || 0 == gXcp.DaqLists->daq_count || 0 == gXcp.DaqLists->odt_count || 0 == gXcp.DaqLists->odt_entry_count)
         return CRC_DAQ_CONFIG;
     if (gXcp.WriteDaqOdtEntry - DaqListOdtTable[gXcp.WriteDaqOdt].first_odt_entry >= DaqListOdtEntryCount(gXcp.WriteDaqOdt))
         return CRC_OUT_OF_RANGE;
@@ -1297,7 +1298,7 @@ static uint8_t XcpAddOdtEntry(uint32_t addr, uint8_t ext, uint8_t size) {
 // All DAQ lists associated with an event, must have the same address extension
 static uint8_t XcpSetDaqListMode(uint16_t daq, uint16_t event, uint8_t mode, uint8_t prio) {
 
-    if (gXcpDaqLists == NULL || daq >= gXcpDaqLists->daq_count)
+    if (gXcp.DaqLists == NULL || daq >= gXcp.DaqLists->daq_count)
         return CRC_DAQ_CONFIG;
 
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
@@ -1318,7 +1319,7 @@ static uint8_t XcpSetDaqListMode(uint16_t daq, uint16_t event, uint8_t mode, uin
 
     // Check all DAQ lists with same event have the same address extension
     uint8_t ext = DaqListAddrExt(daq);
-    for (uint16_t daq0 = 0; daq0 < gXcpDaqLists->daq_count; daq0++) {
+    for (uint16_t daq0 = 0; daq0 < gXcp.DaqLists->daq_count; daq0++) {
         if (DaqListEventChannel(daq0) == event) {
             uint8_t ext0 = DaqListAddrExt(daq0);
             if (ext != ext0)
@@ -1337,7 +1338,7 @@ static uint8_t XcpSetDaqListMode(uint16_t daq, uint16_t event, uint8_t mode, uin
     uint16_t daq0 = DaqListFirst(event);
     uint16_t *daq0_next = &DaqListFirst(event);
     while (daq0 != XCP_UNDEFINED_DAQ_LIST) {
-        assert(daq0 < gXcpDaqLists->daq_count);
+        assert(daq0 < gXcp.DaqLists->daq_count);
         daq0 = DaqListNext(daq0);
         daq0_next = &DaqListNext(daq0);
     }
@@ -1351,7 +1352,7 @@ static uint8_t XcpSetDaqListMode(uint16_t daq, uint16_t event, uint8_t mode, uin
 #ifdef XCP_ENABLE_TEST_CHECKS
 bool XcpCheckPreparedDaqLists(void) {
 
-    for (uint16_t daq = 0; daq < gXcpDaqLists->daq_count; daq++) {
+    for (uint16_t daq = 0; daq < gXcp.DaqLists->daq_count; daq++) {
         if (DaqListState(daq) & DAQ_STATE_SELECTED) {
             if (DaqListEventChannel(daq) == XCP_UNDEFINED_EVENT_CHANNEL) {
                 DBG_PRINTF_ERROR("DAQ list %u event channel not initialized!\n", daq);
@@ -1381,7 +1382,7 @@ bool XcpCheckPreparedDaqLists(void) {
 static void XcpStartDaq(void) {
 
     // If not already running
-    if ((gXcp.SessionStatus & SS_DAQ) == 0) {
+    if (!isDaqRunning()) {
 
         gXcp.DaqStartClock64 = ApplXcpGetClock64();
         gXcp.DaqOverflowCount = 0;
@@ -1396,7 +1397,7 @@ static void XcpStartDaq(void) {
     }
 #ifdef XCP_ENABLE_TEST_CHECKS
     else {
-        assert(0); // @@@@
+        assert(0);
     }
 #endif
 
@@ -1405,17 +1406,17 @@ static void XcpStartDaq(void) {
     ApplXcpStartDaq();
 
     gXcp.SessionStatus |= SS_DAQ; // Start processing DAQ events
+    atomic_store_explicit(&gXcp.DaqRunning, true, memory_order_release);
 }
 
 // Stop DAQ
 static void XcpStopDaq(void) {
 
     gXcp.SessionStatus &= ~SS_DAQ; // Stop processing DAQ events
-    if (gXcpDaqLists == NULL)
-        return;
+    atomic_store_explicit(&gXcp.DaqRunning, false, memory_order_release);
 
     // Reset all DAQ list states
-    for (uint16_t daq = 0; daq < gXcpDaqLists->daq_count; daq++) {
+    for (uint16_t daq = 0; daq < gXcp.DaqLists->daq_count; daq++) {
         DaqListState(daq) = DAQ_STATE_STOPPED_UNSELECTED;
     }
 
@@ -1428,7 +1429,7 @@ static void XcpStopDaq(void) {
 // Do not start DAQ event processing yet
 static void XcpStartDaqList(uint16_t daq) {
 
-    if (gXcpDaqLists == NULL)
+    if (gXcp.DaqLists == NULL)
         return;
     DaqListState(daq) |= DAQ_STATE_RUNNING;
 
@@ -1443,11 +1444,11 @@ static void XcpStartDaqList(uint16_t daq) {
 // Do not start DAQ event processing yet
 static void XcpStartSelectedDaqLists(void) {
 
-    if (gXcpDaqLists == NULL)
+    if (gXcp.DaqLists == NULL)
         return;
 
     // Start all selected DAQ lists, reset the selected state
-    for (uint16_t daq = 0; daq < gXcpDaqLists->daq_count; daq++) {
+    for (uint16_t daq = 0; daq < gXcp.DaqLists->daq_count; daq++) {
         if ((DaqListState(daq) & DAQ_STATE_SELECTED) != 0) {
             DaqListState(daq) &= (uint8_t)~DAQ_STATE_SELECTED;
             XcpStartDaqList(daq);
@@ -1459,12 +1460,12 @@ static void XcpStartSelectedDaqLists(void) {
 // If all DAQ lists are stopped, stop event processing
 static void XcpStopDaqList(uint16_t daq) {
 
-    if (gXcpDaqLists == NULL)
+    if (gXcp.DaqLists == NULL)
         return;
     DaqListState(daq) &= (uint8_t)(~(DAQ_STATE_OVERRUN | DAQ_STATE_RUNNING));
 
     /* Check if all DAQ lists are stopped */
-    for (uint16_t d = 0; d < gXcpDaqLists->daq_count; d++) {
+    for (uint16_t d = 0; d < gXcp.DaqLists->daq_count; d++) {
         if ((DaqListState(d) & DAQ_STATE_RUNNING) != 0) {
             return; // Not all DAQ lists stopped yet
         }
@@ -1478,11 +1479,11 @@ static void XcpStopDaqList(uint16_t daq) {
 // If all DAQ lists are stopped, stop event processing
 static void XcpStopSelectedDaqLists(void) {
 
-    if (gXcpDaqLists == NULL)
+    if (gXcp.DaqLists == NULL)
         return;
 
     // Stop all selected DAQ lists, reset the selected state
-    for (uint16_t daq = 0; daq < gXcpDaqLists->daq_count; daq++) {
+    for (uint16_t daq = 0; daq < gXcp.DaqLists->daq_count; daq++) {
         if ((DaqListState(daq) & DAQ_STATE_SELECTED) != 0) {
             XcpStopDaqList(daq);
             DaqListState(daq) = DAQ_STATE_STOPPED_UNSELECTED;
@@ -1494,10 +1495,8 @@ static void XcpStopSelectedDaqLists(void) {
 /* Data Acquisition Event Processor                                         */
 /****************************************************************************/
 
-#define gXcpDaqLists daq_lists
-
 // Trigger daq list
-static void XcpTriggerDaqList(const tXcpDaqLists *daq_lists, tQueueHandle queueHandle, uint16_t daq, const uint8_t *base, uint64_t clock) {
+static void XcpTriggerDaqList(tQueueHandle queueHandle, uint16_t daq, const uint8_t *base, uint64_t clock) {
 
     uint8_t *d0;
     uint16_t odt, hs;
@@ -1569,20 +1568,15 @@ static void XcpTriggerDaqList(const tXcpDaqLists *daq_lists, tQueueHandle queueH
         }
 
         QueuePush(queueHandle, &queueBuffer, DaqListPriority(daq) != 0 && odt == DaqListLastOdt(daq));
-        XcpTlNotifyTransmitQueueHandler(queueHandle);
 
     } /* odt */
 }
 
 // Trigger event
 // DAQ must be running
-static void XcpTriggerDaqEventAt(const tXcpDaqLists *daq_lists, tQueueHandle queueHandle, uint16_t event, const uint8_t *base, uint64_t clock) {
+static void XcpTriggerDaqEventAt(tQueueHandle queueHandle, uint16_t event, const uint8_t *base, uint64_t clock) {
 
     uint16_t daq;
-
-#ifdef XCP_ENABLE_TEST_CHECKS
-    assert(daq_lists != NULL && daq_lists->res == 0xBEAC && ((uint64_t)daq_lists % 4) == 0);
-#endif
 
     if (clock == 0)
         clock = ApplXcpGetClock64();
@@ -1597,7 +1591,7 @@ static void XcpTriggerDaqEventAt(const tXcpDaqLists *daq_lists, tQueueHandle que
 #ifndef XCP_MAX_EVENT_COUNT
 
     // Loop over all active DAQ lists associated to the current event
-    for (daq = 0; daq < daq_lists->daq_count; daq++) {
+    for (daq = 0; daq < gXcp.DaqLists->daq_count; daq++) {
         if ((DaqListState(daq) & DAQ_STATE_RUNNING) == 0)
             continue; // DAQ list not active
         if (DaqListEventChannel(daq) != event)
@@ -1614,17 +1608,15 @@ static void XcpTriggerDaqEventAt(const tXcpDaqLists *daq_lists, tQueueHandle que
     daq = DaqListFirst(event);
     while (daq != XCP_UNDEFINED_DAQ_LIST) {
 #ifdef XCP_ENABLE_TEST_CHECKS
-        assert(daq < daq_lists->daq_count);
+        assert(daq < gXcp.DaqLists->daq_count);
 #endif
-        if (DaqListState(daq) & DAQ_STATE_RUNNING) {                     // DAQ list active
-            XcpTriggerDaqList(daq_lists, queueHandle, daq, base, clock); // Trigger DAQ list
+        if (DaqListState(daq) & DAQ_STATE_RUNNING) {          // DAQ list active
+            XcpTriggerDaqList(queueHandle, daq, base, clock); // Trigger DAQ list
         }
         daq = DaqListNext(daq);
     }
 #endif
 }
-
-#undef gXcpDaqLists
 
 // ABS adressing mode event with clock
 // Base is ApplXcpGetBaseAddr()
@@ -1632,7 +1624,7 @@ static void XcpTriggerDaqEventAt(const tXcpDaqLists *daq_lists, tQueueHandle que
 void XcpEventAt(uint16_t event, uint64_t clock) {
     if (!isDaqRunning())
         return; // DAQ not running
-    XcpTriggerDaqEventAt(gXcpDaqLists, gXcp.Queue, event, NULL, clock);
+    XcpTriggerDaqEventAt(gXcp.Queue, event, NULL, clock);
 }
 #endif
 
@@ -1642,7 +1634,7 @@ void XcpEventAt(uint16_t event, uint64_t clock) {
 void XcpEvent(uint16_t event) {
     if (!isDaqRunning())
         return; // DAQ not running
-    XcpTriggerDaqEventAt(gXcpDaqLists, gXcp.Queue, event, NULL, 0);
+    XcpTriggerDaqEventAt(gXcp.Queue, event, NULL, 0);
 }
 #endif
 
@@ -1655,27 +1647,23 @@ uint8_t XcpEventExtAt(uint16_t event, const uint8_t *base, uint64_t clock) {
     if (!isStarted())
         return CRC_CMD_OK;
 
-// Check if a pending command can be executed in this context
-// @@@@ TODO: Optimize with atomics, this is performance critical as cal events may come from different threads
-#if defined(XCP_ENABLE_MULTITHREAD_CAL_EVENTS)
-    mutexLock(&gXcp.CmdPendingMutex);
-#endif
+    // Check if a pending command can be executed in this context
     bool cmdPending = false;
-    if ((gXcp.SessionStatus & SS_CMD_PENDING) != 0) {
+    if (atomic_load_explicit(&gXcp.CmdPending, memory_order_acquire)) {
         if (gXcp.MtaExt == XCP_ADDR_EXT_DYN && (uint16_t)(gXcp.MtaAddr >> 16) == event) {
-            gXcp.SessionStatus &= ~SS_CMD_PENDING;
-            cmdPending = true;
+            bool old_value = true;
+            if (atomic_compare_exchange_weak_explicit(&gXcp.CmdPending, &old_value, false, memory_order_release, memory_order_relaxed)) {
+                cmdPending = true;
+            }
         }
     }
-#if defined(XCP_ENABLE_MULTITHREAD_CAL_EVENTS)
-    mutexUnlock(&gXcp.CmdPendingMutex);
-#endif
+
     if (cmdPending) {
         // Convert relative signed 16 bit addr in MtaAddr to pointer MtaPtr
         gXcp.MtaPtr = (uint8_t *)(base + (int16_t)(gXcp.MtaAddr & 0xFFFF));
         gXcp.MtaExt = XCP_ADDR_EXT_PTR;
-        if (CRC_CMD_OK == XcpAsyncCommand(true, (const uint32_t *)&gXcp.CmdPending, gXcp.CmdPendingLen)) {
-            uint8_t cmd = gXcp.CmdPending.b[0];
+        if (CRC_CMD_OK == XcpAsyncCommand(true, (const uint32_t *)&gXcp.CmdPendingCrm, gXcp.CmdPendingCrmLen)) {
+            uint8_t cmd = gXcp.CmdPendingCrm.b[0];
             if (cmd == CC_SHORT_DOWNLOAD || cmd == CC_DOWNLOAD)
                 return CRC_CMD_PENDING; // Write operation done
         }
@@ -1686,7 +1674,7 @@ uint8_t XcpEventExtAt(uint16_t event, const uint8_t *base, uint64_t clock) {
     // Daq
     if (!isDaqRunning())
         return CRC_CMD_OK; // DAQ not running
-    XcpTriggerDaqEventAt(gXcpDaqLists, gXcp.Queue, event, base, clock);
+    XcpTriggerDaqEventAt(gXcp.Queue, event, base, clock);
     return CRC_CMD_OK;
 }
 
@@ -1717,28 +1705,10 @@ void XcpDisconnect(void) {
     }
 }
 
-// Queue a response or event packet
-// If transmission fails, when queue is full, tool times out, retries or take appropriate action
-// Note: CANape cancels measurement, when answer to GET_DAQ_CLOCK times out
-static void XcpSendCrm(const uint8_t *packet, uint16_t packet_size) {
-
-    // Queue the response packet
-    tQueueBuffer queueBuffer = QueueAcquire(gXcp.Queue, packet_size);
-    uint8_t *p = queueBuffer.buffer;
-    if (p != NULL) {
-        memcpy(p, packet, packet_size);
-        QueuePush(gXcp.Queue, &queueBuffer, true /* flush */);
-        XcpTlNotifyTransmitQueueHandler(gXcp.Queue);
-    } else { // Buffer overflow
-        DBG_PRINT_WARNING("WARNING: queue overflow\n");
-        // Ignore, handled by tool
-    }
-}
-
-// Transmit command response
+// Transmit command response packet
 static void XcpSendResponse(const tXcpCto *crm, uint8_t crmLen) {
 
-    XcpSendCrm((const uint8_t *)crm, crmLen);
+    XcpTlSendCrm((const uint8_t *)crm, crmLen);
 #ifdef DBG_LEVEL
     if (DBG_LEVEL >= 4)
         XcpPrintRes(crm);
@@ -1763,26 +1733,13 @@ static void XcpSendMulticastResponse(const tXcpCto *crm, uint8_t crmLen, uint8_t
 // Returns CRC_CMD_BUSY, if there is already a pending async command
 static uint8_t XcpPushCommand(const tXcpCto *cmdBuf, uint8_t cmdLen) {
 
-#if defined(XCP_ENABLE_MULTITHREAD_CAL_EVENTS)
-    mutexLock(&gXcp.CmdPendingMutex);
-#endif
-
     // Set pending command flag
-    if ((gXcp.SessionStatus & SS_CMD_PENDING) != 0) {
-#if defined(XCP_ENABLE_MULTITHREAD_CAL_EVENTS)
-        mutexUnlock(&gXcp.CmdPendingMutex);
-#endif
+    bool old_value = false;
+    if (!atomic_compare_exchange_strong_explicit(&gXcp.CmdPending, &old_value, true, memory_order_acquire, memory_order_release)) {
         return CRC_CMD_BUSY;
     }
-    gXcp.SessionStatus |= SS_CMD_PENDING;
-
-    gXcp.CmdPendingLen = cmdLen;
-    memcpy(&gXcp.CmdPending, cmdBuf, cmdLen);
-
-#if defined(XCP_ENABLE_MULTITHREAD_CAL_EVENTS)
-    mutexUnlock(&gXcp.CmdPendingMutex);
-#endif
-
+    gXcp.CmdPendingCrmLen = cmdLen;
+    memcpy(&gXcp.CmdPendingCrm, cmdBuf, cmdLen);
     return CRC_CMD_OK;
 }
 #endif // XCP_ENABLE_DYN_ADDRESSING
@@ -1975,7 +1932,7 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
             CRM_GET_STATUS_PROTECTION = 0;
 #ifdef XCP_ENABLE_DAQ_RESUME
             /* Return the session configuration id */
-            CRM_GET_STATUS_CONFIG_ID = gXcpDaqLists->config_id;
+            CRM_GET_STATUS_CONFIG_ID = gXcp.DaqLists->config_id;
 #else
             CRM_GET_STATUS_CONFIG_ID = 0x00;
 #endif
@@ -1993,10 +1950,10 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
 #ifdef XCP_ENABLE_DAQ_RESUME
             case SS_STORE_DAQ_REQ: {
                 uint16_t config_id = CRO_SET_REQUEST_CONFIG_ID;
-                gXcpDaqLists->config_id = config_id;
+                gXcp.DaqLists->config_id = config_id;
                 // gXcp.SessionStatus |= SS_STORE_DAQ_REQ;
                 check_error(ApplXcpDaqResumeStore(config_id));
-                /* @@@@ Send an event message */
+                /* @@@@ TODO Send an event message */
                 // gXcp.SessionStatus &= ~SS_STORE_DAQ_REQ;
             } break;
             case SS_CLEAR_DAQ_REQ:
@@ -2224,8 +2181,8 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
 
         case CC_GET_DAQ_PROCESSOR_INFO: {
             CRM_LEN = CRM_GET_DAQ_PROCESSOR_INFO_LEN;
-            CRM_GET_DAQ_PROCESSOR_INFO_MIN_DAQ = 0;                                                    // Total number of predefined DAQ lists
-            CRM_GET_DAQ_PROCESSOR_INFO_MAX_DAQ = gXcpDaqLists != NULL ? (gXcpDaqLists->daq_count) : 0; // Number of currently dynamically allocated DAQ lists
+            CRM_GET_DAQ_PROCESSOR_INFO_MIN_DAQ = 0;                                                      // Total number of predefined DAQ lists
+            CRM_GET_DAQ_PROCESSOR_INFO_MAX_DAQ = gXcp.DaqLists != NULL ? (gXcp.DaqLists->daq_count) : 0; // Number of currently dynamically allocated DAQ lists
 #if defined(XCP_ENABLE_DAQ_EVENT_INFO)
             CRM_GET_DAQ_PROCESSOR_INFO_MAX_EVENT = gXcp.EventList.count; // Number of currently available event channels
 #else
@@ -2326,9 +2283,9 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
         case CC_GET_DAQ_LIST_MODE: {
             check_len(CRO_GET_DAQ_LIST_MODE_LEN);
             uint16_t daq = CRO_GET_DAQ_LIST_MODE_DAQ;
-            if (gXcpDaqLists == NULL)
+            if (gXcp.DaqLists == NULL)
                 error(CRC_SEQUENCE);
-            if (daq >= gXcpDaqLists->daq_count)
+            if (daq >= gXcp.DaqLists->daq_count)
                 error(CRC_OUT_OF_RANGE);
             CRM_LEN = CRM_GET_DAQ_LIST_MODE_LEN;
             CRM_GET_DAQ_LIST_MODE_MODE = DaqListMode(daq);
@@ -2345,9 +2302,9 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
             uint16_t event = CRO_SET_DAQ_LIST_MODE_EVENTCHANNEL;
             uint8_t mode = CRO_SET_DAQ_LIST_MODE_MODE;
             uint8_t prio = CRO_SET_DAQ_LIST_MODE_PRIORITY;
-            if (gXcpDaqLists == NULL)
+            if (gXcp.DaqLists == NULL)
                 error(CRC_SEQUENCE);
-            if (daq >= gXcpDaqLists->daq_count)
+            if (daq >= gXcp.DaqLists->daq_count)
                 error(CRC_OUT_OF_RANGE);
             if ((mode & (DAQ_MODE_ALTERNATING | DAQ_MODE_DIRECTION | DAQ_MODE_DTO_CTR | DAQ_MODE_PID_OFF)) != 0)
                 error(CRC_OUT_OF_RANGE); // none of these modes implemented
@@ -2386,9 +2343,9 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
             check_len(CRO_START_STOP_DAQ_LIST_LEN);
             uint16_t daq = CRO_START_STOP_DAQ_LIST_DAQ;
             uint8_t mode = CRO_START_STOP_DAQ_LIST_MODE;
-            if (gXcpDaqLists == NULL)
+            if (gXcp.DaqLists == NULL)
                 error(CRC_SEQUENCE);
-            if (daq >= gXcpDaqLists->daq_count)
+            if (daq >= gXcp.DaqLists->daq_count)
                 error(CRC_OUT_OF_RANGE);
             CRM_LEN = CRM_START_STOP_DAQ_LIST_LEN;
             CRM_START_STOP_DAQ_LIST_FIRST_PID = 0; // PID one byte header type not supported
@@ -2410,9 +2367,9 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
 
         case CC_START_STOP_SYNCH: // prepare, start, stop selected daq lists or stop all
         {
-            if (gXcpDaqLists == NULL)
+            if (gXcp.DaqLists == NULL)
                 error(CRC_SEQUENCE);
-            if ((0 == gXcpDaqLists->daq_count) || (0 == gXcpDaqLists->odt_count) || (0 == gXcpDaqLists->odt_entry_count))
+            if ((0 == gXcp.DaqLists->daq_count) || (0 == gXcp.DaqLists->odt_count) || (0 == gXcp.DaqLists->odt_entry_count))
                 error(CRC_DAQ_CONFIG);
             check_len(CRO_START_STOP_SYNCH_LEN);
             switch (CRO_START_STOP_SYNCH_MODE) {
@@ -2441,8 +2398,8 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
                 goto no_response; // Do not send response again
             case 0:               /* stop all */
                 XcpStopDaq();
-                if (!XcpTlWaitForTransmitQueueEmpty(1000 /* timeout_ms */)) { // Wait until transmit queue empty before sending command response
-                    DBG_PRINT_WARNING("Queue flush timeout!\n");
+                if (!XcpTlWaitForTransmitQueueEmpty(1000 /* timeout_ms */)) { // Wait until daq transmit queue empty before sending command response
+                    DBG_PRINT_WARNING("Transmit queue flush timeout!\n");
                 }
                 break;
             default:
@@ -2664,7 +2621,7 @@ busy_response:
     return CRC_CMD_BUSY;
 #endif
 
-// No responce in these cases:
+// No response in these cases:
 // - Transmit multicast command response
 // - Command will be executed delayed, during execution of the associated synchronisation event
 no_response:
@@ -2698,15 +2655,19 @@ void XcpSendEvent(uint8_t evc, const uint8_t *d, uint8_t l) {
     if (l >= XCPTL_MAX_CTO_SIZE - 2)
         return;
 
-    tXcpCto crm;
-    crm.b[0] = PID_EV; /* Event */
-    crm.b[1] = evc;    /* Eventcode */
-    uint8_t i;
-    if (d != NULL && l > 0) {
-        for (i = 0; i < l; i++)
-            crm.b[i + 2] = d[i];
+    tQueueBuffer queueBuffer = QueueAcquire(gXcp.Queue, l + 2);
+    tXcpCto *crm = (tXcpCto *)queueBuffer.buffer;
+    if (crm != NULL) {
+        crm->b[0] = PID_EV; /* Event */
+        crm->b[1] = evc;    /* Eventcode */
+        if (d != NULL && l > 0) {
+            for (uint8_t i = 0; i < l; i++)
+                crm->b[i + 2] = d[i];
+        }
+        QueuePush(gXcp.Queue, &queueBuffer, true);
+    } else { // Queue overflow
+        DBG_PRINT_WARNING("queue overflow\n");
     }
-    XcpSendCrm((const uint8_t *)&crm, l + 2);
 }
 
 // Send terminate session signal event
@@ -2719,20 +2680,24 @@ void XcpSendTerminateSessionEvent(void) { XcpSendEvent(EVC_SESSION_TERMINATED, N
 #if defined(XCP_ENABLE_SERV_TEXT)
 
 void XcpPrint(const char *str) {
-
     if (!isConnected())
         return;
 
-    tXcpCto crm;
-    crm.b[0] = PID_SERV; /* Event */
-    crm.b[1] = 0x01;     /* Eventcode SERV_TEXT */
-    uint8_t i;
     uint16_t l = (uint16_t)strlen(str);
-    for (i = 0; i < l && i < XCPTL_MAX_CTO_SIZE - 4; i++)
-        crm.b[i + 2] = (uint8_t)str[i];
-    crm.b[i + 2] = '\n';
-    crm.b[i + 3] = 0;
-    XcpSendCrm((const uint8_t *)&crm, l + 4);
+    tQueueBuffer queueBuffer = QueueAcquire(gXcp.Queue, l + 4);
+    tXcpCto *crm = (tXcpCto *)queueBuffer.buffer;
+    if (crm != NULL) {
+        crm->b[0] = PID_SERV; /* Event */
+        crm->b[1] = 0x01;     /* Eventcode SERV_TEXT */
+        uint8_t i;
+        for (i = 0; i < l && i < XCPTL_MAX_CTO_SIZE - 4; i++)
+            crm->b[i + 2] = (uint8_t)str[i];
+        crm->b[i + 2] = '\n';
+        crm->b[i + 3] = 0;
+        QueuePush(gXcp.Queue, &queueBuffer, true);
+    } else { // Queue overflow
+        DBG_PRINT_WARNING("WARNING: queue overflow\n");
+    }
 }
 
 #endif // XCP_ENABLE_SERV_TEXT
@@ -2754,9 +2719,8 @@ void XcpInit(void) {
     memset((uint8_t *)&gXcp, 0, sizeof(gXcp));
 
     // Allocate DAQ list memory
-    gXcpDaqLists = malloc(sizeof(tXcpDaqLists));
-    gXcpDaqListsExternal = false;
-    assert(gXcpDaqLists != NULL);
+    gXcp.DaqLists = malloc(sizeof(tXcpDaqLists));
+    assert(gXcp.DaqLists != NULL);
     XcpClearDaq();
 
 #ifdef XCP_ENABLE_CALSEG_LIST
@@ -2765,10 +2729,6 @@ void XcpInit(void) {
 
 #ifdef XCP_ENABLE_EVENT_LIST
     mutexInit(&gXcp.EventList.mutex, false, 1000);
-#endif
-
-#ifdef XCP_ENABLE_MULTITHREAD_CAL_EVENTS
-    mutexInit(&gXcp.CmdPendingMutex, false, 1000);
 #endif
 
 #ifdef XCP_ENABLE_DAQ_CLOCK_MULTICAST
@@ -2900,7 +2860,7 @@ void XcpStart(tQueueHandle queueHandle, bool resumeMode) {
 #ifdef DBG_LEVEL
             if (DBG_LEVEL != 0) {
                 printf("Started in resume mode\n");
-                for (uint16_t daq = 0; daq < gXcpDaqLists->daq_count; daq++) {
+                for (uint16_t daq = 0; daq < gXcp.DaqLists->daq_count; daq++) {
                     if (DaqListState(daq) & DAQ_STATE_SELECTED) {
                         XcpPrintDaqList(daq);
                     }
@@ -2919,11 +2879,7 @@ void XcpReset(void) {
     if (isInitialized())
         return;
 
-    if (!gXcpDaqListsExternal) {
-        free(gXcpDaqLists);
-        gXcpDaqListsExternal = false;
-    }
-    gXcpDaqLists = NULL;
+    free(gXcp.DaqLists);
 
     memset(&gXcp, 0, sizeof(gXcp));
 }
@@ -3329,7 +3285,7 @@ static void XcpPrintRes(const tXcpCto *crm) {
 
 static void XcpPrintDaqList(uint16_t daq) {
 
-    if (gXcpDaqLists == NULL || daq >= gXcpDaqLists->daq_count)
+    if (gXcp.DaqLists == NULL || daq >= gXcp.DaqLists->daq_count)
         return;
 
     printf("  DAQ %u:", daq);

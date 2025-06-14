@@ -55,7 +55,7 @@ int main(void) {
 
     // Initialize the XCP Server
     uint8_t addr[4] = OPTION_SERVER_ADDR;
-    if (!XcpEthServerInit(addr, OPTION_SERVER_PORT, OPTION_USE_TCP, NULL, OPTION_QUEUE_SIZE)) {
+    if (!XcpEthServerInit(addr, OPTION_SERVER_PORT, OPTION_USE_TCP, OPTION_QUEUE_SIZE)) {
         return 1;
     }
 

@@ -25,8 +25,8 @@
 #include "xcp.h"       // for CRC_XXX
 #include "xcpAppl.h"   // for ApplSetXxxx and registering callbacks
 #include "xcpLite.h"   // for tXcpDaqLists, XcpXxx, ApplXcpXxx, ...
+#include "xcpTl_cfg.h" // for XCPTL_xxx
 #include "xcp_cfg.h"   // for XCP_xxx
-#include "xcptl_cfg.h" // for XCPTL_xxx
 
 static FILE *gA2lFile = NULL;
 static uint16_t gA2lFixedEvent = XCP_UNDEFINED_EVENT_CHANNEL;
@@ -545,6 +545,12 @@ void A2lSetRelAddrMode(const uint16_t *event) {
     A2lSetFixedEvent(*event);
 }
 
+void A2lSetDynAddrMode(const uint16_t *event) {
+    gA2lAddrBase = (uint8_t *)event;
+    gAl2AddrExt = XCP_ADDR_EXT_DYN;
+    A2lSetFixedEvent(*event);
+}
+
 void A2lSetSegAddrMode(tXcpCalSegIndex calseg_index, const uint8_t *calseg) {
     gA2lAddrIndex = calseg_index;
     gA2lAddrBase = calseg;
@@ -564,6 +570,13 @@ uint32_t A2lGetAddr(uint8_t const *p) {
         uint32_t addr_high = (uint32_t)(addr_diff >> 32);
         assert(addr_high == 0 || addr_high == 0xFFFFFFFF); // Check that the address is within the 32 Bit range
         return (uint32_t)(addr_diff & 0xFFFFFFFF);
+    }
+    case XCP_ADDR_EXT_DYN: {
+        uint64_t addr_diff = (uint64_t)p - (uint64_t)gA2lAddrBase;
+        // Ensure the relative address does not overflow the 32 Bit A2L address space
+        uint64_t addr_high = (addr_diff >> 16);
+        assert(addr_high == 0 || addr_high == 0xFFFFFFFFFFFF); // Check that the address is within the 32 Bit range
+        return (uint32_t)(((uint32_t)gA2lFixedEvent) << 16 | (addr_diff & 0xFFFF));
     }
     case XCP_ADDR_EXT_SEG: {
         uint64_t addr_diff = (uint64_t)p - (uint64_t)gA2lAddrBase;
@@ -815,7 +828,7 @@ void A2lMeasurementGroupFromList(const char *name, char *names[], uint32_t count
 
 bool A2lOnce(atomic_bool *value) {
     bool old_value = false;
-    return atomic_compare_exchange_strong_explicit(value, &old_value, true, memory_order_acquire, memory_order_relaxed);
+    return atomic_compare_exchange_weak_explicit(value, &old_value, true, memory_order_release, memory_order_relaxed);
 }
 
 //-----------------------------------------------------------------------------------------------------

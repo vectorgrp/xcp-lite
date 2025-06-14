@@ -23,7 +23,7 @@ use xcp_test_executor::test_executor;
 
 const TEST_CAL: xcp_test_executor::TestModeCal = xcp_test_executor::TestModeCal::Cal; // Execute calibration tests: Cal or None
 const TEST_DAQ: xcp_test_executor::TestModeDaq = xcp_test_executor::TestModeDaq::DaqSingleThread; // Execute measurement tests: DaqSingleThread or None
-const TEST_DURATION_MS: u64 = 5000;
+const TEST_DURATION_MS: u64 = 10000;
 const TEST_CYCLE_TIME_US: u32 = 1000; // Cycle time in microseconds
 const TEST_SIGNAL_COUNT: usize = 10; // Number of signals is TEST_SIGNAL_COUNT + 5 for each task
 const TEST_REINIT: bool = true; // Execute reinitialization test
@@ -85,8 +85,9 @@ fn task(cal_seg: CalSeg<CalPage1>) {
     let mut loop_counter: u32 = 0;
     let mut cal_test: u64 = 0;
     let mut changes: u32 = 0;
-    let mut counter_max: u32 = cal_seg.read_lock().counter_max;
+    let mut counter_max: u32 = 0xFFFF;
     let mut counter: u32 = 0;
+    let mut time: u64 = 0;
     let mut test0: u64 = 0;
     let mut test1: u64 = 0;
     let mut test2: u64 = 0;
@@ -99,12 +100,13 @@ fn task(cal_seg: CalSeg<CalPage1>) {
     let mut test9: u64 = 0;
 
     // Create a DAQ event and register local variables for measurement
-    let mut event = daq_create_event!("task", 16);
+    let event = daq_create_event!("task", 0);
 
-    daq_register!(loop_counter, event);
-    daq_register!(changes, event);
-    daq_register!(counter_max, event);
-    daq_register!(counter, event);
+    daq_register_tli!(counter, event);
+    daq_register_tli!(loop_counter, event);
+    daq_register_tli!(counter_max, event);
+    daq_register_tli!(cal_test, event);
+    daq_register_tli!(time, event);
     daq_register_tli!(test0, event);
     daq_register_tli!(test1, event);
     daq_register_tli!(test2, event);
@@ -117,16 +119,21 @@ fn task(cal_seg: CalSeg<CalPage1>) {
     daq_register_tli!(test9, event);
 
     loop {
-        // Sleep for a calibratable amount of microseconds
-        thread::sleep(Duration::from_micros(cal_seg.read_lock().cycle_time_us as u64));
         loop_counter += 1;
+
+        time = Xcp::get().get_clock();
+        let _ = time;
 
         {
             let cal_seg = cal_seg.read_lock();
-            // Test XCP text messages if counter_max has changed
-            if counter_max != cal_seg.counter_max {
-                xcp_println!("Task: counter_max calibrated: counter_max={} !!!", cal_seg.counter_max);
+
+            // Check for termination
+            if !cal_seg.run {
+                break;
             }
+
+            // Sleep for a calibratable amount of microseconds
+            thread::sleep(Duration::from_micros(cal_seg.cycle_time_us as u64));
 
             // Create a calibratable wrapping counter signal
             counter_max = cal_seg.counter_max;
@@ -134,17 +141,6 @@ fn task(cal_seg: CalSeg<CalPage1>) {
             if counter > counter_max {
                 counter = 0;
             }
-            test0 = loop_counter as u64 + 1;
-            test1 = test0 + 1;
-            test2 = test1 + 1;
-            test3 = test2 + 1;
-            test4 = test3 + 1;
-            test5 = test4 + 1;
-            test6 = test5 + 1;
-            test7 = test6 + 1;
-            test8 = test7 + 1;
-            test9 = test8 + 1;
-            let _ = test9;
 
             // Test calibration data validity
             if cal_test != cal_seg.cal_test {
@@ -152,29 +148,33 @@ fn task(cal_seg: CalSeg<CalPage1>) {
                 cal_test = cal_seg.cal_test;
                 assert_eq!((cal_test >> 32) ^ 0x55555555, cal_test & 0xFFFFFFFF);
             }
-            daq_capture!(cal_test, event);
-
-            // Trigger DAQ event
-            // daq_capture!(cal_test, event);
-            // daq_capture!(counter_max, event);
-            // daq_capture!(counter, event);
-            event.trigger();
         }
 
-        // Check for termination
-        if !cal_seg.read_lock().run {
-            break;
-        }
+        // Test signal checked by the XCP client
+        let offset: u64 = 0x0001_0001_0001_0001;
+        test0 = 0x0400_0300_0200_0100;
+        test1 = test0 + offset;
+        test2 = test1 + offset;
+        test3 = test2 + offset;
+        test4 = test3 + offset;
+        test5 = test4 + offset;
+        test6 = test5 + offset;
+        test7 = test6 + offset;
+        test8 = test7 + offset;
+        test9 = test8 + offset;
+        let _ = test9;
+
+        // Trigger DAQ event
+        event.trigger();
 
         // Check if the XCP server is still alive
-        if loop_counter % 256 == 0 && !Xcp::get().check_server() {
+        if !Xcp::get().check_server() {
             panic!("XCP server shutdown!");
         }
     }
 
     debug!("Task terminated, loop counter = {}, {} changes observed", loop_counter, changes);
-    xcp_println!("Task terminated, loop counter = {}, {} changes observed", loop_counter, changes);
-    Xcp::disconnect_client(Xcp::get());
+    //xcp_println!("Task terminated, loop counter = {}, {} changes observed", loop_counter, changes);
 }
 
 //-----------------------------------------------------------------------------
@@ -224,12 +224,15 @@ async fn test_single_thread() {
         }
     });
 
-    thread::sleep(Duration::from_micros(100000));
+    thread::sleep(Duration::from_micros(500000));
     xcp.finalize_registry().unwrap(); // Write the A2L file
 
     test_executor(TEST_CAL, TEST_DAQ, TEST_DURATION_MS, 1, TEST_SIGNAL_COUNT, TEST_CYCLE_TIME_US as u64).await; // Start the test executor XCP client
 
     t1.join().unwrap();
+
+    Xcp::disconnect_client(Xcp::get());
+
     xcp.stop_server();
 
     // Reinitialize the XCP server a second time, to check correct shutdown behaviour

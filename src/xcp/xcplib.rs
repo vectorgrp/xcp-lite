@@ -28,6 +28,21 @@ unsafe extern "C" {
     pub fn ApplXcpGetClock64() -> u64;
 }
 unsafe extern "C" {
+    pub fn XcpEthTlGetInfo(isTCP: *mut bool, mac: *mut u8, addr: *mut u8, port: *mut u16);
+}
+unsafe extern "C" {
+    #[doc = " Initialize the XCP on Ethernet server instance.\n @pre User has called XcpInit.\n @param address Address to bind to.\n @param port Port to bind to.\n @param use_tcp Use TCP if true, otherwise UDP.\n @param measurement_queue Optional external memory to place the measurement queue.\n Pass NULL if server should allocate it.\n @param measurement_queue_size Measurement queue size in bytes. Includes the bytes occupied by the queue header.\n @return True on success, otherwise false."]
+    pub fn XcpEthServerInit(address: *const u8, port: u16, use_tcp: bool, measurement_queue_size: u32) -> bool;
+}
+unsafe extern "C" {
+    #[doc = " Shutdown the XCP on Ethernet server instance."]
+    pub fn XcpEthServerShutdown() -> bool;
+}
+unsafe extern "C" {
+    #[doc = " Get the XCP on Ethernet server instance status.\n @return True if the server is running, otherwise false."]
+    pub fn XcpEthServerStatus() -> bool;
+}
+unsafe extern "C" {
     pub fn ApplXcpRegisterCallbacks(
         cb_connect: ::std::option::Option<unsafe extern "C" fn() -> bool>,
         cb_prepare_daq: ::std::option::Option<unsafe extern "C" fn() -> u8>,
@@ -45,19 +60,4 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn ApplXcpSetA2lName(name: *const ::std::os::raw::c_char);
-}
-unsafe extern "C" {
-    #[doc = " Initialize the XCP on Ethernet server instance.\n @pre User has called XcpInit.\n @param address Address to bind to.\n @param port Port to bind to.\n @param use_tcp Use TCP if true, otherwise UDP.\n @param measurement_queue Optional external memory to place the measurement queue.\n Pass NULL if server should allocate it.\n @param measurement_queue_size Measurement queue size in bytes. Includes the bytes occupied by the queue header.\n @return True on success, otherwise false."]
-    pub fn XcpEthServerInit(address: *const u8, port: u16, use_tcp: bool, measurement_queue: *mut ::std::os::raw::c_void, measurement_queue_size: u32) -> bool;
-}
-unsafe extern "C" {
-    #[doc = " Shutdown the XCP on Ethernet server instance."]
-    pub fn XcpEthServerShutdown() -> bool;
-}
-unsafe extern "C" {
-    #[doc = " Get the XCP on Ethernet server instance status.\n @return True if the server is running, otherwise false."]
-    pub fn XcpEthServerStatus() -> bool;
-}
-unsafe extern "C" {
-    pub fn XcpEthTlGetInfo(isTCP: *mut bool, mac: *mut u8, addr: *mut u8, port: *mut u16);
 }

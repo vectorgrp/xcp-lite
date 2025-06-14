@@ -24,10 +24,10 @@
 #include "main_cfg.h"  // for OPTION_xxx
 #include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
 #include "xcp.h"       // for CRC_XXX
-#include "xcpEthTl.h"  // for tXcpCtoMessage, tXcpDtoMessage, xcpTlXxxx, xcpEthTlxxx
+#include "xcpEthTl.h"  // for tXcpCtoMessage, xcpTlXxxx, xcpEthTlxxx
 #include "xcpLite.h"   // for tXcpDaqLists, XcpXxx, ApplXcpXxx, ...
 #include "xcpQueue.h"
-#include "xcptl_cfg.h" // for XCPTL_xxx
+#include "xcpTl_cfg.h" // for XCPTL_xxx
 
 #if !defined(_WIN) && !defined(_LINUX) && !defined(_MACOS)
 #error "Please define platform _WIN, _MACOS or _LINUX"
@@ -56,7 +56,6 @@ static struct {
 
     // Queue
     tQueueHandle TransmitQueue;
-    MUTEX TransmitQueueMutex;
 
 } gXcpServer;
 
@@ -64,7 +63,7 @@ static struct {
 bool XcpEthServerStatus(void) { return gXcpServer.isInit && gXcpServer.TransmitThreadRunning && gXcpServer.ReceiveThreadRunning; }
 
 // XCP server init
-bool XcpEthServerInit(const uint8_t *addr, uint16_t port, bool useTCP, void *queue, uint32_t queueSize) {
+bool XcpEthServerInit(const uint8_t *addr, uint16_t port, bool useTCP, uint32_t queueSize) {
 
     // Check that the XCP singleton has been explicitly initialized
     if (!XcpIsInitialized()) {
@@ -89,9 +88,8 @@ bool XcpEthServerInit(const uint8_t *addr, uint16_t port, bool useTCP, void *que
         return false;
 
     // Create queue
-    // @@@@@ External queue not supported yet
     assert(queueSize > 0);
-    assert(queue == NULL);
+
     gXcpServer.TransmitQueue = QueueInit(queueSize);
     if (gXcpServer.TransmitQueue == NULL)
         return false;
@@ -104,7 +102,6 @@ bool XcpEthServerInit(const uint8_t *addr, uint16_t port, bool useTCP, void *que
     XcpStart(gXcpServer.TransmitQueue, false);
 
     // Create threads
-    mutexInit(&gXcpServer.TransmitQueueMutex, false, 0);
     create_thread(&gXcpServer.TransmitThreadHandle, XcpServerTransmitThread);
     create_thread(&gXcpServer.ReceiveThreadHandle, XcpServerReceiveThread);
 
@@ -122,7 +119,6 @@ bool XcpEthServerShutdown(void) {
         cancel_thread(gXcpServer.ReceiveThreadHandle);
         cancel_thread(gXcpServer.TransmitThreadHandle);
         XcpEthTlShutdown();
-        mutexDestroy(&gXcpServer.TransmitQueueMutex);
         gXcpServer.isInit = false;
         socketCleanup();
         XcpReset();
@@ -136,7 +132,6 @@ bool XcpEthServerShutdown(void) {
         XcpEthTlShutdown();
         join_thread(gXcpServer.ReceiveThreadHandle);
         join_thread(gXcpServer.TransmitThreadHandle);
-        mutexDestroy(&gXcpServer.TransmitQueueMutex);
         gXcpServer.isInit = false;
         socketCleanup();
         XcpReset();
@@ -164,18 +159,9 @@ extern void *XcpServerReceiveThread(void *par)
         if (!XcpEthTlHandleCommands(XCPTL_TIMEOUT_INFINITE)) { // Timeout Blocking
             DBG_PRINT_ERROR("XcpEthTlHandleCommands failed!\n");
             break; // error -> terminate thread
-        } else {
-            // Handle transmit queue after each command, to keep the command latency short
-            mutexLock(&gXcpServer.TransmitQueueMutex);
-            int32_t n = XcpTlHandleTransmitQueue();
-            mutexUnlock(&gXcpServer.TransmitQueueMutex);
-            if (n < 0) {
-                DBG_PRINT_ERROR("XcpTlHandleTransmitQueue failed!\n");
-                break; // error - terminate thread
-            }
-
-            XcpBackgroundTasks(); // Handle background tasks, e.g. pending calibration updates
         }
+
+        XcpBackgroundTasks(); // Handle background tasks, e.g. pending calibration updates
     }
     gXcpServer.ReceiveThreadRunning = false;
 
@@ -199,14 +185,8 @@ extern void *XcpServerTransmitThread(void *par)
     gXcpServer.TransmitThreadRunning = true;
     while (gXcpServer.TransmitThreadRunning) {
 
-        // Wait for transmit data available, time out at least for required flush cycle
-        if (!XcpTlWaitForTransmitData(XCPTL_QUEUE_FLUSH_CYCLE_MS))
-            XcpTlFlushTransmitQueue(); // Flush after timeout to keep data visualization going
-
-        // Transmit all completed messages from the transmit queue
-        mutexLock(&gXcpServer.TransmitQueueMutex);
+        // Transmit all commmited messages from the transmit queue
         n = XcpTlHandleTransmitQueue();
-        mutexUnlock(&gXcpServer.TransmitQueueMutex);
         if (n < 0) {
             DBG_PRINT_ERROR("XcpTlHandleTransmitQueue failed!\n");
             break; // error - terminate thread

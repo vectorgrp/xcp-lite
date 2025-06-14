@@ -46,7 +46,6 @@ fn main() {
         .allowlist_function("XcpPrint")
         .allowlist_function("XcpSetEpk")
         .allowlist_function("XcpSendTerminateSessionEvent")
-        //
         //.allowlist_function("ApplXcpGetAddr")
         .allowlist_function("ApplXcpSetA2lName")
         .allowlist_function("ApplXcpRegisterCallbacks")

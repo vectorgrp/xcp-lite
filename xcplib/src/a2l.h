@@ -24,6 +24,7 @@
 void A2lSetAbsAddrMode(void);
 void A2lSetSegAddrMode(uint16_t calseg_index, const uint8_t *calseg);
 void A2lSetRelAddrMode(const uint16_t *event);
+void A2lSetDynAddrMode(const uint16_t *event);
 void A2lSetFixedEvent(uint16_t event);
 void A2lRstFixedEvent(void);
 void A2lSetDefaultEvent(uint16_t event);
