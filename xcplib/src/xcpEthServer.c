@@ -27,7 +27,7 @@
 #include "xcpEthTl.h"  // for tXcpCtoMessage, xcpTlXxxx, xcpEthTlxxx
 #include "xcpLite.h"   // for tXcpDaqLists, XcpXxx, ApplXcpXxx, ...
 #include "xcpQueue.h"
-#include "xcpTl_cfg.h" // for XCPTL_xxx
+#include "xcptl_cfg.h" // for XCPTL_xxx
 
 #if !defined(_WIN) && !defined(_LINUX) && !defined(_MACOS)
 #error "Please define platform _WIN, _MACOS or _LINUX"

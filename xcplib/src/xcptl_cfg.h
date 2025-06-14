@@ -3,7 +3,7 @@
 
 /*----------------------------------------------------------------------------
 | File:
-|   xcpTl_cfg.h
+|   xcptl_cfg.h
 |
 | Description:
 |   Parameter configuration for XCP transport layer

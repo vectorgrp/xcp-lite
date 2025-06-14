@@ -27,7 +27,7 @@
 #include "xcp.h"       // for CRC_XXX
 #include "xcpLite.h"   // for tXcpDaqLists, XcpXxx, ApplXcpXxx, ...
 #include "xcpQueue.h"
-#include "xcpTl_cfg.h" // for XCPTL_xxx
+#include "xcptl_cfg.h" // for XCPTL_xxx
 
 // Parameter checks
 #if XCPTL_TRANSPORT_LAYER_HEADER_SIZE != 4

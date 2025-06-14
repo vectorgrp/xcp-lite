@@ -73,8 +73,8 @@
 #include "xcp.h"       // XCP protocol definitions
 #include "xcpEthTl.h"  // for transport layer XcpTlWaitForTransmitQueueEmpty and XcpTlSendCrm
 #include "xcpQueue.h"  // for QueueXxx transport queue layer interface
-#include "xcpTl_cfg.h" // XCP transport layer configuration parameters (XCPTL_xxx)
 #include "xcp_cfg.h"   // XCP protocol layer configuration parameters (XCP_xxx)
+#include "xcptl_cfg.h" // XCP transport layer configuration parameters (XCPTL_xxx)
 
 /****************************************************************************/
 /* Defaults and checks                                                      */

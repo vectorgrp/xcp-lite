@@ -31,7 +31,7 @@
 #include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex, spinlock
 
 #include "xcpEthTl.h"  // for XcpTlGetCtr
-#include "xcpTl_cfg.h" // for XCPTL_TRANSPORT_LAYER_HEADER_SIZE, XCPTL_MAX_DTO_SIZE, XCPTL_MAX_SEGMENT_SIZE
+#include "xcptl_cfg.h" // for XCPTL_TRANSPORT_LAYER_HEADER_SIZE, XCPTL_MAX_DTO_SIZE, XCPTL_MAX_SEGMENT_SIZE
 
 // Turn of misaligned atomic access warnings
 // Alignement is garantueed by the queue header and the queue entry size alignment

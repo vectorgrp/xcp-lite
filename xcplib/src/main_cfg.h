@@ -31,7 +31,7 @@
 */
 
 // Application configuration:
-// (More specific XCP configuration is in xcp_cfg.h (Protocol Layer) and xcpTl_cfg.h (Transport Layer))
+// (More specific XCP configuration is in xcp_cfg.h (Protocol Layer) and xcptl_cfg.h (Transport Layer))
 
 // XCP options
 #define OPTION_ENABLE_TCP
