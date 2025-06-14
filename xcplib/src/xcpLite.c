@@ -1652,7 +1652,7 @@ uint8_t XcpEventExtAt(uint16_t event, const uint8_t *base, uint64_t clock) {
     if (atomic_load_explicit(&gXcp.CmdPending, memory_order_acquire)) {
         if (gXcp.MtaExt == XCP_ADDR_EXT_DYN && (uint16_t)(gXcp.MtaAddr >> 16) == event) {
             bool old_value = true;
-            if (atomic_compare_exchange_weak_explicit(&gXcp.CmdPending, &old_value, false, memory_order_acquire, memory_order_release)) {
+            if (atomic_compare_exchange_weak_explicit(&gXcp.CmdPending, &old_value, false, memory_order_release, memory_order_relaxed)) {
                 cmdPending = true;
             }
         }
@@ -2660,15 +2660,13 @@ void XcpSendEvent(uint8_t evc, const uint8_t *d, uint8_t l) {
     if (crm != NULL) {
         crm->b[0] = PID_EV; /* Event */
         crm->b[1] = evc;    /* Eventcode */
-        uint8_t i;
         if (d != NULL && l > 0) {
-            for (i = 0; i < l; i++)
+            for (uint8_t i = 0; i < l; i++)
                 crm->b[i + 2] = d[i];
         }
-
         QueuePush(gXcp.Queue, &queueBuffer, true);
     } else { // Queue overflow
-        DBG_PRINT_WARNING("WARNING: queue overflow\n");
+        DBG_PRINT_WARNING("queue overflow\n");
     }
 }
 
@@ -2682,7 +2680,6 @@ void XcpSendTerminateSessionEvent(void) { XcpSendEvent(EVC_SESSION_TERMINATED, N
 #if defined(XCP_ENABLE_SERV_TEXT)
 
 void XcpPrint(const char *str) {
-
     if (!isConnected())
         return;
 
@@ -2693,12 +2690,10 @@ void XcpPrint(const char *str) {
         crm->b[0] = PID_SERV; /* Event */
         crm->b[1] = 0x01;     /* Eventcode SERV_TEXT */
         uint8_t i;
-
         for (i = 0; i < l && i < XCPTL_MAX_CTO_SIZE - 4; i++)
             crm->b[i + 2] = (uint8_t)str[i];
         crm->b[i + 2] = '\n';
         crm->b[i + 3] = 0;
-
         QueuePush(gXcp.Queue, &queueBuffer, true);
     } else { // Queue overflow
         DBG_PRINT_WARNING("WARNING: queue overflow\n");

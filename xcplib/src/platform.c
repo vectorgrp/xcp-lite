@@ -158,23 +158,20 @@ void sleepMs(uint32_t ms) {
 // Spinlock
 /**************************************************************************/
 
-// Hint to the CPU to reduce power consumption and improve performance
-static inline void spin_loop_hint(void) {
-#if defined(__x86_64__) || defined(__i386__)
-    __asm__ volatile("pause" ::: "memory");
-#elif defined(__aarch64__) || defined(__arm__)
-    __asm__ volatile("yield" ::: "memory");
-#else
-    // Fallback: do nothing
-#endif
-}
+void spinLockInit(SPINLOCK *lock) { atomic_store_explicit(lock, 0, memory_order_relaxed); }
 
 void spinLock(atomic_int_fast64_t *lock) {
     int64_t expected = 0;
     int64_t const desired = 1;
     while (!atomic_compare_exchange_weak_explicit(lock, &expected, desired, memory_order_acquire, memory_order_relaxed)) {
         expected = 0;
-        spin_loop_hint();
+#if defined(__x86_64__) || defined(__i386__)
+        __asm__ volatile("pause" ::: "memory");
+#elif defined(__aarch64__) || defined(__arm__)
+        __asm__ volatile("yield" ::: "memory");
+#else
+        // Fallback: do nothing
+#endif
     }
 }
 

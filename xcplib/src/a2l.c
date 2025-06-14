@@ -828,7 +828,7 @@ void A2lMeasurementGroupFromList(const char *name, char *names[], uint32_t count
 
 bool A2lOnce(atomic_bool *value) {
     bool old_value = false;
-    return atomic_compare_exchange_weak_explicit(value, &old_value, true, memory_order_acquire, memory_order_release);
+    return atomic_compare_exchange_weak_explicit(value, &old_value, true, memory_order_release, memory_order_relaxed);
 }
 
 //-----------------------------------------------------------------------------------------------------
