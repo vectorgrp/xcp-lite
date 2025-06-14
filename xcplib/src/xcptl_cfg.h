@@ -25,11 +25,13 @@
 
 // CTO size
 // Maximum size of a XCP command packet (CRO,CRM)
-#define XCPTL_MAX_CTO_SIZE (248) // Prefer %8=0 over the maximum value of 255 for better allignment and granularities
+// Must be %8
+#define XCPTL_MAX_CTO_SIZE (248)
 
 // DTO size
 // Maximum size of a XCP data packet (DAQ,STIM)
-#define XCPTL_MAX_DTO_SIZE (1024 - XCPTL_TRANSPORT_LAYER_HEADER_SIZE)
+// Must be %8
+#define XCPTL_MAX_DTO_SIZE (1024)
 
 // Segment size is the maximum data buffer size given to sockets send/sendTo, for UDP it is the UDP MTU
 // Jumbo frames are supported, but it might be more efficient to use a smaller segment sizes

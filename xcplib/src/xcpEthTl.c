@@ -36,8 +36,8 @@
 #if ((XCPTL_MAX_CTO_SIZE & 0x07) != 0)
 #error "XCPTL_MAX_CTO_SIZE should be aligned to 8!"
 #endif
-#if ((XCPTL_MAX_DTO_SIZE & 0x03) != 0)
-#error "XCPTL_MAX_DTO_SIZE should be aligned to 4!"
+#if ((XCPTL_MAX_DTO_SIZE & 0x07) != 0)
+#error "XCPTL_MAX_DTO_SIZE should be aligned to 8!"
 #endif
 #if ((XCPTL_MAX_SEGMENT_SIZE & 0x07) != 0)
 #error "XCPTL_MAX_SEGMENT_SIZE should be aligned to 8!"
