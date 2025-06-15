@@ -569,10 +569,10 @@ void XcpEthTlGetInfo(bool *isTcp, uint8_t *mac, uint8_t *addr, uint16_t *port) {
 int32_t XcpTlHandleTransmitQueue(void) {
 
     // Simply polling transmit queue
-    // @@@@ TODO Optimize efficiency, use a convdar or something like that to wakeup/sleep the transmit thread
+    // @@@@ TODO Optimize efficiency, use a condvar or something like that to wakeup/sleep the transmit thread
     // @@@@ TODO Optimize the mutex
     // This is needed to assure XCP transport layer header counter consistency among response and DAQ packets
-    // In fact this is a XCP design flaw, CANape supports independand DAQ and response packet counters, but other tools don't
+    // In fact this is a XCP design flaw, CANape supports independent DAQ and response packet counters, but other tools don't
 
     // Timeout to give the caller a chance to do other heath checking or shutdown the server gracefully
     const uint32_t max_outer_loops = 100; // Number of outer loops before return
@@ -581,8 +581,8 @@ int32_t XcpTlHandleTransmitQueue(void) {
     // Sleep time in ms after burst or queue empty
     const uint32_t outer_loop_sleep_ms = 1; // Sleep time in ms for each outer loop
 
-    int32_t n = 0;      // Numer of bytes sent
-    bool flush = false; // Flush queue in regular intervalls
+    int32_t n = 0;      // Number of bytes sent
+    bool flush = false; // Flush queue in regular intervals
 
     for (uint32_t j = 0; j < max_outer_loops; j++) {
         for (uint32_t i = 0; i < max_inner_loops; i++) {
