@@ -1,5 +1,5 @@
 
-# XCPlite V1.x.x
+# XCPlite V1.0.0
 
 XCPlite is a lightweight pure C implementation of the ASAM XCP V1.4 standard protocol for measurement and calibration of electronic control units.  
 It supports XCP on TCP or UDP with jumboframes.  
@@ -19,17 +19,27 @@ Checkout the Vector XCP Book:
 Visit the Virtual VectorAcedemy for an E-Learning on XCP:  
 <https://elearning.vector.com/>  
 
+## Whats new in V1.0.0
+
+- Breaking changes to V6.  
+- Lockless transmit queue. Works on x86-64 strong and ARM-64 weak memory model.  
+- Measurement of and write access to variables on stack.  
+- Supports multiple calibration segments with working and reference page with independent page switching
+- Lock free and thread safe calibration parameter access, consistent calibration changes and page switches.  
+- Build as a library.  
+- Used (as FFI library) for the rust xcp-lite version.  
+
 ## Features
 
 - Supports XCP on TCP or UDP with jumbo frames.  
-- Thread safe, minimal thread lock and single copy event driven, timestamped high performance consistent data acquisition.  
+- Thread safe, minimal thread lock and single copy event driven, timestamped high performance and consistent data acquisition.  
 - Runtime A2L database file generation and upload.  
+- Prepared for PTP synchronized timestamps.  
+- Supports calibration and measurement of structures
 - User friendly code instrumentation to create calibration parameter segments, measurement variables and A2L metadata descriptions.  
 - Measurement of global or local stack variables.  
 - Thread safe, lock-free and wait-free ECU access to calibration data.  
 - Calibration page switching and consistent calibration.  
-- Can be build as a library.  
-- Used (as FFI library) in the rust xcp-lite version.  
 
 A list of restrictions compared to Vectors free XCPbasic or commercial XCPprof may be found in the source file xcpLite.c.  
 XCPbasic is an optimized implementation for smaller Microcontrollers and with CAN as Transport-Layer.
