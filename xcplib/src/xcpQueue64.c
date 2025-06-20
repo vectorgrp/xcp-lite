@@ -18,14 +18,15 @@
 
 #include "xcpQueue.h"
 
-#include <assert.h>   // for assert
-#include <inttypes.h> // for PRIu64
+#include <assert.h>    // for assert
+#include <inttypes.h>  // for PRIu64
+#include <stdatomic.h> // for atomic_
+#include <stdbool.h>   // for bool
+#include <stdint.h>    // for uint32_t, uint64_t, uint8_t, int64_t
+#include <stdio.h>     // for NULL, snprintf
+#include <stdlib.h>    // for free, malloc
+#include <string.h>    // for memcpy, strcmp
 // #include <stdalign.h> // for alignas
-#include <stdbool.h> // for bool
-#include <stdint.h>  // for uint32_t, uint64_t, uint8_t, int64_t
-#include <stdio.h>   // for NULL, snprintf
-#include <stdlib.h>  // for free, malloc
-#include <string.h>  // for memcpy, strcmp
 
 #include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
 #include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex, spinlock
@@ -95,7 +96,7 @@ static_assert(sizeof(void *) == 8, "This implementation requires a 64 Bit platfo
 // Note that this tests have significant performance impact, do not turn on for production use !!!!!!!!!!!
 
 // Use a signature at the end of the message to check the commit state, enable for testing purposes ...
-// #define QUEUE_SIGNATURE
+#define QUEUE_SIGNATURE
 
 // #define TEST_LOCK_TIMING
 #ifdef TEST_LOCK_TIMING
@@ -111,7 +112,7 @@ static uint64_t lockTimeHistogram[LOCK_TIME_HISTOGRAM_SIZE] = {0, 0, 0, 0, 0, 0,
 // #define TEST_SPIN_LOCK
 #ifdef TEST_SPIN_LOCK
 #define SPIN_LOCK_HISTOGRAM_SIZE 100 // Up to 100 loops
-static atomic_uint_fast32_t spinLockHistogramm[SPIN_LOCK_HISTOGRAM_SIZE] = {
+static atomic_uint_least32_t spinLockHistogramm[SPIN_LOCK_HISTOGRAM_SIZE] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
@@ -122,7 +123,7 @@ static atomic_uint_fast32_t spinLockHistogramm[SPIN_LOCK_HISTOGRAM_SIZE] = {
 #ifdef TEST_SEQ_LOCK
 #define SEQ_LOCK_HISTOGRAM_SIZE 200  // Up to 200 loops
 static uint32_t seqLockMaxLevel = 0; // Maximum queue level reached
-static atomic_uint_fast32_t seqLockHistogramm[SEQ_LOCK_HISTOGRAM_SIZE] = {
+static atomic_uint_least32_t seqLockHistogramm[SEQ_LOCK_HISTOGRAM_SIZE] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -252,13 +253,13 @@ Consumer spin wait statistics:
 #define SIG_RESERVED 0xEEEEEEEEu  // Reserved by producer
 #define SIG_COMMITTED 0xCCCCCCCCu // Committed by producer
 
-static_assert(sizeof(atomic_uint_fast32_t) == 4, "Size of atomic_uint_fast32_t must be 4 bytes");
+static_assert(sizeof(atomic_uint_least32_t) == 4, "atomic_uint_least32_t must be 4 bytes");
 
 // Transport layer message header
 #pragma pack(push, 1)
 typedef struct {
 #ifndef QUEUE_SIGNATURE
-    /* alignas(XCPTL_PACKET_ALIGNMENT)*/ atomic_uint_fast32_t ctr_dlc;
+    /* alignas(XCPTL_PACKET_ALIGNMENT)*/ atomic_uint_least32_t ctr_dlc;
 #else
     uint16_t dlc; // XCP TL header lenght
     uint16_t ctr; // XCP TL Header message counter
@@ -491,7 +492,7 @@ tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint16_t packet_len) {
 #else
         entry->ctr = CTR_RESERVED;
         entry->dlc = msg_len - XCPTL_TRANSPORT_LAYER_HEADER_SIZE;
-        atomic_store_explicit((atomic_uint_fast32_t *)&entry->data[entry->dlc - 4], SIG_RESERVED, memory_order_release);
+        atomic_store_explicit((atomic_uint_least32_t *)&entry->data[entry->dlc - 4], SIG_RESERVED, memory_order_release);
 #endif
         atomic_store_explicit(&queue->h.head, head + msg_len, memory_order_release);
     }
@@ -526,7 +527,7 @@ tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint16_t packet_len) {
 #else
             entry->ctr = CTR_RESERVED;
             entry->dlc = msg_len - XCPTL_TRANSPORT_LAYER_HEADER_SIZE;
-            atomic_store_explicit((atomic_uint_fast32_t *)&entry->data[entry->dlc - 4], SIG_RESERVED, memory_order_release);
+            atomic_store_explicit((atomic_uint_least32_t *)&entry->data[entry->dlc - 4], SIG_RESERVED, memory_order_release);
 #endif
             break;
         }
@@ -560,7 +561,7 @@ tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint16_t packet_len) {
 #else
         entry->ctr = CTR_RESERVED;
         entry->dlc = msg_len - XCPTL_TRANSPORT_LAYER_HEADER_SIZE;
-        atomic_store_explicit((atomic_uint_fast32_t *)&entry->data[entry->dlc - 4], SIG_RESERVED, memory_order_release);
+        atomic_store_explicit((atomic_uint_least32_t *)&entry->data[entry->dlc - 4], SIG_RESERVED, memory_order_release);
 #endif
         atomic_store_explicit(&queue->h.head, head + msg_len, memory_order_release);
     }
@@ -623,7 +624,7 @@ void QueuePush(tQueueHandle queueHandle, tQueueBuffer *const queueBuffer, bool f
     atomic_store_explicit(&entry->ctr_dlc, (CTR_COMMITTED << 16) | (uint32_t)(queueBuffer->size - XCPTL_TRANSPORT_LAYER_HEADER_SIZE), memory_order_release);
 #else
     entry->ctr = CTR_COMMITTED;
-    atomic_store_explicit((atomic_uint_fast32_t *)&entry->data[entry->dlc - 4], SIG_COMMITTED, memory_order_release);
+    atomic_store_explicit((atomic_uint_least32_t *)&entry->data[entry->dlc - 4], SIG_COMMITTED, memory_order_release);
 #endif
 }
 
@@ -779,9 +780,9 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
     uint32_t sig = ((uint32_t)ctr << 16) | (uint32_t)ctr;
 #else
     // Note that dlc is already valid in reserved state
-    uint16_t dlc = first_entry->dlc;                                                                                // Transport layer packet data length
-    uint32_t sig = atomic_load_explicit((atomic_uint_fast32_t *)&first_entry->data[dlc - 4], memory_order_acquire); // sig at the end of the data buffer
-    uint8_t tag = first_entry->data[1];                                                                             // Reserved byte in the XCP DTO message header (daq,res,odt)
+    uint16_t dlc = first_entry->dlc;                                                                                 // Transport layer packet data length
+    uint32_t sig = atomic_load_explicit((atomic_uint_least32_t *)&first_entry->data[dlc - 4], memory_order_acquire); // sig at the end of the data buffer
+    uint8_t tag = first_entry->data[1];                                                                              // Reserved byte in the XCP DTO message header (daq,res,odt)
     uint16_t ctr = first_entry->ctr;
 #endif
 
@@ -861,9 +862,9 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
         uint32_t sig = ((uint32_t)ctr << 16) | (uint32_t)ctr;
 #else
         // Note that dlc is allready valid in reserved state
-        uint16_t dlc = entry->dlc;                                                                                // Transport layer packet data length
-        uint32_t sig = atomic_load_explicit((atomic_uint_fast32_t *)&entry->data[dlc - 4], memory_order_acquire); // sig at the end of the data buffer
-        uint8_t tag = entry->data[1];                                                                             // Reserved byte in the XCP DTO message header (daq,res,odt)
+        uint16_t dlc = entry->dlc;                                                                                 // Transport layer packet data length
+        uint32_t sig = atomic_load_explicit((atomic_uint_least32_t *)&entry->data[dlc - 4], memory_order_acquire); // sig at the end of the data buffer
+        uint8_t tag = entry->data[1];                                                                              // Reserved byte in the XCP DTO message header (daq,res,odt)
         uint16_t ctr = entry->ctr;
 #endif
 
