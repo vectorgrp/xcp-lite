@@ -713,7 +713,7 @@ uint32_t A2lGetAddr_(const void *p) {
         // Ensure the relative address does not overflow the address space
         uint64_t addr_high = (addr_diff >> 32);
         if (addr_high != 0 && addr_high != 0xFFFFFFFF) {
-            DBG_PRINTF_ERROR("A2L XCP_ADDR_EXT_REL relative address overflow detected! addr: %p, base: %p, diff: %lld\n", p, (void *)gA2lAddrBase, (int64_t)addr_diff);
+            DBG_PRINTF_ERROR("A2L XCP_ADDR_EXT_REL relative address overflow detected! addr: %p, base: %p\n", p, (void *)gA2lAddrBase);
             assert(0); // Ensure the relative address does not overflow the 32 Bit A2L address space
         }
         return (uint32_t)(addr_diff & 0xFFFFFFFF);
@@ -724,7 +724,7 @@ uint32_t A2lGetAddr_(const void *p) {
         // Ensure the relative address does not overflow the address space
         uint64_t addr_high = (addr_diff >> 16);
         if (addr_high != 0 && addr_high != 0xFFFFFFFFFFFF) {
-            DBG_PRINTF_ERROR("A2L XCP_ADDR_EXT_DYN relative address overflow detected! addr: %p, base: %p, diff: %lld\n", p, (void *)gA2lAddrBase, (int64_t)addr_diff);
+            DBG_PRINTF_ERROR("A2L XCP_ADDR_EXT_DYN relative address overflow detected! addr: %p, base: %p\n", p, (void *)gA2lAddrBase);
             assert(0); // Ensure the relative address does not overflow the 32 Bit A2L address space
         }
         return (uint32_t)(((uint32_t)gA2lFixedEvent) << 16 | (addr_diff & 0xFFFF));

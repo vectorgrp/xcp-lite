@@ -370,7 +370,7 @@ static tXcpData gXcp = {0};
 #define isConnected() (0 != (gXcp.SessionStatus & SS_CONNECTED))
 
 // Thread safe state checks
-#define isDaqRunning() atomic_load_explicit(&gXcp.DaqRunning, memory_order_acquire)
+#define isDaqRunning() atomic_load_explicit(&gXcp.DaqRunning, memory_order_relaxed)
 
 /****************************************************************************/
 // Logging
@@ -1113,7 +1113,7 @@ tXcpEventId XcpCreateEvent(const char *name, uint32_t cycleTimeNs, uint8_t prior
 // Free all dynamic DAQ lists
 static void XcpClearDaq(void) {
 
-    gXcp.SessionStatus &= ~SS_DAQ;
+    gXcp.SessionStatus &= (uint16_t)(~SS_DAQ);
     atomic_store_explicit(&gXcp.DaqRunning, false, memory_order_release);
 
     if (gXcp.DaqLists == NULL)
@@ -1458,7 +1458,7 @@ static void XcpStartDaq(void) {
 // Stop DAQ
 static void XcpStopDaq(void) {
 
-    gXcp.SessionStatus &= ~SS_DAQ; // Stop processing DAQ events
+    gXcp.SessionStatus &= (uint16_t)(~SS_DAQ); // Stop processing DAQ events
     atomic_store_explicit(&gXcp.DaqRunning, false, memory_order_release);
 
     // Reset all DAQ list states
@@ -1496,7 +1496,7 @@ static void XcpStartSelectedDaqLists(void) {
     // Start all selected DAQ lists, reset the selected state
     for (uint16_t daq = 0; daq < gXcp.DaqLists->daq_count; daq++) {
         if ((DaqListState(daq) & DAQ_STATE_SELECTED) != 0) {
-            DaqListState(daq) &= (uint8_t)~DAQ_STATE_SELECTED;
+            DaqListState(daq) &= (uint8_t)(~DAQ_STATE_SELECTED);
             XcpStartDaqList(daq);
         }
     }
@@ -1764,7 +1764,7 @@ void XcpDisconnect(void) {
         XcpCalSegPublishAll(true);
 #endif
 
-        gXcp.SessionStatus &= ~SS_CONNECTED;
+        gXcp.SessionStatus &= (uint16_t)(~SS_CONNECTED);
         ApplXcpDisconnect();
     }
 }
@@ -1799,7 +1799,7 @@ static uint8_t XcpPushCommand(const tXcpCto *cmdBuf, uint8_t cmdLen) {
 
     // Set pending command flag
     bool old_value = false;
-    if (!atomic_compare_exchange_strong_explicit(&gXcp.CmdPending, &old_value, true, memory_order_acquire, memory_order_release)) {
+    if (!atomic_compare_exchange_strong_explicit(&gXcp.CmdPending, &old_value, true, memory_order_acq_rel, memory_order_relaxed)) {
         return CRC_CMD_BUSY;
     }
     gXcp.CmdPendingCrmLen = cmdLen;
@@ -2018,13 +2018,13 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
                 // gXcp.SessionStatus |= SS_STORE_DAQ_REQ;
                 check_error(ApplXcpDaqResumeStore(config_id));
                 /* @@@@ TODO Send an event message */
-                // gXcp.SessionStatus &= ~SS_STORE_DAQ_REQ;
+                // gXcp.SessionStatus &= (uint16_t)(~SS_STORE_DAQ_REQ);
             } break;
             case SS_CLEAR_DAQ_REQ:
                 // gXcp.SessionStatus |= SS_CLEAR_DAQ_REQ;
                 check_error(ApplXcpDaqResumeClear());
                 /* @@@@ TODO Send an event message */
-                // gXcp.SessionStatus &= ~SS_CLEAR_DAQ_REQ;
+                // gXcp.SessionStatus &= (uint16_t)(~SS_CLEAR_DAQ_REQ);
                 break;
 #endif /* XCP_ENABLE_DAQ_RESUME */
 #ifdef XCP_ENABLE_FREEZE_CAL_PAGE
@@ -2477,7 +2477,7 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
             CRM_LEN = CRM_TIME_SYNCH_PROPERTIES_LEN;
             if ((CRO_TIME_SYNCH_PROPERTIES_SET_PROPERTIES & TIME_SYNCH_SET_PROPERTIES_RESPONSE_FMT) >= 1) { // set extended format
                 DBG_PRINTF4("  Timesync extended mode activated (RESPONSE_FMT=%u)\n", CRO_TIME_SYNCH_PROPERTIES_SET_PROPERTIES & TIME_SYNCH_SET_PROPERTIES_RESPONSE_FMT);
-                gXcp.SessionStatus &= ~SS_LEGACY_MODE;
+                gXcp.SessionStatus &= (uint16_t)(~SS_LEGACY_MODE);
             }
 #ifdef XCP_ENABLE_DAQ_CLOCK_MULTICAST
             if ((CRO_TIME_SYNCH_PROPERTIES_SET_PROPERTIES & TIME_SYNCH_SET_PROPERTIES_CLUSTER_ID) != 0) { // set cluster id

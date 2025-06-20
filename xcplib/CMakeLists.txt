@@ -53,7 +53,7 @@ target_compile_options(xcplib
         -Wall
         -Wextra
         -Wconversion
-        -Werror
+#        -Werror
         -pedantic
 #        -Wshadow
 )

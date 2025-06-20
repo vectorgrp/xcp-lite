@@ -257,7 +257,7 @@ uint8_t *ApplXcpGetBaseAddr(void) {
         dl_iterate_phdr(dump_phdr, NULL);
         assert(baseAddr != NULL);
         baseAddrValid = 1;
-        DBG_PRINTF4("Base address for absolute addressing = 0x%llX\n", (uint64_t)baseAddr);
+        DBG_PRINTF4("Base address for absolute addressing = %p\n", (void *)baseAddr);
     }
 
     return baseAddr;
@@ -299,7 +299,7 @@ uint8_t *ApplXcpGetBaseAddr(void) {
         baseAddr = (uint8_t *)_dyld_get_image_header(0); // Module addr
         assert(baseAddr != NULL);
         baseAddrValid = 1;
-        DBG_PRINTF4("Base address for absolute addressing = 0x%llX\n", (uint64_t)baseAddr);
+        DBG_PRINTF4("Base address for absolute addressing = %p\n", (void *)baseAddr);
     }
 
     return baseAddr;
@@ -308,7 +308,7 @@ uint8_t *ApplXcpGetBaseAddr(void) {
 uint32_t ApplXcpGetAddr(const uint8_t *p) {
     uint8_t *b = ApplXcpGetBaseAddr();
     if (p < b || ((uint64_t)p - (uint64_t)b) > 0xffffffff) { // be sure that XCP address range is sufficient
-        DBG_PRINTF_ERROR("Address out of range! base = %llX, addr = %llX\n", (uint64_t)b, (uint64_t)p);
+        DBG_PRINTF_ERROR("Address out of range! base = %p, addr = %p\n", (void *)b, (void *)p);
         // assert(0);
     }
     return (uint32_t)(p - b);

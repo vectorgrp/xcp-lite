@@ -20,12 +20,12 @@
 
 #include <assert.h>   // for assert
 #include <inttypes.h> // for PRIu64
-#include <stdalign.h> // for alignas
-#include <stdbool.h>  // for bool
-#include <stdint.h>   // for uint32_t, uint64_t, uint8_t, int64_t
-#include <stdio.h>    // for NULL, snprintf
-#include <stdlib.h>   // for free, malloc
-#include <string.h>   // for memcpy, strcmp
+// #include <stdalign.h> // for alignas
+#include <stdbool.h> // for bool
+#include <stdint.h>  // for uint32_t, uint64_t, uint8_t, int64_t
+#include <stdio.h>   // for NULL, snprintf
+#include <stdlib.h>  // for free, malloc
+#include <string.h>  // for memcpy, strcmp
 
 #include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
 #include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex, spinlock
@@ -35,7 +35,13 @@
 
 // Turn of misaligned atomic access warnings
 // Alignment is assured by the queue header and the queue entry size alignment
+#ifdef __GNUC__
 #pragma GCC diagnostic ignored "-Watomic-alignment"
+#endif
+#ifdef __clang__
+#endif
+#ifdef _MSC_VER
+#endif
 
 // Hint to the CPU that we are spinning
 #if defined(__x86_64__) || defined(__i386__)
@@ -246,11 +252,13 @@ Consumer spin wait statistics:
 #define SIG_RESERVED 0xEEEEEEEEu  // Reserved by producer
 #define SIG_COMMITTED 0xCCCCCCCCu // Committed by producer
 
+static_assert(sizeof(atomic_uint_fast32_t) == 4, "Size of atomic_uint_fast32_t must be 4 bytes");
+
 // Transport layer message header
 #pragma pack(push, 1)
 typedef struct {
 #ifndef QUEUE_SIGNATURE
-    alignas(XCPTL_PACKET_ALIGNMENT) atomic_uint_fast32_t ctr_dlc;
+    /* alignas(XCPTL_PACKET_ALIGNMENT)*/ atomic_uint_fast32_t ctr_dlc;
 #else
     uint16_t dlc; // XCP TL header lenght
     uint16_t ctr; // XCP TL Header message counter
