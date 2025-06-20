@@ -213,7 +213,7 @@ const char *A2lGetSymbolName(const char *instance_name, const char *name) {
     }
 }
 
-static const char *getA2lTypeName(int32_t type) {
+const char *A2lGetA2lTypeName(tA2lTypeId type) {
     const char *types;
     switch (type) {
     case A2L_TYPE_INT8:
@@ -252,7 +252,85 @@ static const char *getA2lTypeName(int32_t type) {
     return types;
 }
 
-static const char *getRecordLayoutName(int32_t type) {
+const char *A2lGetA2lTypeName_M(tA2lTypeId type) {
+    const char *types;
+    switch (type) {
+    case A2L_TYPE_INT8:
+        types = "M_SBYTE";
+        break;
+    case A2L_TYPE_INT16:
+        types = "M_SWORD";
+        break;
+    case A2L_TYPE_INT32:
+        types = "M_SLONG";
+        break;
+    case A2L_TYPE_INT64:
+        types = "M_A_INT64";
+        break;
+    case A2L_TYPE_UINT8:
+        types = "M_UBYTE";
+        break;
+    case A2L_TYPE_UINT16:
+        types = "M_UWORD";
+        break;
+    case A2L_TYPE_UINT32:
+        types = "M_ULONG";
+        break;
+    case A2L_TYPE_UINT64:
+        types = "M_A_UINT64";
+        break;
+    case A2L_TYPE_FLOAT:
+        types = "M_FLOAT32_IEEE";
+        break;
+    case A2L_TYPE_DOUBLE:
+        types = "M_FLOAT64_IEEE";
+        break;
+    default:
+        types = NULL;
+    }
+    return types;
+}
+
+const char *A2lGetA2lTypeName_C(tA2lTypeId type) {
+    const char *types;
+    switch (type) {
+    case A2L_TYPE_INT8:
+        types = "C_SBYTE";
+        break;
+    case A2L_TYPE_INT16:
+        types = "C_SWORD";
+        break;
+    case A2L_TYPE_INT32:
+        types = "C_SLONG";
+        break;
+    case A2L_TYPE_INT64:
+        types = "C_A_INT64";
+        break;
+    case A2L_TYPE_UINT8:
+        types = "C_UBYTE";
+        break;
+    case A2L_TYPE_UINT16:
+        types = "C_UWORD";
+        break;
+    case A2L_TYPE_UINT32:
+        types = "C_ULONG";
+        break;
+    case A2L_TYPE_UINT64:
+        types = "C_A_UINT64";
+        break;
+    case A2L_TYPE_FLOAT:
+        types = "C_FLOAT32_IEEE";
+        break;
+    case A2L_TYPE_DOUBLE:
+        types = "C_FLOAT64_IEEE";
+        break;
+    default:
+        types = NULL;
+    }
+    return types;
+}
+
+static const char *getRecordLayoutName(tA2lTypeId type) {
     const char *types;
     switch (type) {
     case A2L_TYPE_INT8:
@@ -291,7 +369,7 @@ static const char *getRecordLayoutName(int32_t type) {
     return types;
 }
 
-static const char *getTypeMin(int32_t type) {
+static const char *getTypeMin(tA2lTypeId type) {
     const char *min;
     switch (type) {
     case A2L_TYPE_INT8:
@@ -318,7 +396,7 @@ static const char *getTypeMin(int32_t type) {
     return min;
 }
 
-static const char *getTypeMax(int32_t type) {
+static const char *getTypeMax(tA2lTypeId type) {
     const char *max;
     switch (type) {
     case A2L_TYPE_INT8:
@@ -345,7 +423,7 @@ static const char *getTypeMax(int32_t type) {
     return max;
 }
 
-static const char *getPhysMin(int32_t type, double factor, double offset) {
+static const char *getPhysMin(tA2lTypeId type, double factor, double offset) {
     double value = 0.0;
     switch (type) {
     case A2L_TYPE_INT8:
@@ -375,7 +453,7 @@ static const char *getPhysMin(int32_t type, double factor, double offset) {
     return str;
 }
 
-static const char *getPhysMax(int32_t type, double factor, double offset) {
+static const char *getPhysMax(tA2lTypeId type, double factor, double offset) {
     double value = 0.0;
     switch (type) {
     case A2L_TYPE_INT8:
@@ -425,12 +503,13 @@ static bool A2lOpen(const char *filename, const char *projectname) {
 
     // Create standard record layouts for elementary types
     for (int i = -10; i <= +10; i++) {
-        const char *at = getA2lTypeName(i);
+        tA2lTypeId id = (tA2lTypeId)i;
+        const char *at = A2lGetA2lTypeName(id);
         if (at != NULL) {
-            const char *t = getRecordLayoutName(i);
+            const char *t = getRecordLayoutName(id);
             fprintf(gA2lFile, "/begin RECORD_LAYOUT %s FNC_VALUES 1 %s ROW_DIR DIRECT /end RECORD_LAYOUT\n", t, at);
-            fprintf(gA2lFile, "/begin TYPEDEF_MEASUREMENT M_%s \"\" %s NO_COMPU_METHOD 0 0 %s %s /end TYPEDEF_MEASUREMENT\n", t, at, getTypeMin(i), getTypeMax(i));
-            fprintf(gA2lFile, "/begin TYPEDEF_CHARACTERISTIC C_%s \"\" VALUE %s 0 NO_COMPU_METHOD %s %s /end TYPEDEF_CHARACTERISTIC\n", t, t, getTypeMin(i), getTypeMax(i));
+            fprintf(gA2lFile, "/begin TYPEDEF_MEASUREMENT M_%s \"\" %s NO_COMPU_METHOD 0 0 %s %s /end TYPEDEF_MEASUREMENT\n", t, at, getTypeMin(id), getTypeMax(id));
+            fprintf(gA2lFile, "/begin TYPEDEF_CHARACTERISTIC C_%s \"\" VALUE %s 0 NO_COMPU_METHOD %s %s /end TYPEDEF_CHARACTERISTIC\n", t, t, getTypeMin(id), getTypeMax(id));
         }
     }
     fprintf(gA2lFile, "\n");
@@ -726,7 +805,7 @@ void A2lCreateTypedefInstance_(const char *instance_name, const char *typeName, 
 //----------------------------------------------------------------------------------
 // Measurements
 
-void A2lCreateMeasurement_(const char *instance_name, const char *name, int32_t type, uint8_t ext, uint32_t addr, double factor, double offset, const char *unit,
+void A2lCreateMeasurement_(const char *instance_name, const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, double factor, double offset, const char *unit,
                            const char *comment) {
 
     assert(gA2lFile != NULL);
@@ -742,7 +821,7 @@ void A2lCreateMeasurement_(const char *instance_name, const char *name, int32_t 
         conv = symbol_name;
         gA2lConversions++;
     }
-    fprintf(gA2lFile, "/begin MEASUREMENT %s \"%s\" %s %s 0 0 %s %s ECU_ADDRESS 0x%X", symbol_name, comment, getA2lTypeName(type), conv, getPhysMin(type, factor, offset),
+    fprintf(gA2lFile, "/begin MEASUREMENT %s \"%s\" %s %s 0 0 %s %s ECU_ADDRESS 0x%X", symbol_name, comment, A2lGetA2lTypeName(type), conv, getPhysMin(type, factor, offset),
             getPhysMax(type, factor, offset), addr);
     printAddrExt(ext);
     printPhysUnit(unit);
@@ -758,7 +837,7 @@ void A2lCreateMeasurement_(const char *instance_name, const char *name, int32_t 
     gA2lMeasurements++;
 }
 
-void A2lCreateMeasurementArray_(const char *instance_name, const char *name, int32_t type, int x_dim, int y_dim, uint8_t ext, uint32_t addr, double factor, double offset,
+void A2lCreateMeasurementArray_(const char *instance_name, const char *name, tA2lTypeId type, int x_dim, int y_dim, uint8_t ext, uint32_t addr, double factor, double offset,
                                 const char *unit, const char *comment) {
 
     assert(gA2lFile != NULL);
@@ -788,7 +867,7 @@ void A2lCreateMeasurementArray_(const char *instance_name, const char *name, int
 //----------------------------------------------------------------------------------
 // Parameters
 
-void A2lCreateParameterWithLimits_(const char *name, int32_t type, uint8_t ext, uint32_t addr, const char *comment, const char *unit, double min, double max) {
+void A2lCreateParameterWithLimits_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, const char *comment, const char *unit, double min, double max) {
 
     assert(gA2lFile != NULL);
     fprintf(gA2lFile, "/begin CHARACTERISTIC %s \"%s\" VALUE 0x%X %s 0 NO_COMPU_METHOD %g %g", name, comment, addr, getRecordLayoutName(type), min, max);
@@ -802,7 +881,7 @@ void A2lCreateParameterWithLimits_(const char *name, int32_t type, uint8_t ext, 
     gA2lParameters++;
 }
 
-void A2lCreateParameter_(const char *name, int32_t type, uint8_t ext, uint32_t addr, const char *comment, const char *unit) {
+void A2lCreateParameter_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, const char *comment, const char *unit) {
 
     assert(gA2lFile != NULL);
     fprintf(gA2lFile, "/begin CHARACTERISTIC %s \"%s\" VALUE 0x%X %s 0 NO_COMPU_METHOD %s %s", name, comment, addr, getRecordLayoutName(type), getTypeMin(type), getTypeMax(type));
@@ -817,7 +896,7 @@ void A2lCreateParameter_(const char *name, int32_t type, uint8_t ext, uint32_t a
     gA2lParameters++;
 }
 
-void A2lCreateMap_(const char *name, int32_t type, uint8_t ext, uint32_t addr, uint32_t xdim, uint32_t ydim, const char *comment, const char *unit) {
+void A2lCreateMap_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, uint32_t xdim, uint32_t ydim, const char *comment, const char *unit) {
 
     assert(gA2lFile != NULL);
     fprintf(gA2lFile,
@@ -836,7 +915,7 @@ void A2lCreateMap_(const char *name, int32_t type, uint8_t ext, uint32_t addr, u
     gA2lParameters++;
 }
 
-void A2lCreateCurve_(const char *name, int32_t type, uint8_t ext, uint32_t addr, uint32_t xdim, const char *comment, const char *unit) {
+void A2lCreateCurve_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, uint32_t xdim, const char *comment, const char *unit) {
 
     assert(gA2lFile != NULL);
     fprintf(gA2lFile,

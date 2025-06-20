@@ -9,11 +9,12 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn XcpDisconnect();
 }
+pub type tXcpEventId = u16;
 unsafe extern "C" {
-    pub fn XcpEventExt(event: u16, base: *const u8) -> u8;
+    pub fn XcpEventExt(event: tXcpEventId, base: *const u8) -> u8;
 }
 unsafe extern "C" {
-    pub fn XcpEvent(event: u16);
+    pub fn XcpEvent(event: tXcpEventId);
 }
 unsafe extern "C" {
     pub fn XcpSendTerminateSessionEvent();
