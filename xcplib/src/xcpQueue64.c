@@ -274,9 +274,9 @@ static_assert(sizeof(tXcpDtoMessage) == XCPTL_TRANSPORT_LAYER_HEADER_SIZE, "tXcp
 // Aligned to cache line size
 typedef struct {
     // Shared state
-    atomic_uint_fast64_t head;         // Consumer reads from head
-    atomic_uint_fast64_t tail;         // Producers write to tail
-    atomic_uint_fast32_t packets_lost; // Packet lost counter, incremented by producers when a queue entry could not be acquired
+    atomic_uint_fast64_t head;          // Consumer reads from head
+    atomic_uint_fast64_t tail;          // Producers write to tail
+    atomic_uint_least32_t packets_lost; // Packet lost counter, incremented by producers when a queue entry could not be acquired
     atomic_bool flush;
 
 #if defined(QUEUE_SPIN_LOCK)
@@ -322,7 +322,7 @@ static tQueueHandle QueueInitFromMemory(void *queue_memory, uint32_t queue_memor
         assert(queue && ((uint64_t)queue % CACHE_LINE_SIZE) == 0); // Check alignment
         memset(queue, 0, queue_memory_size);                       // Clear memory
         queue->h.from_memory = false;
-        queue->h.buffer_size = queue_memory_size - sizeof(tQueueHeader);
+        queue->h.buffer_size = queue_memory_size - (uint32_t)sizeof(tQueueHeader);
         queue->h.queue_size = queue->h.buffer_size - MAX_ENTRY_SIZE;
         clear_queue = true;
     }
@@ -330,7 +330,7 @@ static tQueueHandle QueueInitFromMemory(void *queue_memory, uint32_t queue_memor
     else if (clear_queue) {
         queue = (tQueue *)queue_memory;
         queue->h.from_memory = true;
-        queue->h.buffer_size = queue_memory_size - sizeof(tQueueHeader);
+        queue->h.buffer_size = queue_memory_size - (uint32_t)sizeof(tQueueHeader);
         queue->h.queue_size = queue->h.buffer_size - MAX_ENTRY_SIZE;
     }
 
@@ -768,7 +768,7 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
 #endif
 
     // Get a pointer to the entry in the queue
-    first_offset = tail % queue->h.queue_size;
+    first_offset = (uint32_t)(tail % queue->h.queue_size);
     first_entry = (tXcpDtoMessage *)(queue->buffer + first_offset);
 
     // Check the entry commit state
