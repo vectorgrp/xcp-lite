@@ -81,7 +81,7 @@ int main(void) {
     DaqCreateEvent(mainloop);
 
     // Register a global measurement variable
-    A2lSetAbsoluteAddrMode(); // Set absolute addressing
+    A2lSetAbsoluteAddrMode(mainloop); // Set absolute addressing
     A2lCreatePhysMeasurement(counter, "Measurement variable", 1.0, 0.0, "counts");
 
     A2lFinalize(); // Optional: Finalize the A2L file generation early, to write the A2L now, not when the client connects
