@@ -9,7 +9,7 @@
 #include "a2l.h"          // for A2l generation
 #include "platform.h"     // for sleepMs, clockGet
 #include "xcpEthServer.h" // for XcpEthServerInit, XcpEthServerShutdown, XcpEthServerStatus
-#include "xcpLite.h"      // for XcpInit, XcpEventExt, XcpCreateEvent, XcpCreateCalSeg, ...
+#include "xcpLite.h"      // for XcpInit, XcpEventXxx, XcpCreateEvent, XcpCreateCalSeg, ...
 
 //-----------------------------------------------------------------------------------------------------
 
@@ -19,8 +19,9 @@
 #define OPTION_USE_TCP false                 // TCP or UDP
 #define OPTION_SERVER_PORT 5555              // Port
 // #define OPTION_SERVER_ADDR {0, 0, 0, 0} // Bind addr, 0.0.0.0 = ANY
-#define OPTION_SERVER_ADDR {192, 168, 8, 110} // Bind addr, 0.0.0.0 = ANY
-#define OPTION_QUEUE_SIZE 1024 * 32           // Size of the measurement queue in bytes, must be a multiple of 8
+#define OPTION_SERVER_ADDR {127, 0, 0, 1} // Bind addr, 0.0.0.0 = ANY
+#define OPTION_QUEUE_SIZE 1024 * 16       // Size of the measurement queue in bytes, must be a multiple of 8
+#define OPTION_LOG_LEVEL 3
 
 //-----------------------------------------------------------------------------------------------------
 
@@ -48,7 +49,7 @@ int main(void) {
     printf("\nXCP on Ethernet hello_xcp C xcplib demo\n");
 
     // Set log level (1-error, 2-warning, 3-info, 4-show XCP commands)
-    XcpSetLogLevel(3);
+    XcpSetLogLevel(OPTION_LOG_LEVEL);
 
     // Initialize the XCP singleton, must be called before starting the server
     XcpInit();
@@ -73,15 +74,17 @@ int main(void) {
 
     // Register individual calibration parameters in the calibration segment
     A2lSetSegAddrMode(calseg, (uint8_t *)&params);
-    A2lCreateParameterWithLimits(params.counter_max, A2L_TYPE_UINT16, "maximum counter value", "", 0, 2000);
-    A2lCreateParameterWithLimits(params.delay_us, A2L_TYPE_UINT32, "mainloop delay time in ue", "us", 0, 1000000);
+    A2lCreateParameterWithLimits(params.counter_max, "maximum counter value", "", 0, 2000);
+    A2lCreateParameterWithLimits(params.delay_us, "mainloop delay time in us", "us", 0, 1000000);
 
     // Create a measurement event
     uint16_t event = XcpCreateEvent("mainloop", 0, 0);
 
     // Register a global measurement variable
     A2lSetAbsAddrMode(); // Set absolute addressing
-    A2lCreatePhysMeasurement(counter, A2L_TYPE_UINT16, "Measurement variable", 1.0, 0.0, "counts");
+    A2lCreatePhysMeasurement(counter, "Measurement variable", 1.0, 0.0, "counts");
+
+    A2lFinalize(); // Optional: Finalize the A2L file generation early, to write the A2L now, not when the client connects
 
     for (;;) {
         // Lock the calibration parameter segment for consistent and safe access

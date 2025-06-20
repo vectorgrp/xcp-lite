@@ -44,8 +44,8 @@
 // Platform options
 
 // Clock
-#define OPTION_CLOCK_EPOCH_ARB // -> use CLOCK_MONOTONIC_RAW
-// #define OPTION_CLOCK_EPOCH_PTP // -> use CLOCK_REALTIME
+// #define OPTION_CLOCK_EPOCH_ARB // -> use CLOCK_MONOTONIC_RAW
+#define OPTION_CLOCK_EPOCH_PTP // -> use CLOCK_REALTIME
 #define OPTION_CLOCK_TICKS_1NS
 
 // Enable socketGetLocalAddr and XcpEthTlGetInfo

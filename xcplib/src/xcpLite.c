@@ -183,11 +183,11 @@ typedef struct {
 // size = 12 byte
 #pragma pack(push, 1)
 typedef struct {
-    uint16_t last_odt;      /* Absolute odt number */
-    uint16_t first_odt;     /* Absolute odt number */
-    uint16_t event_channel; /* Associated event */
+    uint16_t last_odt;  /* Absolute odt number */
+    uint16_t first_odt; /* Absolute odt number */
+    uint16_t EVENT_ID;  /* Associated event */
 #ifdef XCP_MAX_EVENT_COUNT
-    uint16_t next; /* Next DAQ list associated to event_channel */
+    uint16_t next; /* Next DAQ list associated to EVENT_ID */
 #else
     uint16_t res1;
 #endif
@@ -334,7 +334,7 @@ static tXcpData gXcp = {0};
 #define DaqListFirstOdt(i) gXcp.DaqLists->u.daq_list[i].first_odt
 #define DaqListMode(i) gXcp.DaqLists->u.daq_list[i].mode
 #define DaqListState(i) gXcp.DaqLists->u.daq_list[i].state
-#define DaqListEventChannel(i) gXcp.DaqLists->u.daq_list[i].event_channel
+#define DaqListEventChannel(i) gXcp.DaqLists->u.daq_list[i].EVENT_ID
 #define DaqListAddrExt(i) gXcp.DaqLists->u.daq_list[i].addr_ext
 #define DaqListPriority(i) gXcp.DaqLists->u.daq_list[i].priority
 #ifdef XCP_MAX_EVENT_COUNT
@@ -541,6 +541,7 @@ tXcpCalSegIndex XcpCreateCalSeg(const char *name, const uint8_t *default_page, u
 
     // Allocate a free uninitialized page
     atomic_store_explicit(&c->free_page, (uintptr_t)malloc(size), memory_order_relaxed);
+    c->free_page_hazard = false; // Free page is not in use yet, no hazard
 
     // New ECU page version not updated
     atomic_store_explicit(&c->ecu_page_next, (uintptr_t)c->ecu_page, memory_order_relaxed);
@@ -548,7 +549,7 @@ tXcpCalSegIndex XcpCreateCalSeg(const char *name, const uint8_t *default_page, u
     c->size = size;
     c->xcp_access = XCP_CALPAGE_WORKING_PAGE;                                              // Default page for XCP access is the working page
     atomic_store_explicit(&c->ecu_access, XCP_CALPAGE_WORKING_PAGE, memory_order_relaxed); // Default page for ECU access is the working page
-    c->lock_count = 0;                                                                     // No locks
+    atomic_store_explicit(&c->lock_count, 0, memory_order_relaxed);                        // No locks
     c->write_pending = false;                                                              // No write pending
 
     gXcp.CalSegList.count++;
@@ -571,19 +572,23 @@ uint8_t const *XcpLockCalSeg(tXcpCalSegIndex calseg) {
     tXcpCalSeg *c = &gXcp.CalSegList.calseg[calseg];
 
     // Update
-    // Don't update in recursive locks
-    if (c->lock_count == 0) {
+    // Increment the lock count
+    // Check for updates if we aquired the first lock
+    uint8_t lock_count = atomic_load_explicit(&c->lock_count, memory_order_acquire);
+    while (!atomic_compare_exchange_weak_explicit(&c->lock_count, &lock_count, lock_count + 1, memory_order_acquire, memory_order_relaxed))
+        ;
+    if (lock_count == 0) {
 
         // Update if there is a new page version, free the old page
         uint8_t *ecu_page_next = (uint8_t *)atomic_load_explicit(&c->ecu_page_next, memory_order_acquire);
         if (c->ecu_page != ecu_page_next) {
+            c->free_page_hazard = true; // Free page might be acquired by some other thread, since we got the first lock on this segment
             atomic_store_explicit(&c->free_page, (uintptr_t)c->ecu_page, memory_order_release);
             c->ecu_page = ecu_page_next;
+        } else {
+            c->free_page_hazard = false; // There was no lock and no need for update, free page must be safe now, if there is one
         }
     }
-
-    // Increment the lock count
-    c->lock_count++;
 
     // Return the active ECU page (RAM or FLASH)
     uint8_t ecu_access = (uint8_t)atomic_load_explicit(&c->ecu_access, memory_order_relaxed);
@@ -602,7 +607,7 @@ void XcpUnlockCalSeg(tXcpCalSegIndex calseg) {
         return; // Uninitialized or invalid calseg
     }
 
-    gXcp.CalSegList.calseg[calseg].lock_count--;
+    atomic_fetch_sub_explicit(&gXcp.CalSegList.calseg[calseg].lock_count, 1, memory_order_release); // Decrement the lock count
 }
 
 // XCP client memory read
@@ -636,12 +641,15 @@ static uint8_t XcpCalSegReadMemory(uint32_t src, uint16_t size, uint8_t *dst) {
 }
 
 // Publish a modified calibration segment
+// Option to wait for this, or return unsuccessful with CRC_CMD_PENDING
 static uint8_t XcpCalSegPublish(tXcpCalSeg *c, bool wait) {
     // Try allocate a new xcp page
+    // Im a multithreaded consumer use case, we must be sure the free page is really not in use anymore
+    // We simply wait until all threads are updated, this is theoretically not free of starvation, but calibration changes are slow
     uint8_t *free_page = (uint8_t *)atomic_load_explicit(&c->free_page, memory_order_acquire);
     if (wait) {
         // Wait and delay the XCP server receive thread, until a free page becomes available
-        for (int timeout = 0; timeout < XCP_CALSEG_AQUIRE_FREE_PAGE_TIMEOUT && free_page == NULL; timeout++) {
+        for (int timeout = 0; timeout < XCP_CALSEG_AQUIRE_FREE_PAGE_TIMEOUT && (free_page == NULL || c->free_page_hazard); timeout++) {
             sleepMs(1);
             free_page = (uint8_t *)atomic_load_explicit(&c->free_page, memory_order_acquire);
         }
@@ -650,7 +658,7 @@ static uint8_t XcpCalSegPublish(tXcpCalSeg *c, bool wait) {
             return CRC_ACCESS_DENIED; // No free page available
         }
     } else {
-        if (free_page == NULL) {
+        if (free_page == NULL || c->free_page_hazard) {
             DBG_PRINTF5("Can not update calibration changes of %s yet\n", c->name);
             return CRC_CMD_PENDING; // No free page available
         }
@@ -990,29 +998,48 @@ static uint8_t XcpSetMta(uint8_t ext, uint32_t addr) {
 
 // Get a pointer to and the size of the XCP event list
 tXcpEventList *XcpGetEventList(void) {
-
     if (!isInitialized())
         return NULL;
     return &gXcp.EventList;
 }
 
-tXcpEvent *XcpGetEvent(uint16_t event) {
-    if (!isStarted() || event >= gXcp.EventList.count)
+// Get a pointer to the XCP event struct
+static tXcpEvent *XcpGetEvent(tXcpEventId event) {
+    if (!isInitialized() || event >= gXcp.EventList.count)
         return NULL;
     return &gXcp.EventList.event[event];
 }
 
+// Find an event by name, return XCP_UNDEFINED_EVENT_ID if not found
+tXcpEventId XcpFindEvent(const char *name, uint16_t *count) {
+    uint16_t id = XCP_UNDEFINED_EVENT_ID;
+    if (isInitialized()) {
+        mutexLock(&gXcp.EventList.mutex);
+        if (count != NULL)
+            *count = 0;
+        for (uint16_t i = 0; i < gXcp.EventList.count; i++) {
+            if (strcmp(gXcp.EventList.event[i].name, name) == 0) {
+                if (count != NULL)
+                    *count += 1;
+                id = i; // Remember the last found event
+            }
+        }
+        mutexUnlock(&gXcp.EventList.mutex);
+    }
+    return id;
+}
+
 // Create an XCP event
 // Thread safe
-// Returns the XCP event number for XcpEventXxx() or XCP_UNDEFINED_EVENT_CHANNEL when out of memory
-uint16_t XcpCreateEvent(const char *name, uint32_t cycleTimeNs, uint8_t priority) {
+// Returns the XCP event number for XcpEventXxx() or XCP_UNDEFINED_EVENT_ID when out of memory
+static tXcpEventId XcpCreateIndexedEvent(const char *name, uint16_t index, uint32_t cycleTimeNs, uint8_t priority) {
 
     uint16_t e;
     uint32_t c;
 
     if (!isInitialized()) {
         DBG_PRINT_ERROR("XCP not initialized\n");
-        return XCP_UNDEFINED_EVENT_CHANNEL; // Uninitialized
+        return XCP_UNDEFINED_EVENT_ID; // Uninitialized
     }
 
     mutexLock(&gXcp.EventList.mutex);
@@ -1020,7 +1047,7 @@ uint16_t XcpCreateEvent(const char *name, uint32_t cycleTimeNs, uint8_t priority
     if (e >= XCP_MAX_EVENT_COUNT) {
         mutexUnlock(&gXcp.EventList.mutex); // Unlock event list mutex
         DBG_PRINT_ERROR("too many events\n");
-        return XCP_UNDEFINED_EVENT_CHANNEL; // Out of memory
+        return XCP_UNDEFINED_EVENT_ID; // Out of memory
     }
     gXcp.EventList.count++;
     mutexUnlock(&gXcp.EventList.mutex);
@@ -1035,6 +1062,7 @@ uint16_t XcpCreateEvent(const char *name, uint32_t cycleTimeNs, uint8_t priority
     }
     gXcp.EventList.event[e].timeCycle = (uint8_t)c;
 
+    gXcp.EventList.event[e].index = index; // Index of the event instance
     strncpy(gXcp.EventList.event[e].name, name, XCP_MAX_EVENT_NAME);
     gXcp.EventList.event[e].name[XCP_MAX_EVENT_NAME] = 0;
     gXcp.EventList.event[e].priority = priority;
@@ -1047,6 +1075,22 @@ uint16_t XcpCreateEvent(const char *name, uint32_t cycleTimeNs, uint8_t priority
 #endif
 
     return e;
+}
+
+// Add a measurement event to event list, return event number (0..MAX_EVENT-1), thread safe, if name exists, an instance id is appended to the name
+tXcpEventId XcpCreateEventInstance(const char *name, uint32_t cycleTimeNs, uint8_t priority) {
+    uint16_t count = 0;
+    XcpFindEvent(name, &count);
+    return XcpCreateIndexedEvent(name, count + 1, cycleTimeNs, priority);
+}
+
+// Add a measurement event to the event list, return event number (0..MAX_EVENT-1), thread safe, error if name exists
+tXcpEventId XcpCreateEvent(const char *name, uint32_t cycleTimeNs, uint8_t priority) {
+    if (XcpFindEvent(name, NULL) != XCP_UNDEFINED_EVENT_ID) {
+        DBG_PRINTF("Event '%s' already exists\n", name);
+        return XCP_UNDEFINED_EVENT_ID;
+    }
+    return XcpCreateIndexedEvent(name, 0, cycleTimeNs, priority);
 }
 
 #endif // XCP_ENABLE_DAQ_EVENT_LIST
@@ -1131,7 +1175,7 @@ static uint8_t XcpAllocDaq(uint16_t daqCount) {
     if (0 != (r = XcpCheckMemory()))
         return r; // Memory overflow
     for (daq = 0; daq < daqCount; daq++) {
-        DaqListEventChannel(daq) = XCP_UNDEFINED_EVENT_CHANNEL;
+        DaqListEventChannel(daq) = XCP_UNDEFINED_EVENT_ID;
         DaqListAddrExt(daq) = XCP_UNDEFINED_ADDR_EXT;
 #ifdef XCP_MAX_EVENT_COUNT
         DaqListNext(daq) = XCP_UNDEFINED_DAQ_LIST;
@@ -1244,8 +1288,10 @@ static uint8_t XcpAddOdtEntry(uint32_t addr, uint8_t ext, uint8_t size) {
         return CRC_DAQ_ACTIVE;
 
     uint8_t daq_ext = DaqListAddrExt(gXcp.WriteDaqDaq);
-    if (daq_ext != XCP_UNDEFINED_ADDR_EXT && ext != daq_ext)
+    if (daq_ext != XCP_UNDEFINED_ADDR_EXT && ext != daq_ext) {
+        DBG_PRINTF_ERROR("DAQ list must have unique address extension, DAQ=%u, ODT=%u, ext=%u, daq_ext=%u\n", gXcp.WriteDaqDaq, gXcp.WriteDaqOdt, ext, daq_ext);
         return CRC_DAQ_CONFIG; // Error not unique address extension
+    }
     DaqListAddrExt(gXcp.WriteDaqDaq) = ext;
 
     int32_t base_offset = 0;
@@ -1257,7 +1303,7 @@ static uint8_t XcpAddOdtEntry(uint32_t addr, uint8_t ext, uint8_t size) {
         int16_t offset = (int16_t)(addr & 0xFFFF); // address offset
         base_offset = (int32_t)offset;             // sign extend to 32 bit, the relative address may be negative
         uint16_t e0 = DaqListEventChannel(gXcp.WriteDaqDaq);
-        if (e0 != XCP_UNDEFINED_EVENT_CHANNEL && e0 != event)
+        if (e0 != XCP_UNDEFINED_EVENT_ID && e0 != event)
             return CRC_OUT_OF_RANGE; // Error event channel redefinition
         DaqListEventChannel(gXcp.WriteDaqDaq) = event;
     } else
@@ -1314,7 +1360,7 @@ static uint8_t XcpSetDaqListMode(uint16_t daq, uint16_t event, uint8_t mode, uin
 
     // Check if the DAQ list requires a specific event and it matches
     uint16_t event0 = DaqListEventChannel(daq);
-    if (event0 != XCP_UNDEFINED_EVENT_CHANNEL && event != event0)
+    if (event0 != XCP_UNDEFINED_EVENT_ID && event != event0)
         return CRC_DAQ_CONFIG; // Error event not unique
 
     // Check all DAQ lists with same event have the same address extension
@@ -1354,7 +1400,7 @@ bool XcpCheckPreparedDaqLists(void) {
 
     for (uint16_t daq = 0; daq < gXcp.DaqLists->daq_count; daq++) {
         if (DaqListState(daq) & DAQ_STATE_SELECTED) {
-            if (DaqListEventChannel(daq) == XCP_UNDEFINED_EVENT_CHANNEL) {
+            if (DaqListEventChannel(daq) == XCP_UNDEFINED_EVENT_ID) {
                 DBG_PRINTF_ERROR("DAQ list %u event channel not initialized!\n", daq);
                 return false;
             }
@@ -1574,19 +1620,13 @@ static void XcpTriggerDaqList(tQueueHandle queueHandle, uint16_t daq, const uint
 
 // Trigger event
 // DAQ must be running
-static void XcpTriggerDaqEventAt(tQueueHandle queueHandle, uint16_t event, const uint8_t *base, uint64_t clock) {
+static void XcpTriggerDaqEventAt(tQueueHandle queueHandle, tXcpEventId event, const uint8_t *dyn_rel_base, uint64_t clock) {
 
     uint16_t daq;
+    const uint8_t *base_addr;
 
     if (clock == 0)
         clock = ApplXcpGetClock64();
-
-#ifdef XCP_ENABLE_ABS_ADDRESSING
-    if (base == NULL)
-        base = ApplXcpGetBaseAddr();
-#else
-    assert(base != NULL); // Base must be given in dyn or rel addressing mode
-#endif
 
 #ifndef XCP_MAX_EVENT_COUNT
 
@@ -1595,8 +1635,19 @@ static void XcpTriggerDaqEventAt(tQueueHandle queueHandle, uint16_t event, const
         if ((DaqListState(daq) & DAQ_STATE_RUNNING) == 0)
             continue; // DAQ list not active
         if (DaqListEventChannel(daq) != event)
-            continue;                                                // DAQ list not associated with this event
-        XcpTriggerDaqList(daq_lists, queueHandle, daq, base, clock); // Trigger DAQ list
+            continue; // DAQ list not associated with this event
+
+#ifdef XCP_ENABLE_ABS_ADDRESSING
+        if (DaqListAddrExt(daq) == XCP_ADDR_EXT_ABS) {
+            base_addr = ApplXcpGetBaseAddr();
+        } else
+#endif
+        {
+            assert(DaqListAddrExt(daq) == XCP_ADDR_EXT_DYN || DaqListAddrExt(daq) == XCP_ADDR_EXT_REL);
+            base_addr = dyn_rel_base;
+        }
+
+        XcpTriggerDaqList(daq_lists, queueHandle, daq, base_addr, clock); // Trigger DAQ list
     } /* daq */
 
 #else
@@ -1610,18 +1661,29 @@ static void XcpTriggerDaqEventAt(tQueueHandle queueHandle, uint16_t event, const
 #ifdef XCP_ENABLE_TEST_CHECKS
         assert(daq < gXcp.DaqLists->daq_count);
 #endif
-        if (DaqListState(daq) & DAQ_STATE_RUNNING) {          // DAQ list active
-            XcpTriggerDaqList(queueHandle, daq, base, clock); // Trigger DAQ list
+        if (DaqListState(daq) & DAQ_STATE_RUNNING) { // DAQ list active
+
+#ifdef XCP_ENABLE_ABS_ADDRESSING
+            if (DaqListAddrExt(daq) == XCP_ADDR_EXT_ABS) {
+                base_addr = ApplXcpGetBaseAddr();
+            } else
+#endif
+            {
+                assert(DaqListAddrExt(daq) == XCP_ADDR_EXT_DYN || DaqListAddrExt(daq) == XCP_ADDR_EXT_REL);
+                base_addr = dyn_rel_base;
+            }
+
+            XcpTriggerDaqList(queueHandle, daq, base_addr, clock); // Trigger DAQ list
         }
         daq = DaqListNext(daq);
     }
 #endif
 }
 
-// ABS adressing mode event with clock
+// ABS addressing mode event with clock
 // Base is ApplXcpGetBaseAddr()
 #ifdef XCP_ENABLE_ABS_ADDRESSING
-void XcpEventAt(uint16_t event, uint64_t clock) {
+void XcpEventAt(tXcpEventId event, uint64_t clock) {
     if (!isDaqRunning())
         return; // DAQ not running
     XcpTriggerDaqEventAt(gXcp.Queue, event, NULL, clock);
@@ -1631,7 +1693,7 @@ void XcpEventAt(uint16_t event, uint64_t clock) {
 // ABS addressing mode event
 // Base is ApplXcpGetBaseAddr()
 #ifdef XCP_ENABLE_ABS_ADDRESSING
-void XcpEvent(uint16_t event) {
+void XcpEvent(tXcpEventId event) {
     if (!isDaqRunning())
         return; // DAQ not running
     XcpTriggerDaqEventAt(gXcp.Queue, event, NULL, 0);
@@ -1640,7 +1702,7 @@ void XcpEvent(uint16_t event) {
 
 // Dyn addressing mode event
 // Base is given as parameter
-uint8_t XcpEventExtAt(uint16_t event, const uint8_t *base, uint64_t clock) {
+uint8_t XcpEventExtAt(tXcpEventId event, const uint8_t *base, uint64_t clock) {
 
     // Cal
 #ifdef XCP_ENABLE_DYN_ADDRESSING
@@ -1678,7 +1740,9 @@ uint8_t XcpEventExtAt(uint16_t event, const uint8_t *base, uint64_t clock) {
     return CRC_CMD_OK;
 }
 
-uint8_t XcpEventExt(uint16_t event, const uint8_t *base) { return XcpEventExtAt(event, base, 0); }
+uint8_t XcpEventExt(tXcpEventId event, const uint8_t *base) { return XcpEventExtAt(event, base, 0); }
+
+uint8_t XcpEventDyn(tXcpEventId *event) { return XcpEventExtAt(*event, (uint8_t *)event, 0); }
 
 /****************************************************************************/
 /* Command Processor                                                        */
@@ -2190,7 +2254,7 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
 #endif
             // Optimization type: default
             // Address extension type:
-            //   Address extension to be the same for all entries within one DAQ
+            //   DAQ_EXT_DAQ: Address extension to be the same for all entries within one DAQ
             // DTO identification field type:
             //   DAQ_HDR_ODT_DAQB: Relative ODT number (BYTE), absolute DAQ list number (BYTE)
             //   DAQ_HDR_ODT_FIL_DAQW: Relative ODT number (BYTE), fill byte, absolute DAQ list number (WORD, aligned)

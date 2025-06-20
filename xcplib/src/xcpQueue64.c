@@ -61,10 +61,10 @@ static_assert(sizeof(void *) == 8, "This implementation requires a 64 Bit platfo
 // The default implementation is a mutex based producer lock, no consumer lock and memory fences between producer and consumer.
 
 // Use a mutex for queue producers, this is the default
-// #define QUEUE_MUTEX
+#define QUEUE_MUTEX
 
 // Use a seq_lock to protect against inconsistency during the entry acquire, the queue is lockfree with minimal spin wait when contention for increasing the head
-#define QUEUE_SEQ_LOCK
+// #define QUEUE_SEQ_LOCK
 
 // Use a spin lock to acquire an entry, not recomended, see test results
 // #define QUEUE_SPIN_LOCK
@@ -104,16 +104,28 @@ static uint64_t lockTimeHistogram[LOCK_TIME_HISTOGRAM_SIZE] = {0, 0, 0, 0, 0, 0,
 
 // #define TEST_SPIN_LOCK
 #ifdef TEST_SPIN_LOCK
-#define SPIN_LOCK_HISTOGRAM_SIZE 100 // Up to 100 spin loops
+#define SPIN_LOCK_HISTOGRAM_SIZE 100 // Up to 100 loops
 static atomic_uint_fast32_t spinLockHistogramm[SPIN_LOCK_HISTOGRAM_SIZE] = {
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+
+};
+#endif
+
+// #define TEST_SEQ_LOCK
+#ifdef TEST_SEQ_LOCK
+#define SEQ_LOCK_HISTOGRAM_SIZE 200  // Up to 200 loops
+static uint32_t seqLockMaxLevel = 0; // Maximum queue level reached
+static atomic_uint_fast32_t seqLockHistogramm[SEQ_LOCK_HISTOGRAM_SIZE] = {
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 };
 #endif
 
 /*
-
 --------------------------------------------------------------------------------------------------------
 Comparison of mutex, spin_lock and seq_lock performance
 
@@ -163,22 +175,55 @@ Lock timing statistics: lockCount=3689814, maxLockTime=10044083ns,  avgLockTime=
 
 
 // QUEUE_SEQ_LOCK:
-Lock timing statistics: lockCount=3770964, maxLockTime=61542ns,  avgLockTime=124ns
-0ns: 3764957
-10ns: 5449
-20ns: 481
-30ns: 70
-40ns: 5
-50ns: 1
-60ns: 1
+Lock timing statistics: lockCount=3772703, maxLockTime=49667ns,  avgLockTime=124ns
+0ns: 3766733
+10ns: 5409
+20ns: 477
+30ns: 72
+40ns: 12
 
 Producer spin wait statistics:
-1: 22835
-2: 5085
-3: 915
-4: 122
-5: 2
+1: 21381
+2: 4617
+3: 826
+4: 96
 
+Consumer spin wait statistics:
+2: 166115
+3: 2489
+4: 2458
+5: 2457
+6: 2455
+7: 2454
+8: 2449
+9: 2444
+10: 2438
+11: 2434
+12: 2430
+13: 2353
+14: 2002
+15: 1691
+16: 1643
+17: 1617
+18: 1570
+19: 1531
+20: 1499
+21: 1479
+22: 1458
+23: 1429
+24: 1350
+25: 1245
+26: 1157
+27: 1093
+28: 1030
+29: 987
+30: 922
+...
+96: 306
+97: 301
+98: 300
+99: 296
+>100: 443960
 
 */
 
@@ -234,6 +279,7 @@ typedef struct {
     // A spin loop is used to increment the head
     // It is incremented by 0x0000000100000000 on lock and 0x0000000000000001 on unlock
     atomic_uint_fast64_t seq_lock;
+    uint64_t seq_head; // Last head detected as consistent by the seq lock
 #else
     MUTEX mutex; // Mutex for queue producers, producers contend on each other but not on the consumer
 #endif
@@ -295,6 +341,7 @@ static tQueueHandle QueueInitFromMemory(void *queue_memory, uint32_t queue_memor
 #if defined(QUEUE_SPIN_LOCK)
         spinLockInit(&queue->h.spin_lock); // Initialize the spin lock
 #elif defined(QUEUE_SEQ_LOCK)
+        queue->h.seq_head = 0;
         atomic_store_explicit(&queue->h.seq_lock, 0, memory_order_relaxed); // Initialize the seq_lock
 #else
         mutexInit(&queue->h.mutex, false, 1000);
@@ -321,6 +368,7 @@ void QueueClear(tQueueHandle queueHandle) {
     atomic_store_explicit(&queue->h.packets_lost, 0, memory_order_relaxed);
     atomic_store_explicit(&queue->h.flush, false, memory_order_relaxed);
 #if defined(QUEUE_SEQ_LOCK)
+    queue->h.seq_head = 0;
     atomic_store_explicit(&queue->h.seq_lock, 0, memory_order_relaxed);
 #endif
     DBG_PRINT4("QueueClear\n");
@@ -349,10 +397,21 @@ void QueueDeinit(tQueueHandle queueHandle) {
     printf("Producer spin wait statistics: \n");
     for (int i = 0; i < SPIN_LOCK_HISTOGRAM_SIZE - 1; i++) {
         if (spinLockHistogramm[i] > 0)
-            printf("%d: %" PRIu64 "\n", i + 1, spinLockHistogramm[i]);
+            printf("%d: %u\n", i + 1, spinLockHistogramm[i]);
     }
     if (spinLockHistogramm[SPIN_LOCK_HISTOGRAM_SIZE - 1] > 0)
-        printf(">%u: %" PRIu64 "\n", LOCK_TIME_HISTOGRAM_SIZE, spinLockHistogramm[LOCK_TIME_HISTOGRAM_SIZE - 1]);
+        printf(">%u: %u\n", SPIN_LOCK_HISTOGRAM_SIZE, spinLockHistogramm[SPIN_LOCK_HISTOGRAM_SIZE - 1]);
+    printf("\n");
+#endif
+#ifdef TEST_SEQ_LOCK
+    printf("Consumer seq lock spin wait statistics: \n");
+    printf("Max queue level reached: %u of %u, %u%%\n", seqLockMaxLevel, queue->h.queue_size, (seqLockMaxLevel * 100) / queue->h.queue_size);
+    for (int i = 0; i < SEQ_LOCK_HISTOGRAM_SIZE - 1; i++) {
+        if (seqLockHistogramm[i] > 0)
+            printf("%d: %u\n", i + 1, seqLockHistogramm[i]);
+    }
+    if (seqLockHistogramm[SEQ_LOCK_HISTOGRAM_SIZE - 1] > 0)
+        printf(">%u: %u\n", SEQ_LOCK_HISTOGRAM_SIZE, seqLockHistogramm[SEQ_LOCK_HISTOGRAM_SIZE - 1]);
     printf("\n");
 #endif
 
@@ -410,6 +469,7 @@ tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint16_t packet_len) {
     // Prepare a new entry in reserved state
     // Reserved state has a valid dlc and ctr, ctr is unknown yet and will be marked as CTR_RESERVED for checking
 
+    //----------------------------------------------
     // Use a spin lock to protect the entry acquire
 #if defined(QUEUE_SPIN_LOCK)
 
@@ -429,19 +489,22 @@ tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint16_t packet_len) {
     }
     spinUnlock(&queue->h.spin_lock); // Release the spin lock
 
-    // Use a seq_lock to protect the entry acquire, spin loop to increment the head
+    //----------------------------------------------
+    // Use a seq_lock to protect the entry acquire, CAS loop to increment the head
 #elif defined(QUEUE_SEQ_LOCK)
+
+    uint64_t tail = atomic_load_explicit(&queue->h.tail, memory_order_relaxed);
+    uint64_t head = atomic_load_explicit(&queue->h.head, memory_order_acquire);
 
     // Consumer is using the seq_lock to acquire a consistent head
     // By making sure no producer is currently in the following sequence, which might have incremented the head, but not set the entry state to not commited yet
     atomic_fetch_add_explicit(&queue->h.seq_lock, 0x0000000100000000, memory_order_acq_rel);
+#ifdef TEST_SPIN_LOCK
+    uint32_t spin_count = 0;
+#endif
+    for (;;) {
 
-    uint64_t tail = atomic_load_explicit(&queue->h.tail, memory_order_relaxed);
-    uint64_t head = atomic_load_explicit(&queue->h.head, memory_order_acquire);
-    assert(head >= tail);
-    for (uint32_t spin_count = 0; true; spin_count++) {
-
-        // Ckeck for overrun
+        // Check for overrun
         if (queue->h.queue_size - msg_len < head - tail) {
             break; // Overrun
         }
@@ -460,12 +523,11 @@ tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint16_t packet_len) {
             break;
         }
 
-        spin_loop_hint();
-        assert(spin_count < 100); // @@@@ TODO remove assert, but this should never happen, see test results
-
         // Get spin count statistics
+        // spin_loop_hint(); // No hint, spin count is usually low and the locked sequence should be as fast as possible
+        // assert(spin_count < 100); // No reason to be afraid about the spin count, enable spin count statistics to check
 #ifdef TEST_SPIN_LOCK
-        if (spin_count >= SPIN_LOCK_HISTOGRAM_SIZE)
+        if (spin_count++ >= SPIN_LOCK_HISTOGRAM_SIZE)
             spin_count = SPIN_LOCK_HISTOGRAM_SIZE - 1;
         atomic_fetch_add_explicit(&spinLockHistogramm[spin_count], 1, memory_order_relaxed);
 #endif
@@ -474,7 +536,8 @@ tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint16_t packet_len) {
 
     atomic_fetch_add_explicit(&queue->h.seq_lock, 0x0000000000000001, memory_order_acq_rel);
 
-    // Simply use a mutex to protect the entry acquire
+    //----------------------------------------------
+    // Use a mutex to protect the entry acquire
 #else
 
     mutexLock(&queue->h.mutex);
@@ -610,23 +673,57 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
     // Consistent means, the validity of the commit state for this entry is garantueed
 
 #if defined(QUEUE_SEQ_LOCK)
-    uint64_t seq_lock1, seq_lock2;
-    // Spin until the seq_lock is consistent
-    // This spinning is the tradeoff for lockless on the producer side, it may impact the consumer performance but greatly improves the producer latency
-    do {
-        seq_lock1 = atomic_load_explicit(&queue->h.seq_lock, memory_order_acquire);
-        head = atomic_load_explicit(&queue->h.head, memory_order_acquire);
-        seq_lock2 = atomic_load_explicit(&queue->h.seq_lock, memory_order_acquire);
-        spin_loop_hint(); // Hint to the CPU that this is a spin loop
-    } while ((seq_lock1 != seq_lock2) || ((seq_lock1 >> 32) != (seq_lock2 & 0xFFFFFFFF)));
+
+    // Check if there is data in the queue already verified to be consistent
+    level = (uint32_t)(queue->h.seq_head - tail);
+    if (level >= XCPTL_MAX_SEGMENT_SIZE) {
+
+        // Use the last head detected as consistent by the seq lock
+        head = queue->h.seq_head;
+    } else {
+
+        // Spin until the seq_lock is consistent when reading the head
+        // This spinning is the tradeoff for lockless on the producer side, it may impact the consumer performance but greatly improves the producer latency
+        uint64_t seq_lock1, seq_lock2;
+        uint32_t spin_count = 0;
+        do {
+
+            seq_lock1 = atomic_load_explicit(&queue->h.seq_lock, memory_order_acquire);
+            head = atomic_load_explicit(&queue->h.head, memory_order_acquire);
+            seq_lock2 = atomic_load_explicit(&queue->h.seq_lock, memory_order_acquire);
+
+            spin_loop_hint(); // Hint to the CPU that this is a spin loop
+
+            // Limit spinning
+            if (spin_count++ >= 50) {
+                sleepNs(100000); // Sleep for 100us to reduce CPU load
+                spin_count = 0;  // Reset
+            }
+
+            // Get spin count statistics
+#ifdef TEST_SEQ_LOCK
+            if (spin_count >= SEQ_LOCK_HISTOGRAM_SIZE)
+                spin_count = SEQ_LOCK_HISTOGRAM_SIZE - 1;
+            atomic_fetch_add_explicit(&seqLockHistogramm[spin_count], 1, memory_order_relaxed);
+#endif
+
+        } while ((seq_lock1 != seq_lock2) || ((seq_lock1 >> 32) != (seq_lock2 & 0xFFFFFFFF)));
+
+        queue->h.seq_head = head; // Set the last head detected as consistent by the seq lock
+    }
+
 #elif defined(QUEUE_SPIN_LOCK)
+
     spinLock(&queue->h.spin_lock);
     head = atomic_load_explicit(&queue->h.head, memory_order_acquire);
     spinUnlock(&queue->h.spin_lock);
+
 #else
+
     mutexLock(&queue->h.mutex);
     head = atomic_load_explicit(&queue->h.head, memory_order_relaxed);
     mutexUnlock(&queue->h.mutex);
+
 #endif
 
     // Check if there is data in the queue
@@ -640,6 +737,12 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
         };
         return ret;
     }
+
+#ifdef TEST_SEQ_LOCK
+    if (level > seqLockMaxLevel) {
+        seqLockMaxLevel = level;
+    }
+#endif
 
     // Require a minimum amount of data, to optimize segment usage (Ethernet frames)
 #if defined(QUEUE_ACCUMULATE_PACKETS) && defined(QUEUE_PEEK_THRESHOLD)
