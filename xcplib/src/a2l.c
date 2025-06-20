@@ -28,10 +28,19 @@
 #include "xcp_cfg.h"   // for XCP_xxx
 #include "xcptl_cfg.h" // for XCPTL_xxx
 
-static FILE *gA2lFile = NULL;
-static uint16_t gA2lFixedEvent = XCP_UNDEFINED_EVENT_CHANNEL;
-static uint16_t gA2lDefaultEvent = XCP_UNDEFINED_EVENT_CHANNEL;
+MUTEX gA2lMutex = MUTEX_INTIALIZER; // Mutex for concurrent A2L create macros
 
+static FILE *gA2lFile = NULL;
+
+static bool gA2lUseTCP = false;
+static uint16_t gA2lOptionPort = 5555;
+static uint8_t gA2lOptionBindAddr[4] = {0, 0, 0, 0};
+
+static tXcpEventId gA2lFixedEvent = XCP_UNDEFINED_EVENT_ID;
+static tXcpEventId gA2lDefaultEvent = XCP_UNDEFINED_EVENT_ID;
+static uint8_t gAl2AddrExt = XCP_ADDR_EXT_ABS; // Address extension
+static const uint8_t *gA2lAddrBase = NULL;     // Event or calseg address for XCP_ADDR_EXT_REL, XCP_ADDR_EXT_SEG
+static tXcpCalSegIndex gA2lAddrIndex = 0;      // Segment index for XCP_ADDR_EXT_SEG
 static uint32_t gA2lMeasurements;
 static uint32_t gA2lParameters;
 static uint32_t gA2lTypedefs;
@@ -194,10 +203,10 @@ static const char *const gA2lFooter = "/end MODULE\n"
     if (ext > 0)                                                                                                                                                                   \
         fprintf(gA2lFile, " ECU_ADDRESS_EXTENSION %u", ext);
 
-const char *A2lGetSymbolName(const char *instanceName, const char *name) {
+const char *A2lGetSymbolName(const char *instance_name, const char *name) {
     static char s[256];
-    if (instanceName != NULL && strlen(instanceName) > 0) {
-        SNPRINTF(s, 256, "%s.%s", instanceName, name);
+    if (instance_name != NULL && strlen(instance_name) > 0) {
+        SNPRINTF(s, 256, "%s.%s", instance_name, name);
         return s;
     } else {
         return name;
@@ -243,7 +252,7 @@ static const char *getA2lTypeName(int32_t type) {
     return types;
 }
 
-static const char *getTypeName(int32_t type) {
+static const char *getRecordLayoutName(int32_t type) {
     const char *types;
     switch (type) {
     case A2L_TYPE_INT8:
@@ -395,12 +404,12 @@ static const char *getPhysMax(int32_t type, double factor, double offset) {
     return str;
 }
 
-static bool A2lOpen(const char *filename, const char *projectName) {
+static bool A2lOpen(const char *filename, const char *projectname) {
 
     DBG_PRINTF3("\nA2L create %s\n", filename);
 
     gA2lFile = NULL;
-    gA2lFixedEvent = XCP_UNDEFINED_EVENT_CHANNEL;
+    gA2lFixedEvent = XCP_UNDEFINED_EVENT_ID;
     gA2lMeasurements = gA2lParameters = gA2lTypedefs = gA2lInstances = gA2lConversions = gA2lComponents = 0;
     gA2lFile = fopen(filename, "w");
     if (gA2lFile == 0) {
@@ -409,16 +418,16 @@ static bool A2lOpen(const char *filename, const char *projectName) {
     }
 
     // @@@@ Should be filename without extension
-    ApplXcpSetA2lName(projectName);
+    ApplXcpSetA2lName(projectname);
 
     // Create header
-    fprintf(gA2lFile, gA2lHeader, projectName, projectName);
+    fprintf(gA2lFile, gA2lHeader, projectname, projectname);
 
     // Create standard record layouts for elementary types
     for (int i = -10; i <= +10; i++) {
         const char *at = getA2lTypeName(i);
         if (at != NULL) {
-            const char *t = getTypeName(i);
+            const char *t = getRecordLayoutName(i);
             fprintf(gA2lFile, "/begin RECORD_LAYOUT %s FNC_VALUES 1 %s ROW_DIR DIRECT /end RECORD_LAYOUT\n", t, at);
             fprintf(gA2lFile, "/begin TYPEDEF_MEASUREMENT M_%s \"\" %s NO_COMPU_METHOD 0 0 %s %s /end TYPEDEF_MEASUREMENT\n", t, at, getTypeMin(i), getTypeMax(i));
             fprintf(gA2lFile, "/begin TYPEDEF_CHARACTERISTIC C_%s \"\" VALUE %s 0 NO_COMPU_METHOD %s %s /end TYPEDEF_CHARACTERISTIC\n", t, t, getTypeMin(i), getTypeMax(i));
@@ -478,10 +487,17 @@ static void A2lCreate_IF_DATA_DAQ(void) {
 
     // Eventlist
 #if defined(XCP_ENABLE_DAQ_EVENT_LIST) && !defined(XCP_ENABLE_DAQ_EVENT_INFO)
-    for (uint32_t i = 0; i < eventCount; i++) {
+    for (uint32_t id = 0; id < eventCount; id++) {
+        tXcpEvent *event = &eventList->event[id];
+        uint16_t index = event->index;
+        const char *name = event->name;
+        if (index == 0) {
+            fprintf(gA2lFile, "/begin EVENT \"%s\" \"%s\" 0x%X DAQ 0xFF %u %u %u CONSISTENCY EVENT", name, name, id, event->timeCycle, event->timeUnit, event->priority);
+        } else {
+            fprintf(gA2lFile, "/begin EVENT \"%s_%u\" \"%s_%u\" 0x%X DAQ 0xFF %u %u %u CONSISTENCY EVENT", name, index, name, index, id, event->timeCycle, event->timeUnit,
+                    event->priority);
+        }
 
-        fprintf(gA2lFile, "/begin EVENT \"%s\" \"%s\" 0x%X DAQ 0xFF %u %u %u CONSISTENCY EVENT", eventList->event[i].name, eventList->event[i].name, i,
-                eventList->event[i].timeCycle, eventList->event[i].timeUnit, eventList->event[i].priority);
         fprintf(gA2lFile, " /end EVENT\n");
     }
 #endif
@@ -520,32 +536,38 @@ static void A2lCreate_ETH_IF_DATA(bool useTCP, const uint8_t *addr, uint16_t por
 
 static void A2lCreateMeasurement_IF_DATA(void) {
     if (gA2lFile != NULL) {
-        if (gA2lFixedEvent != XCP_UNDEFINED_EVENT_CHANNEL) {
-            fprintf(gA2lFile, " /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT 0x%X /end DAQ_EVENT /end IF_DATA", gA2lFixedEvent);
-        } else if (gA2lDefaultEvent != XCP_UNDEFINED_EVENT_CHANNEL) {
-            fprintf(gA2lFile, " /begin IF_DATA XCP /begin DAQ_EVENT VARIABLE DEFAULT_EVENT_LIST EVENT 0x%X /end DAQ_EVENT /end IF_DATA", gA2lDefaultEvent);
+        if (gAl2AddrExt == XCP_ADDR_EXT_REL || gAl2AddrExt == XCP_ADDR_EXT_DYN) {
+            if (gA2lFixedEvent != XCP_UNDEFINED_EVENT_ID) {
+                fprintf(gA2lFile, " /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT 0x%X /end DAQ_EVENT /end IF_DATA", gA2lFixedEvent);
+            } else {
+                assert(false); // Fixed event must be set before calling this function
+            }
+        }
+        if (gAl2AddrExt == XCP_ADDR_EXT_ABS) {
+            if (gA2lFixedEvent != XCP_UNDEFINED_EVENT_ID) {
+                fprintf(gA2lFile, " /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT 0x%X /end DAQ_EVENT /end IF_DATA", gA2lFixedEvent);
+            } else if (gA2lDefaultEvent != XCP_UNDEFINED_EVENT_ID) {
+                fprintf(gA2lFile, " /begin IF_DATA XCP /begin DAQ_EVENT VARIABLE DEFAULT_EVENT_LIST EVENT 0x%X /end DAQ_EVENT /end IF_DATA", gA2lDefaultEvent);
+            }
         }
     }
 }
 
 //----------------------------------------------------------------------------------
-
-uint8_t gAl2AddrExt = XCP_ADDR_EXT_ABS; // Address extension
-const uint8_t *gA2lAddrBase = NULL;     // Event or calseg address for XCP_ADDR_EXT_REL, XCP_ADDR_EXT_SEG
-tXcpCalSegIndex gA2lAddrIndex = 0;      // Segment index for XCP_ADDR_EXT_SEG
+// Mode
 
 void A2lSetAbsAddrMode(void) {
     gAl2AddrExt = XCP_ADDR_EXT_ABS;
     A2lRstFixedEvent();
 }
 
-void A2lSetRelAddrMode(const uint16_t *event) {
+void A2lSetRelAddrMode(const tXcpEventId *event) {
     gA2lAddrBase = (uint8_t *)event;
     gAl2AddrExt = XCP_ADDR_EXT_REL;
     A2lSetFixedEvent(*event);
 }
 
-void A2lSetDynAddrMode(const uint16_t *event) {
+void A2lSetDynAddrMode(const tXcpEventId *event) {
     gA2lAddrBase = (uint8_t *)event;
     gAl2AddrExt = XCP_ADDR_EXT_DYN;
     A2lSetFixedEvent(*event);
@@ -557,25 +579,75 @@ void A2lSetSegAddrMode(tXcpCalSegIndex calseg_index, const uint8_t *calseg) {
     gAl2AddrExt = XCP_ADDR_EXT_SEG;
 }
 
-uint8_t A2lGetAddrExt(void) { return gAl2AddrExt; }
+void A2lRstAddrMode(void) {
+    gA2lFixedEvent = XCP_UNDEFINED_EVENT_ID;
+    gAl2AddrExt = XCP_UNDEFINED_ADDR_EXT;
+    gA2lAddrBase = NULL;
+    gA2lAddrIndex = 0;
+}
 
-uint32_t A2lGetAddr(uint8_t const *p) {
+//----------------------------------------------------------------------------------
+// Set address mode by event name
+
+// Absolute with fixed event by name
+void A2lSetRelativeAddrMode_(const char *event_name, const uint8_t *base_addr) {
+
+    tXcpEventId event = XcpFindEvent(event_name, NULL);
+    if (event == XCP_UNDEFINED_EVENT_ID) {
+        DBG_PRINTF_ERROR("SetRelativeAddrMode: Event %s not found!\n", event_name);
+        return;
+    }
+    gAl2AddrExt = XCP_ADDR_EXT_DYN;
+    gA2lAddrBase = base_addr;
+    A2lSetFixedEvent(event);
+    fprintf(gA2lFile, "\n/* Relative addressing mode: event=%s (%u), addr_ext=%u, addr_base=%p */\n", event_name, event, gAl2AddrExt, (void *)gA2lAddrBase);
+}
+
+// Relative with fixed event name and base address
+void A2lSetAbsoluteAddrMode_(const char *event_name) {
+
+    assert(gA2lFile != NULL);
+
+    tXcpEventId event = XcpFindEvent(event_name, NULL);
+    if (event == XCP_UNDEFINED_EVENT_ID) {
+        DBG_PRINTF_ERROR("SetAbsoluteAddrMode: Event %s not found!\n", event_name);
+        return;
+    }
+    gAl2AddrExt = XCP_ADDR_EXT_ABS;
+    A2lSetFixedEvent(event);
+    fprintf(gA2lFile, "\n/* Absolute addressing mode: event=%s (%u), addr_ext=%u, addr_base=%p */\n", event_name, event, gAl2AddrExt, (void *)gA2lAddrBase);
+}
+
+//----------------------------------------------------------------------------------
+// Address encoding
+
+uint8_t A2lGetAddrExt_(void) { return gAl2AddrExt; }
+
+uint32_t A2lGetAddr_(const void *p) {
+
     switch (gAl2AddrExt) {
     case XCP_ADDR_EXT_ABS: {
         return ApplXcpGetAddr(p); // Calculate the XCP address from a pointer
     }
     case XCP_ADDR_EXT_REL: {
         uint64_t addr_diff = (uint64_t)p - (uint64_t)gA2lAddrBase;
-        // Ensure the relative address does not overflow the 32 Bit A2L address space
-        uint32_t addr_high = (uint32_t)(addr_diff >> 32);
-        assert(addr_high == 0 || addr_high == 0xFFFFFFFF); // Check that the address is within the 32 Bit range
+        // Ensure the relative address does not overflow the address space
+        uint64_t addr_high = (addr_diff >> 32);
+        if (addr_high != 0 && addr_high != 0xFFFFFFFF) {
+            DBG_PRINTF_ERROR("A2L XCP_ADDR_EXT_REL relative address overflow detected! addr: %p, base: %p, diff: %lld\n", p, (void *)gA2lAddrBase, (int64_t)addr_diff);
+            assert(0); // Ensure the relative address does not overflow the 32 Bit A2L address space
+        }
         return (uint32_t)(addr_diff & 0xFFFFFFFF);
     }
     case XCP_ADDR_EXT_DYN: {
         uint64_t addr_diff = (uint64_t)p - (uint64_t)gA2lAddrBase;
-        // Ensure the relative address does not overflow the 32 Bit A2L address space
+
+        // Ensure the relative address does not overflow the address space
         uint64_t addr_high = (addr_diff >> 16);
-        assert(addr_high == 0 || addr_high == 0xFFFFFFFFFFFF); // Check that the address is within the 32 Bit range
+        if (addr_high != 0 && addr_high != 0xFFFFFFFFFFFF) {
+            DBG_PRINTF_ERROR("A2L XCP_ADDR_EXT_DYN relative address overflow detected! addr: %p, base: %p, diff: %lld\n", p, (void *)gA2lAddrBase, (int64_t)addr_diff);
+            assert(0); // Ensure the relative address does not overflow the 32 Bit A2L address space
+        }
         return (uint32_t)(((uint32_t)gA2lFixedEvent) << 16 | (addr_diff & 0xFFFF));
     }
     case XCP_ADDR_EXT_SEG: {
@@ -590,21 +662,23 @@ uint32_t A2lGetAddr(uint8_t const *p) {
 }
 
 //----------------------------------------------------------------------------------
+// Event
 
-void A2lSetDefaultEvent(uint16_t event) {
+void A2lSetDefaultEvent(tXcpEventId event) {
     A2lRstFixedEvent();
     gA2lDefaultEvent = event;
 }
 
-void A2lSetFixedEvent(uint16_t event) { gA2lFixedEvent = event; }
+void A2lSetFixedEvent(tXcpEventId event) { gA2lFixedEvent = event; }
 
 uint16_t A2lGetFixedEvent(void) { return gA2lFixedEvent; }
 
-void A2lRstDefaultEvent(void) { gA2lDefaultEvent = XCP_UNDEFINED_EVENT_CHANNEL; }
+void A2lRstDefaultEvent(void) { gA2lDefaultEvent = XCP_UNDEFINED_EVENT_ID; }
 
-void A2lRstFixedEvent(void) { gA2lFixedEvent = XCP_UNDEFINED_EVENT_CHANNEL; }
+void A2lRstFixedEvent(void) { gA2lFixedEvent = XCP_UNDEFINED_EVENT_ID; }
 
 //----------------------------------------------------------------------------------
+// Typedefs
 
 void A2lTypedefBegin_(const char *name, uint32_t size, const char *comment) {
 
@@ -617,26 +691,17 @@ void A2lTypedefBegin_(const char *name, uint32_t size, const char *comment) {
     gA2lTypedefs++;
 }
 
-void A2lTypedefMeasurementComponent_(const char *name, int32_t type, uint32_t offset) {
+void A2lTypedefComponent_(const char *name, const char *type_name, uint16_t x_dim, uint32_t offset) {
 
     assert(gA2lFile != NULL);
-    fprintf(gA2lFile, "  /begin STRUCTURE_COMPONENT %s M_%s 0x%X", name, getTypeName(type), offset);
+    fprintf(gA2lFile, "  /begin STRUCTURE_COMPONENT %s %s 0x%X", name, type_name, offset);
+    if (x_dim > 1)
+        fprintf(gA2lFile, " MATRIX_DIM %u", x_dim);
 #ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
     fprintf(gA2lFile, " SYMBOL_TYPE_LINK \"%s\"", name, 0);
 #endif
     fprintf(gA2lFile, " /end STRUCTURE_COMPONENT\n");
 
-    gA2lComponents++;
-}
-
-void A2lTypedefParameterComponent_(const char *name, int32_t type, uint32_t offset) {
-
-    assert(gA2lFile != NULL);
-    fprintf(gA2lFile, "  /begin STRUCTURE_COMPONENT %s C_%s 0x%X", name, getTypeName(type), offset);
-#ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
-    fprintf(gA2lFile, " SYMBOL_TYPE_LINK \"%s\"", name, 0);
-#endif
-    fprintf(gA2lFile, " /end STRUCTURE_COMPONENT\n");
     gA2lComponents++;
 }
 
@@ -646,59 +711,74 @@ void A2lTypedefEnd_(void) {
     fprintf(gA2lFile, "/end TYPEDEF_STRUCTURE\n");
 }
 
-void A2lCreateTypedefInstance_(const char *instanceName, const char *typeName, uint8_t ext, uint32_t addr, const char *comment) {
+void A2lCreateTypedefInstance_(const char *instance_name, const char *typeName, uint16_t x_dim, uint8_t ext, uint32_t addr, const char *comment) {
 
     assert(gA2lFile != NULL);
-    fprintf(gA2lFile, "/begin INSTANCE %s \"%s\" %s 0x%X", instanceName, comment, typeName, addr);
+    fprintf(gA2lFile, "/begin INSTANCE %s \"%s\" %s 0x%X", instance_name, comment, typeName, addr);
     printAddrExt(ext);
+    if (x_dim > 1)
+        fprintf(gA2lFile, " MATRIX_DIM %u", x_dim);
     A2lCreateMeasurement_IF_DATA();
     fprintf(gA2lFile, " /end INSTANCE\n");
     gA2lInstances++;
 }
 
 //----------------------------------------------------------------------------------
+// Measurements
 
-void A2lCreateMeasurement_(const char *instanceName, const char *name, int32_t type, uint8_t ext, uint32_t addr, double factor, double offset, const char *unit,
+void A2lCreateMeasurement_(const char *instance_name, const char *name, int32_t type, uint8_t ext, uint32_t addr, double factor, double offset, const char *unit,
                            const char *comment) {
 
     assert(gA2lFile != NULL);
-#ifdef A2L_ENABLE_MEMORY_CHECK
-    mem_check(name, type, ext, addr);
-#endif
+
+    const char *symbol_name = A2lGetSymbolName(instance_name, name);
     if (unit == NULL)
         unit = "";
     if (comment == NULL)
         comment = "";
-    const char *conv = "NO";
-    if (factor != 0.0 || offset != 0.0) {
-        fprintf(gA2lFile, "/begin COMPU_METHOD %s.Conversion \"\" LINEAR \"%%6.3\" \"%s\" COEFFS_LINEAR %g %g /end COMPU_METHOD\n", name, unit != NULL ? unit : "", factor, offset);
-        conv = name;
+    const char *conv = "NO_COMPU_METHOD";
+    if (factor != 1.0 || offset != 0.0) {
+        fprintf(gA2lFile, "/begin COMPU_METHOD %s \"\" LINEAR \"%%6.3\" \"%s\" COEFFS_LINEAR %g %g /end COMPU_METHOD\n", symbol_name, unit != NULL ? unit : "", factor, offset);
+        conv = symbol_name;
         gA2lConversions++;
     }
-
-    // fprintf(gA2lFile, "/begin MEASUREMENT %s \"%s\" %s %s.Conversion 0 0 %s %s ECU_ADDRESS 0x%X", A2lGetSymbolName(instanceName, name), comment, getType(type), conv,
-    // getTypeMin(type), getTypeMax(type), addr);
-    fprintf(gA2lFile, "/begin MEASUREMENT %s \"%s\" %s %s.Conversion 0 0 %s %s ECU_ADDRESS 0x%X", A2lGetSymbolName(instanceName, name), comment, getA2lTypeName(type), conv,
-            getPhysMin(type, factor, offset), getPhysMax(type, factor, offset), addr);
+    fprintf(gA2lFile, "/begin MEASUREMENT %s \"%s\" %s %s 0 0 %s %s ECU_ADDRESS 0x%X", symbol_name, comment, getA2lTypeName(type), conv, getPhysMin(type, factor, offset),
+            getPhysMax(type, factor, offset), addr);
     printAddrExt(ext);
     printPhysUnit(unit);
-    fprintf(gA2lFile, " READ_WRITE");
+    if (gAl2AddrExt == XCP_ADDR_EXT_ABS || gAl2AddrExt == XCP_ADDR_EXT_DYN) { // Absolute or dynamic address mode allows write access
+        fprintf(gA2lFile, " READ_WRITE");
+    }
+
 #ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
-    fprintf(gA2lFile, " SYMBOL_LINK \"%s\" %u", A2lGetSymbolName(instanceName, name), 0);
+    fprintf(gA2lFile, " SYMBOL_LINK \"%s\" %u", symbol_name, 0);
 #endif
     A2lCreateMeasurement_IF_DATA();
     fprintf(gA2lFile, " /end MEASUREMENT\n");
     gA2lMeasurements++;
 }
 
-void A2lCreateMeasurementArray_(const char *instanceName, const char *name, int32_t type, int dim, uint8_t ext, uint32_t addr) {
+void A2lCreateMeasurementArray_(const char *instance_name, const char *name, int32_t type, int x_dim, int y_dim, uint8_t ext, uint32_t addr, double factor, double offset,
+                                const char *unit, const char *comment) {
 
     assert(gA2lFile != NULL);
-    fprintf(gA2lFile, "/begin CHARACTERISTIC %s \"\" VAL_BLK 0x%X %s 0 NO_COMPU_METHOD %s %s MATRIX_DIM %u", A2lGetSymbolName(instanceName, name), addr, getTypeName(type),
-            getTypeMin(type), getTypeMax(type), dim);
+    const char *symbol_name = A2lGetSymbolName(instance_name, name);
+    if (unit == NULL)
+        unit = "";
+    if (comment == NULL)
+        comment = "";
+    const char *conv = "NO_COMPU_METHOD";
+    if (factor != 1.0 || offset != 0.0) {
+        fprintf(gA2lFile, "/begin COMPU_METHOD %s.Conversion \"\" LINEAR \"%%6.3\" \"%s\" COEFFS_LINEAR %g %g /end COMPU_METHOD\n", symbol_name, unit != NULL ? unit : "", factor,
+                offset);
+        conv = symbol_name;
+        gA2lConversions++;
+    }
+    fprintf(gA2lFile, "/begin CHARACTERISTIC %s \"%s\" VAL_BLK 0x%X %s 0 %s %s %s MATRIX_DIM %u %u", symbol_name, comment, addr, getRecordLayoutName(type), conv, getTypeMin(type),
+            getTypeMax(type), x_dim, y_dim);
     printAddrExt(ext);
 #ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
-    fprintf(gA2lFile, " SYMBOL_LINK \"%s\" %u", A2lGetSymbolName(instanceName, name), 0);
+    fprintf(gA2lFile, " SYMBOL_LINK \"%s\" %u", symbol_name, 0);
 #endif
     A2lCreateMeasurement_IF_DATA();
     fprintf(gA2lFile, " /end CHARACTERISTIC\n");
@@ -706,16 +786,18 @@ void A2lCreateMeasurementArray_(const char *instanceName, const char *name, int3
 }
 
 //----------------------------------------------------------------------------------
+// Parameters
 
 void A2lCreateParameterWithLimits_(const char *name, int32_t type, uint8_t ext, uint32_t addr, const char *comment, const char *unit, double min, double max) {
 
     assert(gA2lFile != NULL);
-    fprintf(gA2lFile, "/begin CHARACTERISTIC %s \"%s\" VALUE 0x%X %s 0 NO_COMPU_METHOD %g %g", name, comment, addr, getTypeName(type), min, max);
+    fprintf(gA2lFile, "/begin CHARACTERISTIC %s \"%s\" VALUE 0x%X %s 0 NO_COMPU_METHOD %g %g", name, comment, addr, getRecordLayoutName(type), min, max);
     printPhysUnit(unit);
     printAddrExt(ext);
 #ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
     fprintf(gA2lFile, " SYMBOL_LINK \"%s\" %u", name, 0);
 #endif
+    A2lCreateMeasurement_IF_DATA();
     fprintf(gA2lFile, " /end CHARACTERISTIC\n");
     gA2lParameters++;
 }
@@ -723,12 +805,14 @@ void A2lCreateParameterWithLimits_(const char *name, int32_t type, uint8_t ext, 
 void A2lCreateParameter_(const char *name, int32_t type, uint8_t ext, uint32_t addr, const char *comment, const char *unit) {
 
     assert(gA2lFile != NULL);
-    fprintf(gA2lFile, "/begin CHARACTERISTIC %s \"%s\" VALUE 0x%X %s 0 NO_COMPU_METHOD %s %s", name, comment, addr, getTypeName(type), getTypeMin(type), getTypeMax(type));
+    fprintf(gA2lFile, "/begin CHARACTERISTIC %s \"%s\" VALUE 0x%X %s 0 NO_COMPU_METHOD %s %s", name, comment, addr, getRecordLayoutName(type), getTypeMin(type), getTypeMax(type));
     printPhysUnit(unit);
     printAddrExt(ext);
 #ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
     fprintf(gA2lFile, " SYMBOL_LINK \"%s\" %u", name, 0);
 #endif
+    A2lCreateMeasurement_IF_DATA();
+
     fprintf(gA2lFile, " /end CHARACTERISTIC\n");
     gA2lParameters++;
 }
@@ -740,12 +824,14 @@ void A2lCreateMap_(const char *name, int32_t type, uint8_t ext, uint32_t addr, u
             "/begin CHARACTERISTIC %s \"%s\" MAP 0x%X %s 0 NO_COMPU_METHOD %s %s"
             " /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD  %u 0 %u FIX_AXIS_PAR_DIST 0 1 %u /end AXIS_DESCR"
             " /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD  %u 0 %u FIX_AXIS_PAR_DIST 0 1 %u /end AXIS_DESCR",
-            name, comment, addr, getTypeName(type), getTypeMin(type), getTypeMax(type), xdim, xdim - 1, xdim, ydim, ydim - 1, ydim);
+            name, comment, addr, getRecordLayoutName(type), getTypeMin(type), getTypeMax(type), xdim, xdim - 1, xdim, ydim, ydim - 1, ydim);
     printPhysUnit(unit);
     printAddrExt(ext);
 #ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
     fprintf(gA2lFile, " SYMBOL_LINK \"%s\" %u", name, 0);
 #endif
+    A2lCreateMeasurement_IF_DATA();
+
     fprintf(gA2lFile, " /end CHARACTERISTIC\n");
     gA2lParameters++;
 }
@@ -756,17 +842,20 @@ void A2lCreateCurve_(const char *name, int32_t type, uint8_t ext, uint32_t addr,
     fprintf(gA2lFile,
             "/begin CHARACTERISTIC %s \"%s\" CURVE 0x%X %s 0 NO_COMPU_METHOD %s %s"
             " /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD  %u 0 %u FIX_AXIS_PAR_DIST 0 1 %u /end AXIS_DESCR",
-            name, comment, addr, getTypeName(type), getTypeMin(type), getTypeMax(type), xdim, xdim - 1, xdim);
+            name, comment, addr, getRecordLayoutName(type), getTypeMin(type), getTypeMax(type), xdim, xdim - 1, xdim);
     printPhysUnit(unit);
     printAddrExt(ext);
 #ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
     fprintf(gA2lFile, " SYMBOL_LINK \"%s\" %u", name, 0);
 #endif
+    A2lCreateMeasurement_IF_DATA();
+
     fprintf(gA2lFile, " /end CHARACTERISTIC\n");
     gA2lParameters++;
 }
 
 //----------------------------------------------------------------------------------
+// Groups
 
 void A2lParameterGroup(const char *name, int count, ...) {
 
@@ -826,7 +915,7 @@ void A2lMeasurementGroupFromList(const char *name, char *names[], uint32_t count
 
 //----------------------------------------------------------------------------------
 
-bool A2lOnce(atomic_bool *value) {
+bool A2lOnce_(atomic_bool *value) {
     bool old_value = false;
     return atomic_compare_exchange_weak_explicit(value, &old_value, true, memory_order_release, memory_order_relaxed);
 }
@@ -834,16 +923,12 @@ bool A2lOnce(atomic_bool *value) {
 //-----------------------------------------------------------------------------------------------------
 // A2L file generation and finalization on XCP connect
 
-static bool gA2lUseTCP = false;
-static uint16_t gA2lOptionPort = 5555;
-static uint8_t gA2lOptionBindAddr[4] = {0, 0, 0, 0};
-
 // Finalize A2L file generation
 bool A2lFinalize(void) {
 
     if (gA2lFile != NULL) {
 
-        // @@@@ TODO: EPK problem, should set a better EPK here
+        // @@@@ TODO: Improve EPK generation
         // A different A2L EPK version is  be required for the same build, if the order of events or calibration segments is different !!!!
         // Set the EPK (software version number) for the A2L file
         char epk[64];

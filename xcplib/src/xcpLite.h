@@ -36,10 +36,12 @@ void XcpBackgroundTasks(void);
 void XcpDisconnect(void);
 
 // Trigger a XCP data acquisition event
-uint8_t XcpEventExtAt(uint16_t event, const uint8_t *base, uint64_t clock);
-uint8_t XcpEventExt(uint16_t event, const uint8_t *base);
-void XcpEventAt(uint16_t event, uint64_t clock);
-void XcpEvent(uint16_t event);
+typedef uint16_t tXcpEventId;
+uint8_t XcpEventExtAt(tXcpEventId event, const uint8_t *base, uint64_t clock);
+uint8_t XcpEventExt(tXcpEventId event, const uint8_t *base);
+void XcpEventAt(tXcpEventId event, uint64_t clock);
+void XcpEvent(tXcpEventId event);
+uint8_t XcpEventDyn(tXcpEventId *event);
 
 // Send an XCP event message
 void XcpSendEvent(uint8_t evc, const uint8_t *d, uint8_t l);
@@ -76,7 +78,7 @@ void XcpSetLogLevel(uint8_t level);
 /* DAQ events                                                               */
 /****************************************************************************/
 
-#define XCP_UNDEFINED_EVENT_CHANNEL 0xFFFF
+#define XCP_UNDEFINED_EVENT_ID 0xFFFF
 
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
 
@@ -92,12 +94,12 @@ void XcpSetLogLevel(uint8_t level);
 #endif
 
 typedef struct {
-    uint16_t daqList; // associated DAQ list
-    uint16_t res1;
+    uint16_t daqList;                  // associated DAQ list
+    uint16_t index;                    // Event instance index, 0 = single instance, 1.. = multiple instances
     uint8_t timeUnit;                  // timeCycle unit, 1ns=0, 10ns=1, 100ns=2, 1us=3, ..., 1ms=6, ...
     uint8_t timeCycle;                 // cycle time in units, 0 = sporadic or unknown
     uint8_t priority;                  // priority 0 = queued, 1 = pushing, 2 = realtime
-    uint8_t res2;                      // reserved
+    uint8_t res;                       // reserved
     char name[XCP_MAX_EVENT_NAME + 1]; // event name
 } tXcpEvent;
 
@@ -108,13 +110,15 @@ typedef struct {
 } tXcpEventList;
 
 // Add a measurement event to event list, return event number (0..MAX_EVENT-1)
-uint16_t XcpCreateEvent(const char *name, uint32_t cycleTimeNs /* ns */, uint8_t priority /* 0-normal, >=1 realtime*/);
+tXcpEventId XcpCreateEvent(const char *name, uint32_t cycleTimeNs /* ns */, uint8_t priority /* 0-normal, >=1 realtime*/);
+// Add a measurement event to event list, return event number (0..MAX_EVENT-1), thread safe, if name exists, an instance id is appended to the name
+tXcpEventId XcpCreateEventInstance(const char *name, uint32_t cycleTimeNs /* ns */, uint8_t priority /* 0-normal, >=1 realtime*/);
 
 // Get event list
 tXcpEventList *XcpGetEventList(void);
 
-// Lookup event
-tXcpEvent *XcpGetEvent(uint16_t event);
+// Get event id by name, returns XCP_UNDEFINED_EVENT_ID if not found
+tXcpEventId XcpFindEvent(const char *name, uint16_t *count);
 
 #endif // XCP_ENABLE_DAQ_EVENT_LIST
 
@@ -152,11 +156,8 @@ Single thread lock-free, wait-free CalSeg RCU:
         - ecu_access
 */
 
-#define XCP_UNDEFINED_CALSEG 0xFFFF
-typedef uint16_t tXcpCalSegIndex;
-
 // Calibration segment index
-// Maybe the the index of the calibration segment in the calibration segment list or XCP_UNDEFINED_CALSEG
+// The index of the calibration segment in the calibration segment list or XCP_UNDEFINED_CALSEG
 #define XCP_UNDEFINED_CALSEG 0xFFFF
 typedef uint16_t tXcpCalSegIndex;
 
@@ -165,13 +166,14 @@ typedef struct {
     atomic_uintptr_t ecu_page_next;
     atomic_uintptr_t free_page;
     atomic_uint_fast8_t ecu_access; // page number for ECU access
+    atomic_uint_fast8_t lock_count; // lock count for the segment, 0 = unlocked
     const uint8_t *default_page;
     uint8_t *ecu_page;
     uint8_t *xcp_page;
     uint16_t size;
-    uint8_t xcp_access; // page number for XCP access
-    uint8_t lock_count; // recursive lock count for the segment, 0 = unlocked
-    bool write_pending; // write pending because write delay
+    uint8_t xcp_access;    // page number for XCP access
+    bool write_pending;    // write pending because write delay
+    bool free_page_hazard; // safe free page use is not guaranteed yet, it may be in use
     char name[XCP_MAX_CALSEG_NAME + 1];
 } tXcpCalSeg;
 
@@ -249,8 +251,8 @@ uint8_t ApplXcpUserCommand(uint8_t cmd);
 
 /* Switch calibration pages */
 
-// Calibration segment index number
-// Is the value used by XCP commends like GET_SEGMENT_INFO, SET_CAL_PAGE, ...
+// Calibration segment number
+// Is the type (uint8_t) used by XCP commands like GET_SEGMENT_INFO, SET_CAL_PAGE, ...
 typedef uint8_t tXcpCalSegNumber;
 
 // Calibration page number type
