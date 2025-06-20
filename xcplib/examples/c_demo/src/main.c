@@ -112,7 +112,7 @@ int main(void) {
     };
 
     A2lCreateMeasurementArray(curve_f32, "array float[8]");
-    A2lCreateMeasurementMatrix(map_f32, "matrix float[8][8]");
+    A2lCreateMeasurementMatrix(map_f32, "matrix float[4][8]");
 
     // Create a measurement typedef for the calibration parameter struct
     A2lTypedefBegin(params_t, "The calibration parameter struct as measurement typedef");
@@ -141,10 +141,10 @@ int main(void) {
                 if (curve_f32[i] > 2000) {
                     curve_f32[i] = 0;
                 }
-                for (int j = 0; j < 8; j++) {
-                    map_f32[i][j] += i + j;
-                    if (map_f32[i][j] > 2000) {
-                        map_f32[i][j] = 0;
+                for (int j = 0; j < 4; j++) {
+                    map_f32[j][i] += i + j;
+                    if (map_f32[j][i] > 2000) {
+                        map_f32[j][i] = 0;
                     }
                 }
             }
@@ -184,7 +184,7 @@ int main(void) {
 
         A2lFinalize(); // Optional: Finalize the A2L file generation early, to write the A2L now, not when the client connects
 
-    } // for(;;)
+    } // for (;;)
 
     // Force disconnect the XCP client
     XcpDisconnect();
