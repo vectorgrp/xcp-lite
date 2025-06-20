@@ -774,9 +774,9 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
     // Check the entry commit state
 #ifndef QUEUE_SIGNATURE
     uint32_t ctr_dlc = atomic_load_explicit(&first_entry->ctr_dlc, memory_order_acquire);
-    uint16_t dlc = ctr_dlc & 0xFFFF;    // Transport layer packet data length
-    uint16_t ctr = ctr_dlc >> 16;       // Transport layer counter
-    uint8_t tag = first_entry->data[1]; // Reserved byte in the XCP DTO message header (daq,res,odt)
+    uint16_t dlc = ctr_dlc & 0xFFFF;          // Transport layer packet data length
+    uint16_t ctr = (uint16_t)(ctr_dlc >> 16); // Transport layer counter
+    uint8_t tag = first_entry->data[1];       // Reserved byte in the XCP DTO message header (daq,res,odt)
     uint32_t sig = ((uint32_t)ctr << 16) | (uint32_t)ctr;
 #else
     // Note that dlc is already valid in reserved state
@@ -856,9 +856,9 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
 // Check the entry commit state
 #ifndef QUEUE_SIGNATURE
         uint32_t ctr_dlc = atomic_load_explicit(&entry->ctr_dlc, memory_order_acquire);
-        uint16_t dlc = ctr_dlc & 0xFFFF; // Transport layer packet data length
-        uint16_t ctr = ctr_dlc >> 16;    // Transport layer counter
-        uint8_t tag = entry->data[1];    // Reserved byte in the XCP DTO message header (daq,res,odt)
+        uint16_t dlc = ctr_dlc & 0xFFFF;          // Transport layer packet data length
+        uint16_t ctr = (uint16_t)(ctr_dlc >> 16); // Transport layer counter
+        uint8_t tag = entry->data[1];             // Reserved byte in the XCP DTO message header (daq,res,odt)
         uint32_t sig = ((uint32_t)ctr << 16) | (uint32_t)ctr;
 #else
         // Note that dlc is allready valid in reserved state
