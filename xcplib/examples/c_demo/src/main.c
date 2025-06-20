@@ -83,11 +83,11 @@ int main(void) {
     A2lCreateMap(params.map, 8, 8, "", "");
 
     // Create a measurement event for global variables
-    uint16_t event_global = XcpCreateEvent("mainloop_global", 0, 0);
+    DaqCreateEvent(mainloop_global);
 
     // Register global measurement variables
-    A2lSetAbsAddrMode(); // Set absolute addressing
-    A2lCreatePhysMeasurement(counter_global, "Measurement variable", 1.0, 0.0, "counts");
+    A2lSetAbsoluteAddrMode(mainloop_global); // Set absolute addressing
+    A2lCreatePhysMeasurement(counter_global, "Global measurement variable", 1.0, 0.0, "");
 
     // Variables on stack
     uint8_t counter8 = 0;
@@ -100,18 +100,18 @@ int main(void) {
     int64_t counter64s = 0;
 
     // Create a measurement event for local variables
-    uint16_t event = XcpCreateEvent("mainloop_local", 0, 0);
+    DaqCreateEvent(mainloop_local);
 
     // Register measurement variables located on stack
-    A2lSetDynAddrMode(&event); // Set event relative addressing with write access
-    A2lCreatePhysMeasurement(counter8, "Measurement variable", 1.0, 0.0, "counts");
-    A2lCreatePhysMeasurement(counter16, "Measurement variable", 1.0, 0.0, "counts");
-    A2lCreatePhysMeasurement(counter32, "Measurement variable", 1.0, 0.0, "counts");
-    A2lCreatePhysMeasurement(counter64, "Measurement variable", 1.0, 0.0, "counts");
-    A2lCreatePhysMeasurement(counter8s, "Measurement variable", 1.0, 0.0, "counts");
-    A2lCreatePhysMeasurement(counter16s, "Measurement variable", 1.0, 0.0, "counts");
-    A2lCreatePhysMeasurement(counter32s, "Measurement variable", 1.0, 0.0, "counts");
-    A2lCreatePhysMeasurement(counter64s, "Measurement variable", 1.0, 0.0, "counts");
+    A2lSetStackAddrMode();
+    A2lCreatePhysMeasurement(counter8, "Measurement variable", 1.0, 0.0, "");
+    A2lCreatePhysMeasurement(counter16, "Measurement variable", 1.0, 0.0, "");
+    A2lCreatePhysMeasurement(counter32, "Measurement variable", 1.0, 0.0, "");
+    A2lCreatePhysMeasurement(counter64, "Measurement variable", 1.0, 0.0, "");
+    A2lCreatePhysMeasurement(counter8s, "Measurement variable", 1.0, 0.0, "");
+    A2lCreatePhysMeasurement(counter16s, "Measurement variable", 1.0, 0.0, "");
+    A2lCreatePhysMeasurement(counter32s, "Measurement variable", 1.0, 0.0, "");
+    A2lCreatePhysMeasurement(counter64s, "Measurement variable", 1.0, 0.0, "");
 
     // Multidimensional measurements on stack
     float curve_f32[8] = {000, 100, 200, 300, 400, 500, 600, 700};
@@ -123,7 +123,6 @@ int main(void) {
 
     };
 
-    A2lSetDynAddrMode(&event); // Set event relative addressing with write access
     A2lCreateMeasurementArray(curve_f32, "array float[8]");
     A2lCreateMeasurementMatrix(map_f32, "matrix float[8][8]");
 
@@ -190,8 +189,8 @@ int main(void) {
         counter_global = counter16;
 
         // Trigger measurement events
-        XcpEventDyn(&event);    // For local variables
-        XcpEvent(event_global); // For global variables
+        DaqEvent(mainloop_local);  // For local variables
+        DaqEvent(mainloop_global); // For global variables
 
         // Check server status
         if (!XcpEthServerStatus()) {
