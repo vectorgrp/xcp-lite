@@ -39,11 +39,6 @@ const params_t params = {.counter_max = 100, .delay_us = 1000, .test_byte1 = -1,
 
 //-----------------------------------------------------------------------------------------------------
 
-// Global demo measurement variable
-static uint16_t counter_global = 0;
-
-//-----------------------------------------------------------------------------------------------------
-
 // Demo main
 int main(void) {
 
@@ -82,13 +77,6 @@ int main(void) {
     A2lCreateCurve(params.curve, 8, "", "");
     A2lCreateMap(params.map, 8, 8, "", "");
 
-    // Create a measurement event for global variables
-    DaqCreateEvent(mainloop_global);
-
-    // Register global measurement variables
-    A2lSetAbsoluteAddrMode(mainloop_global); // Set absolute addressing
-    A2lCreatePhysMeasurement(counter_global, "Global measurement variable", 1.0, 0.0, "");
-
     // Variables on stack
     uint8_t counter8 = 0;
     uint16_t counter16 = 0;
@@ -100,10 +88,10 @@ int main(void) {
     int64_t counter64s = 0;
 
     // Create a measurement event for local variables
-    DaqCreateEvent(mainloop_local);
+    DaqCreateEvent(mainloop);
 
     // Register measurement variables located on stack
-    A2lSetStackAddrMode();
+    A2lSetStackAddrMode(mainloop);
     A2lCreatePhysMeasurement(counter8, "Measurement variable", 1.0, 0.0, "");
     A2lCreatePhysMeasurement(counter16, "Measurement variable", 1.0, 0.0, "");
     A2lCreatePhysMeasurement(counter32, "Measurement variable", 1.0, 0.0, "");
@@ -185,12 +173,8 @@ int main(void) {
         // Unlock the calibration segment
         XcpUnlockCalSeg(calseg);
 
-        // Global variable
-        counter_global = counter16;
-
-        // Trigger measurement events
-        DaqEvent(mainloop_local);  // For local variables
-        DaqEvent(mainloop_global); // For global variables
+        // Trigger the measurement event
+        DaqEvent(mainloop);
 
         // Check server status
         if (!XcpEthServerStatus()) {
