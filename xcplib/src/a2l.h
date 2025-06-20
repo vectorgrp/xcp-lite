@@ -14,18 +14,22 @@
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 // Basic A2L types
-#define A2L_TYPE_UINT8 1
-#define A2L_TYPE_UINT16 2
-#define A2L_TYPE_UINT32 4
-#define A2L_TYPE_UINT64 8
-#define A2L_TYPE_INT8 -1
-#define A2L_TYPE_INT16 -2
-#define A2L_TYPE_INT32 -4
-#define A2L_TYPE_INT64 -8
-#define A2L_TYPE_FLOAT -9
-#define A2L_TYPE_DOUBLE -10
+typedef int8_t tA2lTypeId; // A2L type ID, positive for unsigned types, negative for signed types
+#define A2L_TYPE_UINT8 (tA2lTypeId)1
+#define A2L_TYPE_UINT16 (tA2lTypeId)2
+#define A2L_TYPE_UINT32 (tA2lTypeId)4
+#define A2L_TYPE_UINT64 (tA2lTypeId)8
+#define A2L_TYPE_INT8 (tA2lTypeId) - 1
+#define A2L_TYPE_INT16 (tA2lTypeId) - 2
+#define A2L_TYPE_INT32 (tA2lTypeId) - 4
+#define A2L_TYPE_INT64 (tA2lTypeId) - 8
+#define A2L_TYPE_FLOAT (tA2lTypeId) - 9
+#define A2L_TYPE_DOUBLE (tA2lTypeId) - 10
+#define A2L_TYPE_UNDEFINED (tA2lTypeId)0
 
-static_assert(sizeof(int) == 4, "sizeof(int) must be 8 bytes for A2L types to work correctly");
+static_assert(sizeof(char) == 1, "sizeof(char) must be 1 bytes for A2L types to work correctly");
+static_assert(sizeof(short) == 2, "sizeof(short) must be 2 bytes for A2L types to work correctly");
+static_assert(sizeof(long long) == 8, "sizeof(long long) must be 8 bytes for A2L types to work correctly");
 
 // Macro to generate type
 // A2L type
@@ -36,69 +40,23 @@ static_assert(sizeof(int) == 4, "sizeof(int) must be 8 bytes for A2L types to wo
         bool: A2L_TYPE_UINT8,                                                                                                                                                      \
         signed short: A2L_TYPE_INT16,                                                                                                                                              \
         unsigned short: A2L_TYPE_UINT16,                                                                                                                                           \
-        signed int: A2L_TYPE_INT32,                                                                                                                                                \
-        unsigned int: A2L_TYPE_UINT32,                                                                                                                                             \
-        signed long: A2L_TYPE_INT32,                                                                                                                                               \
-        unsigned long: A2L_TYPE_UINT32,                                                                                                                                            \
+        signed int: (tA2lTypeId)(-sizeof(int)),                                                                                                                                    \
+        unsigned int: (tA2lTypeId)sizeof(int),                                                                                                                                     \
+        signed long: (tA2lTypeId)(-sizeof(long)),                                                                                                                                  \
+        unsigned long: (tA2lTypeId)sizeof(long),                                                                                                                                   \
         signed long long: A2L_TYPE_INT64,                                                                                                                                          \
         unsigned long long: A2L_TYPE_UINT64,                                                                                                                                       \
         float: A2L_TYPE_FLOAT,                                                                                                                                                     \
         double: A2L_TYPE_DOUBLE,                                                                                                                                                   \
-        default: 0)
+        default: A2L_TYPE_UNDEFINED)
 
-// Macros to generate type names
-// A2L type name
-#define A2lGetType(type)                                                                                                                                                           \
-    _Generic((type),                                                                                                                                                               \
-        signed char: "SBYTE",                                                                                                                                                      \
-        unsigned char: "UBYTE",                                                                                                                                                    \
-        bool: "UBYTE",                                                                                                                                                             \
-        signed short: "SWORD",                                                                                                                                                     \
-        unsigned short: "UWORD",                                                                                                                                                   \
-        signed int: "SLONG",                                                                                                                                                       \
-        unsigned int: "ULONG",                                                                                                                                                     \
-        signed long: "SLONG",                                                                                                                                                      \
-        unsigned long: "ULONG",                                                                                                                                                    \
-        signed long long: "A_INT64",                                                                                                                                               \
-        unsigned long long: "A_UINT64",                                                                                                                                            \
-        float: "FLOAT32_IEEE",                                                                                                                                                     \
-        double: "FLOAT64_IEEE",                                                                                                                                                    \
-        default: #type)
-
-// TYPEDEF_MEASUREMENT predefined types
-#define A2lGetType_M(type)                                                                                                                                                         \
-    _Generic((type),                                                                                                                                                               \
-        signed char: "M_I8",                                                                                                                                                       \
-        unsigned char: "M_U8",                                                                                                                                                     \
-        bool: "M_U8",                                                                                                                                                              \
-        signed short: "M_I16",                                                                                                                                                     \
-        unsigned short: "M_U16",                                                                                                                                                   \
-        signed int: "M_I32",                                                                                                                                                       \
-        unsigned int: "M_U32",                                                                                                                                                     \
-        signed long: "M_I32",                                                                                                                                                      \
-        unsigned long: "M_U32",                                                                                                                                                    \
-        signed long long: "M_I64",                                                                                                                                                 \
-        unsigned long long: "M_U64",                                                                                                                                               \
-        float: "M_F32",                                                                                                                                                            \
-        double: "M_F64",                                                                                                                                                           \
-        default: "M_" #type)
-
-// TYPEDEF_CHARACTERISTC predefined types
-#define A2lGetType_C(type)                                                                                                                                                         \
-    _Generic((type),                                                                                                                                                               \
-        signed char: "C_I8",                                                                                                                                                       \
-        unsigned char: "C_U8",                                                                                                                                                     \
-        signed short: "C_I16",                                                                                                                                                     \
-        unsigned short: "C_U16",                                                                                                                                                   \
-        signed int: "C_I32",                                                                                                                                                       \
-        unsigned int: "C_U32",                                                                                                                                                     \
-        signed long: "C_I32",                                                                                                                                                      \
-        unsigned long: "C_U32",                                                                                                                                                    \
-        signed long long: "C_I64",                                                                                                                                                 \
-        unsigned long long: "C_U64",                                                                                                                                               \
-        float: "C_F32",                                                                                                                                                            \
-        double: "C_F64",                                                                                                                                                           \
-        default: "C_" #type)
+// Macros to generate type names as static char* string
+const char *A2lGetA2lTypeName(tA2lTypeId type);
+const char *A2lGetA2lTypeName_M(tA2lTypeId type);
+const char *A2lGetA2lTypeName_C(tA2lTypeId type);
+#define A2lGetTypeName(type) A2lGetA2lTypeName(A2lGetTypeId(type))
+#define A2lGetTypeName_M(type) A2lGetA2lTypeName_M(A2lGetTypeId(type))
+#define A2lGetTypeName_C(type) A2lGetA2lTypeName_C(A2lGetTypeId(type))
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 extern MUTEX gA2lMutex;
@@ -322,7 +280,7 @@ static inline uint8_t *get_stack_frame_pointer(void) {
         static atomic_bool a2l_##name##_static = false;                                                                                                                            \
         if (A2lOnce_(&a2l_##name##_static)) {                                                                                                                                      \
             typedef_name instance;                                                                                                                                                 \
-            A2lTypedefComponent_(#field_name, A2lGetType_M(instance.field_name), 1, ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance));                                   \
+            A2lTypedefComponent_(#field_name, A2lGetTypeName_M(instance.field_name), 1, ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance));                               \
         }                                                                                                                                                                          \
     }
 
@@ -332,7 +290,7 @@ static inline uint8_t *get_stack_frame_pointer(void) {
         static atomic_bool a2l_##field_name##_static = false;                                                                                                                      \
         if (A2lOnce_(&a2l_##field_name##_static)) {                                                                                                                                \
             typeName instance;                                                                                                                                                     \
-            \ A2lTypedefComponent_(#field_name, A2lGetType_C(instance.field_name), 1, ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance));                                 \
+            \ A2lTypedefComponent_(#field_name, A2lGetTypeName_C(instance.field_name), 1, ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance));                             \
         }                                                                                                                                                                          \
     }
 
@@ -342,7 +300,7 @@ static inline uint8_t *get_stack_frame_pointer(void) {
         static atomic_bool a2l_##field_name##_static = false;                                                                                                                      \
         if (A2lOnce_(&a2l_##field_name##_static)) {                                                                                                                                \
             typedef_name instance;                                                                                                                                                 \
-            A2lTypedefComponent_(#field_name, A2lGetType_M(instance.field_name[0]), sizeof(instance.field_name) / sizeof(instance.field_name[0]),                                  \
+            A2lTypedefComponent_(#field_name, A2lGetTypeName_M(instance.field_name[0]), sizeof(instance.field_name) / sizeof(instance.field_name[0]),                              \
                                  ((uint8_t *)&(instance.field_name[0]) - (uint8_t *)&instance));                                                                                   \
         }                                                                                                                                                                          \
     }
@@ -353,7 +311,7 @@ static inline uint8_t *get_stack_frame_pointer(void) {
         static atomic_bool a2l_##field_name##_static = false;                                                                                                                      \
         if (A2lOnce_(&a2l_##field_name##_static)) {                                                                                                                                \
             typeName instance;                                                                                                                                                     \
-            \ A2lTypedefComponent_(#field_name, A2lGetType_C(instance.field_name[0]), sizeof(instance.field_name) / sizeof(instance.field_name[0]),                                \
+            \ A2lTypedefComponent_(#field_name, A2lGetTypeName_C(instance.field_name[0]), sizeof(instance.field_name) / sizeof(instance.field_name[0]),                            \
                                    ((uint8_t *)&(instance.field_name[0]) - (uint8_t *)&instance));                                                                                 \
         }                                                                                                                                                                          \
     }
@@ -402,10 +360,10 @@ uint32_t A2lGetAddr_(const void *addr);
 uint8_t A2lGetAddrExt_(void);
 
 // Create measurements
-void A2lCreateMeasurement_(const char *instance_name, const char *name, int32_t type, uint8_t ext, uint32_t addr, double factor, double offset, const char *unit,
+void A2lCreateMeasurement_(const char *instance_name, const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, double factor, double offset, const char *unit,
                            const char *comment);
 
-void A2lCreateMeasurementArray_(const char *instance_name, const char *name, int32_t type, int x_dim, int y_dim, uint8_t ext, uint32_t addr, double factor, double offset,
+void A2lCreateMeasurementArray_(const char *instance_name, const char *name, tA2lTypeId type, int x_dim, int y_dim, uint8_t ext, uint32_t addr, double factor, double offset,
                                 const char *unit, const char *comment);
 
 // Create typedefs
@@ -415,7 +373,7 @@ void A2lTypedefEnd_(void);
 void A2lCreateTypedefInstance_(const char *instance_name, const char *type_name, uint16_t x_dim, uint8_t ext, uint32_t addr, const char *comment);
 
 // Create parameters
-void A2lCreateParameter_(const char *name, int32_t type, uint8_t ext, uint32_t addr, const char *comment, const char *unit);
-void A2lCreateParameterWithLimits_(const char *name, int32_t type, uint8_t ext, uint32_t addr, const char *comment, const char *unit, double min, double max);
-void A2lCreateMap_(const char *name, int32_t type, uint8_t ext, uint32_t addr, uint32_t xdim, uint32_t ydim, const char *comment, const char *unit);
-void A2lCreateCurve_(const char *name, int32_t type, uint8_t ext, uint32_t addr, uint32_t xdim, const char *comment, const char *unit);
+void A2lCreateParameter_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, const char *comment, const char *unit);
+void A2lCreateParameterWithLimits_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, const char *comment, const char *unit, double min, double max);
+void A2lCreateMap_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, uint32_t xdim, uint32_t ydim, const char *comment, const char *unit);
+void A2lCreateCurve_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, uint32_t xdim, const char *comment, const char *unit);

@@ -591,7 +591,7 @@ int32_t XcpTlHandleTransmitQueue(void) {
             mutexLock(&gXcpTl.CtrMutex);
             uint32_t lost;
             tQueueBuffer queueBuffer = QueuePeek(gXcpTl.Queue, flush, &lost);
-            gXcpTl.Ctr += lost; // Increase packet counter by lost packets
+            gXcpTl.Ctr += (uint16_t)lost; // Increase packet counter by lost packets
             uint16_t l = queueBuffer.size;
             const uint8_t *b = queueBuffer.buffer;
             if (b == NULL) {

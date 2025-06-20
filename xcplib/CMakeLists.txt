@@ -53,7 +53,7 @@ target_compile_options(xcplib
         -Wall
         -Wextra
         -Wconversion
-        -Werror
+#        -Werror
         -pedantic
 #        -Wshadow
 )
@@ -85,6 +85,8 @@ target_link_libraries(multi_thread_demo PRIVATE xcplib)
 if (WINDOWS)
 
 else ()
+
+    target_link_libraries(multi_thread_demo PRIVATE m)
 
     set_target_properties(c_demo PROPERTIES SUFFIX ".out")
     set_target_properties(hello_xcp PROPERTIES SUFFIX ".out")

@@ -19,9 +19,8 @@
 #define OPTION_USE_TCP false              // TCP or UDP
 #define OPTION_SERVER_PORT 5555           // Port
 // #define OPTION_SERVER_ADDR {0, 0, 0, 0} // Bind addr, 0.0.0.0 = ANY
-// #define OPTION_SERVER_ADDR {127, 0, 0, 1} // Bind addr, 0.0.0.0 = ANY
-#define OPTION_SERVER_ADDR {172, 19, 13, 239} // Bind addr, 0.0.0.0 = ANY
-#define OPTION_QUEUE_SIZE 1024 * 32           // Size of the measurement queue in bytes, must be a multiple of 8
+#define OPTION_SERVER_ADDR {127, 0, 0, 1} // Bind addr, 0.0.0.0 = ANY
+#define OPTION_QUEUE_SIZE 1024 * 32       // Size of the measurement queue in bytes, must be a multiple of 8
 #define OPTION_LOG_LEVEL 3
 
 //-----------------------------------------------------------------------------------------------------
@@ -37,11 +36,6 @@ typedef struct params {
 } params_t;
 
 const params_t params = {.counter_max = 100, .delay_us = 1000, .test_byte1 = -1, .test_byte2 = 1, .curve = {0, 1, 2, 3, 4, 5, 6, 7}, .map = {{0}}};
-
-//-----------------------------------------------------------------------------------------------------
-
-// Global demo measurement variable
-static uint16_t counter_global = 0;
 
 //-----------------------------------------------------------------------------------------------------
 
@@ -83,13 +77,6 @@ int main(void) {
     A2lCreateCurve(params.curve, 8, "", "");
     A2lCreateMap(params.map, 8, 8, "", "");
 
-    // Create a measurement event for global variables
-    uint16_t event_global = XcpCreateEvent("mainloop_global", 0, 0);
-
-    // Register global measurement variables
-    A2lSetAbsAddrMode(); // Set absolute addressing
-    A2lCreatePhysMeasurement(counter_global, "Measurement variable", 1.0, 0.0, "counts");
-
     // Variables on stack
     uint8_t counter8 = 0;
     uint16_t counter16 = 0;
@@ -101,18 +88,18 @@ int main(void) {
     int64_t counter64s = 0;
 
     // Create a measurement event for local variables
-    uint16_t event = XcpCreateEvent("mainloop_local", 0, 0);
+    DaqCreateEvent(mainloop);
 
     // Register measurement variables located on stack
-    A2lSetDynAddrMode(&event); // Set event relative addressing with write access
-    A2lCreatePhysMeasurement(counter8, "Measurement variable", 1.0, 0.0, "counts");
-    A2lCreatePhysMeasurement(counter16, "Measurement variable", 1.0, 0.0, "counts");
-    A2lCreatePhysMeasurement(counter32, "Measurement variable", 1.0, 0.0, "counts");
-    A2lCreatePhysMeasurement(counter64, "Measurement variable", 1.0, 0.0, "counts");
-    A2lCreatePhysMeasurement(counter8s, "Measurement variable", 1.0, 0.0, "counts");
-    A2lCreatePhysMeasurement(counter16s, "Measurement variable", 1.0, 0.0, "counts");
-    A2lCreatePhysMeasurement(counter32s, "Measurement variable", 1.0, 0.0, "counts");
-    A2lCreatePhysMeasurement(counter64s, "Measurement variable", 1.0, 0.0, "counts");
+    A2lSetStackAddrMode(mainloop);
+    A2lCreatePhysMeasurement(counter8, "Measurement variable", 1.0, 0.0, "");
+    A2lCreatePhysMeasurement(counter16, "Measurement variable", 1.0, 0.0, "");
+    A2lCreatePhysMeasurement(counter32, "Measurement variable", 1.0, 0.0, "");
+    A2lCreatePhysMeasurement(counter64, "Measurement variable", 1.0, 0.0, "");
+    A2lCreatePhysMeasurement(counter8s, "Measurement variable", 1.0, 0.0, "");
+    A2lCreatePhysMeasurement(counter16s, "Measurement variable", 1.0, 0.0, "");
+    A2lCreatePhysMeasurement(counter32s, "Measurement variable", 1.0, 0.0, "");
+    A2lCreatePhysMeasurement(counter64s, "Measurement variable", 1.0, 0.0, "");
 
     // Multidimensional measurements on stack
     float curve_f32[8] = {000, 100, 200, 300, 400, 500, 600, 700};
@@ -124,9 +111,8 @@ int main(void) {
 
     };
 
-    A2lSetDynAddrMode(&event); // Set event relative addressing with write access
     A2lCreateMeasurementArray(curve_f32, "array float[8]");
-    A2lCreateMeasurementMatrix(map_f32, "matrix float[8][8]");
+    A2lCreateMeasurementMatrix(map_f32, "matrix float[4][8]");
 
     // Create a measurement typedef for the calibration parameter struct
     A2lTypedefBegin(params_t, "The calibration parameter struct as measurement typedef");
@@ -155,10 +141,10 @@ int main(void) {
                 if (curve_f32[i] > 2000) {
                     curve_f32[i] = 0;
                 }
-                for (int j = 0; j < 8; j++) {
-                    map_f32[i][j] += i + j;
-                    if (map_f32[i][j] > 2000) {
-                        map_f32[i][j] = 0;
+                for (int j = 0; j < 4; j++) {
+                    map_f32[j][i] += i + j;
+                    if (map_f32[j][i] > 2000) {
+                        map_f32[j][i] = 0;
                     }
                 }
             }
@@ -187,12 +173,8 @@ int main(void) {
         // Unlock the calibration segment
         XcpUnlockCalSeg(calseg);
 
-        // Global variable
-        counter_global = counter16;
-
-        // Trigger measurement events
-        XcpEventDyn(&event);    // For local variables
-        XcpEvent(event_global); // For global variables
+        // Trigger the measurement event
+        DaqEvent(mainloop);
 
         // Check server status
         if (!XcpEthServerStatus()) {
@@ -202,7 +184,7 @@ int main(void) {
 
         A2lFinalize(); // Optional: Finalize the A2L file generation early, to write the A2L now, not when the client connects
 
-    } // for(;;)
+    } // for (;;)
 
     // Force disconnect the XCP client
     XcpDisconnect();

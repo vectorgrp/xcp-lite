@@ -78,10 +78,10 @@ int main(void) {
     A2lCreateParameterWithLimits(params.delay_us, "mainloop delay time in us", "us", 0, 1000000);
 
     // Create a measurement event
-    uint16_t event = XcpCreateEvent("mainloop", 0, 0);
+    DaqCreateEvent(mainloop);
 
     // Register a global measurement variable
-    A2lSetAbsAddrMode(); // Set absolute addressing
+    A2lSetAbsoluteAddrMode(mainloop); // Set absolute addressing
     A2lCreatePhysMeasurement(counter, "Measurement variable", 1.0, 0.0, "counts");
 
     A2lFinalize(); // Optional: Finalize the A2L file generation early, to write the A2L now, not when the client connects
@@ -105,7 +105,7 @@ int main(void) {
         XcpUnlockCalSeg(calseg);
 
         // Trigger measurement events
-        XcpEvent(event);
+        DaqEvent(mainloop);
 
     } // for(;;)
 
