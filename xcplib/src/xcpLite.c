@@ -61,7 +61,6 @@
 
 #include <assert.h>   // for assert
 #include <inttypes.h> // for PRIx32, PRIu64
-#include <math.h>     // for pow
 #include <stdbool.h>  // for bool
 #include <stdint.h>   // for uint8_t, uint16_t, uint32_t, int32_t, uin...
 #include <stdio.h>    // for printf
@@ -1066,14 +1065,7 @@ static tXcpEventId XcpCreateIndexedEvent(const char *name, uint16_t index, uint3
     strncpy(gXcp.EventList.event[e].name, name, XCP_MAX_EVENT_NAME);
     gXcp.EventList.event[e].name[XCP_MAX_EVENT_NAME] = 0;
     gXcp.EventList.event[e].priority = priority;
-
-#ifdef DBG_LEVEL
-    uint64_t ns = (uint64_t)(gXcp.EventList.event[e].timeCycle * pow(10, gXcp.EventList.event[e].timeUnit));
-    DBG_PRINTF3("  Event %u: %s cycle=%" PRIu64 "ns, prio=%u\n", e, gXcp.EventList.event[e].name, ns, gXcp.EventList.event[e].priority);
-    if (cycleTimeNs != ns)
-        DBG_PRINTF_WARNING("WARNING: cycle time %uns, loss of significant digits!\n", cycleTimeNs);
-#endif
-
+    DBG_PRINTF3("  Event %u: %s cycle=%uns, prio=%u\n", e, gXcp.EventList.event[e].name, cycleTimeNs, gXcp.EventList.event[e].priority);
     return e;
 }
 
