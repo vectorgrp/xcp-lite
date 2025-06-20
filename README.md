@@ -1,8 +1,22 @@
 # xcp-lite
 
-XCP for Rust - based on XCPlite  
+XCP for Rust - based on XCPlite (https://github.com/vectorgrp/XCPlite)  
   
 Disclaimer: This code is in experimental state. There is no release yet.  
+
+Note: This repo contains a newer version of XCPlite (in folder xcplib).  
+This version is not released yet.  
+
+* Breaking changes to V6.
+* Compiles as C11.  
+* Lockless transmit queue. Works on x86-64 strong and ARM-64 weak memory model.  
+* Measurement of and write access to variables on stack.  
+* Supports multiple calibration segments with working and reference page with independent page switching.  
+* Lock free and thread safe calibration parameter access, consistent calibration changes and page switches.  
+* More C examples.   
+* Build as a library.  
+* Used (as FFI library) for the rust xcp-lite version.
+
 
 xcp-lite is a Rust API for measurement and calibration, which uses the ASAM XCP protocol for communication with a measurement and calibration tool like CANape and ASAM A2L for data description.  
 
