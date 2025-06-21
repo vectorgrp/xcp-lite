@@ -220,6 +220,7 @@ typedef struct {
     //  tXcpOdt[]     - ODT array
     //  uint32_t[]    - ODT entry addr array
     //  uint8_t[]     - ODT entry size array
+    //  uint8_t[]     - ODT entry addr extension array (optional)
     union {
         // DAQ array
         tXcpDaqList daq_list[XCP_DAQ_MEM_SIZE / sizeof(tXcpDaqList)];
@@ -229,7 +230,10 @@ typedef struct {
         uint32_t odt_entry_addr[XCP_DAQ_MEM_SIZE / 4];
         // ODT entry size array
         uint8_t odt_entry_size[XCP_DAQ_MEM_SIZE / 1];
-
+// ODT entry addr extension array
+#if defined(XCP_ENABLE_DAQ_ADDREXT)
+        uint8_t odt_entry_addr_ext[XCP_DAQ_MEM_SIZE / 1];
+#endif
         uint64_t b[XCP_DAQ_MEM_SIZE / 8 + 1];
     } u;
 
@@ -326,6 +330,9 @@ static tXcpData gXcp = {0};
 /* i is daq number */
 #define OdtEntryAddrTable ((int32_t *)&DaqListOdtTable[gXcp.DaqLists->odt_count])
 #define OdtEntrySizeTable ((uint8_t *)&OdtEntryAddrTable[gXcp.DaqLists->odt_entry_count])
+#ifdef XCP_ENABLE_DAQ_ADDREXT
+#define OdtEntryAddrExtTable ((uint8_t *)&OdtEntrySizeTable[gXcp.DaqLists->odt_entry_count])
+#endif
 #define DaqListOdtTable ((tXcpOdt *)&gXcp.DaqLists->u.daq_list[gXcp.DaqLists->daq_count])
 #define DaqListOdtEntryCount(j) ((DaqListOdtTable[j].last_odt_entry - DaqListOdtTable[j].first_odt_entry) + 1)
 #define DaqListOdtCount(i) ((gXcp.DaqLists->u.daq_list[i].last_odt - gXcp.DaqLists->u.daq_list[i].first_odt) + 1)
@@ -1130,10 +1137,14 @@ static uint8_t XcpCheckMemory(void) {
     if (gXcp.DaqLists == NULL)
         return CRC_MEMORY_OVERFLOW;
 
-    /* Check memory overflow */
-    s = (gXcp.DaqLists->daq_count * (uint32_t)sizeof(tXcpDaqList) + (gXcp.DaqLists->odt_count * (uint32_t)sizeof(tXcpOdt)) +
-         (gXcp.DaqLists->odt_entry_count * ((uint32_t)sizeof(uint32_t) + (uint32_t)sizeof(uint8_t))));
+#ifdef XCP_ENABLE_DAQ_ADDREXT
+#define ODT_ENTRY_SIZE 6
+#else
+#define ODT_ENTRY_SIZE 5
+#endif
 
+    /* Check memory overflow */
+    s = (gXcp.DaqLists->daq_count * (uint32_t)sizeof(tXcpDaqList)) + (gXcp.DaqLists->odt_count * (uint32_t)sizeof(tXcpOdt)) + (gXcp.DaqLists->odt_entry_count * ODT_ENTRY_SIZE);
     if (s >= XCP_DAQ_MEM_SIZE) {
         DBG_PRINTF_ERROR("DAQ memory overflow, %u of %u Bytes required\n", s, XCP_DAQ_MEM_SIZE);
         return CRC_MEMORY_OVERFLOW;
@@ -1146,6 +1157,9 @@ static uint8_t XcpCheckMemory(void) {
     assert(((uint64_t)&DaqListOdtTable[0] % 4) == 0);   // Check alignment
     assert(((uint64_t)&OdtEntryAddrTable[0] % 4) == 0); // Check alignment
     assert(((uint64_t)&OdtEntrySizeTable[0] % 4) == 0); // Check alignment
+#if defined(XCP_ENABLE_DAQ_ADDREXT)
+    assert(((uint64_t)&OdtEntryAddrExtTable[0] % 4) == 0); // Check alignment
+#endif
 #endif
 
     DBG_PRINTF5("[XcpCheckMemory] %u of %u Bytes used\n", s, XCP_DAQ_MEM_SIZE);
@@ -1279,12 +1293,15 @@ static uint8_t XcpAddOdtEntry(uint32_t addr, uint8_t ext, uint8_t size) {
     if (XcpIsDaqRunning())
         return CRC_DAQ_ACTIVE;
 
+    // DAQ list must have unique address extension
+#ifndef XCP_ENABLE_DAQ_ADDREXT
     uint8_t daq_ext = DaqListAddrExt(gXcp.WriteDaqDaq);
     if (daq_ext != XCP_UNDEFINED_ADDR_EXT && ext != daq_ext) {
         DBG_PRINTF_ERROR("DAQ list must have unique address extension, DAQ=%u, ODT=%u, ext=%u, daq_ext=%u\n", gXcp.WriteDaqDaq, gXcp.WriteDaqOdt, ext, daq_ext);
         return CRC_DAQ_CONFIG; // Error not unique address extension
     }
     DaqListAddrExt(gXcp.WriteDaqDaq) = ext;
+#endif
 
     int32_t base_offset = 0;
 #ifdef XCP_ENABLE_DYN_ADDRESSING
@@ -1308,7 +1325,7 @@ static uint8_t XcpAddOdtEntry(uint32_t addr, uint8_t ext, uint8_t size) {
         } else
 #endif
 #ifdef XCP_ENABLE_ABS_ADDRESSING
-            // ABS adressing mode, base pointer will ApplXcpGetBaseAddr()
+            // ABS addressing mode, base pointer will ApplXcpGetBaseAddr()
             // Max address range 0-0x7FFFFFFF
             if (ext == XCP_ADDR_EXT_ABS) { // absolute addressing mode{
                 uint8_t *p;
@@ -1326,6 +1343,9 @@ static uint8_t XcpAddOdtEntry(uint32_t addr, uint8_t ext, uint8_t size) {
 
     OdtEntrySizeTable[gXcp.WriteDaqOdtEntry] = size;
     OdtEntryAddrTable[gXcp.WriteDaqOdtEntry] = base_offset; // Signed 32 bit offset relative to base pointer given to XcpEvent
+#if defined(XCP_ENABLE_DAQ_ADDREXT)
+    OdtEntryAddrExtTable[gXcp.WriteDaqOdtEntry] = ext;
+#endif
     if (!XcpAdjustOdtSize(gXcp.WriteDaqDaq, gXcp.WriteDaqOdt, size))
         return CRC_DAQ_CONFIG;
     gXcp.WriteDaqOdtEntry++; // Autoincrement to next ODT entry, no autoincrementing over ODTs
@@ -1356,6 +1376,8 @@ static uint8_t XcpSetDaqListMode(uint16_t daq, uint16_t event, uint8_t mode, uin
         return CRC_DAQ_CONFIG; // Error event not unique
 
     // Check all DAQ lists with same event have the same address extension
+    // @@@@ TODO: This restriction is not indicated in GET_DAQ_PROPERTIES
+#ifndef XCP_ENABLE_DAQ_ADDREXT
     uint8_t ext = DaqListAddrExt(daq);
     for (uint16_t daq0 = 0; daq0 < gXcp.DaqLists->daq_count; daq0++) {
         if (DaqListEventChannel(daq0) == event) {
@@ -1364,7 +1386,7 @@ static uint8_t XcpSetDaqListMode(uint16_t daq, uint16_t event, uint8_t mode, uin
                 return CRC_DAQ_CONFIG; // Error address extension not unique
         }
     }
-
+#endif
 #endif
 
     DaqListEventChannel(daq) = event;
@@ -1396,10 +1418,12 @@ bool XcpCheckPreparedDaqLists(void) {
                 DBG_PRINTF_ERROR("DAQ list %u event channel not initialized!\n", daq);
                 return false;
             }
+#ifndef XCP_ENABLE_DAQ_ADDREXT
             if (DaqListAddrExt(daq) == XCP_UNDEFINED_ADDR_EXT) {
                 DBG_PRINTF_ERROR("DAQ list %u address extension not set!\n", daq);
                 return false;
             }
+#endif
             for (uint16_t i = DaqListFirstOdt(daq); i <= DaqListLastOdt(daq); i++) {
                 for (uint16_t e = DaqListOdtTable[i].first_odt_entry; e <= DaqListOdtTable[i].last_odt_entry; e++) {
                     if (OdtEntrySizeTable[e] == 0) {
@@ -1534,8 +1558,11 @@ static void XcpStopSelectedDaqLists(void) {
 /****************************************************************************/
 
 // Trigger daq list
+#ifdef XCP_ENABLE_DAQ_ADDREXT
+static void XcpTriggerDaqList(tQueueHandle queueHandle, uint16_t daq, const uint8_t **base, uint64_t clock) {
+#else
 static void XcpTriggerDaqList(tQueueHandle queueHandle, uint16_t daq, const uint8_t *base, uint64_t clock) {
-
+#endif
     uint8_t *d0;
     uint16_t odt, hs;
 
@@ -1593,12 +1620,19 @@ static void XcpTriggerDaqList(tQueueHandle queueHandle, uint16_t daq, const uint
             uint32_t el = DaqListOdtTable[odt].last_odt_entry; // last ODT entry index
             int32_t *addr_ptr = &OdtEntryAddrTable[e];         // pointer to ODT entry addr offset (signed 32 bit)
             uint8_t *size_ptr = &OdtEntrySizeTable[e];         // pointer to ODT entry size
+#ifdef XCP_ENABLE_DAQ_ADDREXT
+            uint8_t *addr_ext_ptr = &OdtEntryAddrExtTable[e]; // pointer to ODT entry address extension
+#endif
             while (e <= el) {
                 uint8_t n = *size_ptr++;
 #ifdef XCP_ENABLE_TEST_CHECKS
                 assert(n != 0);
 #endif
+#ifdef XCP_ENABLE_DAQ_ADDREXT
+                const uint8_t *src = (const uint8_t *)&base[*addr_ext_ptr++][*addr_ptr++];
+#else
                 const uint8_t *src = (const uint8_t *)&base[*addr_ptr++];
+#endif
                 memcpy(dst, src, n);
                 dst += n;
                 e++;
@@ -2251,10 +2285,16 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
             //   DAQ_HDR_ODT_DAQB: Relative ODT number (BYTE), absolute DAQ list number (BYTE)
             //   DAQ_HDR_ODT_FIL_DAQW: Relative ODT number (BYTE), fill byte, absolute DAQ list number (WORD, aligned)
 #if ODT_HEADER_SIZE == 4
-            CRM_GET_DAQ_PROCESSOR_INFO_DAQ_KEY_BYTE = (uint8_t)(DAQ_HDR_ODT_FIL_DAQW | DAQ_EXT_DAQ);
+            CRM_GET_DAQ_PROCESSOR_INFO_DAQ_KEY_BYTE = DAQ_HDR_ODT_FIL_DAQW;
 #else
-            CRM_GET_DAQ_PROCESSOR_INFO_DAQ_KEY_BYTE = (uint8_t)(DAQ_HDR_ODT_DAQB | DAQ_EXT_DAQ);
+            CRM_GET_DAQ_PROCESSOR_INFO_DAQ_KEY_BYTE = DAQ_HDR_ODT_DAQB;
 #endif
+#ifdef XCP_ENABLE_DAQ_ADDREXT
+            CRM_GET_DAQ_PROCESSOR_INFO_DAQ_KEY_BYTE |= DAQ_EXT_FREE;
+#else
+            CRM_GET_DAQ_PROCESSOR_INFO_DAQ_KEY_BYTE |= DAQ_EXT_DAQ;
+#endif
+
             // Dynamic DAQ list configuration, timestamps, resume and overload indication supported
             // Identification field can not be switched off, bitwise data stimulation not supported, Prescaler not supported
             CRM_GET_DAQ_PROCESSOR_INFO_PROPERTIES = (uint8_t)(
@@ -3356,7 +3396,11 @@ static void XcpPrintDaqList(uint16_t daq) {
         printf("    ODT %u (%u):", i - DaqListFirstOdt(daq), i);
         printf(" firstOdtEntry=%u, lastOdtEntry=%u, size=%u:\n", DaqListOdtTable[i].first_odt_entry, DaqListOdtTable[i].last_odt_entry, DaqListOdtTable[i].size);
         for (int e = DaqListOdtTable[i].first_odt_entry; e <= DaqListOdtTable[i].last_odt_entry; e++) {
+#ifdef XCP_ENABLE_DAQ_ADDREXT
+            printf("      ODT_ENTRY %u (%u): %u:%08X,%u\n", e - DaqListOdtTable[i].first_odt_entry, e, OdtEntryAddrExtTable[e], OdtEntryAddrTable[e], OdtEntrySizeTable[e]);
+#else
             printf("      ODT_ENTRY %u (%u): %08X,%u\n", e - DaqListOdtTable[i].first_odt_entry, e, OdtEntryAddrTable[e], OdtEntrySizeTable[e]);
+#endif
         }
 
     } /* j */

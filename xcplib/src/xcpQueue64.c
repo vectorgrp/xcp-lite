@@ -68,12 +68,12 @@ static_assert(sizeof(void *) == 8, "This implementation requires a 64 Bit platfo
 // The default implementation is a mutex based producer lock, no consumer lock and memory fences between producer and consumer.
 
 // Use a mutex for queue producers, this is the default
-#define QUEUE_MUTEX
+// #define QUEUE_MUTEX
 
 // Use a seq_lock to protect against inconsistency during the entry acquire, the queue is lockfree with minimal spin wait when contention for increasing the head
-// #define QUEUE_SEQ_LOCK
+#define QUEUE_SEQ_LOCK
 
-// Use a spin lock to acquire an entry, not recomended, see test results
+// Use a spin lock to acquire an entry, not recommended, see test results
 // #define QUEUE_SPIN_LOCK
 
 #if !defined(QUEUE_SEQ_LOCK) && !defined(QUEUE_SPIN_LOCK)
@@ -96,7 +96,7 @@ static_assert(sizeof(void *) == 8, "This implementation requires a 64 Bit platfo
 // Note that this tests have significant performance impact, do not turn on for production use !!!!!!!!!!!
 
 // Use a signature at the end of the message to check the commit state, enable for testing purposes ...
-#define QUEUE_SIGNATURE
+// #define QUEUE_SIGNATURE
 
 // #define TEST_LOCK_TIMING
 #ifdef TEST_LOCK_TIMING
@@ -106,15 +106,15 @@ static uint64_t lockTimeSum = 0;
 static uint64_t lockCount = 0;
 #define LOCK_TIME_HISTOGRAM_SIZE 20 // 200us in 10us steps
 #define HISTOGRAM_STEP 10
-static uint64_t lockTimeHistogram[LOCK_TIME_HISTOGRAM_SIZE] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+static uint64_t lockTimeHistogram[LOCK_TIME_HISTOGRAM_SIZE] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 #endif
 
 // #define TEST_SPIN_LOCK
 #ifdef TEST_SPIN_LOCK
 #define SPIN_LOCK_HISTOGRAM_SIZE 100 // Up to 100 loops
 static atomic_uint_least32_t spinLockHistogramm[SPIN_LOCK_HISTOGRAM_SIZE] = {
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 };
 #endif
@@ -124,10 +124,10 @@ static atomic_uint_least32_t spinLockHistogramm[SPIN_LOCK_HISTOGRAM_SIZE] = {
 #define SEQ_LOCK_HISTOGRAM_SIZE 200  // Up to 200 loops
 static uint32_t seqLockMaxLevel = 0; // Maximum queue level reached
 static atomic_uint_least32_t seqLockHistogramm[SEQ_LOCK_HISTOGRAM_SIZE] = {
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 };
 #endif
@@ -138,7 +138,7 @@ Comparison of mutex, spin_lock and seq_lock performance
 
 
 ------------------------------------------------------
-Results for test_multi_thread (on MacBook Pro M3 Pro)
+Results for test_multi_thread on MacBook Pro M3 Pro
 
 const TEST_TASK_COUNT: usize = 64; // Number of test tasks to create
 const TEST_SIGNAL_COUNT: usize = 32; // Number of signals is TEST_SIGNAL_COUNT + 5 for each task
@@ -231,6 +231,30 @@ Consumer spin wait statistics:
 98: 300
 99: 296
 >100: 443960
+
+
+------------------------------------------------------
+Results for test_multi_thread on Raspberry Pi 5
+
+const TEST_TASK_COUNT: usize = 50; // Number of test tasks to create
+const TEST_SIGNAL_COUNT: usize = 32; // Number of signals is TEST_SIGNAL_COUNT + 5 for each task
+const TEST_DURATION_MS: u64 = 10 * 1000; // Stop after TEST_DURATION_MS milliseconds
+const TEST_CYCLE_TIME_US: u32 = 200; // Cycle time in microseconds
+const TEST_QUEUE_SIZE: u32 = 1024 * 256; // Size of the XCP server transmit queue in Bytes
+
+
+Lock timing statistics: lockCount=1891973, maxLockTime=109167ns,  avgLockTime=146ns
+0ns: 1891855
+10ns: 52
+20ns: 8
+30ns: 27
+40ns: 23
+50ns: 4
+70ns: 1
+80ns: 1
+90ns: 1
+100ns: 1
+
 
 */
 
