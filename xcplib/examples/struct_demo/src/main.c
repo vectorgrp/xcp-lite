@@ -19,9 +19,9 @@
 #define OPTION_A2L_FILE_NAME "struct_demo.a2l" // A2L file name
 #define OPTION_USE_TCP false                   // TCP or UDP
 #define OPTION_SERVER_PORT 5555                // Port
-// #define OPTION_SERVER_ADDR {0, 0, 0, 0} // Bind addr, 0.0.0.0 = ANY
-#define OPTION_SERVER_ADDR {127, 0, 0, 1} // Bind addr, 0.0.0.0 = ANY
-#define OPTION_QUEUE_SIZE 1024 * 32       // Size of the measurement queue in bytes, must be a multiple of 8
+#define OPTION_SERVER_ADDR {0, 0, 0, 0}        // Bind addr, 0.0.0.0 = ANY
+// s#define OPTION_SERVER_ADDR {127, 0, 0, 1} // Bind addr, 0.0.0.0 = ANY
+#define OPTION_QUEUE_SIZE 1024 * 32 // Size of the measurement queue in bytes, must be a multiple of 8
 #define OPTION_LOG_LEVEL 4
 
 //-----------------------------------------------------------------------------------------------------
@@ -123,22 +123,22 @@ int main(void) {
         static_struct1_array[i].byte_field = i; // Initialize the array with different values
     }
 
-    // Create a measurement events
-    DaqCreateEvent(event_heap); // Relative heap addressing mode needs an individual event for each pointer
+    // Create measurement events
     DaqCreateEvent(event);
+    DaqCreateEvent(event_heap); // Relative heap addressing mode needs an individual event for each pointer
 
     // Create a A2L measurement variables for the counters
     // Create A2L typedef instances for the structs and the array of structs
 
     // Stack
-    A2lSetStackAddrMode(event_stack); // stack relative addressing mode
+    A2lSetStackAddrMode(event); // stack relative addressing mode
     A2lCreatePhysMeasurement(local_counter, "Stack measurement variable", 1.0, 0.0, "");
     A2lCreateTypedefInstance(local_struct2, struct2_t, "Instance of test_struct2_t");
     A2lCreateTypedefInstance(local_struct1, struct1_t, "Instance of test_struct1_t");
     A2lCreateTypedefArray(local_struct1_array, struct1_t, 8, "Array [10] of struct1_t");
 
     // static/global
-    A2lSetAbsoluteAddrMode(event_global); // absolute addressing mode
+    A2lSetAbsoluteAddrMode(event); // absolute addressing mode
     A2lCreatePhysMeasurement(static_counter, "Global measurement variable ", 1.0, 0.0, "");
     A2lCreateTypedefInstance(static_struct2, struct2_t, "Instance of test_struct2_t");
     A2lCreateTypedefInstance(static_struct1, struct1_t, "Instance of test_struct1_t");
