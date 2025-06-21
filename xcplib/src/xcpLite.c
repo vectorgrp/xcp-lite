@@ -231,7 +231,7 @@ typedef struct {
         // ODT entry size array
         uint8_t odt_entry_size[XCP_DAQ_MEM_SIZE / 1];
 // ODT entry addr extension array
-#if defined(XCP_ENABLE_DAQ_ADDREXT)
+#ifdef XCP_ENABLE_DAQ_ADDREXT
         uint8_t odt_entry_addr_ext[XCP_DAQ_MEM_SIZE / 1];
 #endif
         uint64_t b[XCP_DAQ_MEM_SIZE / 8 + 1];
@@ -325,15 +325,15 @@ static tXcpData gXcp = {0};
 /* Macros                                                                   */
 /****************************************************************************/
 
-/* Shortcuts for gXcp.DaqLists */
+/* Shortcuts for gXcp->DaqLists */
 /* j is absolute odt number */
 /* i is daq number */
+#define DaqListOdtTable ((tXcpOdt *)&gXcp.DaqLists->u.daq_list[gXcp.DaqLists->daq_count])
 #define OdtEntryAddrTable ((int32_t *)&DaqListOdtTable[gXcp.DaqLists->odt_count])
 #define OdtEntrySizeTable ((uint8_t *)&OdtEntryAddrTable[gXcp.DaqLists->odt_entry_count])
 #ifdef XCP_ENABLE_DAQ_ADDREXT
 #define OdtEntryAddrExtTable ((uint8_t *)&OdtEntrySizeTable[gXcp.DaqLists->odt_entry_count])
 #endif
-#define DaqListOdtTable ((tXcpOdt *)&gXcp.DaqLists->u.daq_list[gXcp.DaqLists->daq_count])
 #define DaqListOdtEntryCount(j) ((DaqListOdtTable[j].last_odt_entry - DaqListOdtTable[j].first_odt_entry) + 1)
 #define DaqListOdtCount(i) ((gXcp.DaqLists->u.daq_list[i].last_odt - gXcp.DaqLists->u.daq_list[i].first_odt) + 1)
 #define DaqListLastOdt(i) gXcp.DaqLists->u.daq_list[i].last_odt
@@ -1157,9 +1157,6 @@ static uint8_t XcpCheckMemory(void) {
     assert(((uint64_t)&DaqListOdtTable[0] % 4) == 0);   // Check alignment
     assert(((uint64_t)&OdtEntryAddrTable[0] % 4) == 0); // Check alignment
     assert(((uint64_t)&OdtEntrySizeTable[0] % 4) == 0); // Check alignment
-#if defined(XCP_ENABLE_DAQ_ADDREXT)
-    assert(((uint64_t)&OdtEntryAddrExtTable[0] % 4) == 0); // Check alignment
-#endif
 #endif
 
     DBG_PRINTF5("[XcpCheckMemory] %u of %u Bytes used\n", s, XCP_DAQ_MEM_SIZE);
@@ -1343,7 +1340,7 @@ static uint8_t XcpAddOdtEntry(uint32_t addr, uint8_t ext, uint8_t size) {
 
     OdtEntrySizeTable[gXcp.WriteDaqOdtEntry] = size;
     OdtEntryAddrTable[gXcp.WriteDaqOdtEntry] = base_offset; // Signed 32 bit offset relative to base pointer given to XcpEvent
-#if defined(XCP_ENABLE_DAQ_ADDREXT)
+#ifdef XCP_ENABLE_DAQ_ADDREXT
     OdtEntryAddrExtTable[gXcp.WriteDaqOdtEntry] = ext;
 #endif
     if (!XcpAdjustOdtSize(gXcp.WriteDaqDaq, gXcp.WriteDaqOdt, size))
@@ -1376,7 +1373,7 @@ static uint8_t XcpSetDaqListMode(uint16_t daq, uint16_t event, uint8_t mode, uin
         return CRC_DAQ_CONFIG; // Error event not unique
 
     // Check all DAQ lists with same event have the same address extension
-    // @@@@ TODO: This restriction is not indicated in GET_DAQ_PROPERTIES
+    // @@@@ TODO: This restriction is not compliant to the XCP standard, must be ensured in the tool or the API
 #ifndef XCP_ENABLE_DAQ_ADDREXT
     uint8_t ext = DaqListAddrExt(daq);
     for (uint16_t daq0 = 0; daq0 < gXcp.DaqLists->daq_count; daq0++) {
@@ -1646,13 +1643,45 @@ static void XcpTriggerDaqList(tQueueHandle queueHandle, uint16_t daq, const uint
 
 // Trigger event
 // DAQ must be running
-static void XcpTriggerDaqEventAt(tQueueHandle queueHandle, tXcpEventId event, const uint8_t *dyn_rel_base, uint64_t clock) {
+static void XcpTriggerDaqEvent(tQueueHandle queueHandle, tXcpEventId event, const uint8_t *dyn_rel_base, uint64_t clock) {
 
     uint16_t daq;
-    const uint8_t *base_addr;
 
+    // No DAQ lists allocated
+    if (gXcp.DaqLists == NULL)
+        return;
+
+    // DAQ not running
+    if (!isDaqRunning())
+        return;
+
+    // Event is invalid
+    if (event >= XCP_MAX_EVENT_COUNT) {
+        DBG_PRINTF_ERROR("Event %u out of range\n", event);
+        return;
+    }
+
+    // Get clock, if not given as parameter
     if (clock == 0)
         clock = ApplXcpGetClock64();
+
+    // @@@@ TODO: Don't forced to use XCP_ENABLE_DAQ_ADDREXT as a workaround, this needs 20% more DAQ memory
+    // Unique address extension per DAQ list is currently not assured by CANape, this is a known issue
+    // The API may rely on the convenient ability to measure absolute and relative ODT entries with the same event
+
+    // Build base pointers for each addressing mode
+#ifdef XCP_ENABLE_DAQ_ADDREXT
+    const uint8_t *base_addr[4] = {NULL, NULL, NULL, NULL}; // Base address for each addressing mode
+#ifdef XCP_ENABLE_ABS_ADDRESSING
+    static_assert(XCP_ADDR_EXT_ABS < 4, "XCP_ADDR_EXT_ABS must be less than 4");
+    base_addr[XCP_ADDR_EXT_ABS] = ApplXcpGetBaseAddr(); // Absolute address base
+#endif
+    // Relative addressing mode, the difference is unimportant here
+    static_assert(XCP_ADDR_EXT_REL < 4, "XCP_ADDR_EXT_REL must be less than 4");
+    static_assert(XCP_ADDR_EXT_DYN < 4, "XCP_ADDR_EXT_DYN must be less than 4");
+    base_addr[XCP_ADDR_EXT_REL] = dyn_rel_base;
+    base_addr[XCP_ADDR_EXT_DYN] = dyn_rel_base;
+#endif
 
 #ifndef XCP_MAX_EVENT_COUNT
 
@@ -1663,15 +1692,20 @@ static void XcpTriggerDaqEventAt(tQueueHandle queueHandle, tXcpEventId event, co
         if (DaqListEventChannel(daq) != event)
             continue; // DAQ list not associated with this event
 
+        // Build base pointer for this DAQ list
+#ifndef XCP_ENABLE_DAQ_ADDREXT
+        const uint8_t *base_addr;
 #ifdef XCP_ENABLE_ABS_ADDRESSING
         if (DaqListAddrExt(daq) == XCP_ADDR_EXT_ABS) {
+            // Absolute addressing mode for this DAQ list, base pointer is ApplXcpGetBaseAddr()
             base_addr = ApplXcpGetBaseAddr();
         } else
 #endif
         {
-            assert(DaqListAddrExt(daq) == XCP_ADDR_EXT_DYN || DaqListAddrExt(daq) == XCP_ADDR_EXT_REL);
+            // Relative addressing mode, base pointer is given as parameter
             base_addr = dyn_rel_base;
         }
+#endif
 
         XcpTriggerDaqList(daq_lists, queueHandle, daq, base_addr, clock); // Trigger DAQ list
     } /* daq */
@@ -1689,15 +1723,20 @@ static void XcpTriggerDaqEventAt(tQueueHandle queueHandle, tXcpEventId event, co
 #endif
         if (DaqListState(daq) & DAQ_STATE_RUNNING) { // DAQ list active
 
+            // Build base pointer for this DAQ list
+#ifndef XCP_ENABLE_DAQ_ADDREXT
+            const uint8_t *base_addr;
 #ifdef XCP_ENABLE_ABS_ADDRESSING
             if (DaqListAddrExt(daq) == XCP_ADDR_EXT_ABS) {
+                // Absolute addressing mode for this DAQ list, base pointer is ApplXcpGetBaseAddr()
                 base_addr = ApplXcpGetBaseAddr();
             } else
 #endif
             {
-                assert(DaqListAddrExt(daq) == XCP_ADDR_EXT_DYN || DaqListAddrExt(daq) == XCP_ADDR_EXT_REL);
+                // Relative addressing mode, base pointer is given as parameter
                 base_addr = dyn_rel_base;
             }
+#endif
 
             XcpTriggerDaqList(queueHandle, daq, base_addr, clock); // Trigger DAQ list
         }
@@ -1706,28 +1745,29 @@ static void XcpTriggerDaqEventAt(tQueueHandle queueHandle, tXcpEventId event, co
 #endif
 }
 
-// ABS addressing mode event with clock
-// Base is ApplXcpGetBaseAddr()
+// ABS addressing mode event at a given clock
+// Base for ADDR_EXT_ABS is ApplXcpGetBaseAddr()
 #ifdef XCP_ENABLE_ABS_ADDRESSING
 void XcpEventAt(tXcpEventId event, uint64_t clock) {
     if (!isDaqRunning())
         return; // DAQ not running
-    XcpTriggerDaqEventAt(gXcp.Queue, event, NULL, clock);
+    XcpTriggerDaqEvent(gXcp.Queue, event, NULL, clock);
 }
 #endif
 
 // ABS addressing mode event
-// Base is ApplXcpGetBaseAddr()
+// Base for ADDR_EXT_ABS is ApplXcpGetBaseAddr()
 #ifdef XCP_ENABLE_ABS_ADDRESSING
 void XcpEvent(tXcpEventId event) {
     if (!isDaqRunning())
         return; // DAQ not running
-    XcpTriggerDaqEventAt(gXcp.Queue, event, NULL, 0);
+    XcpTriggerDaqEvent(gXcp.Queue, event, NULL, 0);
 }
 #endif
 
-// Dyn addressing mode event
-// Base is given as parameter
+// Dyn addressing mode event at a given clock
+// Base for ADDR_EXT_REL and ADDR_EXT_DYN is given as parameter
+// Base for ADDR_EXT_ABS is ApplXcpGetBaseAddr()
 uint8_t XcpEventExtAt(tXcpEventId event, const uint8_t *base, uint64_t clock) {
 
     // Cal
@@ -1762,12 +1802,15 @@ uint8_t XcpEventExtAt(tXcpEventId event, const uint8_t *base, uint64_t clock) {
     // Daq
     if (!isDaqRunning())
         return CRC_CMD_OK; // DAQ not running
-    XcpTriggerDaqEventAt(gXcp.Queue, event, base, clock);
+    XcpTriggerDaqEvent(gXcp.Queue, event, base, clock);
     return CRC_CMD_OK;
 }
 
+// Trigger an event with given base base address for ADDR_EXT_DYN and ADDR_EXT_REL
 uint8_t XcpEventExt(tXcpEventId event, const uint8_t *base) { return XcpEventExtAt(event, base, 0); }
 
+// Trigger an event
+// Convenience function when the event address is the base address
 uint8_t XcpEventDyn(tXcpEventId *event) { return XcpEventExtAt(*event, (uint8_t *)event, 0); }
 
 /****************************************************************************/

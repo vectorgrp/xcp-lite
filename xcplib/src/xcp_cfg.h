@@ -33,6 +33,9 @@
 /*----------------------------------------------------------------------------*/
 /* Address, address extension coding */
 
+// Enable individual address extensions for each ODT entry, otherwise address extension must be unique for each DAQ list
+// #define XCP_ENABLE_DAQ_ADDREXT
+
 // Use addr_ext XCP_ADDR_EXT_REL to indicate relative addr format offset as uint64
 #define XCP_ENABLE_REL_ADDRESSING
 #define XCP_ADDR_EXT_REL 0x03 // Event relative address format
