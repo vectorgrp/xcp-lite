@@ -10,7 +10,7 @@ PrgDate=29.04.2025
 Description=
 CreationTime=21:05
 CreationDate=07/07/2024 ; Month/Day/Year
-ModificationTime=14:18
+ModificationTime=18:41
 ModificationDate=06/21/2025 ; Month/Day/Year
 Protected=0
 CurrentWindowsACP=1252
@@ -1234,8 +1234,8 @@ WindowTextExtended=1
 WindowTextExtendedNew=1
 WindowSymbols=1
 GlobalCursor=1
-GlobalCursorTime=2969
-GlobalCursorTimeNs=2969445458
+GlobalCursorTime=1711
+GlobalCursorTimeNs=1711513291
 MainWindowPos=1, 152, 86, 2726, 1493 ;cmd, x, y, w, h
 
 [PAR_COMMENT]
@@ -1491,7 +1491,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_2c094de6-1914-4783-b14c-648c86bc364a
+GUID=DISPLAY_484eb368-4892-41af-a8c8-aa12789866a1
 
 [WINDOW_1_OBJECT_2]
 Type=2
@@ -1540,7 +1540,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_d4abed94-c11c-4b9c-8789-21893e9b8f0b
+GUID=DISPLAY_bd77bdc6-c5f1-4dc4-8aee-0cf7c5403a35
 
 [WINDOW_1_OBJECT_3]
 Type=2
@@ -1589,7 +1589,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_91b36fee-2f78-40b3-9b64-3822c6e0182f
+GUID=DISPLAY_bf9a88ca-cadf-4311-b5f7-d94f3c895f58
 
 [WINDOW_1_OBJECT_4]
 Type=2
@@ -1638,7 +1638,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_d4c19bd6-8b99-45b6-abc4-981263415b31
+GUID=DISPLAY_dc4139cb-6ed8-4a50-86d1-f92216a24e9d
 
 [WINDOW_1_OBJECT_5]
 Type=2
@@ -1687,7 +1687,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_9713b6f4-c5a7-49c3-8ebe-ecb7e072a1e5
+GUID=DISPLAY_cad60283-2966-486a-8460-a153ad6e69db
 
 [WINDOW_2]
 ComponentCount=1
@@ -1709,8 +1709,8 @@ DisplayMask=1 ; pages 1
 XLen=5432
 XMin=0
 XMinNs=0
-XMax=37526
-XMaxNs=37526931996
+XMax=23409
+XMaxNs=23409070015
 Grid=1
 Mark=1
 YValue=2
@@ -1744,7 +1744,7 @@ YAxisDynScaleEnabled=0
 YAxisDynScaleEnlarge=25
 TimeStickToZero=0
 XYModeRedrawEnabled=0
-MARKER_TIME_1=2969445458
+MARKER_TIME_1=1711513291
 MARKER_TIME_2=1945292750
 OscilloscopeEnabled=0
 OsciEventCount=0
@@ -2218,7 +2218,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_98228f84-1c6a-4cbd-ab9c-84919cbf986d
+GUID=DISPLAY_ac09ceff-9c41-4fa7-babc-76b2e2d7aa67
 
 [WINDOW_8_OBJECT_2]
 Type=2
@@ -2267,7 +2267,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_4c60a42a-87a9-4008-be56-d78bf1e6ccc9
+GUID=DISPLAY_12e64344-79e4-410f-93d6-8bbaa6e10d1e
 
 [WINDOW_8_OBJECT_3]
 Type=2
@@ -2316,7 +2316,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_fb65d8bc-d1e1-46d9-ad22-5e73841f91f9
+GUID=DISPLAY_71a27a81-7288-4895-ba21-50efd52da838
 
 [WINDOW_8_OBJECT_4]
 Type=2
@@ -2365,7 +2365,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_ea0f52fb-5856-41bf-88c5-2e2a852afb02
+GUID=DISPLAY_817d1f0f-9380-484a-b502-bcb528057c85
 
 [WINDOW_8_OBJECT_5]
 Type=2
@@ -2414,7 +2414,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_e167b881-3282-4d2c-bb50-086eb07f1ceb
+GUID=DISPLAY_2cd6ff21-0efb-41d9-bd74-713ed83e0772
 
 [WINDOW_8_OBJECT_6]
 Type=2
@@ -2463,7 +2463,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_604ebb67-1e76-4ea9-a2fa-3c582a3ea8e8
+GUID=DISPLAY_177c8996-eb67-4d54-888a-3ca0bf42e6ca
 
 [WINDOW_9]
 Title=
