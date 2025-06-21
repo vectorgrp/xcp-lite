@@ -2822,17 +2822,17 @@ void XcpPrint(const char *str) {
     if (!isConnected())
         return;
 
-    uint16_t l = (uint16_t)strlen(str);
+    uint16_t l = (uint16_t)strnlen(str, XCPTL_MAX_CTO_SIZE - 4);
     tQueueBuffer queueBuffer = QueueAcquire(gXcp.Queue, l + 4);
-    tXcpCto *crm = (tXcpCto *)queueBuffer.buffer;
+    uint8_t *crm = queueBuffer.buffer;
     if (crm != NULL) {
-        crm->b[0] = PID_SERV; /* Event */
-        crm->b[1] = 0x01;     /* Eventcode SERV_TEXT */
+        crm[0] = PID_SERV; /* Event */
+        crm[1] = 0x01;     /* Eventcode SERV_TEXT */
         uint8_t i;
         for (i = 0; i < l && i < XCPTL_MAX_CTO_SIZE - 4; i++)
-            crm->b[i + 2] = (uint8_t)str[i];
-        crm->b[i + 2] = '\n';
-        crm->b[i + 3] = 0;
+            crm[i + 2] = (uint8_t)str[i];
+        crm[i + 2] = '\n';
+        crm[i + 3] = 0;
         QueuePush(gXcp.Queue, &queueBuffer, true);
     } else { // Queue overflow
         DBG_PRINT_WARNING("WARNING: queue overflow\n");

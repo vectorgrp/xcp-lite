@@ -68,10 +68,10 @@ static_assert(sizeof(void *) == 8, "This implementation requires a 64 Bit platfo
 // The default implementation is a mutex based producer lock, no consumer lock and memory fences between producer and consumer.
 
 // Use a mutex for queue producers, this is the default
-// #define QUEUE_MUTEX
+#define QUEUE_MUTEX
 
 // Use a seq_lock to protect against inconsistency during the entry acquire, the queue is lockfree with minimal spin wait when contention for increasing the head
-#define QUEUE_SEQ_LOCK
+// #define QUEUE_SEQ_LOCK
 
 // Use a spin lock to acquire an entry, not recommended, see test results
 // #define QUEUE_SPIN_LOCK
@@ -639,6 +639,7 @@ void QueuePush(tQueueHandle queueHandle, tQueueBuffer *const queueBuffer, bool f
         atomic_store_explicit(&queue->h.flush, true, memory_order_relaxed); // Set flush flag, used by the consumer to priorize packets
     }
 
+    assert(queueBuffer != NULL);
     assert(queueBuffer->buffer != NULL);
     tXcpDtoMessage *entry = (tXcpDtoMessage *)(queueBuffer->buffer - XCPTL_TRANSPORT_LAYER_HEADER_SIZE);
 
@@ -798,15 +799,15 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
     // Check the entry commit state
 #ifndef QUEUE_SIGNATURE
     uint32_t ctr_dlc = atomic_load_explicit(&first_entry->ctr_dlc, memory_order_acquire);
-    uint16_t dlc = ctr_dlc & 0xFFFF;          // Transport layer packet data length
-    uint16_t ctr = (uint16_t)(ctr_dlc >> 16); // Transport layer counter
-    uint8_t tag = first_entry->data[1];       // Reserved byte in the XCP DTO message header (daq,res,odt)
+    uint16_t dlc = ctr_dlc & 0xFFFF;                                             // Transport layer packet data length
+    uint16_t ctr = (uint16_t)(ctr_dlc >> 16);                                    // Transport layer counter
+    bool check = (first_entry->data[1] == 0xAA || first_entry->data[0] >= 0xFC); // Check packet content is DAQ or EVENT
     uint32_t sig = ((uint32_t)ctr << 16) | (uint32_t)ctr;
 #else
     // Note that dlc is already valid in reserved state
     uint16_t dlc = first_entry->dlc;                                                                                 // Transport layer packet data length
     uint32_t sig = atomic_load_explicit((atomic_uint_least32_t *)&first_entry->data[dlc - 4], memory_order_acquire); // sig at the end of the data buffer
-    uint8_t tag = first_entry->data[1];                                                                              // Reserved byte in the XCP DTO message header (daq,res,odt)
+    bool ok = (entry->data[1] == 0xAA || entry->data[0] >= 0xFC);
     uint16_t ctr = first_entry->ctr;
 #endif
 
@@ -816,8 +817,8 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
         // An entry is consistent, if it is either in reserved or committed state
         if ((ctr != CTR_RESERVED && ctr != CTR_COMMITTED) || (sig != SIG_RESERVED && sig != SIG_COMMITTED)) {
             DBG_PRINTF_ERROR("QueuePeek initial: lock failure, inconsistent reservation state - head=%" PRIu64 ", tail=%" PRIu64
-                             ", level=%u, entry: (dlc=0x%04X, ctr=0x%04X, tag=0x%02X, sig=0x%08X)\n",
-                             head, tail, level, dlc, ctr, tag, sig);
+                             ", level=%u, entry: (dlc=0x%04X, ctr=0x%04X, sig=0x%08X)\n",
+                             head, tail, level, dlc, ctr, sig);
             assert(false); // Fatal error, inconsistent state
         }
 
@@ -831,10 +832,10 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
 
     // This should never fail
     // An committed entry must have a valid length and an XCP ODT in it
-    if (!((ctr == CTR_COMMITTED) && (dlc > 0) && (dlc <= XCPTL_MAX_DTO_SIZE) && (tag == 0xAA))) {
+    if (!((ctr == CTR_COMMITTED) && (dlc > 0) && (dlc <= XCPTL_MAX_DTO_SIZE) && check)) {
         DBG_PRINTF_ERROR("QueuePeek initial: fatal: inconsistent commited state - head=%" PRIu64 ", tail=%" PRIu64
-                         ", level=%u, entry: (dlc=0x%04X, ctr=0x%04X, tag=0x%02X, sig=0x%08X)\n",
-                         head, tail, level, dlc, ctr, tag, sig);
+                         ", level=%u, entry: (dlc=0x%04X, ctr=0x%04X, res=0x%02X, sig=0x%08X)\n",
+                         head, tail, level, dlc, ctr, first_entry->data[1], sig);
 
         assert(false); // Fatal error, corrupt committed state
         tQueueBuffer ret = {
@@ -882,13 +883,13 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
         uint32_t ctr_dlc = atomic_load_explicit(&entry->ctr_dlc, memory_order_acquire);
         uint16_t dlc = ctr_dlc & 0xFFFF;          // Transport layer packet data length
         uint16_t ctr = (uint16_t)(ctr_dlc >> 16); // Transport layer counter
-        uint8_t tag = entry->data[1];             // Reserved byte in the XCP DTO message header (daq,res,odt)
+        bool check = (entry->data[1] == 0xAA || entry->data[0] >= 0xFC);
         uint32_t sig = ((uint32_t)ctr << 16) | (uint32_t)ctr;
 #else
         // Note that dlc is allready valid in reserved state
         uint16_t dlc = entry->dlc;                                                                                 // Transport layer packet data length
         uint32_t sig = atomic_load_explicit((atomic_uint_least32_t *)&entry->data[dlc - 4], memory_order_acquire); // sig at the end of the data buffer
-        uint8_t tag = entry->data[1];                                                                              // Reserved byte in the XCP DTO message header (daq,res,odt)
+        bool check = (entry->data[1] == 0xAA || entry->data[0] >= 0xFC);
         uint16_t ctr = entry->ctr;
 #endif
 
@@ -897,8 +898,8 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
             // This should never happen
             if ((ctr != CTR_RESERVED && ctr != CTR_COMMITTED) || (sig != SIG_RESERVED && sig != SIG_COMMITTED)) {
                 DBG_PRINTF_ERROR("QueuePeek accumul: lock failure, inconsistent reservation state - head=%" PRIu64 ", tail=%" PRIu64
-                                 ", level=%u, entry: (dlc=0x%04X, ctr=0x%04X, tag=0x%02X, sig=0x%08X)\n",
-                                 head, tail, level, dlc, ctr, tag, sig);
+                                 ", level=%u, entry: (dlc=0x%04X, ctr=0x%04X, sig=0x%08X)\n",
+                                 head, tail, level, dlc, ctr, sig);
                 assert(false);
             }
 
@@ -907,10 +908,10 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
         }
 
         // Check consistency, this should never fail
-        if (!((ctr == CTR_COMMITTED) && (dlc > 0) && (dlc <= XCPTL_MAX_DTO_SIZE) && (tag == 0xAA))) {
+        if (!((ctr == CTR_COMMITTED) && (dlc > 0) && (dlc <= XCPTL_MAX_DTO_SIZE) && check)) {
             DBG_PRINTF_ERROR("QueuePeek accumul: fatal: inconsistent commited state - head=%" PRIu64 ", tail=%" PRIu64
-                             ", level=%u, entry: (dlc=0x%04X, ctr=0x%04X, tag=0x%02X, sig=0x%08X)\n",
-                             head, tail, level, dlc, ctr, tag, sig);
+                             ", level=%u, entry: (dlc=0x%04X, ctr=0x%04X, res=0x%02X, sig=0x%08X)\n",
+                             head, tail, level, dlc, ctr, entry->data[1], sig);
             assert(false); // Fatal error, corrupt committed state
             break;
         }
