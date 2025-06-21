@@ -689,7 +689,7 @@ void A2lSetAbsoluteAddrMode_(const char *event_name) {
     }
     gAl2AddrExt = XCP_ADDR_EXT_ABS;
     A2lSetFixedEvent(event);
-    fprintf(gA2lFile, "\n/* Absolute addressing mode: event=%s (%u), addr_ext=%u, addr_base=%p */\n", event_name, event, gAl2AddrExt, (void *)gA2lAddrBase);
+    fprintf(gA2lFile, "\n/* Absolute addressing mode: event=%s (%u), addr_ext=%u, addr_base=%p */\n", event_name, event, gAl2AddrExt, (void *)ApplXcpGetBaseAddr());
 }
 
 //----------------------------------------------------------------------------------
