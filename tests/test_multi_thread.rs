@@ -28,7 +28,7 @@ const TEST_DAQ: xcp_test_executor::TestModeDaq = xcp_test_executor::TestModeDaq:
 const TEST_TASK_COUNT: usize = 50; // Number of test tasks to create
 const TEST_SIGNAL_COUNT: usize = 32; // Number of signals is TEST_SIGNAL_COUNT + 5 for each task
 const TEST_DURATION_MS: u64 = 10 * 1000; // Stop after TEST_DURATION_MS milliseconds
-const TEST_CYCLE_TIME_US: u32 = 100; // Cycle time in microseconds
+const TEST_CYCLE_TIME_US: u32 = 200; // Cycle time in microseconds
 const TEST_QUEUE_SIZE: u32 = 1024 * 256; // Size of the XCP server transmit queue in Bytes
 
 //-----------------------------------------------------------------------------

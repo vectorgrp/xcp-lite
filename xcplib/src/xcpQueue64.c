@@ -68,12 +68,12 @@ static_assert(sizeof(void *) == 8, "This implementation requires a 64 Bit platfo
 // The default implementation is a mutex based producer lock, no consumer lock and memory fences between producer and consumer.
 
 // Use a mutex for queue producers, this is the default
-#define QUEUE_MUTEX
+// #define QUEUE_MUTEX
 
 // Use a seq_lock to protect against inconsistency during the entry acquire, the queue is lockfree with minimal spin wait when contention for increasing the head
-// #define QUEUE_SEQ_LOCK
+#define QUEUE_SEQ_LOCK
 
-// Use a spin lock to acquire an entry, not recomended, see test results
+// Use a spin lock to acquire an entry, not recommended, see test results
 // #define QUEUE_SPIN_LOCK
 
 #if !defined(QUEUE_SEQ_LOCK) && !defined(QUEUE_SPIN_LOCK)
@@ -83,7 +83,7 @@ static_assert(sizeof(void *) == 8, "This implementation requires a 64 Bit platfo
 // Accumulate XCP packets to multiple XCP messages in a segment obtained with QueuePeek
 #define QUEUE_ACCUMULATE_PACKETS // Accumulate XCP packets to multiple XCP messages obtained with QueuePeek
 
-// Wait for at least QUEUE_PEEK_THRESHOLD bytes in the queue before returning a segmentto optimize efficiency
+// Wait for at least QUEUE_PEEK_THRESHOLD bytes in the queue before returning a segment, to optimize efficiency
 // #define QUEUE_PEEK_THRESHOLD XCPTL_MAX_SEGMENT_SIZE
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -95,9 +95,6 @@ static_assert(sizeof(void *) == 8, "This implementation requires a 64 Bit platfo
 //
 // Note that this tests have significant performance impact, do not turn on for production use !!!!!!!!!!!
 
-// Use a signature at the end of the message to check the commit state, enable for testing purposes ...
-#define QUEUE_SIGNATURE
-
 // #define TEST_LOCK_TIMING
 #ifdef TEST_LOCK_TIMING
 static MUTEX lockMutex = MUTEX_INTIALIZER;
@@ -106,15 +103,15 @@ static uint64_t lockTimeSum = 0;
 static uint64_t lockCount = 0;
 #define LOCK_TIME_HISTOGRAM_SIZE 20 // 200us in 10us steps
 #define HISTOGRAM_STEP 10
-static uint64_t lockTimeHistogram[LOCK_TIME_HISTOGRAM_SIZE] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+static uint64_t lockTimeHistogram[LOCK_TIME_HISTOGRAM_SIZE] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 #endif
 
 // #define TEST_SPIN_LOCK
 #ifdef TEST_SPIN_LOCK
 #define SPIN_LOCK_HISTOGRAM_SIZE 100 // Up to 100 loops
 static atomic_uint_least32_t spinLockHistogramm[SPIN_LOCK_HISTOGRAM_SIZE] = {
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 };
 #endif
@@ -124,10 +121,10 @@ static atomic_uint_least32_t spinLockHistogramm[SPIN_LOCK_HISTOGRAM_SIZE] = {
 #define SEQ_LOCK_HISTOGRAM_SIZE 200  // Up to 200 loops
 static uint32_t seqLockMaxLevel = 0; // Maximum queue level reached
 static atomic_uint_least32_t seqLockHistogramm[SEQ_LOCK_HISTOGRAM_SIZE] = {
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 };
 #endif
@@ -138,7 +135,7 @@ Comparison of mutex, spin_lock and seq_lock performance
 
 
 ------------------------------------------------------
-Results for test_multi_thread (on MacBook Pro M3 Pro)
+Results for test_multi_thread on MacBook Pro M3 Pro
 
 const TEST_TASK_COUNT: usize = 64; // Number of test tasks to create
 const TEST_SIGNAL_COUNT: usize = 32; // Number of signals is TEST_SIGNAL_COUNT + 5 for each task
@@ -232,16 +229,36 @@ Consumer spin wait statistics:
 99: 296
 >100: 443960
 
+
+------------------------------------------------------
+Results for test_multi_thread on Raspberry Pi 5
+
+const TEST_TASK_COUNT: usize = 50; // Number of test tasks to create
+const TEST_SIGNAL_COUNT: usize = 32; // Number of signals is TEST_SIGNAL_COUNT + 5 for each task
+const TEST_DURATION_MS: u64 = 10 * 1000; // Stop after TEST_DURATION_MS milliseconds
+const TEST_CYCLE_TIME_US: u32 = 200; // Cycle time in microseconds
+const TEST_QUEUE_SIZE: u32 = 1024 * 256; // Size of the XCP server transmit queue in Bytes
+
+
+Lock timing statistics: lockCount=1891973, maxLockTime=109167ns,  avgLockTime=146ns
+0ns: 1891855
+10ns: 52
+20ns: 8
+30ns: 27
+40ns: 23
+50ns: 4
+70ns: 1
+80ns: 1
+90ns: 1
+100ns: 1
+
+
 */
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
 
 // Check preconditions
-#ifdef QUEUE_SIGNATURE
-#define MAX_ENTRY_SIZE (XCPTL_MAX_DTO_SIZE + XCPTL_TRANSPORT_LAYER_HEADER_SIZE + 4)
-#else
 #define MAX_ENTRY_SIZE (XCPTL_MAX_DTO_SIZE + XCPTL_TRANSPORT_LAYER_HEADER_SIZE)
-#endif
 #if (MAX_ENTRY_SIZE % XCPTL_PACKET_ALIGNMENT) != 0
 #error "MAX_ENTRY_SIZE should be aligned to XCPTL_PACKET_ALIGNMENT"
 #endif
@@ -258,12 +275,7 @@ static_assert(sizeof(atomic_uint_least32_t) == 4, "atomic_uint_least32_t must be
 // Transport layer message header
 #pragma pack(push, 1)
 typedef struct {
-#ifndef QUEUE_SIGNATURE
-    /* alignas(XCPTL_PACKET_ALIGNMENT)*/ atomic_uint_least32_t ctr_dlc;
-#else
-    uint16_t dlc; // XCP TL header lenght
-    uint16_t ctr; // XCP TL Header message counter
-#endif
+    atomic_uint_least32_t ctr_dlc;
     uint8_t data[];
 } tXcpDtoMessage;
 #pragma pack(pop)
@@ -466,9 +478,7 @@ tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint16_t packet_len) {
     msg_len = (uint16_t)((msg_len + 7) & 0xFFF8); // Add fill %8
 #error "XCPTL_PACKET_ALIGNMENT == 8 is not supported, use 4"
 #endif
-#ifdef QUEUE_SIGNATURE
-    msg_len += 4; // Add 4 bytes for the signature at the end of the message
-#endif
+
     assert(msg_len <= MAX_ENTRY_SIZE);
 
 #ifdef TEST_LOCK_TIMING
@@ -487,13 +497,7 @@ tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint16_t packet_len) {
     uint64_t head = atomic_load_explicit(&queue->h.head, memory_order_acquire);
     if (queue->h.queue_size - msg_len >= head - tail) {
         entry = (tXcpDtoMessage *)(queue->buffer + (head % queue->h.queue_size));
-#ifndef QUEUE_SIGNATURE
         atomic_store_explicit(&entry->ctr_dlc, (CTR_RESERVED << 16) | (uint32_t)(msg_len - XCPTL_TRANSPORT_LAYER_HEADER_SIZE), memory_order_release);
-#else
-        entry->ctr = CTR_RESERVED;
-        entry->dlc = msg_len - XCPTL_TRANSPORT_LAYER_HEADER_SIZE;
-        atomic_store_explicit((atomic_uint_least32_t *)&entry->data[entry->dlc - 4], SIG_RESERVED, memory_order_release);
-#endif
         atomic_store_explicit(&queue->h.head, head + msg_len, memory_order_release);
     }
     spinUnlock(&queue->h.spin_lock); // Release the spin lock
@@ -522,13 +526,7 @@ tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint16_t packet_len) {
         // Compare exchange weak, false negative ok
         if (atomic_compare_exchange_weak_explicit(&queue->h.head, &head, head + msg_len, memory_order_acq_rel, memory_order_acquire)) {
             entry = (tXcpDtoMessage *)(queue->buffer + (head % queue->h.queue_size));
-#ifndef QUEUE_SIGNATURE
             atomic_store_explicit(&entry->ctr_dlc, (CTR_RESERVED << 16) | (uint32_t)(msg_len - XCPTL_TRANSPORT_LAYER_HEADER_SIZE), memory_order_release);
-#else
-            entry->ctr = CTR_RESERVED;
-            entry->dlc = msg_len - XCPTL_TRANSPORT_LAYER_HEADER_SIZE;
-            atomic_store_explicit((atomic_uint_least32_t *)&entry->data[entry->dlc - 4], SIG_RESERVED, memory_order_release);
-#endif
             break;
         }
 
@@ -556,13 +554,7 @@ tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint16_t packet_len) {
     assert(head >= tail);
     if (queue->h.queue_size - msg_len >= head - tail) {
         entry = (tXcpDtoMessage *)(queue->buffer + (head % queue->h.queue_size));
-#ifndef QUEUE_SIGNATURE
         atomic_store_explicit(&entry->ctr_dlc, (CTR_RESERVED << 16) | (uint32_t)(msg_len - XCPTL_TRANSPORT_LAYER_HEADER_SIZE), memory_order_release);
-#else
-        entry->ctr = CTR_RESERVED;
-        entry->dlc = msg_len - XCPTL_TRANSPORT_LAYER_HEADER_SIZE;
-        atomic_store_explicit((atomic_uint_least32_t *)&entry->data[entry->dlc - 4], SIG_RESERVED, memory_order_release);
-#endif
         atomic_store_explicit(&queue->h.head, head + msg_len, memory_order_release);
     }
 
@@ -615,17 +607,13 @@ void QueuePush(tQueueHandle queueHandle, tQueueBuffer *const queueBuffer, bool f
         atomic_store_explicit(&queue->h.flush, true, memory_order_relaxed); // Set flush flag, used by the consumer to priorize packets
     }
 
+    assert(queueBuffer != NULL);
     assert(queueBuffer->buffer != NULL);
     tXcpDtoMessage *entry = (tXcpDtoMessage *)(queueBuffer->buffer - XCPTL_TRANSPORT_LAYER_HEADER_SIZE);
 
     // Go to commit state
     // Complete data is then visible to the consumer
-#ifndef QUEUE_SIGNATURE
     atomic_store_explicit(&entry->ctr_dlc, (CTR_COMMITTED << 16) | (uint32_t)(queueBuffer->size - XCPTL_TRANSPORT_LAYER_HEADER_SIZE), memory_order_release);
-#else
-    entry->ctr = CTR_COMMITTED;
-    atomic_store_explicit((atomic_uint_least32_t *)&entry->data[entry->dlc - 4], SIG_COMMITTED, memory_order_release);
-#endif
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -772,28 +760,16 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
     first_entry = (tXcpDtoMessage *)(queue->buffer + first_offset);
 
     // Check the entry commit state
-#ifndef QUEUE_SIGNATURE
-    uint32_t ctr_dlc = atomic_load_explicit(&first_entry->ctr_dlc, memory_order_acquire);
-    uint16_t dlc = ctr_dlc & 0xFFFF;    // Transport layer packet data length
-    uint16_t ctr = ctr_dlc >> 16;       // Transport layer counter
-    uint8_t tag = first_entry->data[1]; // Reserved byte in the XCP DTO message header (daq,res,odt)
-    uint32_t sig = ((uint32_t)ctr << 16) | (uint32_t)ctr;
-#else
-    // Note that dlc is already valid in reserved state
-    uint16_t dlc = first_entry->dlc;                                                                                 // Transport layer packet data length
-    uint32_t sig = atomic_load_explicit((atomic_uint_least32_t *)&first_entry->data[dlc - 4], memory_order_acquire); // sig at the end of the data buffer
-    uint8_t tag = first_entry->data[1];                                                                              // Reserved byte in the XCP DTO message header (daq,res,odt)
-    uint16_t ctr = first_entry->ctr;
-#endif
 
-    if (sig != SIG_COMMITTED) {
+    uint32_t ctr_dlc = atomic_load_explicit(&first_entry->ctr_dlc, memory_order_acquire);
+    uint16_t dlc = ctr_dlc & 0xFFFF;          // Transport layer packet data length
+    uint16_t ctr = (uint16_t)(ctr_dlc >> 16); // Transport layer counter
+    if (ctr != CTR_COMMITTED) {
 
         // This should never happen
-        // An entry is consistent, if it is either in reserved or committed state
-        if ((ctr != CTR_RESERVED && ctr != CTR_COMMITTED) || (sig != SIG_RESERVED && sig != SIG_COMMITTED)) {
-            DBG_PRINTF_ERROR("QueuePeek initial: lock failure, inconsistent reservation state - head=%" PRIu64 ", tail=%" PRIu64
-                             ", level=%u, entry: (dlc=0x%04X, ctr=0x%04X, tag=0x%02X, sig=0x%08X)\n",
-                             head, tail, level, dlc, ctr, tag, sig);
+        // An entry is consistent, if it is neither in reserved or committed state
+        if (ctr != CTR_RESERVED) {
+            DBG_PRINTF_ERROR("QueuePeek initial: inconsistent reserved - h=%" PRIu64 ", t=%" PRIu64 ", level=%u, entry: (dlc=0x%04X, ctr=0x%04X)\n", head, tail, level, dlc, ctr);
             assert(false); // Fatal error, inconsistent state
         }
 
@@ -807,11 +783,9 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
 
     // This should never fail
     // An committed entry must have a valid length and an XCP ODT in it
-    if (!((ctr == CTR_COMMITTED) && (dlc > 0) && (dlc <= XCPTL_MAX_DTO_SIZE) && (tag == 0xAA))) {
-        DBG_PRINTF_ERROR("QueuePeek initial: fatal: inconsistent commited state - head=%" PRIu64 ", tail=%" PRIu64
-                         ", level=%u, entry: (dlc=0x%04X, ctr=0x%04X, tag=0x%02X, sig=0x%08X)\n",
-                         head, tail, level, dlc, ctr, tag, sig);
-
+    if (!((ctr == CTR_COMMITTED) && (dlc > 0) && (dlc <= XCPTL_MAX_DTO_SIZE) && (first_entry->data[1] == 0xAA || first_entry->data[0] >= 0xFC))) {
+        DBG_PRINTF_ERROR("QueuePeek initial: inconsistent commit - h=%" PRIu64 ", t=%" PRIu64 ", level=%u, entry: (dlc=0x%04X, ctr=0x%04X, res=0x%02X)\n", head, tail, level, dlc,
+                         ctr, first_entry->data[1]);
         assert(false); // Fatal error, corrupt committed state
         tQueueBuffer ret = {
             .buffer = NULL,
@@ -822,12 +796,8 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
 
     // Set and increment the transport layer packet counter
     // The packet counter is obtained from the XCP transport layer
-#ifndef QUEUE_SIGNATURE
     ctr_dlc = ((uint32_t)XcpTlGetCtr() << 16) | dlc;
     atomic_store_explicit(&first_entry->ctr_dlc, ctr_dlc, memory_order_release);
-#else
-    first_entry->ctr = XcpTlGetCtr();
-#endif
 
     // First entry is ok now
     total_len = dlc + XCPTL_TRANSPORT_LAYER_HEADER_SIZE; // Include the transport layer header size
@@ -853,28 +823,14 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
 
         tXcpDtoMessage *entry = (tXcpDtoMessage *)(queue->buffer + offset);
 
-// Check the entry commit state
-#ifndef QUEUE_SIGNATURE
+        // Check the entry commit state
         uint32_t ctr_dlc = atomic_load_explicit(&entry->ctr_dlc, memory_order_acquire);
-        uint16_t dlc = ctr_dlc & 0xFFFF; // Transport layer packet data length
-        uint16_t ctr = ctr_dlc >> 16;    // Transport layer counter
-        uint8_t tag = entry->data[1];    // Reserved byte in the XCP DTO message header (daq,res,odt)
-        uint32_t sig = ((uint32_t)ctr << 16) | (uint32_t)ctr;
-#else
-        // Note that dlc is allready valid in reserved state
-        uint16_t dlc = entry->dlc;                                                                                 // Transport layer packet data length
-        uint32_t sig = atomic_load_explicit((atomic_uint_least32_t *)&entry->data[dlc - 4], memory_order_acquire); // sig at the end of the data buffer
-        uint8_t tag = entry->data[1];                                                                              // Reserved byte in the XCP DTO message header (daq,res,odt)
-        uint16_t ctr = entry->ctr;
-#endif
+        uint16_t dlc = ctr_dlc & 0xFFFF;          // Transport layer packet data length
+        uint16_t ctr = (uint16_t)(ctr_dlc >> 16); // Transport layer counter
+        if (ctr != CTR_COMMITTED) {
 
-        if (sig != SIG_COMMITTED) {
-
-            // This should never happen
-            if ((ctr != CTR_RESERVED && ctr != CTR_COMMITTED) || (sig != SIG_RESERVED && sig != SIG_COMMITTED)) {
-                DBG_PRINTF_ERROR("QueuePeek accumul: lock failure, inconsistent reservation state - head=%" PRIu64 ", tail=%" PRIu64
-                                 ", level=%u, entry: (dlc=0x%04X, ctr=0x%04X, tag=0x%02X, sig=0x%08X)\n",
-                                 head, tail, level, dlc, ctr, tag, sig);
+            if (ctr != CTR_RESERVED) {
+                DBG_PRINTF_ERROR("QueuePeek: inconsistent reserved - h=%" PRIu64 ", t=%" PRIu64 ", level=%u, entry: (dlc=0x%04X, ctr=0x%04X)\n", head, tail, level, dlc, ctr);
                 assert(false);
             }
 
@@ -883,10 +839,9 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
         }
 
         // Check consistency, this should never fail
-        if (!((ctr == CTR_COMMITTED) && (dlc > 0) && (dlc <= XCPTL_MAX_DTO_SIZE) && (tag == 0xAA))) {
-            DBG_PRINTF_ERROR("QueuePeek accumul: fatal: inconsistent commited state - head=%" PRIu64 ", tail=%" PRIu64
-                             ", level=%u, entry: (dlc=0x%04X, ctr=0x%04X, tag=0x%02X, sig=0x%08X)\n",
-                             head, tail, level, dlc, ctr, tag, sig);
+        if (!((ctr == CTR_COMMITTED) && (dlc > 0) && (dlc <= XCPTL_MAX_DTO_SIZE) && (entry->data[1] == 0xAA || entry->data[0] >= 0xFC))) {
+            DBG_PRINTF_ERROR("QueuePeek: inconsistent commit - h=%" PRIu64 ", t=%" PRIu64 ", level=%u, entry: (dlc=0x%04X, ctr=0x%04X, res=0x%02X)\n", head, tail, level, dlc, ctr,
+                             entry->data[1]);
             assert(false); // Fatal error, corrupt committed state
             break;
         }
@@ -902,12 +857,8 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
         total_len += len;
         offset += len;
 
-#ifndef QUEUE_SIGNATURE
         ctr_dlc = ((uint32_t)XcpTlGetCtr() << 16) | dlc;
         atomic_store_explicit(&entry->ctr_dlc, ctr_dlc, memory_order_release);
-#else
-        entry->ctr = XcpTlGetCtr();
-#endif
 
     } // for(;;)
 #endif // QUEUE_ACCUMULATE_PACKETS

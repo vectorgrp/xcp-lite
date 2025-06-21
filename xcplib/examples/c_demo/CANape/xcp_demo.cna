@@ -1,8 +1,8 @@
 [FILE_INFO]
 Identification=CANape-Configuration-File
 FileName=xcp_demo.cna
-FileNameAbsolute=Y:\xcp-lite-rdm\xcplib\examples\c_demo\CANape\xcp_demo.cna
-WorkingDirectory=Y:\xcp-lite-rdm\xcplib\examples\c_demo\CANape
+FileNameAbsolute=Y:\xcp-lite-RainerZ\xcplib\examples\c_demo\CANape\xcp_demo.cna
+WorkingDirectory=Y:\xcp-lite-RainerZ\xcplib\examples\c_demo\CANape
 ProjectId=07e8-0007-0007-0015-0002-0030-0000
 FileVersion=2200
 PrgVersion=Version 23.0.11.121 HF1
@@ -10,8 +10,8 @@ PrgDate=29.04.2025
 Description=
 CreationTime=21:05
 CreationDate=07/07/2024 ; Month/Day/Year
-ModificationTime=18:06
-ModificationDate=06/18/2025 ; Month/Day/Year
+ModificationTime=18:41
+ModificationDate=06/21/2025 ; Month/Day/Year
 Protected=0
 CurrentWindowsACP=1252
 
@@ -273,18 +273,18 @@ SubConfigsCount=0
 Count=0
 
 [MEASUREMENT_LIST]
-Count=15
+Count=14
 OfflineFileName=xcp_demo.mf4
 OfflineFileCount=1
 MeaCfgLabellistName=
 
 [MEASUREMENT_OBJECT_1]
 Module=xcp_demo
-Name=counter_global
+Name=$params_copy$params_copy.counter_max
 Disabled=0
 Mode=2147483648
 Rate=0
-ModeIsDefault=0
+ModeIsDefault=1
 Row=0
 Column=0
 MeaReferenced=1
@@ -295,9 +295,9 @@ DisplayCount=1
 
 [MEASUREMENT_OBJECT_10]
 Module=xcp_demo
-Name=counter64
+Name=counter64s
 Disabled=0
-Mode=2147483649
+Mode=2147483648
 Rate=0
 ModeIsDefault=1
 Row=0
@@ -309,67 +309,6 @@ HasManagedDisplay=0
 DisplayCount=1
 
 [MEASUREMENT_OBJECT_10_DISPLAY_1]
-Window=3
-Index=3
-Color=16744576
-ApplyColorToBackground=0
-ColorFunction=0
-ColorFunctionScope=1
-LineTyp=2
-YMinHome=-60
-YMaxHome=140
-YMin=-60
-YMax=140
-XOffsetNS=0
-XOffset=0
-ValueFormat=3
-BitMask=1
-ShowYAxis=1
-Width=10
-LineStyle=1
-MarkerType=1
-SRMainValue=0
-InvalidValueDrawMode=3
-LineWidth=1
-Precision=-2
-Digits=6
-Enabled=1
-StoredFocused=0
-SublMask=1
-MeaSublMask=3
-LockScaling=0
-RightAxis=0
-MapMode=2
-OverlayGridColor=0
-ShadingMode=3
-EditOffset=1
-EditFactor=2
-WAxisLabel=
-XAxisLabel=
-YAxisLabel=
-AxisCaption=
-Row=0
-Col=0
-YAxis_ID=1
-AxisTemplate=
-GUID=DISPLAY_7414cbb7-1531-4594-bfee-d08013aafb39
-
-[MEASUREMENT_OBJECT_11]
-Module=xcp_demo
-Name=counter64s
-Disabled=0
-Mode=2147483649
-Rate=0
-ModeIsDefault=1
-Row=0
-Column=0
-MeaReferenced=1
-ArchivBy_1=Recorder1
-IsFallback=0
-HasManagedDisplay=0
-DisplayCount=1
-
-[MEASUREMENT_OBJECT_11_DISPLAY_1]
 Window=3
 Index=2
 Color=16777215
@@ -415,11 +354,11 @@ YAxis_ID=1
 AxisTemplate=
 GUID=DISPLAY_6075f07b-2caa-4362-9b1d-524916096c2c
 
-[MEASUREMENT_OBJECT_12]
+[MEASUREMENT_OBJECT_11]
 Module=xcp_demo
 Name=counter8
 Disabled=0
-Mode=2147483649
+Mode=2147483648
 Rate=0
 ModeIsDefault=1
 Row=0
@@ -430,7 +369,7 @@ IsFallback=0
 HasManagedDisplay=0
 DisplayCount=1
 
-[MEASUREMENT_OBJECT_12_DISPLAY_1]
+[MEASUREMENT_OBJECT_11_DISPLAY_1]
 Window=3
 Index=1
 Color=43520
@@ -476,11 +415,11 @@ YAxis_ID=1
 AxisTemplate=
 GUID=DISPLAY_cee06bae-de2c-4ad8-8a1d-ece10a3db63b
 
-[MEASUREMENT_OBJECT_13]
+[MEASUREMENT_OBJECT_12]
 Module=xcp_demo
 Name=counter8s
 Disabled=0
-Mode=2147483649
+Mode=2147483648
 Rate=0
 ModeIsDefault=1
 Row=0
@@ -491,7 +430,7 @@ IsFallback=0
 HasManagedDisplay=0
 DisplayCount=1
 
-[MEASUREMENT_OBJECT_13_DISPLAY_1]
+[MEASUREMENT_OBJECT_12_DISPLAY_1]
 Window=3
 Index=0
 Color=204
@@ -537,11 +476,11 @@ YAxis_ID=1
 AxisTemplate=
 GUID=DISPLAY_aaf36406-7e53-4ee5-97c3-f311fc0d4e12
 
-[MEASUREMENT_OBJECT_14]
+[MEASUREMENT_OBJECT_13]
 Module=xcp_demo
 Name=curve_f32
 Disabled=0
-Mode=2147483649
+Mode=2147483648
 Rate=0
 ModeIsDefault=1
 Row=0
@@ -560,7 +499,7 @@ IsFallback=0
 HasManagedDisplay=0
 DisplayCount=1
 
-[MEASUREMENT_OBJECT_14_DISPLAY_1]
+[MEASUREMENT_OBJECT_13_DISPLAY_1]
 Window=9
 Index=0
 Color=65280
@@ -607,11 +546,11 @@ AxisTemplate=
 GUID=DISPLAY_4b9ecb3f-cc57-44c3-9d8f-db64a603f453
 MarkerSettingValid=1
 
-[MEASUREMENT_OBJECT_15]
+[MEASUREMENT_OBJECT_14]
 Module=xcp_demo
 Name=map_f32
 Disabled=0
-Mode=2147483649
+Mode=2147483648
 Rate=0
 ModeIsDefault=1
 Row=0
@@ -630,7 +569,7 @@ IsFallback=0
 HasManagedDisplay=0
 DisplayCount=1
 
-[MEASUREMENT_OBJECT_15_DISPLAY_1]
+[MEASUREMENT_OBJECT_14_DISPLAY_1]
 Window=9
 Index=1
 Color=255
@@ -678,67 +617,6 @@ GUID=DISPLAY_5e83fc16-7429-4924-8ce9-eb8d03b907fa
 MarkerSettingValid=1
 
 [MEASUREMENT_OBJECT_1_DISPLAY_1]
-Window=3
-Index=8
-Color=65280
-ApplyColorToBackground=0
-ColorFunction=0
-ColorFunctionScope=1
-LineTyp=2
-YMinHome=-60
-YMaxHome=140
-YMin=-60
-YMax=140
-XOffsetNS=0
-XOffset=0
-ValueFormat=3
-BitMask=1
-ShowYAxis=1
-Width=10
-LineStyle=1
-MarkerType=1
-SRMainValue=0
-InvalidValueDrawMode=3
-LineWidth=1
-Precision=-2
-Digits=6
-Enabled=1
-StoredFocused=0
-SublMask=1
-MeaSublMask=3
-LockScaling=0
-RightAxis=0
-MapMode=2
-OverlayGridColor=0
-ShadingMode=3
-EditOffset=1
-EditFactor=2
-WAxisLabel=
-XAxisLabel=
-YAxisLabel=
-AxisCaption=
-Row=0
-Col=0
-YAxis_ID=1
-AxisTemplate=
-GUID=DISPLAY_3865a086-5562-47e2-94ab-848087b66bc1
-
-[MEASUREMENT_OBJECT_2]
-Module=xcp_demo
-Name=$params_copy$params_copy.counter_max
-Disabled=0
-Mode=2147483649
-Rate=0
-ModeIsDefault=1
-Row=0
-Column=0
-MeaReferenced=1
-ArchivBy_1=Recorder1
-IsFallback=0
-HasManagedDisplay=0
-DisplayCount=1
-
-[MEASUREMENT_OBJECT_2_DISPLAY_1]
 Window=6
 Index=4
 Color=65280
@@ -784,11 +662,11 @@ YAxis_ID=0
 AxisTemplate=
 GUID=DISPLAY_fe58ea16-430e-4506-81ca-3ad63ed6d165
 
-[MEASUREMENT_OBJECT_3]
+[MEASUREMENT_OBJECT_2]
 Module=xcp_demo
 Name=$params_copy$params_copy.delay_us
 Disabled=0
-Mode=2147483649
+Mode=2147483648
 Rate=0
 ModeIsDefault=1
 Row=0
@@ -799,7 +677,7 @@ IsFallback=0
 HasManagedDisplay=0
 DisplayCount=1
 
-[MEASUREMENT_OBJECT_3_DISPLAY_1]
+[MEASUREMENT_OBJECT_2_DISPLAY_1]
 Window=6
 Index=3
 Color=255
@@ -845,11 +723,11 @@ YAxis_ID=0
 AxisTemplate=
 GUID=DISPLAY_f6bce2dd-71e5-4e5c-9830-9cbe601ae911
 
-[MEASUREMENT_OBJECT_4]
+[MEASUREMENT_OBJECT_3]
 Module=xcp_demo
 Name=$params_copy$params_copy.test_byte1
 Disabled=0
-Mode=2147483649
+Mode=2147483648
 Rate=0
 ModeIsDefault=1
 Row=0
@@ -860,7 +738,7 @@ IsFallback=0
 HasManagedDisplay=0
 DisplayCount=1
 
-[MEASUREMENT_OBJECT_4_DISPLAY_1]
+[MEASUREMENT_OBJECT_3_DISPLAY_1]
 Window=6
 Index=2
 Color=65535
@@ -906,11 +784,11 @@ YAxis_ID=0
 AxisTemplate=
 GUID=DISPLAY_b608dcb0-45b9-4b32-ae55-f90ee1308c6c
 
-[MEASUREMENT_OBJECT_5]
+[MEASUREMENT_OBJECT_4]
 Module=xcp_demo
 Name=$params_copy$params_copy.test_byte2
 Disabled=0
-Mode=2147483649
+Mode=2147483648
 Rate=0
 ModeIsDefault=1
 Row=0
@@ -921,7 +799,7 @@ IsFallback=0
 HasManagedDisplay=0
 DisplayCount=1
 
-[MEASUREMENT_OBJECT_5_DISPLAY_1]
+[MEASUREMENT_OBJECT_4_DISPLAY_1]
 Window=6
 Index=1
 Color=16776960
@@ -967,11 +845,11 @@ YAxis_ID=0
 AxisTemplate=
 GUID=DISPLAY_96ee07d9-2ca2-43ac-939e-72621687d7b1
 
-[MEASUREMENT_OBJECT_6]
+[MEASUREMENT_OBJECT_5]
 Module=xcp_demo
 Name=counter16
 Disabled=0
-Mode=2147483649
+Mode=2147483648
 Rate=0
 ModeIsDefault=1
 Row=0
@@ -982,7 +860,7 @@ IsFallback=0
 HasManagedDisplay=0
 DisplayCount=1
 
-[MEASUREMENT_OBJECT_6_DISPLAY_1]
+[MEASUREMENT_OBJECT_5_DISPLAY_1]
 Window=3
 Index=7
 Color=65535
@@ -1028,11 +906,11 @@ YAxis_ID=1
 AxisTemplate=
 GUID=DISPLAY_34c46c1e-c9c4-4628-ad3a-15a9fd310132
 
-[MEASUREMENT_OBJECT_7]
+[MEASUREMENT_OBJECT_6]
 Module=xcp_demo
 Name=counter16s
 Disabled=0
-Mode=2147483649
+Mode=2147483648
 Rate=0
 ModeIsDefault=1
 Row=0
@@ -1043,7 +921,7 @@ IsFallback=0
 HasManagedDisplay=0
 DisplayCount=1
 
-[MEASUREMENT_OBJECT_7_DISPLAY_1]
+[MEASUREMENT_OBJECT_6_DISPLAY_1]
 Window=3
 Index=6
 Color=16776960
@@ -1089,11 +967,11 @@ YAxis_ID=1
 AxisTemplate=
 GUID=DISPLAY_ec4d99d7-7558-44a7-9c13-91391ff08fb6
 
-[MEASUREMENT_OBJECT_8]
+[MEASUREMENT_OBJECT_7]
 Module=xcp_demo
 Name=counter32
 Disabled=0
-Mode=2147483649
+Mode=2147483648
 Rate=0
 ModeIsDefault=1
 Row=0
@@ -1104,7 +982,7 @@ IsFallback=0
 HasManagedDisplay=0
 DisplayCount=1
 
-[MEASUREMENT_OBJECT_8_DISPLAY_1]
+[MEASUREMENT_OBJECT_7_DISPLAY_1]
 Window=3
 Index=5
 Color=16711935
@@ -1150,11 +1028,11 @@ YAxis_ID=1
 AxisTemplate=
 GUID=DISPLAY_4209ab7e-e75e-4120-bab7-b5a651a7fb3d
 
-[MEASUREMENT_OBJECT_9]
+[MEASUREMENT_OBJECT_8]
 Module=xcp_demo
 Name=counter32s
 Disabled=0
-Mode=2147483649
+Mode=2147483648
 Rate=0
 ModeIsDefault=1
 Row=0
@@ -1165,7 +1043,7 @@ IsFallback=0
 HasManagedDisplay=0
 DisplayCount=1
 
-[MEASUREMENT_OBJECT_9_DISPLAY_1]
+[MEASUREMENT_OBJECT_8_DISPLAY_1]
 Window=3
 Index=4
 Color=33023
@@ -1210,6 +1088,67 @@ Col=0
 YAxis_ID=1
 AxisTemplate=
 GUID=DISPLAY_12e26263-5254-4b33-af7d-2ba2adc875a9
+
+[MEASUREMENT_OBJECT_9]
+Module=xcp_demo
+Name=counter64
+Disabled=0
+Mode=2147483648
+Rate=0
+ModeIsDefault=1
+Row=0
+Column=0
+MeaReferenced=1
+ArchivBy_1=Recorder1
+IsFallback=0
+HasManagedDisplay=0
+DisplayCount=1
+
+[MEASUREMENT_OBJECT_9_DISPLAY_1]
+Window=3
+Index=3
+Color=16744576
+ApplyColorToBackground=0
+ColorFunction=0
+ColorFunctionScope=1
+LineTyp=2
+YMinHome=-60
+YMaxHome=140
+YMin=-60
+YMax=140
+XOffsetNS=0
+XOffset=0
+ValueFormat=3
+BitMask=1
+ShowYAxis=1
+Width=10
+LineStyle=1
+MarkerType=1
+SRMainValue=0
+InvalidValueDrawMode=3
+LineWidth=1
+Precision=-2
+Digits=6
+Enabled=1
+StoredFocused=0
+SublMask=1
+MeaSublMask=3
+LockScaling=0
+RightAxis=0
+MapMode=2
+OverlayGridColor=0
+ShadingMode=3
+EditOffset=1
+EditFactor=2
+WAxisLabel=
+XAxisLabel=
+YAxisLabel=
+AxisCaption=
+Row=0
+Col=0
+YAxis_ID=1
+AxisTemplate=
+GUID=DISPLAY_7414cbb7-1531-4594-bfee-d08013aafb39
 
 [MEASUREMENT_OPTIONS]
 RemainingRecordingTime=5000
@@ -1276,29 +1215,18 @@ VmdmDescription=
 Count=0
 
 [Module_xcp_demo]
-EVENT_COUNT=2
+EVENT_COUNT=1
 EVENT_CHANNEL_0=0x0000
-EVENT_CHANNEL_1=0x0001
 EVENT_CYCLE_0=0
-EVENT_CYCLE_1=0
 EVENT_SAMPLE_UNIT_0=3
-EVENT_SAMPLE_UNIT_1=3
 EVENT_MODE_0=4
-EVENT_MODE_1=4
 EVENT_PRIO_0=0
-EVENT_PRIO_1=0
 EVENT_MAX_DAQ_LIST_0=255
-EVENT_MAX_DAQ_LIST_1=255
-EVENT_NAME_0=mainloop_global
-EVENT_NAME_1=mainloop_local
+EVENT_NAME_0=mainloop
 EVENT_MIN_CYCLE_TIME_CYCLE_0=0
-EVENT_MIN_CYCLE_TIME_CYCLE_1=0
 EVENT_MIN_CYCLE_TIME_UNIT_0=9
-EVENT_MIN_CYCLE_TIME_UNIT_1=9
 EVENT_MULTISAMPLES_0=0
-EVENT_MULTISAMPLES_1=0
 EVENT_DPM_SUPPORTED_0=0
-EVENT_DPM_SUPPORTED_1=0
 IGNORE_FIX_EVENTS=0
 
 [OPTIONS]
@@ -1306,9 +1234,9 @@ WindowTextExtended=1
 WindowTextExtendedNew=1
 WindowSymbols=1
 GlobalCursor=1
-GlobalCursorTime=0
-GlobalCursorTimeNs=0
-MainWindowPos=1, 0, 157, 2702, 1493 ;cmd, x, y, w, h
+GlobalCursorTime=1711
+GlobalCursorTimeNs=1711513291
+MainWindowPos=1, 152, 86, 2726, 1493 ;cmd, x, y, w, h
 
 [PAR_COMMENT]
 1="Name",""
@@ -1563,7 +1491,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_4a1071db-8a10-418c-b49b-1fb6c122f5ec
+GUID=DISPLAY_484eb368-4892-41af-a8c8-aa12789866a1
 
 [WINDOW_1_OBJECT_2]
 Type=2
@@ -1612,7 +1540,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_9ae16d1e-061b-4066-a8a0-e9ea95a12c4e
+GUID=DISPLAY_bd77bdc6-c5f1-4dc4-8aee-0cf7c5403a35
 
 [WINDOW_1_OBJECT_3]
 Type=2
@@ -1661,7 +1589,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_caae8a29-8cf5-437b-98fb-670e78cb1e24
+GUID=DISPLAY_bf9a88ca-cadf-4311-b5f7-d94f3c895f58
 
 [WINDOW_1_OBJECT_4]
 Type=2
@@ -1710,7 +1638,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_b8732d2a-331b-4109-b6a7-ba51601b94f5
+GUID=DISPLAY_dc4139cb-6ed8-4a50-86d1-f92216a24e9d
 
 [WINDOW_1_OBJECT_5]
 Type=2
@@ -1759,7 +1687,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_44766832-755c-4ef2-ab1d-55c701218021
+GUID=DISPLAY_cad60283-2966-486a-8460-a153ad6e69db
 
 [WINDOW_2]
 ComponentCount=1
@@ -1781,8 +1709,8 @@ DisplayMask=1 ; pages 1
 XLen=5432
 XMin=0
 XMinNs=0
-XMax=19080
-XMaxNs=19080247510
+XMax=23409
+XMaxNs=23409070015
 Grid=1
 Mark=1
 YValue=2
@@ -1816,7 +1744,7 @@ YAxisDynScaleEnabled=0
 YAxisDynScaleEnlarge=25
 TimeStickToZero=0
 XYModeRedrawEnabled=0
-MARKER_TIME_1=0
+MARKER_TIME_1=1711513291
 MARKER_TIME_2=1945292750
 OscilloscopeEnabled=0
 OsciEventCount=0
@@ -1946,8 +1874,8 @@ Color=0
 ScaleFont=1
 ShowLegend=1
 ShowLegendHeader=0
-LegendPixWidth=312
-LegendPixWidth_dpi96=156
+LegendPixWidth=334
+LegendPixWidth_dpi96=167
 GridStyle=0
 DisplayColors=1
 LegendFont=0
@@ -1957,7 +1885,7 @@ ShowActivity=0
 ExceedLimitWarning=0
 OnlyHighlightOnViolation=0
 LegendScrollPos=0
-DotLinePos=87
+DotLinePos=81
 ObjectCount=1
 Title=Measurement
 Type=4
@@ -1978,8 +1906,8 @@ DisplayMask=1 ; pages 1
 [WINDOW_6_LEG_COLUMNS]
 ScreenDPIinSection=192
 COUNT=1
-COL_0=31, 312
-COL_0_dpi96=31, 156
+COL_0=31, 334
+COL_0_dpi96=31, 167
 
 [WINDOW_6_OBJECT_1]
 Type=2
@@ -2290,7 +2218,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_9778b16d-6aa7-4de3-a96e-4be9426e2fea
+GUID=DISPLAY_ac09ceff-9c41-4fa7-babc-76b2e2d7aa67
 
 [WINDOW_8_OBJECT_2]
 Type=2
@@ -2339,7 +2267,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_21118646-af18-4358-964c-23366eda62bf
+GUID=DISPLAY_12e64344-79e4-410f-93d6-8bbaa6e10d1e
 
 [WINDOW_8_OBJECT_3]
 Type=2
@@ -2388,7 +2316,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_48573855-2821-4331-9d2f-4d608b3b878f
+GUID=DISPLAY_71a27a81-7288-4895-ba21-50efd52da838
 
 [WINDOW_8_OBJECT_4]
 Type=2
@@ -2437,7 +2365,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_d17ec8c7-9300-404a-9bdc-c94b36cc8b99
+GUID=DISPLAY_817d1f0f-9380-484a-b502-bcb528057c85
 
 [WINDOW_8_OBJECT_5]
 Type=2
@@ -2486,7 +2414,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_6b43d459-b8e5-464b-993e-a18606e252a1
+GUID=DISPLAY_2cd6ff21-0efb-41d9-bd74-713ed83e0772
 
 [WINDOW_8_OBJECT_6]
 Type=2
@@ -2535,7 +2463,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_35e381af-f4bc-4a61-bfb5-22c9766e5c14
+GUID=DISPLAY_177c8996-eb67-4d54-888a-3ca0bf42e6ca
 
 [WINDOW_9]
 Title=
@@ -2544,9 +2472,9 @@ Comment=Kennfeld-/Kennlinienfenster
 Number=9
 GUID=WINDOW_d37e1028-0660-44ce-b800-c04ff9fb2ac6
 ScreenDPIinSection=192
-Position=0, 23, 25, 2130, 1027 ;cmd, x, y, w, h
+Position=0, 24, 26, 2130, 1028 ;cmd, x, y, w, h
 Position_dpi96=0, 12, 13, 1065, 514 ;cmd, x, y, w, h
-Position_Page04=0, 23, 25, 2130, 1027 ;cmd, x, y, w, h
+Position_Page04=0, 24, 26, 2130, 1028 ;cmd, x, y, w, h
 Position_Page04_dpi96=0, 12, 13, 1065, 514 ;cmd, x, y, w, h
 FloatingWindow=0
 ShowSignalComments=1
@@ -2563,6 +2491,7 @@ CrosshairCursor=0
 CursorColor=0
 DataWindowAreaHorizontalSplittingFactor=0.445856873823
 DataWindowAreaLayout=2
+DisplayMask=8 ; pages 4
 Distance=14
 FirstColWidth=100
 FixAxis=0
@@ -2606,7 +2535,6 @@ WireModel=0
 WorkingPointColor=16711680
 WorkingPointMarker=0
 WorkingPointSize=100
-DisplayMask=8 ; pages 4
 
 [WINDOWS]
 Count=9

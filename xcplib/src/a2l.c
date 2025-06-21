@@ -214,159 +214,154 @@ const char *A2lGetSymbolName(const char *instance_name, const char *name) {
 }
 
 const char *A2lGetA2lTypeName(tA2lTypeId type) {
-    const char *types;
+
     switch (type) {
     case A2L_TYPE_INT8:
-        types = "SBYTE";
+        return "SBYTE";
         break;
     case A2L_TYPE_INT16:
-        types = "SWORD";
+        return "SWORD";
         break;
     case A2L_TYPE_INT32:
-        types = "SLONG";
+        return "SLONG";
         break;
     case A2L_TYPE_INT64:
-        types = "A_INT64";
+        return "A_INT64";
         break;
     case A2L_TYPE_UINT8:
-        types = "UBYTE";
+        return "UBYTE";
         break;
     case A2L_TYPE_UINT16:
-        types = "UWORD";
+        return "UWORD";
         break;
     case A2L_TYPE_UINT32:
-        types = "ULONG";
+        return "ULONG";
         break;
     case A2L_TYPE_UINT64:
-        types = "A_UINT64";
+        return "A_UINT64";
         break;
     case A2L_TYPE_FLOAT:
-        types = "FLOAT32_IEEE";
+        return "FLOAT32_IEEE";
         break;
     case A2L_TYPE_DOUBLE:
-        types = "FLOAT64_IEEE";
+        return "FLOAT64_IEEE";
         break;
     default:
-        types = NULL;
+        return NULL;
     }
-    return types;
 }
 
 const char *A2lGetA2lTypeName_M(tA2lTypeId type) {
-    const char *types;
     switch (type) {
     case A2L_TYPE_INT8:
-        types = "M_SBYTE";
+        return "M_I8";
         break;
     case A2L_TYPE_INT16:
-        types = "M_SWORD";
+        return "M_I16";
         break;
     case A2L_TYPE_INT32:
-        types = "M_SLONG";
+        return "M_I32";
         break;
     case A2L_TYPE_INT64:
-        types = "M_A_INT64";
+        return "M_I64";
         break;
     case A2L_TYPE_UINT8:
-        types = "M_UBYTE";
+        return "M_U8";
         break;
     case A2L_TYPE_UINT16:
-        types = "M_UWORD";
+        return "M_U16";
         break;
     case A2L_TYPE_UINT32:
-        types = "M_ULONG";
+        return "M_U32";
         break;
     case A2L_TYPE_UINT64:
-        types = "M_A_UINT64";
+        return "M_U64";
         break;
     case A2L_TYPE_FLOAT:
-        types = "M_FLOAT32_IEEE";
+        return "M_F32";
         break;
     case A2L_TYPE_DOUBLE:
-        types = "M_FLOAT64_IEEE";
+        return "M_F64";
         break;
     default:
-        types = NULL;
+        return NULL;
     }
-    return types;
 }
 
 const char *A2lGetA2lTypeName_C(tA2lTypeId type) {
-    const char *types;
+
     switch (type) {
     case A2L_TYPE_INT8:
-        types = "C_SBYTE";
+        return "C_I8";
         break;
     case A2L_TYPE_INT16:
-        types = "C_SWORD";
+        return "C_I16";
         break;
     case A2L_TYPE_INT32:
-        types = "C_SLONG";
+        return "C_I32";
         break;
     case A2L_TYPE_INT64:
-        types = "C_A_INT64";
+        return "C_I64";
         break;
     case A2L_TYPE_UINT8:
-        types = "C_UBYTE";
+        return "C_U8";
         break;
     case A2L_TYPE_UINT16:
-        types = "C_UWORD";
+        return "C_U16";
         break;
     case A2L_TYPE_UINT32:
-        types = "C_ULONG";
+        return "C_U32";
         break;
     case A2L_TYPE_UINT64:
-        types = "C_A_UINT64";
+        return "C_U64";
         break;
     case A2L_TYPE_FLOAT:
-        types = "C_FLOAT32_IEEE";
+        return "C_F32";
         break;
     case A2L_TYPE_DOUBLE:
-        types = "C_FLOAT64_IEEE";
+        return "C_F64";
         break;
     default:
-        types = NULL;
+        return NULL;
     }
-    return types;
 }
 
 static const char *getRecordLayoutName(tA2lTypeId type) {
-    const char *types;
+
     switch (type) {
     case A2L_TYPE_INT8:
-        types = "I8";
+        return "I8";
         break;
     case A2L_TYPE_INT16:
-        types = "I16";
+        return "I16";
         break;
     case A2L_TYPE_INT32:
-        types = "I32";
+        return "I32";
         break;
     case A2L_TYPE_INT64:
-        types = "I64";
+        return "I64";
         break;
     case A2L_TYPE_UINT8:
-        types = "U8";
+        return "U8";
         break;
     case A2L_TYPE_UINT16:
-        types = "U16";
+        return "U16";
         break;
     case A2L_TYPE_UINT32:
-        types = "U32";
+        return "U32";
         break;
     case A2L_TYPE_UINT64:
-        types = "U64";
+        return "U64";
         break;
     case A2L_TYPE_FLOAT:
-        types = "F32";
+        return "F32";
         break;
     case A2L_TYPE_DOUBLE:
-        types = "F64";
+        return "F64";
         break;
     default:
-        types = NULL;
+        return NULL;
     }
-    return types;
 }
 
 static const char *getTypeMin(tA2lTypeId type) {
@@ -694,7 +689,7 @@ void A2lSetAbsoluteAddrMode_(const char *event_name) {
     }
     gAl2AddrExt = XCP_ADDR_EXT_ABS;
     A2lSetFixedEvent(event);
-    fprintf(gA2lFile, "\n/* Absolute addressing mode: event=%s (%u), addr_ext=%u, addr_base=%p */\n", event_name, event, gAl2AddrExt, (void *)gA2lAddrBase);
+    fprintf(gA2lFile, "\n/* Absolute addressing mode: event=%s (%u), addr_ext=%u, addr_base=%p */\n", event_name, event, gAl2AddrExt, (void *)ApplXcpGetBaseAddr());
 }
 
 //----------------------------------------------------------------------------------

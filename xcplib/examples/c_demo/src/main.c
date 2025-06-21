@@ -18,9 +18,9 @@
 #define OPTION_A2L_FILE_NAME "C_Demo.a2l" // A2L file name
 #define OPTION_USE_TCP false              // TCP or UDP
 #define OPTION_SERVER_PORT 5555           // Port
-// #define OPTION_SERVER_ADDR {0, 0, 0, 0} // Bind addr, 0.0.0.0 = ANY
-#define OPTION_SERVER_ADDR {127, 0, 0, 1} // Bind addr, 0.0.0.0 = ANY
-#define OPTION_QUEUE_SIZE 1024 * 32       // Size of the measurement queue in bytes, must be a multiple of 8
+#define OPTION_SERVER_ADDR {0, 0, 0, 0}   // Bind addr, 0.0.0.0 = ANY
+// #define OPTION_SERVER_ADDR {127, 0, 0, 1} // Bind addr, 0.0.0.0 = ANY
+#define OPTION_QUEUE_SIZE 1024 * 32 // Size of the measurement queue in bytes, must be a multiple of 8
 #define OPTION_LOG_LEVEL 3
 
 //-----------------------------------------------------------------------------------------------------
@@ -122,6 +122,12 @@ int main(void) {
     A2lTypedefMeasurementComponent(delay_us, params_t);
     A2lTypedefEnd();
 
+    // Demo
+    // Create a static measurement variable which is a copy of the calibration parameter segment to verify calibration changes and consistency
+    static params_t params_copy;
+    A2lSetAbsoluteAddrMode(mainloop);
+    A2lCreateTypedefInstance(params_copy, params_t, "A copy of the current calibration parameters");
+
     for (;;) {
         // Lock the calibration parameter segment for consistent and safe access
         // Calibration segment locking is completely lock-free and wait-free (no mutexes, system calls or CAS operations )
@@ -157,18 +163,19 @@ int main(void) {
         counter32 = (int32_t)counter32;
         counter64 = (int64_t)counter64;
 
-        // Demonstrate calibration consistency
-        // Insert test_byte1 and test_byte2 into a CANape calibration window, enable indirect calibration, use the update button for the calibration window for consistent
-        // modification
-        params_t params_copy = *params; // Test: for measure of the calibration parameters, copy the current calibration parameters to a local variable
-        A2lCreateTypedefInstance(params_copy, params_t, "A copy of the current calibration parameters");
-        if (params->test_byte1 != -params->test_byte2) {
+        // Calibration demo
+        // Visualizes calibration consistency and page switching
+        // Copies the current calibration page to a static measurement variable
+        // Insert params.test_byte1 and params.test_byte2 into a CANape calibration window, enable indirect calibration
+        // Use the update button in the calibration window to trigger consistent modifications, the message below should never appear
+        // There should be also no message when switching from RAM ro FLASH
+        params_copy = *params;
+        if (params_copy.test_byte1 != -params_copy.test_byte2) {
             char buffer[64];
-            snprintf(buffer, sizeof(buffer), "Inconsistent %u:  %d -  %d", counter16, params->test_byte1, params->test_byte2);
+            snprintf(buffer, sizeof(buffer), "Inconsistent %u:  %d -  %d", counter16, params_copy.test_byte1, params_copy.test_byte2);
             XcpPrint(buffer);
             printf("%s\n", buffer);
         }
-        // printf("Counter: %u, Delay: %u us, Test Bytes: %d, %d\n", counter, params->delay_us, params->test_byte1, params->test_byte2);
 
         // Unlock the calibration segment
         XcpUnlockCalSeg(calseg);
