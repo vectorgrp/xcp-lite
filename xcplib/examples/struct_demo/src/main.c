@@ -124,9 +124,8 @@ int main(void) {
     }
 
     // Create a measurement events
-    DaqCreateEvent(event_heap); // Releative addressing mode needs an individual event for each pointer
-    DaqCreateEvent(event_stack);
-    DaqCreateEvent(event_global); // CANape Bug workaround, CANape ignore single EXT per DAQ list setting !!!! So we need to events
+    DaqCreateEvent(event_heap); // Relative heap addressing mode needs an individual event for each pointer
+    DaqCreateEvent(event);
 
     // Create a A2L measurement variables for the counters
     // Create A2L typedef instances for the structs and the array of structs
@@ -169,8 +168,7 @@ int main(void) {
         XcpUnlockCalSeg(calseg);
 
         // Trigger the measurement events
-        DaqEvent(event_stack);
-        DaqEvent(event_global);
+        DaqEvent(event);
         DaqEventRelative(event_heap, heap_struct1);
 
     } // for(;;)

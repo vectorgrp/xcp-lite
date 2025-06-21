@@ -622,7 +622,6 @@ int32_t XcpTlHandleTransmitQueue(void) {
         // Flush queue every cycle
         if (n == 0 && j == max_outer_loops - 2) {
             flush = true;
-            DBG_PRINT5("XcpTlHandleTransmitQueue: flushing transmit queue\n");
         }
 
         sleepMs(outer_loop_sleep_ms);

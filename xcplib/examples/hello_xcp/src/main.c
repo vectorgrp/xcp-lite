@@ -20,7 +20,8 @@
 #define OPTION_SERVER_PORT 5555              // Port
 // #define OPTION_SERVER_ADDR {0, 0, 0, 0} // Bind addr, 0.0.0.0 = ANY
 #define OPTION_SERVER_ADDR {127, 0, 0, 1} // Bind addr, 0.0.0.0 = ANY
-#define OPTION_QUEUE_SIZE 1024 * 16       // Size of the measurement queue in bytes, must be a multiple of 8
+// #define OPTION_SERVER_ADDR {192, 168, 0, 128}
+#define OPTION_QUEUE_SIZE 1024 * 16 // Size of the measurement queue in bytes, must be a multiple of 8
 #define OPTION_LOG_LEVEL 3
 
 //-----------------------------------------------------------------------------------------------------
@@ -35,11 +36,6 @@ typedef struct params {
 
 // Default values
 const params_t params = {.counter_max = 1000, .delay_us = 1000, .test_byte1 = -1, .test_byte2 = 1};
-
-//-----------------------------------------------------------------------------------------------------
-
-// Global demo measurement variable
-static uint16_t counter = 0;
 
 //-----------------------------------------------------------------------------------------------------
 
@@ -72,19 +68,25 @@ int main(void) {
     // Note that it can be used in only one ECU thread (in Rust terminology, it is Send, but not Sync)
     uint16_t calseg = XcpCreateCalSeg("params", (const uint8_t *)&params, sizeof(params));
 
-    // Register individual calibration parameters in the calibration segment
+    // Register calibration parameters in the calibration segment
     A2lSetSegAddrMode(calseg, (uint8_t *)&params);
-    A2lCreateParameterWithLimits(params.counter_max, "maximum counter value", "", 0, 2000);
-    A2lCreateParameterWithLimits(params.delay_us, "mainloop delay time in us", "us", 0, 1000000);
+    A2lCreateParameterWithLimits(params.counter_max, "Maximum counter value", "", 0, 2000);
+    A2lCreateParameterWithLimits(params.delay_us, "Mainloop delay time in us", "us", 0, 999999);
 
     // Create a measurement event
     DaqCreateEvent(mainloop);
 
-    // Register a global measurement variable
-    A2lSetAbsoluteAddrMode(mainloop); // Set absolute addressing
-    A2lCreatePhysMeasurement(counter, "Measurement variable", 1.0, 0.0, "counts");
+    // Register a global measurement variable (counter)
+    static uint16_t counter = 0;
+    A2lSetAbsoluteAddrMode(mainloop); // Set absolute addressing mode with event mainloop
+    A2lCreateMeasurement(counter, "Measurement variable in global memory");
 
-    A2lFinalize(); // Optional: Finalize the A2L file generation early, to write the A2L now, not when the client connects
+    // Register a local measurement variable (counter_local)
+    uint16_t counter_local = 0;
+    A2lSetStackAddrMode(mainloop); // Set stack relative addressing mode with event mainloop
+    A2lCreateMeasurement(counter_local, "Measurement variable on stack");
+
+    A2lFinalize(); // Optional: Finalize the A2L file generation early, otherwise it would be written when the client tool connects
 
     for (;;) {
         // Lock the calibration parameter segment for consistent and safe access
@@ -104,10 +106,12 @@ int main(void) {
         // Unlock the calibration segment
         XcpUnlockCalSeg(calseg);
 
+        counter_local = counter + 10;
+
         // Trigger measurement events
         DaqEvent(mainloop);
 
-    } // for(;;)
+    } // for (;;)
 
     // Force disconnect the XCP client
     XcpDisconnect();
