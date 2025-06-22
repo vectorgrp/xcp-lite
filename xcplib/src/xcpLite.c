@@ -67,7 +67,7 @@
 #include <stdint.h>   // for uint8_t, uint16_t, uint32_t, int32_t, uin...
 #include <stdio.h>    // for printf
 #include <stdlib.h>   // for free, malloc
-#include <string.h>   // for memcpy, memset, strlen, strnlen
+#include <string.h>   // for memcpy, memset, strlen
 
 #include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
 #include "platform.h"  // for atomics
@@ -76,6 +76,9 @@
 #include "xcpQueue.h"  // for QueueXxx transport queue layer interface
 #include "xcp_cfg.h"   // XCP protocol layer configuration parameters (XCP_xxx)
 #include "xcptl_cfg.h" // XCP transport layer configuration parameters (XCPTL_xxx)
+
+// @@@@ TODO Workaround: Missing declaration for the C standard library function strnlen
+size_t strnlen(const char *s, size_t maxlen);
 
 /****************************************************************************/
 /* Defaults and checks                                                      */

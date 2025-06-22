@@ -37,9 +37,9 @@
 // Turn of misaligned atomic access warnings
 // Alignment is assured by the queue header and the queue entry size alignment
 #ifdef __GNUC__
-#pragma GCC diagnostic ignored "-Watomic-alignment"
 #endif
 #ifdef __clang__
+#pragma GCC diagnostic ignored "-Watomic-alignment"
 #endif
 #ifdef _MSC_VER
 #endif
