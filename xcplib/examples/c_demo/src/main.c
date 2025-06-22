@@ -36,7 +36,7 @@ typedef struct params {
     int8_t map[8][8];
 } params_t;
 
-const params_t params = {.counter_max = 100, .delay_us = 1000, .test_byte1 = -1, .test_byte2 = 1, .curve = {0, 1, 2, 3, 4, 5, 6, 7}, .map = {{0}}};
+const params_t params = {.counter_max = 1000, .delay_us = 1000, .test_byte1 = -1, .test_byte2 = 1, .curve = {0, 1, 2, 3, 4, 5, 6, 7}, .map = {{0}}};
 
 //-----------------------------------------------------------------------------------------------------
 
