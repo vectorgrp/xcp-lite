@@ -143,37 +143,30 @@ void sleepMs(uint32_t ms);
 #endif
 
 // On Windows 64 we rely on the x86-64 strong memory model and assume atomic 64 bit load/store
-// and a mutex for thread safe atomic_fetch_add_explicit
+// Use a mutex for thread safe atomic_fetch_add_explicit and atomic_compare_exchange_explicit
 // The windows version is for demonstration and test purposes, not optimized for minimal locking overhead
+#define memory_order_acq_rel 0
+#define memory_order_relaxed 0
+#define memory_order_acquire 0
+
 #define atomic_bool bool
 #define atomic_uint_fast64_t uint64_t
+#define atomic_uint_fast32_t uint32_t
+
 #define atomic_store_explicit(a, b, c) (*(a)) = (b)
 #define atomic_load_explicit(a, b) (*(a))
+
 #define atomic_fetch_add_explicit(a, b, c)                                                                                                                                         \
     {                                                                                                                                                                              \
         mutexLock(&queue->h.mutex);                                                                                                                                                \
         (*(a)) += (b);                                                                                                                                                             \
         mutexUnlock(&queue->h.mutex);                                                                                                                                              \
     }
-#endif
 
-#define memory_order_acq_rel 0
-#define memory_order_relaxed 0
-#define memory_order_acquire 0
 #define atomic_compare_exchange_strong_explicit(a, b, c, d, e) (*a = c, true)
 #define atomic_compare_exchange_weak_explicit(a, b, c, d, e) (*a = c, true)
 
-// \
-//     {                                                                                                                                                                              \
-//                                                                                                                                                                                    \
-//         bool ret = (*a == *b);                                                                                                                                                     \
-//         if (ret) {                                                                                                                                                                 \
-//             *a = c;                                                                                                                                                                \
-//         } else {                                                                                                                                                                   \
-//             *b = *a;                                                                                                                                                               \
-//         }                                                                                                                                                                          \
-//         return ret;                                                                                                                                                                \
-//     }
+#endif
 
 //-------------------------------------------------------------------------------
 // SpinLock

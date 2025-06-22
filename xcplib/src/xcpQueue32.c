@@ -6,7 +6,7 @@
 |   XCP transport layer queue
 |   Multi producer single consumer queue (producer side thread safe, not consumer side)
 |   XCP transport layer specific:
-|   Queue entries include XCP message header of WORD CTR and LEN type, CTR incremented on push, overflow indication via CTR
+|   Queue entries include XCP message header of WORD CTR and WORD LEN type, CTR incremented on pop, overflow indication via CTR
 |
 | Copyright (c) Vector Informatik GmbH. All rights reserved.
 | See LICENSE file in the project root for details.
@@ -34,6 +34,15 @@
 #include "xcpEthTl.h"  // for XcpTlGetCtr
 #include "xcpTl_cfg.h" // for XCPTL_TRANSPORT_LAYER_HEADER_SIZE, XCPTL_MAX_DTO_SIZE, XCPTL_MAX_SEGMENT_SIZE
 
+/*
+
+Transport Layer segment, message, packet:
+
+    segment (UDP payload, MAX_SEGMENT_SIZE = UDP MTU) = message 1 + message 2 ... + message n
+    message = WORD len + WORD ctr + (protocol layer packet) + fill
+
+*/
+
 // Check preconditions
 #define MAX_ENTRY_SIZE (XCPTL_MAX_DTO_SIZE + XCPTL_TRANSPORT_LAYER_HEADER_SIZE + 8)
 #if (MAX_ENTRY_SIZE % XCPTL_PACKET_ALIGNMENT) != 0
@@ -41,7 +50,6 @@
 #endif
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
-
 // Message types
 
 typedef struct {
@@ -52,10 +60,6 @@ typedef struct {
 
 static_assert(sizeof(tXcpMessage) == XCPTL_TRANSPORT_LAYER_HEADER_SIZE, "tXcpMessage size must be equal to XCPTL_TRANSPORT_LAYER_HEADER_SIZE");
 
-/* Transport Layer:
-segment = message 1 + message 2 ... + message n
-message = len + ctr + (protocol layer packet) + fill
-*/
 typedef struct {
     uint16_t uncommited;                 // Number of uncommited messages in this segment
     uint16_t size;                       // Number of overall bytes in this segment
@@ -64,7 +68,7 @@ typedef struct {
 
 typedef struct {
 
-    uint32_t queue_buffer_size;
+    uint32_t queue_buffer_size; // Size of queue memory allocated in bytes
 
     uint32_t queue_size; // Size of queue in segments
 
@@ -173,6 +177,90 @@ static void commitTransmitBuffer(tQueueHandle queueHandle, void *handle, BOOL fl
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+// Clear the queue
+void QueueClear(tQueueHandle queueHandle) {
+    tQueue *queue = (tQueue *)queueHandle;
+    assert(queue != NULL);
+}
+
+// Create and initialize a new queue with a given size
+tQueueHandle QueueInit(uint32_t queue_buffer_size) {
+
+    tQueue *queue = (tQueue *)malloc(sizeof(tQueue));
+    assert(queue != NULL);
+
+    queue->queue_buffer_size = queue_buffer_size;
+    queue->queue_size = queue_buffer_size / sizeof(tXcpMessageBuffer);
+    queue->queue = (tXcpMessageBuffer *)malloc(queue->queue_size);
+    assert(queue->queue != NULL);
+
+    mutexInit(&queue->Mutex_Queue, 0, 1000);
+
+    mutexLock(&queue->Mutex_Queue);
+    queue->queue_rp = 0;
+    queue->queue_len = 0;
+    queue->msg_ptr = NULL;
+    getSegmentBuffer(queue);
+    mutexUnlock(&queue->Mutex_Queue);
+
+    assert(queue->msg_ptr);
+    return (tQueueHandle)queue;
+}
+
+// Deinitialize and free the queue
+void QueueDeinit(tQueueHandle queueHandle) {
+    tQueue *queue = (tQueue *)queueHandle;
+    assert(queue != NULL);
+    mutexLock(&queue->Mutex_Queue);
+    free(queue->queue);
+    queue->queue = NULL;
+    queue->queue_buffer_size = 0;
+    queue->queue_size = 0;
+    queue->queue_rp = 0;
+    queue->queue_len = 0;
+    queue->msg_ptr = NULL;
+    mutexUnlock(&queue->Mutex_Queue);
+    mutexDestroy(&queue->Mutex_Queue);
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------
+// Producer functions
+// For multiple producers !!
+
+// Get a buffer for a message with size
+tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint16_t packet_len) {
+
+    tQueue *queue = (tQueue *)queueHandle;
+    assert(queue != NULL);
+    assert(packet_len > 0 && packet_len <= XCPTL_MAX_DTO_SIZE);
+
+    void *handle = NULL;
+    uint8_t *buffer = getTransmitBuffer(queueHandle, &handle, packet_len);
+
+    assert((uint8_t *)handle == buffer - 4); // @@@@ TODO: preliminary hack to adopt the new queue API
+
+    tQueueBuffer ret = {
+        .buffer = buffer,
+        .size = packet_len,
+    };
+    return ret;
+}
+
+// Commit a buffer (returned from XcpTlGetTransmitBuffer)
+void QueuePush(tQueueHandle queueHandle, tQueueBuffer *const queueBuffer, bool flush) {
+
+    tQueue *queue = (tQueue *)queueHandle;
+    assert(queue != NULL);
+
+    commitTransmitBuffer(queueHandle, (uint8_t *)queueBuffer->buffer - 4, flush);
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------
+// Consumer functions
+// Single consumer thread !!!!!!!!!!
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -271,74 +359,6 @@ static void commitTransmitBuffer(tQueueHandle queueHandle, void *handle, BOOL fl
 //         timeout++;
 //     } while (queue->queue_len > 1 && timeout <= 50); // Wait max 1s until the transmit queue is empty
 // }
-
-//-------------------------------------------------------------------------------------------------------------------------------------------------------
-
-// Clear the queue
-void QueueClear(tQueueHandle queueHandle) {
-    tQueue *queue = (tQueue *)queueHandle;
-    assert(queue != NULL);
-}
-
-// Create and initialize a new queue with a given size
-tQueueHandle QueueInit(uint32_t queue_buffer_size) {
-
-    tQueue *queue = (tQueue *)malloc(sizeof(tQueue));
-    assert(queue != NULL);
-
-    queue->queue_buffer_size = queue_buffer_size;
-    queue->queue_size = queue_buffer_size / sizeof(tXcpMessageBuffer);
-    queue->queue = (tXcpMessageBuffer *)malloc(queue->queue_size);
-    assert(queue->queue != NULL);
-
-    mutexInit(&queue->Mutex_Queue, 0, 1000);
-
-    mutexLock(&queue->Mutex_Queue);
-    queue->queue_rp = 0;
-    queue->queue_len = 0;
-    queue->msg_ptr = NULL;
-    getSegmentBuffer(queue);
-    mutexUnlock(&queue->Mutex_Queue);
-
-    assert(queue->msg_ptr);
-    return (tQueueHandle)queue;
-}
-
-// Deinitialize and free the queue
-void QueueDeinit(tQueueHandle queueHandle) {
-    tQueue *queue = (tQueue *)queueHandle;
-    assert(queue != NULL);
-}
-
-//-------------------------------------------------------------------------------------------------------------------------------------------------------
-// Producer functions
-// For multiple producers !!
-
-// Get a buffer for a message with size
-tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint16_t packet_len) {
-
-    tQueue *queue = (tQueue *)queueHandle;
-    assert(queue != NULL);
-    assert(packet_len > 0 && packet_len <= XCPTL_MAX_DTO_SIZE);
-
-    // DBG_PRINTF4("QueueAcquire: len=%u\n", packet_len);
-    tQueueBuffer ret = {
-        .buffer = NULL,
-        .size = 0,
-    };
-    return ret;
-}
-
-// Commit a buffer (returned from XcpTlGetTransmitBuffer)
-void QueuePush(tQueueHandle queueHandle, tQueueBuffer *const queueBuffer, bool flush) {
-
-    tQueue *queue = (tQueue *)queueHandle;
-    assert(queue != NULL);
-}
-
-//-------------------------------------------------------------------------------------------------------------------------------------------------------
-// Consumer functions
-// Single consumer thread !!!!!!!!!!
 
 // Get transmit queue level in segments
 // This function is thread safe, any thread can ask for the queue level

@@ -68,6 +68,12 @@ static_assert(sizeof(void *) == 8, "This implementation requires a 64 Bit platfo
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
 
+/*
+Transport Layer segment, message, packet:
+    segment (UDP payload, MAX_SEGMENT_SIZE = UDP MTU) = message 1 + message 2 ... + message n
+    message = WORD len + WORD ctr + (protocol layer packet) + fill
+*/
+
 // Different queue implementations with different tradeoffs
 // The default implementation is a mutex based producer lock, no consumer lock and memory fences between producer and consumer.
 
