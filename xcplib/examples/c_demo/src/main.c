@@ -166,8 +166,8 @@ int main(void) {
         counter64 = (uint64_t)counter16;
         counter8s = (int8_t)counter8;
         counter16s = (int16_t)counter16;
-        counter32 = (int32_t)counter32;
-        counter64 = (int64_t)counter64;
+        counter32s = (int32_t)counter32;
+        counter64s = (int64_t)counter64;
 
         // Calibration demo
         // Visualizes calibration consistency and page switching
