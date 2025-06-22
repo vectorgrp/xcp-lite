@@ -158,6 +158,8 @@ void sleepMs(uint32_t ms) {
 // Spinlock
 /**************************************************************************/
 
+#ifndef _WIN
+
 void spinLockInit(SPINLOCK *lock) { atomic_store_explicit(lock, 0, memory_order_relaxed); }
 
 void spinLock(atomic_int_fast64_t *lock) {
@@ -176,6 +178,8 @@ void spinLock(atomic_int_fast64_t *lock) {
 }
 
 void spinUnlock(atomic_int_fast64_t *lock) { atomic_store_explicit(lock, 0, memory_order_release); }
+
+#endif
 
 /**************************************************************************/
 // Mutex

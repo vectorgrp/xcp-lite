@@ -145,6 +145,7 @@ void sleepMs(uint32_t ms);
 // On Windows 64 we rely on the x86-64 strong memory model and assume atomic 64 bit load/store
 // and a mutex for thread safe atomic_fetch_add_explicit
 // The windows version is for demonstration and test purposes, not optimized for minimal locking overhead
+#define atomic_bool bool
 #define atomic_uint_fast64_t uint64_t
 #define atomic_store_explicit(a, b, c) (*(a)) = (b)
 #define atomic_load_explicit(a, b) (*(a))
@@ -156,14 +157,36 @@ void sleepMs(uint32_t ms);
     }
 #endif
 
+#define memory_order_acq_rel 0
+#define memory_order_relaxed 0
+#define memory_order_acquire 0
+#define atomic_compare_exchange_strong_explicit(a, b, c, d, e) (*a = c, true)
+#define atomic_compare_exchange_weak_explicit(a, b, c, d, e) (*a = c, true)
+
+// \
+//     {                                                                                                                                                                              \
+//                                                                                                                                                                                    \
+//         bool ret = (*a == *b);                                                                                                                                                     \
+//         if (ret) {                                                                                                                                                                 \
+//             *a = c;                                                                                                                                                                \
+//         } else {                                                                                                                                                                   \
+//             *b = *a;                                                                                                                                                               \
+//         }                                                                                                                                                                          \
+//         return ret;                                                                                                                                                                \
+//     }
+
 //-------------------------------------------------------------------------------
 // SpinLock
+
+#ifndef _WIN
 
 #define SPINLOCK atomic_int_fast64_t
 
 void spinLockInit(SPINLOCK *lock);
 void spinLock(atomic_int_fast64_t *lock);
 void spinUnlock(atomic_int_fast64_t *lock);
+
+#endif
 
 //-------------------------------------------------------------------------------
 // Mutex

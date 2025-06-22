@@ -16,6 +16,11 @@
 |
  ----------------------------------------------------------------------------*/
 
+#include "platform.h" // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex, spinlock
+
+// Use xcpQueue32.c for 32 Bit platforms or on Windows
+#if defined(PLATFORM_64BIT) && !defined(_WIN)
+
 #include "xcpQueue.h"
 
 #include <assert.h>    // for assert
@@ -29,7 +34,6 @@
 // #include <stdalign.h> // for alignas
 
 #include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
-#include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex, spinlock
 
 #include "xcpEthTl.h"  // for XcpTlGetCtr
 #include "xcptl_cfg.h" // for XCPTL_TRANSPORT_LAYER_HEADER_SIZE, XCPTL_MAX_DTO_SIZE, XCPTL_MAX_SEGMENT_SIZE
@@ -879,3 +883,5 @@ void QueueRelease(tQueueHandle queueHandle, tQueueBuffer *const queueBuffer) {
     assert(queueBuffer->size > 0 && queueBuffer->size <= XCPTL_MAX_SEGMENT_SIZE);
     atomic_fetch_add_explicit(&queue->h.tail, queueBuffer->size, memory_order_relaxed);
 }
+
+#endif
