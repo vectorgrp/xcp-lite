@@ -23,7 +23,6 @@
 #include "main_cfg.h"  // for OPTION_xxx
 #include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
 #include "xcp.h"       // for CRC_XXX
-#include "xcpAppl.h"   // for ApplSetXxxx and registering callbacks
 #include "xcpLite.h"   // for tXcpDaqLists, XcpXxx, ApplXcpXxx, ...
 #include "xcp_cfg.h"   // for XCP_xxx
 #include "xcptl_cfg.h" // for XCPTL_xxx
@@ -444,7 +443,7 @@ static const char *getPhysMin(tA2lTypeId type, double factor, double offset) {
     }
 
     static char str[20];
-    snprintf(str, 20, "%f", factor * value + offset);
+    SNPRINTF(str, 20, "%f", factor * value + offset);
     return str;
 }
 
@@ -473,13 +472,13 @@ static const char *getPhysMax(tA2lTypeId type, double factor, double offset) {
         value = 1E12;
     }
     static char str[20];
-    snprintf(str, 20, "%f", factor * value + offset);
+    SNPRINTF(str, 20, "%f", factor * value + offset);
     return str;
 }
 
 static bool A2lOpen(const char *filename, const char *projectname) {
 
-    DBG_PRINTF3("\nA2L create %s\n", filename);
+    DBG_PRINTF3("A2L create %s\n", filename);
 
     gA2lFile = NULL;
     gA2lFixedEvent = XCP_UNDEFINED_EVENT_ID;
@@ -490,8 +489,8 @@ static bool A2lOpen(const char *filename, const char *projectname) {
         return false;
     }
 
-    // @@@@ Should be filename without extension
-    ApplXcpSetA2lName(projectname);
+    // Notify XCP that there is an A2L file available for upload by the XCP client tool
+    ApplXcpSetA2lName(filename);
 
     // Create header
     fprintf(gA2lFile, gA2lHeader, projectname, projectname);
@@ -665,6 +664,8 @@ void A2lRstAddrMode(void) {
 
 // Absolute with fixed event by name
 void A2lSetRelativeAddrMode_(const char *event_name, const uint8_t *base_addr) {
+
+    assert(gA2lFile != NULL);
 
     tXcpEventId event = XcpFindEvent(event_name, NULL);
     if (event == XCP_UNDEFINED_EVENT_ID) {
@@ -991,7 +992,11 @@ void A2lMeasurementGroupFromList(const char *name, char *names[], uint32_t count
 
 bool A2lOnce_(atomic_bool *value) {
     bool old_value = false;
-    return atomic_compare_exchange_weak_explicit(value, &old_value, true, memory_order_release, memory_order_relaxed);
+    if (atomic_compare_exchange_strong_explicit(value, &old_value, true, memory_order_relaxed, memory_order_relaxed)) {
+        return gA2lFile != NULL; // Return true if A2L file is open
+    } else {
+        return false;
+    }
 }
 
 //-----------------------------------------------------------------------------------------------------
@@ -1003,10 +1008,10 @@ bool A2lFinalize(void) {
     if (gA2lFile != NULL) {
 
         // @@@@ TODO: Improve EPK generation
-        // A different A2L EPK version is  be required for the same build, if the order of events or calibration segments is different !!!!
+        // A different A2L EPK version is  be required for the same build, if the order of event or calibration segment creation  is different and leads to different ids !!!!
         // Set the EPK (software version number) for the A2L file
         char epk[64];
-        sprintf(epk, "EPK_%s", __TIME__);
+        sprintf(epk, "EPK_%s_%s", __DATE__, __TIME__);
         XcpSetEpk(epk);
 
         // Create MOD_PAR section with EPK and calibration segments
@@ -1024,9 +1029,19 @@ bool A2lFinalize(void) {
     return true;
 }
 
+static bool file_exists(const char *path) {
+    FILE *file = fopen(path, "r");
+    if (file) {
+        fclose(file);
+        return true;
+    }
+    return false;
+}
+
 // Open the A2L file and register the finalize callback
 bool A2lInit(const char *a2l_filename, const char *a2l_projectname, const uint8_t *addr, uint16_t port, bool useTCP, bool finalize_on_connect) {
 
+    assert(gA2lFile == NULL);
     assert(a2l_filename != NULL);
     assert(a2l_projectname != NULL);
     assert(addr != NULL);
@@ -1035,6 +1050,18 @@ bool A2lInit(const char *a2l_filename, const char *a2l_projectname, const uint8_
     memcpy(&gA2lOptionBindAddr, addr, 4);
     gA2lOptionPort = port;
     gA2lUseTCP = useTCP;
+
+    // Check if A2L file already exists and rename it to 'name.old' if it does
+    if (file_exists(a2l_filename)) {
+        char old_filename[256];
+        SNPRINTF(old_filename, sizeof(old_filename), "%s.old", a2l_filename);
+        if (rename(a2l_filename, old_filename) != 0) {
+            DBG_PRINTF_ERROR("Failed to rename existing A2L file %s to %s\n", a2l_filename, old_filename);
+            return false;
+        } else {
+            DBG_PRINTF3("Renamed existing A2L file %s to %s\n", a2l_filename, old_filename);
+        }
+    }
 
     // Open A2L file
     if (!A2lOpen(a2l_filename, a2l_projectname)) {

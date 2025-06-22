@@ -21,6 +21,7 @@ void XcpStart(tQueueHandle queueHandle, bool resumeMode);
 void XcpReset(void);
 
 // EPK software version identifier
+#define XCP_EPK_MAX_LENGTH 32 // Maximum length of EPK string
 void XcpSetEpk(const char *epk);
 const char *XcpGetEpk(void);
 
@@ -309,3 +310,73 @@ uint32_t ApplXcpGetId(uint8_t id, uint8_t *buf, uint32_t bufLen);
 #ifdef XCP_ENABLE_IDT_A2L_UPLOAD // Enable A2L content upload to host (IDT_ASAM_UPLOAD)
 bool ApplXcpReadA2L(uint8_t size, uint32_t offset, uint8_t *data);
 #endif
+
+void ApplXcpSetLogLevel(uint8_t level);
+
+#ifdef XCP_ENABLE_APP_ADDRESSING
+void ApplXcpRegisterCallbacks(bool (*cb_connect)(void), uint8_t (*cb_prepare_daq)(void), uint8_t (*cb_start_daq)(void), void (*cb_stop_daq)(void),
+                              uint8_t (*cb_freeze_daq)(uint8_t clear, uint16_t config_id), uint8_t (*cb_get_cal_page)(uint8_t segment, uint8_t mode),
+                              uint8_t (*cb_set_cal_page)(uint8_t segment, uint8_t page, uint8_t mode), uint8_t (*cb_freeze_cal)(void),
+                              uint8_t (*cb_init_cal)(uint8_t src_page, uint8_t dst_page), uint8_t (*cb_read)(uint32_t src, uint8_t size, uint8_t *dst),
+                              uint8_t (*cb_write)(uint32_t dst, uint8_t size, const uint8_t *src, uint8_t delay), uint8_t (*cb_flush)(void));
+
+#else
+void ApplXcpRegisterCallbacks(bool (*cb_connect)(void), uint8_t (*cb_prepare_daq)(void), uint8_t (*cb_start_daq)(void), void (*cb_stop_daq)(void),
+                              uint8_t (*cb_freeze_daq)(uint8_t clear, uint16_t config_id), uint8_t (*cb_get_cal_page)(uint8_t segment, uint8_t mode),
+                              uint8_t (*cb_set_cal_page)(uint8_t segment, uint8_t page, uint8_t mode), uint8_t (*cb_freeze_cal)(void),
+                              uint8_t (*cb_init_cal)(uint8_t src_page, uint8_t dst_page));
+
+#endif
+
+void ApplXcpRegisterConnectCallback(bool (*cb_connect)(void));
+
+// Maximum length of A2L filename with extension
+#define XCP_A2L_FILENAME_MAX_LENGTH 255
+
+// Set/get the A2L file name (for GET_ID IDT_ASAM_NAME, IDT_ASAM_NAME and for IDT_ASAM_UPLOAD)
+void ApplXcpSetA2lName(const char *name);
+const char *ApplXcpGetA2lName(void);
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// DAQ convenience macros
+// Create and trigger event macros to be used in combination
+// Event name parameter is a symbol, not a string
+// Create linker map file markers (static variables: daq_event_stackframe_'eventname' or daq_event_relative_'eventname') for the XCP event id used
+// No need to take care to store the event id
+// Required option is XCP_ENABLE_DAQ_EVENT_LIST (must be set in xcp_cfg.h)
+
+// Create the XCP event 'name'
+// Cycle time is set to sporadic and priority to normal
+// Setting the cycle time would only have the  benefit for the XCP client tool to estimate the expected data rate of a DAQ setup
+#define DaqCreateEvent(name) XcpCreateEvent(#name, 0, 0)
+
+// Trigger the XCP event 'name' for stack (DaqEvent) or relative addressing (DaqEventRelative) mode
+// Error if the event does not exist
+// Both macros can be to measure variables in absolute addressing mode as well
+#define DaqEvent(name)                                                                                                                                                             \
+    {                                                                                                                                                                              \
+        static tXcpEventId daq_event_stackframe_##name##_ = XCP_UNDEFINED_EVENT_ID;                                                                                                \
+        if (daq_event_stackframe_##name##_ == XCP_UNDEFINED_EVENT_ID) {                                                                                                            \
+            daq_event_stackframe_##name##_ = XcpFindEvent(#name, NULL);                                                                                                            \
+            if (daq_event_stackframe_##name##_ == XCP_UNDEFINED_EVENT_ID) {                                                                                                        \
+                DBG_PRINTF_ERROR("DaqEvent: Event %s not found!\n", #name);                                                                                                        \
+            }                                                                                                                                                                      \
+        } else {                                                                                                                                                                   \
+            XcpEventExtAt(daq_event_stackframe_##name##_, get_stack_frame_pointer(), 0);                                                                                           \
+        }                                                                                                                                                                          \
+    }
+
+// Trigger the XCP event 'name' for relative mode with individual base address
+// Error if the event does not exist
+#define DaqEventRelative(name, base_addr)                                                                                                                                          \
+    {                                                                                                                                                                              \
+        static tXcpEventId daq_event_rel_##name##_ = XCP_UNDEFINED_EVENT_ID;                                                                                                       \
+        if (daq_event_rel_##name##_ == XCP_UNDEFINED_EVENT_ID) {                                                                                                                   \
+            daq_event_rel_##name##_ = XcpFindEvent(#name, NULL);                                                                                                                   \
+            if (daq_event_rel_##name##_ == XCP_UNDEFINED_EVENT_ID) {                                                                                                               \
+                DBG_PRINTF_ERROR("DaqEvent: Event %s not found!\n", #name);                                                                                                        \
+            }                                                                                                                                                                      \
+        } else {                                                                                                                                                                   \
+            XcpEventExtAt(daq_event_rel_##name##_, (const uint8_t *)base_addr, 0);                                                                                                 \
+        }                                                                                                                                                                          \
+    }

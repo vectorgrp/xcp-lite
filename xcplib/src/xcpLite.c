@@ -6,36 +6,38 @@
 |
 |  Description:
 |    Implementation of the ASAM XCP Protocol Layer V1.4
-|    Lite Version (see feature list and limitations)
+|    Version V1.0.0
+|       - Designed and optimized for 64 bit POSIX based platforms (Linux or MacOS)
+|       - Tested on x86 strong and ARM weak memory model
+|       - Can be adapted for 32 bit platforms
+|       - Runs on Windows for demonstration purposes with some limitations
 |
-|
-|  Supported commands:
-|   GET_COMM_MODE_INFO GET_ID GET_VERSION
-|   SET_MTA UPLOAD SHORT_UPLOAD DOWNLOAD SHORT_DOWNLOAD
-|   GET_CAL_PAGE SET_CAL_PAGE BUILD_CHECKSUM
-|   GET_DAQ_RESOLUTION_INFO GET_DAQ_PROCESSOR_INFO GET_DAQ_EVENT_INFO
-|   FREE_DAQ ALLOC_DAQ ALLOC_ODT ALLOC_ODT_ENTRY SET_DAQ_PTR WRITE_DAQ WRITE_DAQ_MULTIPLE
-|   GET_DAQ_LIST_MODE SET_DAQ_LIST_MODE START_STOP_SYNCH START_STOP_DAQ_LIST
-|   GET_DAQ_CLOCK GET_DAQ_CLOCK_MULTICAST TIME_CORRELATION_PROPERTIES
+|  Supported XCP commands:
+|       GET_COMM_MODE_INFO GET_ID GET_VERSION
+|       SET_MTA UPLOAD SHORT_UPLOAD DOWNLOAD SHORT_DOWNLOAD
+|       GET_CAL_PAGE SET_CAL_PAGE BUILD_CHECKSUM
+|       GET_DAQ_RESOLUTION_INFO GET_DAQ_PROCESSOR_INFO GET_DAQ_EVENT_INFO
+|       FREE_DAQ ALLOC_DAQ ALLOC_ODT ALLOC_ODT_ENTRY SET_DAQ_PTR WRITE_DAQ WRITE_DAQ_MULTIPLE
+|       GET_DAQ_LIST_MODE SET_DAQ_LIST_MODE START_STOP_SYNCH START_STOP_DAQ_LIST
+|       GET_DAQ_CLOCK GET_DAQ_CLOCK_MULTICAST TIME_CORRELATION_PROPERTIES
 |
 |  Limitations:
-|     - Testet on 32 bit or 64 bit Linux and Windows platforms
-|     - 8 bit and 16 bit CPUs are not supported
-|     - No Motorola byte sex
-|     - No misra compliance
-|     - Overall number of ODTs limited to 64K
-|     - Overall number of ODT entries is limited to 64K
-|     - Fixed DAQ+ODT DTO header
-|     - Fixed 32 bit time stamp
-|     - Only dynamic DAQ list allocation supported
-|     - Resume is not supported
-|     - Overload indication by event is not supported
-|     - DAQ does not support prescaler
-|     - ODT optimization not supported
-|     - Seed & key is not supported
-|     - Flash programming is not supported
+|       - 8 bit and 16 bit CPUs are not supported
+|       - No Motorola byte sex
+|       - No misra compliance
+|       - Overall number of ODTs limited to 64K
+|       - Overall number of ODT entries is limited to 64K
+|       - Fixed ODT-BYTE,res-BYTE, DAQ-WORD DTO header
+|       - Fixed 32 bit time stamp
+|       - Only dynamic DAQ list allocation supported
+|       - Resume is not supported
+|       - Overload indication by event is not supported
+|       - DAQ does not support prescaler
+|       - ODT optimization not supported
+|       - Seed & key is not supported
+|       - Flash programming is not supported
 |
-|  More features, more transport layer (CAN, FlexRay) and platform support, misra compliance
+|  For micro-controllers, more features and more transport layers (CAN, FlexRay) are provided
 |  by the free XCP basic version available from Vector Informatik GmbH at www.vector.com
 |
 |  Limitations of the XCP basic version:
@@ -65,7 +67,7 @@
 #include <stdint.h>   // for uint8_t, uint16_t, uint32_t, int32_t, uin...
 #include <stdio.h>    // for printf
 #include <stdlib.h>   // for free, malloc
-#include <string.h>   // for memcpy, memset, strlen, strnlen
+#include <string.h>   // for memcpy, memset, strlen
 
 #include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
 #include "platform.h"  // for atomics
@@ -74,6 +76,9 @@
 #include "xcpQueue.h"  // for QueueXxx transport queue layer interface
 #include "xcp_cfg.h"   // XCP protocol layer configuration parameters (XCP_xxx)
 #include "xcptl_cfg.h" // XCP transport layer configuration parameters (XCPTL_xxx)
+
+// @@@@ TODO Workaround: Missing declaration for the C standard library function strnlen
+size_t strnlen(const char *s, size_t maxlen);
 
 /****************************************************************************/
 /* Defaults and checks                                                      */
@@ -279,6 +284,9 @@ typedef struct {
     uint64_t DaqStartClock64;  // DAQ start time
     uint32_t DaqOverflowCount; // DAQ queue overflow
 
+    /* EPK */
+    char Epk[XCP_EPK_MAX_LENGTH + 1]; // EPK string, null terminated
+
 #ifdef XCP_ENABLE_FREEZE_CAL_PAGE
     uint8_t SegmentMode;
 #endif
@@ -458,22 +466,32 @@ uint32_t XcpGetDaqOverflowCount(void) { return gXcp.DaqOverflowCount; }
 /* EPK version string                                                     */
 /**************************************************************************/
 
-#define XCP_EPK_MAX_LENGTH 32                      // Max length of the EPK (A2L file version string)
-static char gXcpEpk[XCP_EPK_MAX_LENGTH + 1] = {0}; // EPK string, null terminated
-
 // Set/get the EPK (A2l file version string)
 void XcpSetEpk(const char *epk) {
     assert(epk != NULL);
     size_t epk_len = strnlen(epk, XCP_EPK_MAX_LENGTH);
-    strncpy(gXcpEpk, epk, epk_len);
-    gXcpEpk[XCP_EPK_MAX_LENGTH] = 0;    // Ensure null termination
-    assert((strlen(gXcpEpk) % 4) == 0); // @@@@ EPK length must be a %4 because of 4 byte XCP checksum calculation granularity
-    DBG_PRINTF3("EPK = '%s'\n", gXcpEpk);
+    strncpy(gXcp.Epk, epk, epk_len);
+    // Ensure null-termination
+    gXcp.Epk[XCP_EPK_MAX_LENGTH] = 0;
+    // Remove white spaces from the EPK string
+    for (char *p = gXcp.Epk; *p; p++) {
+        if (*p == ' ' || *p == '\t') {
+            *p = '_'; // Replace spaces with underscores
+        }
+    }
+    // EPK length must be a %4 because of 4 byte XCP checksum calculation granularity
+    uint32_t epk_length = (uint32_t)strlen(gXcp.Epk);
+    if ((epk_length % 4) != 0) {
+        DBG_PRINTF_WARNING("EPK length %u is not a multiple of 4\n", epk_length);
+        gXcp.Epk[epk_length & 0xFFFC] = 0; // Shorten EPK if not
+    }
+
+    DBG_PRINTF3("EPK = '%s'\n", gXcp.Epk);
 }
 const char *XcpGetEpk(void) {
-    if (strnlen(gXcpEpk, XCP_EPK_MAX_LENGTH) == 0)
+    if (strnlen(gXcp.Epk, XCP_EPK_MAX_LENGTH) == 0)
         return NULL;
-    return gXcpEpk;
+    return gXcp.Epk;
 }
 
 /**************************************************************************/
@@ -2894,11 +2912,10 @@ void XcpStart(tQueueHandle queueHandle, bool resumeMode) {
 #ifdef DBG_LEVEL
     if (DBG_LEVEL >= 3) {
         DBG_PRINT3("Init XCP protocol layer\n");
-        DBG_PRINTF("  Version=%u.%u, MAX_CTO=%u, MAX_DTO=%u, DAQ_MEM=%u, MAX_DAQ=%u, MAX_ODT_ENTRY=%u, MAX_ODT_ENTRYSIZE=%u\n", XCP_PROTOCOL_LAYER_VERSION >> 8,
-                   XCP_PROTOCOL_LAYER_VERSION & 0xFF, XCPTL_MAX_CTO_SIZE, XCPTL_MAX_DTO_SIZE, XCP_DAQ_MEM_SIZE, (1 << sizeof(uint16_t) * 8) - 1, (1 << sizeof(uint16_t) * 8) - 1,
-                   (1 << (sizeof(uint8_t) * 8)) - 1);
-        DBG_PRINTF("  %u KiB memory used\n", (unsigned int)sizeof(gXcp) / 1024);
-        DBG_PRINT("  Options=(");
+        DBG_PRINTF3("  Version=%u.%u, MAX_CTO=%u, MAX_DTO=%u, DAQ_MEM=%u, MAX_DAQ=%u, MAX_ODT_ENTRY=%u, MAX_ODT_ENTRYSIZE=%u, %u KiB memory used\n",
+                    XCP_PROTOCOL_LAYER_VERSION >> 8, XCP_PROTOCOL_LAYER_VERSION & 0xFF, XCPTL_MAX_CTO_SIZE, XCPTL_MAX_DTO_SIZE, XCP_DAQ_MEM_SIZE, (1 << sizeof(uint16_t) * 8) - 1,
+                    (1 << sizeof(uint16_t) * 8) - 1, (1 << (sizeof(uint8_t) * 8)) - 1, (unsigned int)sizeof(gXcp) / 1024);
+        DBG_PRINT3("  Options=(");
 
         // Print activated XCP protocol options
 #ifdef XCP_ENABLE_DAQ_CLOCK_MULTICAST // Enable GET_DAQ_CLOCK_MULTICAST

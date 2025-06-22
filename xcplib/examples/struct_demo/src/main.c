@@ -10,11 +10,12 @@
 #include "a2l.h"          // for A2l generation
 #include "platform.h"     // for sleepMs
 #include "xcpEthServer.h" // for XcpEthServerInit, XcpEthServerShutdown, XcpEthServerStatus
-#include "xcpLite.h"      // for XcpInit, XcpEventXxx, XcpCreateEvent, XcpCreateCalSeg, ...
+#include "xcpLite.h"      // for XcpInit, XcpEventXxx, XcpCreateEvent, XcpCreateCalSeg, DaqXxxx, ...
 
 //-----------------------------------------------------------------------------------------------------
 
 // XCP parameters
+#define OPTION_ENABLE_A2L_GENERATOR            // Enable A2L file generation
 #define OPTION_A2L_PROJECT_NAME "struct_demo"  // A2L project name
 #define OPTION_A2L_FILE_NAME "struct_demo.a2l" // A2L file name
 #define OPTION_USE_TCP false                   // TCP or UDP
@@ -22,7 +23,7 @@
 #define OPTION_SERVER_ADDR {0, 0, 0, 0}        // Bind addr, 0.0.0.0 = ANY
 // s#define OPTION_SERVER_ADDR {127, 0, 0, 1} // Bind addr, 0.0.0.0 = ANY
 #define OPTION_QUEUE_SIZE 1024 * 32 // Size of the measurement queue in bytes, must be a multiple of 8
-#define OPTION_LOG_LEVEL 4
+#define OPTION_LOG_LEVEL 5
 
 //-----------------------------------------------------------------------------------------------------
 
@@ -75,10 +76,15 @@ int main(void) {
         return 1;
     }
 
-    // Prepare the A2L file
+    // Enable A2L generation and prepare the A2L file, finalize the A2L file on XCP connect
+#ifdef OPTION_ENABLE_A2L_GENERATOR
     if (!A2lInit(OPTION_A2L_FILE_NAME, OPTION_A2L_PROJECT_NAME, addr, OPTION_SERVER_PORT, OPTION_USE_TCP, true)) {
         return 1;
     }
+#else
+    // Set the A2L filename for upload, assuming the A2L file exists
+    ApplXcpSetA2lName(OPTION_A2L_FILE_NAME);
+#endif
 
     // Create a calibration segment for the calibration parameter struct
     // This segment has a working page (RAM) and a reference page (FLASH), it creates a MEMORY_SEGMENT in the A2L file
@@ -89,7 +95,7 @@ int main(void) {
 
     // Register individual calibration parameters in the calibration segment
     A2lSetSegAddrMode(calseg, (uint8_t *)&params);
-    A2lCreateParameterWithLimits(params.delay_us, "mainloop delay time in us", "us", 0, 1000000);
+    A2lCreateParameterWithLimits(params, delay_us, "mainloop delay time in us", "us", 0, 1000000);
 
     // Create a A2L typedef for struct2_t
     A2lTypedefBegin(struct2_t, "A2L typedef for struct2_t");

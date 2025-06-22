@@ -11,8 +11,6 @@
 |
  ----------------------------------------------------------------------------*/
 
-#include "xcpAppl.h"
-
 #include <assert.h>  // for assert
 #include <stdbool.h> // for bool
 #include <stdint.h>  // for uintxx_t
@@ -431,14 +429,23 @@ uint8_t ApplXcpDaqResumeClear(void) {
 // Functions for upload of A2L file
 /**************************************************************************/
 
-static const char *gXcpA2lName = NULL; // A2L filename (without extension .a2l)
+static char gXcpA2lName[XCP_A2L_FILENAME_MAX_LENGTH + 1] = ""; // A2L filename (without extension .a2l)
 
-// Set the A2L filename (without extension) to be provided to the host for upload
+// Set the A2L file (filename without extension .a2l) to be provided to the host for upload
 void ApplXcpSetA2lName(const char *name) {
-    assert(name != NULL);
-    DBG_PRINTF4("A2L name='%s'\n", name);
-    gXcpA2lName = (char *)name; // must be static lifetime
+    assert(name != NULL && strlen(name) < XCP_A2L_FILENAME_MAX_LENGTH);
+    strncpy(gXcpA2lName, name, XCP_A2L_FILENAME_MAX_LENGTH);
+
+    // Remove the extension from the name, if it exists
+    char *dot = strrchr(gXcpA2lName, '.');
+    if (dot != NULL)
+        *dot = '\0';                                 // Null-terminate the string at the dot
+    gXcpA2lName[XCP_A2L_FILENAME_MAX_LENGTH] = '\0'; // Ensure null-termination
+    DBG_PRINTF3("ApplXcpSetA2lName '%s'\n", name);
 }
+
+// Return the A2L name (without extension)
+const char *ApplXcpGetA2lName(void) { return gXcpA2lName; }
 
 #ifdef XCP_ENABLE_IDT_A2L_UPLOAD // Enable GET_ID A2L content upload to host
 
@@ -452,15 +459,17 @@ static void closeA2lFile(void) {
 }
 
 static uint32_t openA2lFile(void) {
-    char filename[256];
-    if (gXcpA2lName == NULL)
-        return 0; // A2L file is not available
-    SNPRINTF((char *)filename, 255, "%s.a2l", gXcpA2lName);
+    char filename[XCP_A2L_FILENAME_MAX_LENGTH + 5];
+    if (gXcpA2lName[0] == 0)
+        return 0; // A2L file is not set
+
+    // Add .a2l extension to the A2L name
+    SNPRINTF((char *)filename, XCP_A2L_FILENAME_MAX_LENGTH + 5, "%s.a2l", gXcpA2lName);
 
     assert(gXcpFile == NULL);
     gXcpFile = fopen(filename, "rb");
     if (gXcpFile == NULL) {
-        DBG_PRINTF_ERROR("File %s not found!\n", filename);
+        DBG_PRINTF_ERROR("A2L file %s not found!\n", filename);
         return 0;
     }
 
@@ -502,7 +511,7 @@ uint32_t ApplXcpGetId(uint8_t id, uint8_t *buf, uint32_t bufLen) {
 
     case IDT_ASCII:
     case IDT_ASAM_NAME:
-        if (gXcpA2lName == NULL)
+        if (gXcpA2lName[0] == 0)
             return 0;
         len = (uint32_t)strlen(gXcpA2lName);
         if (buf) {
@@ -514,7 +523,7 @@ uint32_t ApplXcpGetId(uint8_t id, uint8_t *buf, uint32_t bufLen) {
         break;
 
     case IDT_ASAM_PATH:
-        if (gXcpA2lName == NULL)
+        if (gXcpA2lName[0] == 0)
             return 0;
         len = (uint32_t)strlen(gXcpA2lName) + 4;
         if (buf) {

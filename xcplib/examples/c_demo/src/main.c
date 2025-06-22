@@ -9,11 +9,12 @@
 #include "a2l.h"          // for A2l generation
 #include "platform.h"     // for sleepMs, clockGet
 #include "xcpEthServer.h" // for XcpEthServerInit, XcpEthServerShutdown, XcpEthServerStatus
-#include "xcpLite.h"      // for XcpInit, XcpEventXxx, XcpCreateEvent, XcpCreateCalSeg, ...
+#include "xcpLite.h"      // for XcpInit, XcpEventXxx, XcpCreateEvent, XcpCreateCalSeg, DaqXxxx, ...
 
 //-----------------------------------------------------------------------------------------------------
 
 // XCP parameters
+#define OPTION_ENABLE_A2L_GENERATOR       // Enable A2L file generation
 #define OPTION_A2L_PROJECT_NAME "C_Demo"  // A2L project name
 #define OPTION_A2L_FILE_NAME "C_Demo.a2l" // A2L file name
 #define OPTION_USE_TCP false              // TCP or UDP
@@ -35,7 +36,7 @@ typedef struct params {
     int8_t map[8][8];
 } params_t;
 
-const params_t params = {.counter_max = 100, .delay_us = 1000, .test_byte1 = -1, .test_byte2 = 1, .curve = {0, 1, 2, 3, 4, 5, 6, 7}, .map = {{0}}};
+const params_t params = {.counter_max = 1000, .delay_us = 1000, .test_byte1 = -1, .test_byte2 = 1, .curve = {0, 1, 2, 3, 4, 5, 6, 7}, .map = {{0}}};
 
 //-----------------------------------------------------------------------------------------------------
 
@@ -56,10 +57,15 @@ int main(void) {
         return 1;
     }
 
-    // Prepare the A2L file
+    // Enable A2L generation and prepare the A2L file, finalize the A2L file on XCP connect
+#ifdef OPTION_ENABLE_A2L_GENERATOR
     if (!A2lInit(OPTION_A2L_FILE_NAME, OPTION_A2L_PROJECT_NAME, addr, OPTION_SERVER_PORT, OPTION_USE_TCP, true)) {
         return 1;
     }
+#else
+    // Set the A2L filename for upload, assuming the A2L file exists
+    ApplXcpSetA2lName(OPTION_A2L_FILE_NAME);
+#endif
 
     // Create a calibration segment for the calibration parameter struct
     // This segment has a working page (RAM) and a reference page (FLASH), it creates a MEMORY_SEGMENT in the A2L file
@@ -70,12 +76,12 @@ int main(void) {
 
     // Register calibration parameters in the calibration segment
     A2lSetSegAddrMode(calseg, (uint8_t *)&params);
-    A2lCreateParameterWithLimits(params.counter_max, "maximum counter value", "", 0, 2000);
-    A2lCreateParameterWithLimits(params.delay_us, "mainloop delay time in us", "us", 0, 1000000);
-    A2lCreateParameter(params.test_byte1, "", "");
-    A2lCreateParameter(params.test_byte2, "", "");
-    A2lCreateCurve(params.curve, 8, "", "");
-    A2lCreateMap(params.map, 8, 8, "", "");
+    A2lCreateParameterWithLimits(params, counter_max, "maximum counter value", "", 0, 2000);
+    A2lCreateParameterWithLimits(params, delay_us, "mainloop delay time in us", "us", 0, 1000000);
+    A2lCreateParameter(params, test_byte1, "", "");
+    A2lCreateParameter(params, test_byte2, "", "");
+    A2lCreateCurve(params, curve, 8, "", "");
+    A2lCreateMap(params, map, 8, 8, "", "");
 
     // Variables on stack
     uint8_t counter8 = 0;
@@ -160,8 +166,8 @@ int main(void) {
         counter64 = (uint64_t)counter16;
         counter8s = (int8_t)counter8;
         counter16s = (int16_t)counter16;
-        counter32 = (int32_t)counter32;
-        counter64 = (int64_t)counter64;
+        counter32s = (int32_t)counter32;
+        counter64s = (int64_t)counter64;
 
         // Calibration demo
         // Visualizes calibration consistency and page switching
@@ -172,7 +178,7 @@ int main(void) {
         params_copy = *params;
         if (params_copy.test_byte1 != -params_copy.test_byte2) {
             char buffer[64];
-            snprintf(buffer, sizeof(buffer), "Inconsistent %u:  %d -  %d", counter16, params_copy.test_byte1, params_copy.test_byte2);
+            SNPRINTF(buffer, sizeof(buffer), "Inconsistent %u:  %d -  %d", counter16, params_copy.test_byte1, params_copy.test_byte2);
             XcpPrint(buffer);
             printf("%s\n", buffer);
         }

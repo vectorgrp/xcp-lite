@@ -605,12 +605,10 @@ impl Xcp {
                     let name = std::ffi::CString::new(reg.get_app_name()).unwrap();
                     // @@@@ UNSAFE - C library call
                     xcplib::ApplXcpSetA2lName(name.as_ptr());
-                    std::mem::forget(name); // This memory is never dropped, it is moved to xcplib singleton
 
                     let epk = std::ffi::CString::new(reg.get_app_version()).unwrap();
                     // @@@@ UNSAFE - C library call
                     xcplib::XcpSetEpk(epk.as_ptr());
-                    std::mem::forget(epk); // This memory is never dropped, it is moved to xcplib singleton
                 }
             }
         }

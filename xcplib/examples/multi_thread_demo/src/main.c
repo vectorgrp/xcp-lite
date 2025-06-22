@@ -10,7 +10,7 @@
 #include "a2l.h"          // for A2l generation
 #include "platform.h"     // for sleepMs, clockGet
 #include "xcpEthServer.h" // for XcpEthServerInit, XcpEthServerShutdown, XcpEthServerStatus
-#include "xcpLite.h"      // for XcpInit, XcpEventXxx, XcpCreateEvent, XcpCreateCalSeg, ...
+#include "xcpLite.h"      // for XcpInit, XcpEventXxx, XcpCreateEvent, XcpCreateCalSeg, DaqXxxx, ...
 
 #ifdef _WIN
 #define M_PI 3.14159265358979323846
@@ -20,6 +20,7 @@
 //-----------------------------------------------------------------------------------------------------
 
 // XCP parameters
+#define OPTION_ENABLE_A2L_GENERATOR                  // Enable A2L file generation
 #define OPTION_A2L_PROJECT_NAME "multi_thread_demo"  // A2L project name
 #define OPTION_A2L_FILE_NAME "multi_thread_demo.a2l" // A2L file name
 #define OPTION_USE_TCP false                         // TCP or UDP
@@ -40,8 +41,8 @@ typedef struct params {
     bool run;             // Stop flag for the task
 } params_t;
 
-static const params_t params = {.counter_max = 16, .ampl = 100.0, .period = 1.0, .delay_us = 10000, .run = true}; // Default parameters
-static tXcpCalSegIndex calseg = XCP_UNDEFINED_CALSEG;                                                             // Calibration segment handle
+static const params_t params = {.counter_max = 1000, .ampl = 100.0, .period = 1.0, .delay_us = 1000, .run = true}; // Default parameters
+static tXcpCalSegIndex calseg = XCP_UNDEFINED_CALSEG;                                                              // Calibration segment handle
 
 //-----------------------------------------------------------------------------------------------------
 
@@ -81,7 +82,7 @@ void *task(void *p)
                 counter = 0;
             }
 
-            channel = (task_id * 10) + params->ampl * sin(M_2PI * (double)(clockGet() - start_time) / CLOCK_TICKS_PER_S / params->period);
+            channel = (task_id * 10) + params->ampl * sin(M_2PI / params->period * ((double)(clockGet() - start_time) / CLOCK_TICKS_PER_S));
 
             // Sleep time
             delay_us = params->delay_us;
@@ -119,10 +120,15 @@ int main(void) {
         return 1;
     }
 
-    // Prepare the A2L file
+    // Enable A2L generation and prepare the A2L file, finalize the A2L file on XCP connect
+#ifdef OPTION_ENABLE_A2L_GENERATOR
     if (!A2lInit(OPTION_A2L_FILE_NAME, OPTION_A2L_PROJECT_NAME, addr, OPTION_SERVER_PORT, OPTION_USE_TCP, true)) {
         return 1;
     }
+#else
+    // Set the A2L filename for upload, assuming the A2L file exists
+    ApplXcpSetA2lName(OPTION_A2L_FILE_NAME);
+#endif
 
     // Create a calibration segment for the calibration parameter struct
     // This segment has a working page (RAM) and a reference page (FLASH), it creates a MEMORY_SEGMENT in the A2L file
@@ -133,11 +139,11 @@ int main(void) {
 
     // Register individual calibration parameters in the calibration segment
     A2lSetSegAddrMode(calseg, (uint8_t *)&params);
-    A2lCreateParameterWithLimits(params.counter_max, "Max counter value, wrap around", "", 0, 1000.0);
-    A2lCreateParameterWithLimits(params.ampl, "Amplitude", "Volt", 0, 1000.0);
-    A2lCreateParameterWithLimits(params.period, "Period", "s", 0.1, 5.0);
-    A2lCreateParameterWithLimits(params.delay_us, "task delay time in us", "us", 0, 1000000);
-    A2lCreateParameterWithLimits(params.run, "stop task", "", 0, 1);
+    A2lCreateParameterWithLimits(params, counter_max, "Max counter value, wrap around", "", 0, 10000.0);
+    A2lCreateParameterWithLimits(params, ampl, "Amplitude", "Volt", 0, 100.0);
+    A2lCreateParameterWithLimits(params, period, "Period", "s", 0.1, 10.0);
+    A2lCreateParameterWithLimits(params, delay_us, "task delay time in us", "us", 0, 1000000);
+    A2lCreateParameterWithLimits(params, run, "stop task", "", 0, 1);
 
     // Create multiple inszances of the same task
     THREAD t[10];
