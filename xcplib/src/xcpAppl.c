@@ -464,7 +464,7 @@ static uint32_t openA2lFile(void) {
         return 0; // A2L file is not set
 
     // Add .a2l extension to the A2L name
-    SNPRINTF((char *)filename, XCP_A2L_FILENAME_MAX_LENGTH + 4, "%s.a2l", gXcpA2lName);
+    SNPRINTF((char *)filename, XCP_A2L_FILENAME_MAX_LENGTH + 5, "%s.a2l", gXcpA2lName);
 
     assert(gXcpFile == NULL);
     gXcpFile = fopen(filename, "rb");

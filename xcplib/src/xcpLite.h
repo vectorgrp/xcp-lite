@@ -355,7 +355,7 @@ const char *ApplXcpGetA2lName(void);
 // Both macros can be to measure variables in absolute addressing mode as well
 #define DaqEvent(name)                                                                                                                                                             \
     {                                                                                                                                                                              \
-        static tXcpEventId daq_event_##name##_ = XCP_UNDEFINED_EVENT_ID;                                                                                                           \
+        static tXcpEventId daq_event_stackframe_##name##_ = XCP_UNDEFINED_EVENT_ID;                                                                                                \
         if (daq_event_stackframe_##name##_ == XCP_UNDEFINED_EVENT_ID) {                                                                                                            \
             daq_event_stackframe_##name##_ = XcpFindEvent(#name, NULL);                                                                                                            \
             if (daq_event_stackframe_##name##_ == XCP_UNDEFINED_EVENT_ID) {                                                                                                        \
