@@ -1,5 +1,7 @@
 /build
 
+*.a2l.old
+
 /C_Demo.a2l
 /hello_xcp.a2l
 /struct_demo.a2l

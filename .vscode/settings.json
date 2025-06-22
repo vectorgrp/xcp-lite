@@ -1,5 +1,13 @@
 {
     "files.associations": {
         "stdatomic.h": "c"
-    }
+    },
+    "cSpell.words": [
+        "COMPU",
+        "DONT",
+        "Mainloop",
+        "SBYTE",
+        "SLONG",
+        "UBYTE"
+    ]
 }

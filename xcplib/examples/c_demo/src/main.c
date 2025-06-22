@@ -9,11 +9,12 @@
 #include "a2l.h"          // for A2l generation
 #include "platform.h"     // for sleepMs, clockGet
 #include "xcpEthServer.h" // for XcpEthServerInit, XcpEthServerShutdown, XcpEthServerStatus
-#include "xcpLite.h"      // for XcpInit, XcpEventXxx, XcpCreateEvent, XcpCreateCalSeg, ...
+#include "xcpLite.h"      // for XcpInit, XcpEventXxx, XcpCreateEvent, XcpCreateCalSeg, DaqXxxx, ...
 
 //-----------------------------------------------------------------------------------------------------
 
 // XCP parameters
+#define OPTION_ENABLE_A2L_GENERATOR       // Enable A2L file generation
 #define OPTION_A2L_PROJECT_NAME "C_Demo"  // A2L project name
 #define OPTION_A2L_FILE_NAME "C_Demo.a2l" // A2L file name
 #define OPTION_USE_TCP false              // TCP or UDP
@@ -56,10 +57,15 @@ int main(void) {
         return 1;
     }
 
-    // Prepare the A2L file
+    // Enable A2L generation and prepare the A2L file, finalize the A2L file on XCP connect
+#ifdef OPTION_ENABLE_A2L_GENERATOR
     if (!A2lInit(OPTION_A2L_FILE_NAME, OPTION_A2L_PROJECT_NAME, addr, OPTION_SERVER_PORT, OPTION_USE_TCP, true)) {
         return 1;
     }
+#else
+    // Set the A2L filename for upload, assuming the A2L file exists
+    ApplXcpSetA2lName(OPTION_A2L_FILE_NAME);
+#endif
 
     // Create a calibration segment for the calibration parameter struct
     // This segment has a working page (RAM) and a reference page (FLASH), it creates a MEMORY_SEGMENT in the A2L file
@@ -172,7 +178,7 @@ int main(void) {
         params_copy = *params;
         if (params_copy.test_byte1 != -params_copy.test_byte2) {
             char buffer[64];
-            snprintf(buffer, sizeof(buffer), "Inconsistent %u:  %d -  %d", counter16, params_copy.test_byte1, params_copy.test_byte2);
+            SNPRINTF(buffer, sizeof(buffer), "Inconsistent %u:  %d -  %d", counter16, params_copy.test_byte1, params_copy.test_byte2);
             XcpPrint(buffer);
             printf("%s\n", buffer);
         }

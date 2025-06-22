@@ -15,7 +15,7 @@
 //-----------------------------------------------------------------------------------------------------
 
 // XCP parameters
-// #define OPTION_ENABLE_A2L_GENERATOR            // Enable A2L file generation
+#define OPTION_ENABLE_A2L_GENERATOR            // Enable A2L file generation
 #define OPTION_A2L_PROJECT_NAME "struct_demo"  // A2L project name
 #define OPTION_A2L_FILE_NAME "struct_demo.a2l" // A2L file name
 #define OPTION_USE_TCP false                   // TCP or UDP

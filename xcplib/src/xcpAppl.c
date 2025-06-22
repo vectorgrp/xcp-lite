@@ -429,21 +429,23 @@ uint8_t ApplXcpDaqResumeClear(void) {
 // Functions for upload of A2L file
 /**************************************************************************/
 
-#define MAX_A2L_FILENAME_LENGTH 255                        // Maximum length of A2L filename with extension
-static char gXcpA2lName[MAX_A2L_FILENAME_LENGTH + 1] = ""; // A2L filename (without extension .a2l)
+static char gXcpA2lName[XCP_A2L_FILENAME_MAX_LENGTH + 1] = ""; // A2L filename (without extension .a2l)
 
 // Set the A2L file (filename without extension .a2l) to be provided to the host for upload
 void ApplXcpSetA2lName(const char *name) {
-    assert(name != NULL && strlen(name) < MAX_A2L_FILENAME_LENGTH);
+    assert(name != NULL && strlen(name) < XCP_A2L_FILENAME_MAX_LENGTH);
     DBG_PRINTF4("A2L name='%s'\n", name);
-    strncpy(gXcpA2lName, name, MAX_A2L_FILENAME_LENGTH);
+    strncpy(gXcpA2lName, name, XCP_A2L_FILENAME_MAX_LENGTH);
 
     // Remove the extension from the name, if it exists
     char *dot = strrchr(gXcpA2lName, '.');
     if (dot != NULL)
-        *dot = '\0';                             // Null-terminate the string at the dot
-    gXcpA2lName[MAX_A2L_FILENAME_LENGTH] = '\0'; // Ensure null-termination
+        *dot = '\0';                                 // Null-terminate the string at the dot
+    gXcpA2lName[XCP_A2L_FILENAME_MAX_LENGTH] = '\0'; // Ensure null-termination
 }
+
+// Return the A2L name (without extension)
+const char *ApplXcpGetA2lName(void) { return gXcpA2lName; }
 
 #ifdef XCP_ENABLE_IDT_A2L_UPLOAD // Enable GET_ID A2L content upload to host
 
@@ -457,12 +459,12 @@ static void closeA2lFile(void) {
 }
 
 static uint32_t openA2lFile(void) {
-    char filename[MAX_A2L_FILENAME_LENGTH + 5];
+    char filename[XCP_A2L_FILENAME_MAX_LENGTH + 5];
     if (gXcpA2lName[0] != 0)
         return 0; // A2L file is not set
 
     // Add .a2l extension to the A2L name
-    SNPRINTF((char *)filename, MAX_A2L_FILENAME_LENGTH + 4, "%s.a2l", gXcpA2lName);
+    SNPRINTF((char *)filename, XCP_A2L_FILENAME_MAX_LENGTH + 4, "%s.a2l", gXcpA2lName);
 
     assert(gXcpFile == NULL);
     gXcpFile = fopen(filename, "rb");

@@ -181,8 +181,8 @@ static inline uint8_t *get_stack_frame_pointer(void) {
 // Once
 #define A2lCreateMeasurement(name, comment)                                                                                                                                        \
     {                                                                                                                                                                              \
-        static atomic_bool a2l_##name##_static = false;                                                                                                                            \
-        if (A2lOnce_(&a2l_##name##_static))                                                                                                                                        \
+        static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
+        if (A2lOnce_(&a2l_##name##_))                                                                                                                                              \
             A2lCreateMeasurement_(NULL, #name, A2lGetTypeId(name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&(name)), 1.0, 0.0, NULL, comment);                                    \
     }
 
@@ -199,24 +199,24 @@ static inline uint8_t *get_stack_frame_pointer(void) {
 // Once
 #define A2lCreatePhysMeasurement(name, comment, factor, offset, unit)                                                                                                              \
     {                                                                                                                                                                              \
-        static atomic_bool a2l_##name##_static = false;                                                                                                                            \
-        if (A2lOnce_(&a2l_##name##_static))                                                                                                                                        \
+        static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
+        if (A2lOnce_(&a2l_##name##_))                                                                                                                                              \
             A2lCreateMeasurement_(NULL, #name, A2lGetTypeId(name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&name), factor, offset, unit, comment);                                \
     }
 
 // Once
 #define A2lCreateMeasurementArray(name, comment)                                                                                                                                   \
     {                                                                                                                                                                              \
-        static atomic_bool a2l_##name##_static = false;                                                                                                                            \
-        if (A2lOnce_(&a2l_##name##_static))                                                                                                                                        \
+        static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
+        if (A2lOnce_(&a2l_##name##_))                                                                                                                                              \
             A2lCreateMeasurementArray_(NULL, #name, A2lGetTypeId(name[0]), sizeof(name) / sizeof(name[0]), 1, A2lGetAddrExt_(), A2lGetAddr_(&name[0]), 1.0, 0.0, "", comment);     \
     }
 
 // Once
 #define A2lCreateMeasurementMatrix(name, comment)                                                                                                                                  \
     {                                                                                                                                                                              \
-        static atomic_bool a2l_##name##_static = false;                                                                                                                            \
-        if (A2lOnce_(&a2l_##name##_static))                                                                                                                                        \
+        static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
+        if (A2lOnce_(&a2l_##name##_))                                                                                                                                              \
             A2lCreateMeasurementArray_(NULL, #name, A2lGetTypeId(name[0][0]), sizeof(name[0]) / sizeof(name[0][0]), sizeof(name) / sizeof(name[0]), A2lGetAddrExt_(),              \
                                        A2lGetAddr_(&name[0]), 1.0, 0.0, "", comment);                                                                                              \
     }
@@ -227,8 +227,8 @@ static inline uint8_t *get_stack_frame_pointer(void) {
 // Once
 #define A2lCreateTypedefInstance(name, typeName, comment)                                                                                                                          \
     {                                                                                                                                                                              \
-        static atomic_bool a2l_##name##_static = false;                                                                                                                            \
-        if (A2lOnce_(&a2l_##name##_static)) {                                                                                                                                      \
+        static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
+        if (A2lOnce_(&a2l_##name##_)) {                                                                                                                                            \
             A2lCreateTypedefInstance_(#name, #typeName, 0, A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&name), comment);                                                              \
         }                                                                                                                                                                          \
     }
@@ -236,8 +236,8 @@ static inline uint8_t *get_stack_frame_pointer(void) {
 // Once
 #define A2lCreateTypedefReference(name, typeName, comment)                                                                                                                         \
     {                                                                                                                                                                              \
-        static atomic_bool a2l_##name##_static = false;                                                                                                                            \
-        if (A2lOnce_(&a2l_##name##_static)) {                                                                                                                                      \
+        static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
+        if (A2lOnce_(&a2l_##name##_)) {                                                                                                                                            \
             A2lCreateTypedefInstance_(#name, #typeName, 0, A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)name), comment);                                                               \
         }                                                                                                                                                                          \
     }
@@ -245,8 +245,8 @@ static inline uint8_t *get_stack_frame_pointer(void) {
 // Once
 #define A2lCreateTypedefArray(name, typeName, dim, comment)                                                                                                                        \
     {                                                                                                                                                                              \
-        static atomic_bool a2l_##name##_static = false;                                                                                                                            \
-        if (A2lOnce_(&a2l_##name##_static)) {                                                                                                                                      \
+        static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
+        if (A2lOnce_(&a2l_##name##_)) {                                                                                                                                            \
             A2lCreateTypedefInstance_(#name, #typeName, dim, A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&name), comment);                                                            \
         }                                                                                                                                                                          \
     }
@@ -254,8 +254,8 @@ static inline uint8_t *get_stack_frame_pointer(void) {
 // Once
 #define A2lCreateTypedefArrayReference(name, typeName, dim, comment)                                                                                                               \
     {                                                                                                                                                                              \
-        static atomic_bool a2l_##name##_static = false;                                                                                                                            \
-        if (A2lOnce_(&a2l_##name##_static)) {                                                                                                                                      \
+        static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
+        if (A2lOnce_(&a2l_##name##_)) {                                                                                                                                            \
             A2lCreateTypedefInstance_(#name, #typeName, dim, A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)name), comment);                                                             \
         }                                                                                                                                                                          \
     }
@@ -263,8 +263,8 @@ static inline uint8_t *get_stack_frame_pointer(void) {
 // Once
 #define A2lTypedefBegin(type_name, comment)                                                                                                                                        \
     {                                                                                                                                                                              \
-        static atomic_bool a2l_##type_name##_static = false;                                                                                                                       \
-        if (A2lOnce_(&a2l_##type_name##_static)) {                                                                                                                                 \
+        static atomic_bool a2l_##type_name##_ = false;                                                                                                                             \
+        if (A2lOnce_(&a2l_##type_name##_)) {                                                                                                                                       \
             A2lTypedefBegin_(#type_name, (uint32_t)sizeof(type_name), comment);                                                                                                    \
         }                                                                                                                                                                          \
     }
@@ -272,8 +272,8 @@ static inline uint8_t *get_stack_frame_pointer(void) {
 // Once
 #define A2lTypedefMeasurementComponent(field_name, typedef_name)                                                                                                                   \
     {                                                                                                                                                                              \
-        static atomic_bool a2l_##name##_static = false;                                                                                                                            \
-        if (A2lOnce_(&a2l_##name##_static)) {                                                                                                                                      \
+        static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
+        if (A2lOnce_(&a2l_##name##_)) {                                                                                                                                            \
             typedef_name instance;                                                                                                                                                 \
             A2lTypedefComponent_(#field_name, A2lGetTypeName_M(instance.field_name), 1, ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance));                               \
         }                                                                                                                                                                          \
@@ -282,8 +282,8 @@ static inline uint8_t *get_stack_frame_pointer(void) {
 // Once
 #define A2lTypedefParameterComponent(field_name, typeName)                                                                                                                         \
     {                                                                                                                                                                              \
-        static atomic_bool a2l_##field_name##_static = false;                                                                                                                      \
-        if (A2lOnce_(&a2l_##field_name##_static)) {                                                                                                                                \
+        static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
+        if (A2lOnce_(&a2l_##field_name##_)) {                                                                                                                                      \
             typeName instance;                                                                                                                                                     \
             \ A2lTypedefComponent_(#field_name, A2lGetTypeName_C(instance.field_name), 1, ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance));                             \
         }                                                                                                                                                                          \
@@ -292,8 +292,8 @@ static inline uint8_t *get_stack_frame_pointer(void) {
 // Once
 #define A2lTypedefMeasurementArrayComponent(field_name, typedef_name)                                                                                                              \
     {                                                                                                                                                                              \
-        static atomic_bool a2l_##field_name##_static = false;                                                                                                                      \
-        if (A2lOnce_(&a2l_##field_name##_static)) {                                                                                                                                \
+        static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
+        if (A2lOnce_(&a2l_##field_name##_)) {                                                                                                                                      \
             typedef_name instance;                                                                                                                                                 \
             A2lTypedefComponent_(#field_name, A2lGetTypeName_M(instance.field_name[0]), sizeof(instance.field_name) / sizeof(instance.field_name[0]),                              \
                                  ((uint8_t *)&(instance.field_name[0]) - (uint8_t *)&instance));                                                                                   \
@@ -303,8 +303,8 @@ static inline uint8_t *get_stack_frame_pointer(void) {
 // Once
 #define A2lTypedefParameterArrayComponent(field_name, typeName)                                                                                                                    \
     {                                                                                                                                                                              \
-        static atomic_bool a2l_##field_name##_static = false;                                                                                                                      \
-        if (A2lOnce_(&a2l_##field_name##_static)) {                                                                                                                                \
+        static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
+        if (A2lOnce_(&a2l_##field_name##_)) {                                                                                                                                      \
             typeName instance;                                                                                                                                                     \
             \ A2lTypedefComponent_(#field_name, A2lGetTypeName_C(instance.field_name[0]), sizeof(instance.field_name) / sizeof(instance.field_name[0]),                            \
                                    ((uint8_t *)&(instance.field_name[0]) - (uint8_t *)&instance));                                                                                 \
@@ -314,8 +314,8 @@ static inline uint8_t *get_stack_frame_pointer(void) {
 // Once
 #define A2lTypedefComponent(field_name, field_type_name, field_dim, typedef_name)                                                                                                  \
     {                                                                                                                                                                              \
-        static atomic_bool a2l_##field_name##_static = false;                                                                                                                      \
-        if (A2lOnce_(&a2l_##field_name##_static)) {                                                                                                                                \
+        static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
+        if (A2lOnce_(&a2l_##field_name##_)) {                                                                                                                                      \
             typedef_name instance;                                                                                                                                                 \
             A2lTypedefComponent_(#field_name, #field_type_name, field_dim, ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance));                                            \
         }                                                                                                                                                                          \
@@ -372,38 +372,3 @@ void A2lCreateParameter_(const char *name, tA2lTypeId type, uint8_t ext, uint32_
 void A2lCreateParameterWithLimits_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, const char *comment, const char *unit, double min, double max);
 void A2lCreateMap_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, uint32_t xdim, uint32_t ydim, const char *comment, const char *unit);
 void A2lCreateCurve_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, uint32_t xdim, const char *comment, const char *unit);
-
-// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-// DAQ convenience macros
-// @@@@ TODO: Move to a separate header file
-
-// Create the XCP event 'name'
-#define DaqCreateEvent(name) XcpCreateEvent(#name, 0, 0)
-
-// Trigger the XCP event 'name' for stack or absolute addressing mode
-// Error if the event does not exist
-#define DaqEvent(name)                                                                                                                                                             \
-    {                                                                                                                                                                              \
-        static tXcpEventId daq_event_##name##_static = XCP_UNDEFINED_EVENT_ID;                                                                                                     \
-        if (daq_event_##name##_static == XCP_UNDEFINED_EVENT_ID) {                                                                                                                 \
-            daq_event_##name##_static = XcpFindEvent(#name, NULL);                                                                                                                 \
-            if (daq_event_##name##_static == XCP_UNDEFINED_EVENT_ID) {                                                                                                             \
-                DBG_PRINTF_ERROR("DaqEvent: Event %s not found!\n", #name);                                                                                                        \
-            }                                                                                                                                                                      \
-        }                                                                                                                                                                          \
-        XcpEventExtAt(daq_event_##name##_static, get_stack_frame_pointer(), 0);                                                                                                    \
-    }
-
-// Trigger the XCP event 'name' in relative mode
-// Error if the event does not exist
-#define DaqEventRelative(name, base_addr)                                                                                                                                          \
-    {                                                                                                                                                                              \
-        static tXcpEventId daq_event_##name##_static = XCP_UNDEFINED_EVENT_ID;                                                                                                     \
-        if (daq_event_##name##_static == XCP_UNDEFINED_EVENT_ID) {                                                                                                                 \
-            daq_event_##name##_static = XcpFindEvent(#name, NULL);                                                                                                                 \
-            if (daq_event_##name##_static == XCP_UNDEFINED_EVENT_ID) {                                                                                                             \
-                DBG_PRINTF_ERROR("DaqEvent: Event %s not found!\n", #name);                                                                                                        \
-            }                                                                                                                                                                      \
-        }                                                                                                                                                                          \
-        XcpEventExtAt(daq_event_##name##_static, (const uint8_t *)base_addr, 0);                                                                                                   \
-    }
