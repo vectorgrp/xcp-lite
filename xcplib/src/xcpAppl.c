@@ -434,7 +434,6 @@ static char gXcpA2lName[XCP_A2L_FILENAME_MAX_LENGTH + 1] = ""; // A2L filename (
 // Set the A2L file (filename without extension .a2l) to be provided to the host for upload
 void ApplXcpSetA2lName(const char *name) {
     assert(name != NULL && strlen(name) < XCP_A2L_FILENAME_MAX_LENGTH);
-    DBG_PRINTF4("A2L name='%s'\n", name);
     strncpy(gXcpA2lName, name, XCP_A2L_FILENAME_MAX_LENGTH);
 
     // Remove the extension from the name, if it exists
@@ -442,6 +441,7 @@ void ApplXcpSetA2lName(const char *name) {
     if (dot != NULL)
         *dot = '\0';                                 // Null-terminate the string at the dot
     gXcpA2lName[XCP_A2L_FILENAME_MAX_LENGTH] = '\0'; // Ensure null-termination
+    DBG_PRINTF3("ApplXcpSetA2lName '%s'\n", name);
 }
 
 // Return the A2L name (without extension)
@@ -460,7 +460,7 @@ static void closeA2lFile(void) {
 
 static uint32_t openA2lFile(void) {
     char filename[XCP_A2L_FILENAME_MAX_LENGTH + 5];
-    if (gXcpA2lName[0] != 0)
+    if (gXcpA2lName[0] == 0)
         return 0; // A2L file is not set
 
     // Add .a2l extension to the A2L name
@@ -511,7 +511,7 @@ uint32_t ApplXcpGetId(uint8_t id, uint8_t *buf, uint32_t bufLen) {
 
     case IDT_ASCII:
     case IDT_ASAM_NAME:
-        if (gXcpA2lName[0] != 0)
+        if (gXcpA2lName[0] == 0)
             return 0;
         len = (uint32_t)strlen(gXcpA2lName);
         if (buf) {
@@ -523,7 +523,7 @@ uint32_t ApplXcpGetId(uint8_t id, uint8_t *buf, uint32_t bufLen) {
         break;
 
     case IDT_ASAM_PATH:
-        if (gXcpA2lName[0] != 0)
+        if (gXcpA2lName[0] == 0)
             return 0;
         len = (uint32_t)strlen(gXcpA2lName) + 4;
         if (buf) {

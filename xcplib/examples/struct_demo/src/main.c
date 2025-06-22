@@ -10,7 +10,7 @@
 #include "a2l.h"          // for A2l generation
 #include "platform.h"     // for sleepMs
 #include "xcpEthServer.h" // for XcpEthServerInit, XcpEthServerShutdown, XcpEthServerStatus
-#include "xcpLite.h"      // for XcpInit, XcpEventXxx, XcpCreateEvent, XcpCreateCalSeg, ...
+#include "xcpLite.h"      // for XcpInit, XcpEventXxx, XcpCreateEvent, XcpCreateCalSeg, DaqXxxx, ...
 
 //-----------------------------------------------------------------------------------------------------
 

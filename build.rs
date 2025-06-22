@@ -38,9 +38,6 @@ fn main() {
         // DAQ
         .allowlist_function("XcpEvent")
         .allowlist_function("XcpEventExt")
-        //.allowlist_function("XcpTriggerDaqEventAt")
-        //.allowlist_function("XcpEventAt")
-        //.allowlist_function("XcpEventExtAt")
         // Misc
         .allowlist_function("XcpSetLogLevel")
         .allowlist_function("XcpPrint")

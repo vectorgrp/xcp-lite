@@ -339,25 +339,30 @@ const char *ApplXcpGetA2lName(void);
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // DAQ convenience macros
+// Create and trigger event macros to be used in combination
 // Event name parameter is a symbol, not a string
-// Used to created linker map file markers for XCP events
+// Create linker map file markers (static variables: daq_event_stackframe_'eventname' or daq_event_relative_'eventname') for the XCP event id used
 // No need to take care to store the event id
+// Required option is XCP_ENABLE_DAQ_EVENT_LIST (must be set in xcp_cfg.h)
 
 // Create the XCP event 'name'
+// Cycle time is set to sporadic and priority to normal
+// Setting the cycle time would only have the  benefit for the XCP client tool to estimate the expected data rate of a DAQ setup
 #define DaqCreateEvent(name) XcpCreateEvent(#name, 0, 0)
 
-// Trigger the XCP event 'name' for stack or absolute addressing mode
+// Trigger the XCP event 'name' for stack (DaqEvent) or relative addressing (DaqEventRelative) mode
 // Error if the event does not exist
+// Both macros can be to measure variables in absolute addressing mode as well
 #define DaqEvent(name)                                                                                                                                                             \
     {                                                                                                                                                                              \
         static tXcpEventId daq_event_##name##_ = XCP_UNDEFINED_EVENT_ID;                                                                                                           \
-        if (daq_event_##name##_ == XCP_UNDEFINED_EVENT_ID) {                                                                                                                       \
-            daq_event_##name##_ = XcpFindEvent(#name, NULL);                                                                                                                       \
-            if (daq_event_##name##_ == XCP_UNDEFINED_EVENT_ID) {                                                                                                                   \
+        if (daq_event_stackframe_##name##_ == XCP_UNDEFINED_EVENT_ID) {                                                                                                            \
+            daq_event_stackframe_##name##_ = XcpFindEvent(#name, NULL);                                                                                                            \
+            if (daq_event_stackframe_##name##_ == XCP_UNDEFINED_EVENT_ID) {                                                                                                        \
                 DBG_PRINTF_ERROR("DaqEvent: Event %s not found!\n", #name);                                                                                                        \
             }                                                                                                                                                                      \
         } else {                                                                                                                                                                   \
-            XcpEventExtAt(daq_event_##name##_, get_stack_frame_pointer(), 0);                                                                                                      \
+            XcpEventExtAt(daq_event_stackframe_##name##_, get_stack_frame_pointer(), 0);                                                                                           \
         }                                                                                                                                                                          \
     }
 

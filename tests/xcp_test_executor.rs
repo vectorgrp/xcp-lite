@@ -242,7 +242,7 @@ impl XcpDaqDecoder for DaqDecoder {
             if data.len() >= 32 {
                 let mut o = 24;
                 for i in 0..(data.len() - 24) / 8 {
-                    let test = (data[o + 0] as u64)
+                    let test = (data[o] as u64)
                         | ((data[o + 1] as u64) << 8)
                         | ((data[o + 2] as u64) << 16)
                         | ((data[o + 3] as u64) << 24)
@@ -336,7 +336,7 @@ pub async fn test_daq(
     xcp_client.start_measurement().await.unwrap();
 
     // Test for given time
-    // Every 2ms check if measurment  is still ok
+    // Every 2ms check if measurement  is still ok
     // Break on error
     let starttime = Instant::now();
     loop {
