@@ -133,11 +133,11 @@ int main(void) {
 
     // Register individual calibration parameters in the calibration segment
     A2lSetSegAddrMode(calseg, (uint8_t *)&params);
-    A2lCreateParameterWithLimits(params.counter_max, "Max counter value, wrap around", "", 0, 1000.0);
-    A2lCreateParameterWithLimits(params.ampl, "Amplitude", "Volt", 0, 1000.0);
-    A2lCreateParameterWithLimits(params.period, "Period", "s", 0.1, 5.0);
-    A2lCreateParameterWithLimits(params.delay_us, "task delay time in us", "us", 0, 1000000);
-    A2lCreateParameterWithLimits(params.run, "stop task", "", 0, 1);
+    A2lCreateParameterWithLimits(params, counter_max, "Max counter value, wrap around", "", 0, 1000.0);
+    A2lCreateParameterWithLimits(params, ampl, "Amplitude", "Volt", 0, 1000.0);
+    A2lCreateParameterWithLimits(params, period, "Period", "s", 0.1, 5.0);
+    A2lCreateParameterWithLimits(params, delay_us, "task delay time in us", "us", 0, 1000000);
+    A2lCreateParameterWithLimits(params, run, "stop task", "", 0, 1);
 
     // Create multiple inszances of the same task
     THREAD t[10];

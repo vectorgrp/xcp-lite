@@ -70,12 +70,12 @@ int main(void) {
 
     // Register calibration parameters in the calibration segment
     A2lSetSegAddrMode(calseg, (uint8_t *)&params);
-    A2lCreateParameterWithLimits(params.counter_max, "maximum counter value", "", 0, 2000);
-    A2lCreateParameterWithLimits(params.delay_us, "mainloop delay time in us", "us", 0, 1000000);
-    A2lCreateParameter(params.test_byte1, "", "");
-    A2lCreateParameter(params.test_byte2, "", "");
-    A2lCreateCurve(params.curve, 8, "", "");
-    A2lCreateMap(params.map, 8, 8, "", "");
+    A2lCreateParameterWithLimits(params, counter_max, "maximum counter value", "", 0, 2000);
+    A2lCreateParameterWithLimits(params, delay_us, "mainloop delay time in us", "us", 0, 1000000);
+    A2lCreateParameter(params, test_byte1, "", "");
+    A2lCreateParameter(params, test_byte2, "", "");
+    A2lCreateCurve(params, curve, 8, "", "");
+    A2lCreateMap(params, map, 8, 8, "", "");
 
     // Variables on stack
     uint8_t counter8 = 0;

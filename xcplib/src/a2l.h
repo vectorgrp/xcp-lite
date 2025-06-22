@@ -112,7 +112,9 @@ static inline uint8_t *get_stack_frame_pointer(void) {
 // Use in combination with DaqEvent(name)
 #define A2lSetRelativeAddrMode(name, base_addr)                                                                                                                                    \
     {                                                                                                                                                                              \
-        A2lSetRelativeAddrMode_(#name, (const uint8_t *)base_addr);                                                                                                                \
+        static atomic_bool a2l_mode_rel_##name##_ = false;                                                                                                                         \
+        if (A2lOnce_(&a2l_mode_rel_##name##_))                                                                                                                                     \
+            A2lSetRelativeAddrMode_(#name, (const uint8_t *)base_addr);                                                                                                            \
     }
 
 // Set addressing mode to absolute and event 'name'
@@ -120,7 +122,9 @@ static inline uint8_t *get_stack_frame_pointer(void) {
 // Use in combination with DaqEvent(name)
 #define A2lSetAbsoluteAddrMode(name)                                                                                                                                               \
     {                                                                                                                                                                              \
-        A2lSetAbsoluteAddrMode_(#name);                                                                                                                                            \
+        static atomic_bool a2l_mode_abs_##name##_ = false;                                                                                                                         \
+        if (A2lOnce_(&a2l_mode_abs_##name##_))                                                                                                                                     \
+            A2lSetAbsoluteAddrMode_(#name);                                                                                                                                        \
     }
 
 // Set addressing mode to stack and event 'name'
@@ -128,56 +132,47 @@ static inline uint8_t *get_stack_frame_pointer(void) {
 // Use in combination with DaqEvent(name)
 #define A2lSetStackAddrMode(name)                                                                                                                                                  \
     {                                                                                                                                                                              \
-        A2lSetRelativeAddrMode_(#name, get_stack_frame_pointer());                                                                                                                 \
-    }
-
-// Create the XCP event 'name'
-#define DaqCreateEvent(name) XcpCreateEvent(#name, 0, 0)
-
-// Trigger the XCP event 'name' for stack or absolute addressing mode
-// Error if the event does not exist
-#define DaqEvent(name)                                                                                                                                                             \
-    {                                                                                                                                                                              \
-        static tXcpEventId daq_event_##name##_static = XCP_UNDEFINED_EVENT_ID;                                                                                                     \
-        if (daq_event_##name##_static == XCP_UNDEFINED_EVENT_ID) {                                                                                                                 \
-            daq_event_##name##_static = XcpFindEvent(#name, NULL);                                                                                                                 \
-            if (daq_event_##name##_static == XCP_UNDEFINED_EVENT_ID) {                                                                                                             \
-                DBG_PRINTF_ERROR("DaqEvent: Event %s not found!\n", #name);                                                                                                        \
-            }                                                                                                                                                                      \
-        }                                                                                                                                                                          \
-        XcpEventExtAt(daq_event_##name##_static, get_stack_frame_pointer(), 0);                                                                                                    \
-    }
-
-// Trigger the XCP event 'name' in relative mode
-// Error if the event does not exist
-#define DaqEventRelative(name, base_addr)                                                                                                                                          \
-    {                                                                                                                                                                              \
-        static tXcpEventId daq_event_##name##_static = XCP_UNDEFINED_EVENT_ID;                                                                                                     \
-        if (daq_event_##name##_static == XCP_UNDEFINED_EVENT_ID) {                                                                                                                 \
-            daq_event_##name##_static = XcpFindEvent(#name, NULL);                                                                                                                 \
-            if (daq_event_##name##_static == XCP_UNDEFINED_EVENT_ID) {                                                                                                             \
-                DBG_PRINTF_ERROR("DaqEvent: Event %s not found!\n", #name);                                                                                                        \
-            }                                                                                                                                                                      \
-        }                                                                                                                                                                          \
-        XcpEventExtAt(daq_event_##name##_static, (const uint8_t *)base_addr, 0);                                                                                                   \
+        static atomic_bool a2l_mode_stack_##name##_ = false;                                                                                                                       \
+        if (A2lOnce_(&a2l_mode_stack_##name##_))                                                                                                                                   \
+            A2lSetRelativeAddrMode_(#name, get_stack_frame_pointer());                                                                                                             \
     }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // Create parameters in a calibration segment or in global memory
 
 // Not thread safe, not once
-#define A2lCreateParameter(name, comment, unit) A2lCreateParameter_(#name, A2lGetTypeId(name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&name), comment, unit)
+#define A2lCreateParameter(instance_name, name, comment, unit)                                                                                                                     \
+    {                                                                                                                                                                              \
+        static atomic_bool a2l_par_##name##_ = false;                                                                                                                              \
+        if (A2lOnce_(&a2l_par_##name##_))                                                                                                                                          \
+            A2lCreateParameter_(#instance_name "." #name, A2lGetTypeId(instance_name.name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&instance_name.name), comment, unit);         \
+    }
 
 // Not thread safe, not once
-#define A2lCreateParameterWithLimits(name, comment, unit, min, max)                                                                                                                \
-    A2lCreateParameterWithLimits_(#name, A2lGetTypeId(name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&name), comment, unit, min, max)
+#define A2lCreateParameterWithLimits(instance_name, name, comment, unit, min, max)                                                                                                 \
+    {                                                                                                                                                                              \
+        static atomic_bool a2l_par_##name##_ = false;                                                                                                                              \
+        if (A2lOnce_(&a2l_par_##name##_))                                                                                                                                          \
+            A2lCreateParameterWithLimits_(#instance_name "." #name, A2lGetTypeId(instance_name.name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&instance_name.name), comment,      \
+                                          unit, min, max);                                                                                                                         \
+    }
 
 // Not thread safe, not once
-#define A2lCreateCurve(name, xdim, comment, unit) A2lCreateCurve_(#name, A2lGetTypeId(name[0]), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&name[0]), xdim, comment, unit)
+#define A2lCreateCurve(instance_name, name, xdim, comment, unit)                                                                                                                   \
+    {                                                                                                                                                                              \
+        static atomic_bool a2l_par_##name##_ = false;                                                                                                                              \
+        if (A2lOnce_(&a2l_par_##name##_))                                                                                                                                          \
+            A2lCreateCurve_(#instance_name "." #name, A2lGetTypeId(instance_name.name[0]), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&instance_name.name[0]), xdim, comment, unit); \
+    }
 
 // Not thread safe, not once
-#define A2lCreateMap(name, xdim, ydim, comment, unit)                                                                                                                              \
-    A2lCreateMap_(#name, A2lGetTypeId(name[0][0]), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&name[0][0]), xdim, ydim, comment, unit)
+#define A2lCreateMap(instance_name, name, xdim, ydim, comment, unit)                                                                                                               \
+    {                                                                                                                                                                              \
+        static atomic_bool a2l_par_##name##_ = false;                                                                                                                              \
+        if (A2lOnce_(&a2l_par_##name##_))                                                                                                                                          \
+            A2lCreateMap_(#instance_name "." #name, A2lGetTypeId(instance_name.name[0][0]), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&instance_name.name[0][0]), xdim, ydim,       \
+                          comment, unit);                                                                                                                                          \
+    }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // Create measurements on stack or in global memory
@@ -377,3 +372,38 @@ void A2lCreateParameter_(const char *name, tA2lTypeId type, uint8_t ext, uint32_
 void A2lCreateParameterWithLimits_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, const char *comment, const char *unit, double min, double max);
 void A2lCreateMap_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, uint32_t xdim, uint32_t ydim, const char *comment, const char *unit);
 void A2lCreateCurve_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, uint32_t xdim, const char *comment, const char *unit);
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// DAQ convenience macros
+// @@@@ TODO: Move to a separate header file
+
+// Create the XCP event 'name'
+#define DaqCreateEvent(name) XcpCreateEvent(#name, 0, 0)
+
+// Trigger the XCP event 'name' for stack or absolute addressing mode
+// Error if the event does not exist
+#define DaqEvent(name)                                                                                                                                                             \
+    {                                                                                                                                                                              \
+        static tXcpEventId daq_event_##name##_static = XCP_UNDEFINED_EVENT_ID;                                                                                                     \
+        if (daq_event_##name##_static == XCP_UNDEFINED_EVENT_ID) {                                                                                                                 \
+            daq_event_##name##_static = XcpFindEvent(#name, NULL);                                                                                                                 \
+            if (daq_event_##name##_static == XCP_UNDEFINED_EVENT_ID) {                                                                                                             \
+                DBG_PRINTF_ERROR("DaqEvent: Event %s not found!\n", #name);                                                                                                        \
+            }                                                                                                                                                                      \
+        }                                                                                                                                                                          \
+        XcpEventExtAt(daq_event_##name##_static, get_stack_frame_pointer(), 0);                                                                                                    \
+    }
+
+// Trigger the XCP event 'name' in relative mode
+// Error if the event does not exist
+#define DaqEventRelative(name, base_addr)                                                                                                                                          \
+    {                                                                                                                                                                              \
+        static tXcpEventId daq_event_##name##_static = XCP_UNDEFINED_EVENT_ID;                                                                                                     \
+        if (daq_event_##name##_static == XCP_UNDEFINED_EVENT_ID) {                                                                                                                 \
+            daq_event_##name##_static = XcpFindEvent(#name, NULL);                                                                                                                 \
+            if (daq_event_##name##_static == XCP_UNDEFINED_EVENT_ID) {                                                                                                             \
+                DBG_PRINTF_ERROR("DaqEvent: Event %s not found!\n", #name);                                                                                                        \
+            }                                                                                                                                                                      \
+        }                                                                                                                                                                          \
+        XcpEventExtAt(daq_event_##name##_static, (const uint8_t *)base_addr, 0);                                                                                                   \
+    }

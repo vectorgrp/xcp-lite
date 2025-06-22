@@ -23,7 +23,6 @@
 #include "main_cfg.h"  // for OPTION_xxx
 #include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex
 #include "xcp.h"       // for CRC_XXX
-#include "xcpAppl.h"   // for ApplSetXxxx and registering callbacks
 #include "xcpLite.h"   // for tXcpDaqLists, XcpXxx, ApplXcpXxx, ...
 #include "xcp_cfg.h"   // for XCP_xxx
 #include "xcptl_cfg.h" // for XCPTL_xxx
@@ -490,8 +489,8 @@ static bool A2lOpen(const char *filename, const char *projectname) {
         return false;
     }
 
-    // @@@@ Should be filename without extension
-    ApplXcpSetA2lName(projectname);
+    // Notify XCP that there is an A2L file available for upload by the XCP client tool
+    ApplXcpSetA2lName(filename);
 
     // Create header
     fprintf(gA2lFile, gA2lHeader, projectname, projectname);
@@ -665,6 +664,8 @@ void A2lRstAddrMode(void) {
 
 // Absolute with fixed event by name
 void A2lSetRelativeAddrMode_(const char *event_name, const uint8_t *base_addr) {
+
+    assert(gA2lFile != NULL);
 
     tXcpEventId event = XcpFindEvent(event_name, NULL);
     if (event == XCP_UNDEFINED_EVENT_ID) {
@@ -991,7 +992,11 @@ void A2lMeasurementGroupFromList(const char *name, char *names[], uint32_t count
 
 bool A2lOnce_(atomic_bool *value) {
     bool old_value = false;
-    return atomic_compare_exchange_weak_explicit(value, &old_value, true, memory_order_release, memory_order_relaxed);
+    if (atomic_compare_exchange_strong_explicit(value, &old_value, true, memory_order_relaxed, memory_order_relaxed)) {
+        return gA2lFile != NULL; // Return true if A2L file is open
+    } else {
+        return false;
+    }
 }
 
 //-----------------------------------------------------------------------------------------------------
