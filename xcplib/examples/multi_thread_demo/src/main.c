@@ -41,8 +41,8 @@ typedef struct params {
     bool run;             // Stop flag for the task
 } params_t;
 
-static const params_t params = {.counter_max = 16, .ampl = 100.0, .period = 1.0, .delay_us = 10000, .run = true}; // Default parameters
-static tXcpCalSegIndex calseg = XCP_UNDEFINED_CALSEG;                                                             // Calibration segment handle
+static const params_t params = {.counter_max = 1000, .ampl = 100.0, .period = 1.0, .delay_us = 1000, .run = true}; // Default parameters
+static tXcpCalSegIndex calseg = XCP_UNDEFINED_CALSEG;                                                              // Calibration segment handle
 
 //-----------------------------------------------------------------------------------------------------
 
@@ -82,7 +82,7 @@ void *task(void *p)
                 counter = 0;
             }
 
-            channel = (task_id * 10) + params->ampl * sin(M_2PI * (double)(clockGet() - start_time) / CLOCK_TICKS_PER_S / params->period);
+            channel = (task_id * 10) + params->ampl * sin(M_2PI / params->period * ((double)(clockGet() - start_time) / CLOCK_TICKS_PER_S));
 
             // Sleep time
             delay_us = params->delay_us;
@@ -139,9 +139,9 @@ int main(void) {
 
     // Register individual calibration parameters in the calibration segment
     A2lSetSegAddrMode(calseg, (uint8_t *)&params);
-    A2lCreateParameterWithLimits(params, counter_max, "Max counter value, wrap around", "", 0, 1000.0);
-    A2lCreateParameterWithLimits(params, ampl, "Amplitude", "Volt", 0, 1000.0);
-    A2lCreateParameterWithLimits(params, period, "Period", "s", 0.1, 5.0);
+    A2lCreateParameterWithLimits(params, counter_max, "Max counter value, wrap around", "", 0, 10000.0);
+    A2lCreateParameterWithLimits(params, ampl, "Amplitude", "Volt", 0, 100.0);
+    A2lCreateParameterWithLimits(params, period, "Period", "s", 0.1, 10.0);
     A2lCreateParameterWithLimits(params, delay_us, "task delay time in us", "us", 0, 1000000);
     A2lCreateParameterWithLimits(params, run, "stop task", "", 0, 1);
 
