@@ -111,9 +111,12 @@ static MUTEX lockMutex = MUTEX_INTIALIZER;
 static uint64_t lockTimeMax = 0;
 static uint64_t lockTimeSum = 0;
 static uint64_t lockCount = 0;
-#define LOCK_TIME_HISTOGRAM_SIZE 20 // 200us in 10us steps
-#define HISTOGRAM_STEP 10
-static uint64_t lockTimeHistogram[LOCK_TIME_HISTOGRAM_SIZE] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+#define LOCK_TIME_HISTOGRAM_SIZE 100 // 100us in 1us steps
+#define HISTOGRAM_STEP 100
+static uint64_t lockTimeHistogram[LOCK_TIME_HISTOGRAM_SIZE] = {
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+};
 #endif
 
 // #define TEST_SPIN_LOCK
@@ -155,21 +158,21 @@ const TEST_QUEUE_SIZE: u32 = 1024 * 256; // Size of the XCP server transmit queu
 
 // QUEUE_MUTEX:
 Lock timing statistics: lockCount=3770338, maxLockTime=146542ns,  avgLockTime=432ns
-0ns: 3724782
-10ns: 30965
-20ns: 9535
-30ns: 3027
-40ns: 1127
-50ns: 462
-60ns: 257
-70ns: 96
-80ns: 29
-90ns: 30
-100ns: 10
-110ns: 13
-120ns: 3
-130ns: 1
-140ns: 1
+0us: 3724782
+10us: 30965
+20us: 9535
+30us: 3027
+40us: 1127
+50us: 462
+60us: 257
+70us: 96
+80us: 29
+90us: 30
+100us: 10
+110us: 13
+120us: 3
+130us: 1
+140us: 1
 
 // QUEUE_SPIN_LOCK:
 Lock timing statistics: lockCount=3689814, maxLockTime=10044083ns,  avgLockTime=838ns
@@ -190,11 +193,11 @@ Lock timing statistics: lockCount=3689814, maxLockTime=10044083ns,  avgLockTime=
 
 // QUEUE_SEQ_LOCK:
 Lock timing statistics: lockCount=3772703, maxLockTime=49667ns,  avgLockTime=124ns
-0ns: 3766733
-10ns: 5409
-20ns: 477
-30ns: 72
-40ns: 12
+0us: 3766733
+10us: 5409
+20us: 477
+30us: 72
+40us: 12
 
 Producer spin wait statistics:
 1: 21381
@@ -251,16 +254,16 @@ const TEST_QUEUE_SIZE: u32 = 1024 * 256; // Size of the XCP server transmit queu
 
 
 Lock timing statistics: lockCount=1891973, maxLockTime=109167ns,  avgLockTime=146ns
-0ns: 1891855
-10ns: 52
-20ns: 8
-30ns: 27
-40ns: 23
-50ns: 4
-70ns: 1
-80ns: 1
-90ns: 1
-100ns: 1
+0us: 1891855
+10us: 52
+20us: 8
+30us: 27
+40us: 23
+50us: 4
+70us: 1
+80us: 1
+90us: 1
+100us: 1
 
 
 */
@@ -415,13 +418,13 @@ void QueueDeinit(tQueueHandle queueHandle) {
 
     // Print statistics
 #ifdef TEST_LOCK_TIMING
-    printf("\nLock timing statistics: lockCount=%" PRIu64 ", maxLockTime=%" PRIu64 "ns,  avgLockTime=%" PRIu64 "ns\n", lockCount, lockTimeMax, lockTimeSum / lockCount);
+    printf("\nLock timing statistics: lockCount=%" PRIu64 ", maxLockTime=%" PRIu64 "ns,  avgLockTime=%" PRIu64 "us\n", lockCount, lockTimeMax / 1000, lockTimeSum / lockCount);
     for (int i = 0; i < LOCK_TIME_HISTOGRAM_SIZE - 1; i++) {
         if (lockTimeHistogram[i])
-            printf("%dns: %" PRIu64 "\n", i * 10, lockTimeHistogram[i]);
+            printf("%dus: %" PRIu64 "\n", i, lockTimeHistogram[i]);
     }
     if (lockTimeHistogram[LOCK_TIME_HISTOGRAM_SIZE - 1])
-        printf(">%uns: %" PRIu64 "\n", LOCK_TIME_HISTOGRAM_SIZE * 10, lockTimeHistogram[LOCK_TIME_HISTOGRAM_SIZE - 1]);
+        printf(">%uus: %" PRIu64 "\n", LOCK_TIME_HISTOGRAM_SIZE, lockTimeHistogram[LOCK_TIME_HISTOGRAM_SIZE - 1]);
     printf("\n");
 #endif
 #ifdef TEST_SPIN_LOCK

@@ -14,13 +14,14 @@ typedef struct tQueueHandleType *tQueueHandle;
 // Buffer acquired from the queue with `QueueAcquire` (producer) or from QueuePeek` (consumer)
 typedef struct {
     uint8_t *buffer;
-    uint16_t size;
+    void *handle;
+    uint16_t size; // Size of the buffer in bytes
 } tQueueBuffer;
 
 // Create new heap allocated queue. Free using `QueueDeinit`
 tQueueHandle QueueInit(uint32_t buffer_size);
 
-// Deinitialize queue. Does **not** free user allocated memory provided by `QueueInitFromMemory`
+// Deinitialize queue.
 void QueueDeinit(tQueueHandle queueHandle);
 
 // Acquire a queue buffer of size bytes

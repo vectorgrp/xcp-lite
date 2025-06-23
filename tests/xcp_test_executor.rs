@@ -13,17 +13,15 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64};
 use tokio::time::{Duration, Instant};
 
+use xcp_client::xcp_client::*;
 use xcp_lite::registry::*;
 use xcp_lite::*;
-
-pub use xcp_client::xcp_client::XCPTL_MAX_SEGMENT_SIZE;
-use xcp_client::xcp_client::*;
 
 //-----------------------------------------------------------------------------
 
 // Logging
-pub const OPTION_LOG_LEVEL: log::LevelFilter = log::LevelFilter::Info;
-pub const OPTION_XCP_LOG_LEVEL: u8 = 3;
+pub const OPTION_LOG_LEVEL: log::LevelFilter = log::LevelFilter::Debug;
+pub const OPTION_XCP_LOG_LEVEL: u8 = 4;
 
 //------------------------------------------------------------------------
 // Test parameters

@@ -29,8 +29,6 @@
 #include <string.h>   // for memcpy, strcmp
 
 #include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
-#include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex, spinlock
-
 #include "xcpEthTl.h"  // for XcpTlGetCtr
 #include "xcpTl_cfg.h" // for XCPTL_TRANSPORT_LAYER_HEADER_SIZE, XCPTL_MAX_DTO_SIZE, XCPTL_MAX_SEGMENT_SIZE
 
@@ -55,28 +53,29 @@ Transport Layer segment, message, packet:
 typedef struct {
     uint16_t dlc;     // lenght
     uint16_t ctr;     // message counter
-    uint8_t packet[]; // message data
+    uint8_t packet[]; // packet
 } tXcpMessage;
 
 static_assert(sizeof(tXcpMessage) == XCPTL_TRANSPORT_LAYER_HEADER_SIZE, "tXcpMessage size must be equal to XCPTL_TRANSPORT_LAYER_HEADER_SIZE");
 
 typedef struct {
-    uint16_t uncommited;                 // Number of uncommited messages in this segment
-    uint16_t size;                       // Number of overall bytes in this segment
-    uint8_t msg[XCPTL_MAX_SEGMENT_SIZE]; // Segment/MTU - concatenated transport layer messages
-} tXcpMessageBuffer;
+    uint16_t uncommited;                        // Number of uncommited messages in this segment
+    uint16_t size;                              // Number of overall bytes in this segment
+    uint8_t msg_buffer[XCPTL_MAX_SEGMENT_SIZE]; // Segment/UDP MTU - concatenated transport layer messages tXcpMessage
+} tXcpSegmentBuffer;
 
 typedef struct {
 
     uint32_t queue_buffer_size; // Size of queue memory allocated in bytes
-
-    uint32_t queue_size; // Size of queue in segments
+    uint32_t queue_size;        // Size of queue in segments tXcpSegmentBuffer
 
     // Transmit segment queue
-    tXcpMessageBuffer *queue;
+    tXcpSegmentBuffer *queue;   // Array of tXcpSegmentBuffer, each segment is a UDP payload (MAX_SEGMENT_SIZE)
     uint32_t queue_rp;          // rp = read index
     uint32_t queue_len;         // rp+len = write index (the next free entry), len=0 ist empty, len=XCPTL_QUEUE_SIZE is full
-    tXcpMessageBuffer *msg_ptr; // current incomplete or not fully commited segment
+    tXcpSegmentBuffer *msg_ptr; // current incomplete or not fully commited segment
+
+    uint32_t packets_lost; // Number of packets lost since last call to QueuePeek
 
     MUTEX Mutex_Queue;
 
@@ -84,13 +83,11 @@ typedef struct {
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
 
-// Allocate a new transmit buffer (transmit queue entry)
+// Allocate a new segment buffer (in queue->msg_ptr)
 // Not thread save!
-static void getSegmentBuffer(tQueueHandle queueHandle) {
-    tQueue *queue = (tQueue *)queueHandle;
-    assert(queue != NULL);
+static void getSegmentBuffer(tQueue *queue) {
 
-    tXcpMessageBuffer *b;
+    tXcpSegmentBuffer *b;
 
     /* Check if there is space in the queue */
     if (queue->queue_len >= queue->queue_size) {
@@ -105,75 +102,17 @@ static void getSegmentBuffer(tQueueHandle queueHandle) {
         b->uncommited = 0;
         queue->msg_ptr = b;
         queue->queue_len++;
+        DBG_PRINTF3("getSegmentBuffer: queue_rp=%" PRIu32 ", queue_len=%" PRIu32 ", msg_ptr=%p\n", queue->queue_rp, queue->queue_len, queue->msg_ptr);
     }
 }
 
-// Reserve space for a XCP packet in a transmit segment buffer and return a pointer to packet data and a handle for the segment buffer for commit reference
-// Flush the transmit segment buffer, if no space left
-static uint8_t *getTransmitBuffer(tQueueHandle queueHandle, void **handlep, uint16_t packet_size) {
-
-    tQueue *queue = (tQueue *)queueHandle;
+static void clearQueue(tQueue *queue) {
     assert(queue != NULL);
-
-    tXcpMessage *p;
-    uint16_t msg_size;
-
-#if XCPTL_PACKET_ALIGNMENT == 4
-    packet_size = (uint16_t)((packet_size + 3) & 0xFFFC); // Add fill %4
-#else
-    assert(false);
-#endif
-    msg_size = (uint16_t)(packet_size + XCPTL_TRANSPORT_LAYER_HEADER_SIZE);
-    if (msg_size > XCPTL_MAX_SEGMENT_SIZE) {
-        return NULL; // Overflow, should never happen in correct DAQ setups
-    }
-
     mutexLock(&queue->Mutex_Queue);
-
-    // Get another message buffer from queue, when active buffer ist full
-    if (queue->msg_ptr == NULL || (uint16_t)(queue->msg_ptr->size + msg_size) > XCPTL_MAX_SEGMENT_SIZE) {
-        getSegmentBuffer(queueHandle);
-    }
-
-    if (queue->msg_ptr != NULL) {
-
-        // Build XCP message header (ctr+dlc) and store in DTO buffer
-        p = (tXcpMessage *)&queue->msg_ptr->msg[queue->msg_ptr->size];
-        p->ctr = XcpTlGetCtr(); // Get next response packet counter
-        p->dlc = (uint16_t)packet_size;
-        queue->msg_ptr->size = (uint16_t)(queue->msg_ptr->size + msg_size);
-        *((tXcpMessageBuffer **)handlep) = queue->msg_ptr;
-        queue->msg_ptr->uncommited++;
-
-    } else {
-        p = NULL; // Overflow
-    }
-
+    queue->queue_rp = 0;
+    queue->queue_len = 0;
+    queue->msg_ptr = NULL;
     mutexUnlock(&queue->Mutex_Queue);
-
-    if (p == NULL)
-        return NULL;      // Overflow
-    return &p->packet[0]; // return pointer to XCP message DTO data
-}
-
-static void commitTransmitBuffer(tQueueHandle queueHandle, void *handle, BOOL flush) {
-
-    tQueue *queue = (tQueue *)queueHandle;
-    assert(queue != NULL);
-
-    tXcpMessageBuffer *p = (tXcpMessageBuffer *)handle;
-    if (handle != NULL) {
-        mutexLock(&queue->Mutex_Queue);
-        p->uncommited--;
-
-        // Flush (high priority data commited)
-        if (flush && queue->msg_ptr != NULL && queue->msg_ptr->size > 0) {
-
-            getSegmentBuffer(queueHandle);
-        }
-
-        mutexUnlock(&queue->Mutex_Queue);
-    }
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -182,6 +121,7 @@ static void commitTransmitBuffer(tQueueHandle queueHandle, void *handle, BOOL fl
 void QueueClear(tQueueHandle queueHandle) {
     tQueue *queue = (tQueue *)queueHandle;
     assert(queue != NULL);
+    clearQueue(queue);
 }
 
 // Create and initialize a new queue with a given size
@@ -191,9 +131,11 @@ tQueueHandle QueueInit(uint32_t queue_buffer_size) {
     assert(queue != NULL);
 
     queue->queue_buffer_size = queue_buffer_size;
-    queue->queue_size = queue_buffer_size / sizeof(tXcpMessageBuffer);
-    queue->queue = (tXcpMessageBuffer *)malloc(queue->queue_size);
+    queue->queue_size = queue_buffer_size / sizeof(tXcpSegmentBuffer);
+    queue->queue = (tXcpSegmentBuffer *)malloc(queue->queue_size);
     assert(queue->queue != NULL);
+
+    DBG_PRINTF3("QueueInit: queue_buffer_size=%" PRIu32 ", queue_size=%" PRIu32 "\n", queue->queue_buffer_size, queue->queue_size);
 
     mutexInit(&queue->Mutex_Queue, 0, 1000);
 
@@ -210,17 +152,18 @@ tQueueHandle QueueInit(uint32_t queue_buffer_size) {
 
 // Deinitialize and free the queue
 void QueueDeinit(tQueueHandle queueHandle) {
+
+    DBG_PRINTF3("QueueDeinit: queueHandle=%p\n", queueHandle);
+
     tQueue *queue = (tQueue *)queueHandle;
     assert(queue != NULL);
-    mutexLock(&queue->Mutex_Queue);
+
+    clearQueue(queue); // Clear the queue
+
     free(queue->queue);
     queue->queue = NULL;
     queue->queue_buffer_size = 0;
     queue->queue_size = 0;
-    queue->queue_rp = 0;
-    queue->queue_len = 0;
-    queue->msg_ptr = NULL;
-    mutexUnlock(&queue->Mutex_Queue);
     mutexDestroy(&queue->Mutex_Queue);
 }
 
@@ -229,148 +172,97 @@ void QueueDeinit(tQueueHandle queueHandle) {
 // For multiple producers !!
 
 // Get a buffer for a message with size
-tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint16_t packet_len) {
+tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint16_t packet_size) {
 
     tQueue *queue = (tQueue *)queueHandle;
-    assert(queue != NULL);
-    assert(packet_len > 0 && packet_len <= XCPTL_MAX_DTO_SIZE);
+    tXcpMessage *p = NULL;
+    tXcpSegmentBuffer *b = NULL;
+    uint16_t msg_size;
 
-    void *handle = NULL;
-    uint8_t *buffer = getTransmitBuffer(queueHandle, &handle, packet_len);
+    DBG_PRINTF3("QueueAcquire: queueHandle=%p, packet_size=%" PRIu16 "\n", queueHandle, packet_size);
 
-    assert((uint8_t *)handle == buffer - 4); // @@@@ TODO: preliminary hack to adopt the new queue API
+    assert(packet_size > 0 && packet_size <= XCPTL_MAX_DTO_SIZE);
 
-    tQueueBuffer ret = {
-        .buffer = buffer,
-        .size = packet_len,
+#if XCPTL_PACKET_ALIGNMENT == 4
+    packet_size = (uint16_t)((packet_size + 3) & 0xFFFC); // Add fill %4
+#else
+    assert(false);
+#endif
+
+    msg_size = (uint16_t)(packet_size + XCPTL_TRANSPORT_LAYER_HEADER_SIZE);
+
+    mutexLock(&queue->Mutex_Queue);
+
+    // Get another message buffer from queue, when active buffer ist full
+    b = queue->msg_ptr;
+    if (b == NULL || (uint16_t)(b->size + msg_size) > XCPTL_MAX_SEGMENT_SIZE) {
+        getSegmentBuffer(queue);
+        b = queue->msg_ptr;
+    }
+
+    if (b != NULL) {
+
+        // Build XCP message header (ctr+dlc) and store in DTO buffer
+        p = (tXcpMessage *)&b->msg_buffer[b->size];
+        p->ctr = 0;
+        p->dlc = (uint16_t)packet_size;
+        b->size = (uint16_t)(b->size + msg_size);
+        b->uncommited++;
+        DBG_PRINTF3("QueueAcquire: size=%" PRIu16 ", uncommited=%" PRIu16 "\n", b->size, b->uncommited);
+    } else {
+        // No segment buffer available, queue overflow
+        queue->packets_lost++;
+        DBG_PRINTF_ERROR("QueueAcquire: queue overflow, packet_size=%" PRIu16 ", msg_size=%" PRIu16 ", queue_len=%" PRIu32 "\n", packet_size, msg_size, queue->queue_len);
+    }
+
+    mutexUnlock(&queue->Mutex_Queue);
+
+    if (p == NULL) {
+
+        tQueueBuffer ret = {.buffer = NULL, .handle = NULL, .size = 0};
+        return ret;
+    } else {
+        tQueueBuffer ret = {
+            .buffer = p->packet, // Pointer to the message data (after the XCP header)
+            .handle = b,         // Pointer to the segment buffer (tXcpSegmentBuffer *)
+            .size = packet_size, // Size of the message buffer in bytes
+        };
+        return ret;
     };
-    return ret;
 }
 
 // Commit a buffer (returned from XcpTlGetTransmitBuffer)
 void QueuePush(tQueueHandle queueHandle, tQueueBuffer *const queueBuffer, bool flush) {
 
     tQueue *queue = (tQueue *)queueHandle;
-    assert(queue != NULL);
 
-    commitTransmitBuffer(queueHandle, (uint8_t *)queueBuffer->buffer - 4, flush);
+    DBG_PRINTF3("QueuePush: size=%" PRIu16 ", uncommited=%" PRIu16 "\n", queueBuffer->size, ((tXcpSegmentBuffer *)queueBuffer->handle)->uncommited);
+
+    mutexLock(&queue->Mutex_Queue);
+
+    ((tXcpSegmentBuffer *)queueBuffer->handle)->uncommited--;
+
+    // Flush (high priority data commited)
+    if (flush && queue->msg_ptr != NULL && queue->msg_ptr->size > 0) {
+        getSegmentBuffer(queue);
+    }
+
+    mutexUnlock(&queue->Mutex_Queue);
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
 // Consumer functions
 // Single consumer thread !!!!!!!!!!
 
-//-------------------------------------------------------------------------------------------------------------------------------------------------------
-//-------------------------------------------------------------------------------------------------------------------------------------------------------
-//-------------------------------------------------------------------------------------------------------------------------------------------------------
-//-------------------------------------------------------------------------------------------------------------------------------------------------------
-//-------------------------------------------------------------------------------------------------------------------------------------------------------
-
-// Transmit all completed and fully commited UDP frames
-// Returns number of bytes sent or -1 on error
-// int32_t QueueHandleTransmitQueue(tQueueHandle queueHandle) {
-//     tQueue *queue = (tQueue *)queueHandle;
-//     assert(queue != NULL);
-
-//     const uint32_t max_loops = 20; // maximum number of packets to send without sleep(0)
-
-//     tXcpMessageBuffer *b = NULL;
-//     int32_t n = 0;
-
-//     for (;;) {
-//         for (uint32_t i = 0; i < max_loops; i++) {
-
-//             // Check
-//             mutexLock(&queue->Mutex_Queue);
-//             if (queue->queue_len > 1) {
-//                 b = &queue->queue[queue->queue_rp];
-//                 if (b->uncommited > 0)
-//                     b = NULL; // return when reaching a not fully commited segment buffer
-//             } else {
-//                 b = NULL;
-//             }
-//             mutexUnlock(&queue->Mutex_Queue);
-//             if (b == NULL)
-//                 break; // Ok, queue is empty or not fully commited
-//             assert(b->size != 0);
-
-//             // Send this frame
-//             int r = sendDatagram(&b->msg[0], b->size, NULL, 0);
-//             if (r == (-1)) { // would block
-//                 b = NULL;
-//                 break;
-//             }
-//             if (r == 0) { // error
-//                 return -1;
-//             }
-//             n += b->size;
-
-//             // Free this buffer when succesfully sent
-//             mutexLock(&queue->Mutex_Queue);
-//             if (++queue->queue_rp >= queue->queue_size)
-//                 queue->queue_rp = 0;
-//             queue->queue_len--;
-//             mutexUnlock(&queue->Mutex_Queue);
-
-//         } // for (max_loops)
-
-//         if (b == NULL)
-//             break; // queue is empty
-//         sleepMs(0);
-
-//     } // for (ever)
-
-// #ifdef XCPTL_ENABLE_SELF_TEST
-//     if (n > 0) {
-//         queue->last_bytes_written = n;
-//         queue->total_bytes_written += n;
-//         if (queue->last_bytes_written > 0 && gXcpTl_test_event != XCP_INVALID_EVENT) {
-//             XcpEvent(gXcpTl_test_event); // Test event, trigger every time the queue is emptied
-//         }
-//     }
-// #endif
-
-//     return n; // Ok, queue empty now
-// }
-
-// Flush the current transmit segment buffer, used on high prio event data
-// void QueueFlush(tQueueHandle queueHandle) {
-
-//     tQueue *queue = (tQueue *)queueHandle;
-//     assert(queue != NULL);
-
-//     // Complete the current buffer if non empty
-//     mutexLock(&queue->Mutex_Queue);
-//     if (queue->msg_ptr != NULL && queue->msg_ptr->size > 0)
-//         getSegmentBuffer(queueHandle);
-//     mutexUnlock(&queue->Mutex_Queue);
-// }
-
-// Wait until transmit segment queue is empty, used when measurement is stopped
-// void QueueWaitUntilEmpty(tQueueHandle queueHandle) {
-
-//     tQueue *queue = (tQueue *)queueHandle;
-//     assert(queue != NULL);
-
-//     uint16_t timeout = 0;
-//     XcpTlFlushTransmitBuffer(); // Flush the current segment buffer
-//     do {
-//         sleepMs(20);
-//         timeout++;
-//     } while (queue->queue_len > 1 && timeout <= 50); // Wait max 1s until the transmit queue is empty
-// }
-
 // Get transmit queue level in segments
 // This function is thread safe, any thread can ask for the queue level
 // Not used by the queue implementation itself
 uint32_t QueueLevel(tQueueHandle queueHandle) {
     tQueue *queue = (tQueue *)queueHandle;
-    if (queue == NULL)
-        return 0;
     return queue->queue_len;
 }
 
-// Check if there is a message segment in the transmit queue with at least one committed packet
+// Check if there is a message segment in the transmit queue
 // Return the message length and a pointer to the message
 // Returns the number of packets lost since the last call to QueuePeek
 // May not be called twice, each buffer must be released with QueueRelease
@@ -379,18 +271,61 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
     tQueue *queue = (tQueue *)queueHandle;
     assert(queue != NULL);
 
-    tQueueBuffer ret = {
-        .buffer = NULL,
-        .size = 0,
-    };
-    return ret;
+    tXcpSegmentBuffer *b = NULL;
+
+    mutexLock(&queue->Mutex_Queue);
+
+    if (queue->queue_len > 1) {
+        b = &queue->queue[queue->queue_rp];
+        if (b->uncommited == 0 && b->size > 0) { // Check if this segment has data and is fully commited
+
+            if (packets_lost != NULL) {
+                *packets_lost = queue->packets_lost;
+                queue->packets_lost = 0; // Reset lost packets count
+            }
+        } else {
+            b = NULL; // No data in this segment or not fully commited
+        }
+    }
+
+    mutexUnlock(&queue->Mutex_Queue);
+
+    if (b == NULL) {
+
+        tQueueBuffer ret = {
+            .buffer = NULL,
+            .handle = NULL,
+            .size = 0,
+        };
+        return ret;
+
+    }
+
+    else {
+
+        DBG_PRINTF3("QueuePeek: flush=%d, packets_lost=%" PRIu32 ", size=%" PRIu32 "\n", flush, queue->packets_lost, b->size);
+
+        tQueueBuffer ret = {
+            .buffer = b->msg_buffer,
+            .handle = NULL,
+            .size = b->size,
+        };
+        return ret;
+    }
 }
 
 // Advance the transmit queue tail by the message length obtained from the last QueuePeek call
 void QueueRelease(tQueueHandle queueHandle, tQueueBuffer *const queueBuffer) {
     tQueue *queue = (tQueue *)queueHandle;
-    assert(queue != NULL);
-    assert(queueBuffer->size > 0 && queueBuffer->size <= XCPTL_MAX_SEGMENT_SIZE);
+
+    DBG_PRINTF3("QueueRelease: size=%" PRIu16 "\n", queueBuffer->size);
+
+    // Free this segment buffer when succesfully sent
+    mutexLock(&queue->Mutex_Queue);
+    if (++queue->queue_rp >= queue->queue_size)
+        queue->queue_rp = 0;
+    queue->queue_len--;
+    mutexUnlock(&queue->Mutex_Queue);
 }
 
 #endif

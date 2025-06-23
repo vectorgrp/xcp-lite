@@ -16,7 +16,6 @@ use tokio::time::{Duration, Instant};
 use xcp_lite::registry::*;
 use xcp_lite::*;
 
-pub use xcp_client::xcp_client::XCPTL_MAX_SEGMENT_SIZE;
 use xcp_client::xcp_client::*;
 
 //-----------------------------------------------------------------------------

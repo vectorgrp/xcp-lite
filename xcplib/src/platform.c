@@ -147,7 +147,7 @@ void sleepNs(uint32_t ns) {
 
 void sleepMs(uint32_t ms) {
     if (ms > 0 && ms < 10) {
-        DBG_PRINT_WARNING("WARNING: cannot precisely sleep less than 10ms!\n");
+        // DBG_PRINT_WARNING("WARNING: cannot precisely sleep less than 10ms!\n");
     }
     Sleep(ms);
 }
@@ -469,7 +469,7 @@ bool socketBind(SOCKET sock, uint8_t *addr, uint16_t port) {
     a.sin_port = htons(port);
     if (bind(sock, (SOCKADDR *)&a, sizeof(a)) < 0) {
         if (socketGetLastError() == WSAEADDRINUSE) {
-            DBG_PRINTF_ERROR("Port is already in use!\n");
+            DBG_PRINT_ERROR("Port is already in use!\n");
         } else {
             DBG_PRINTF_ERROR("%d - cannot bind on %u.%u.%u.%u port %u!\n", socketGetLastError(), addr ? addr[0] : 0, addr ? addr[1] : 0, addr ? addr[2] : 0, addr ? addr[3] : 0,
                              port);
