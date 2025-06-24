@@ -31,7 +31,7 @@ pub mod xcplib;
 //-----------------------------------------------------------------------------
 // XCP println macro
 
-/// Print formated text to CANape console
+/// Print formatted text to CANape console
 #[allow(unused_macros)]
 #[macro_export]
 macro_rules! xcp_println {
@@ -61,7 +61,7 @@ pub enum XcpError {
 }
 
 //----------------------------------------------------------------------------------------------
-// Session statuc
+// Session status
 
 bitflags! {
     /// Represents a set of flags for the XCP session status
@@ -84,7 +84,7 @@ bitflags! {
 
 /// Represents a measurement event  
 /// Holds the raw u16 event number used in the XCP protocol and in A2L IF_DATA to identify an event
-/// May have an index > 0 to express multiple events with the same name are instanciated in different thread local instances
+/// May have an index > 0 to express multiple events with the same name are instantiated in different thread local instances
 #[derive(Debug, Clone, Copy)]
 pub struct XcpEvent {
     id: u16,    // Number used in A2L and XCP protocol
@@ -147,7 +147,7 @@ impl XcpEvent {
     /// The buffer must match its registry description, to avoid corrupt data given to the XCP tool
     //#[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub unsafe fn trigger_ext(self, base: *const u8) -> u8 {
-        // @@@@ UNSAFE - C library call and transfering a pointer and its valid memory range to XCPlite FFI
+        // @@@@ UNSAFE - C library call and transferring a pointer and its valid memory range to XCPlite FFI
 
         unsafe { xcplib::XcpEventExt(self.get_id(), base) }
     }
@@ -271,7 +271,7 @@ const XCP_CAL_PAGE_FLASH: u8 = 1;
 pub enum XcpCalPage {
     /// The mutable page
     Ram = XCP_CAL_PAGE_RAM as isize,
-    /// The deafult page
+    /// The default page
     Flash = XCP_CAL_PAGE_FLASH as isize,
 }
 
@@ -623,19 +623,16 @@ impl Xcp {
     // Calibration page switching
 
     /// Set the active calibration page for the ECU access (used for test only)
-
     fn set_ecu_cal_page(&self, page: XcpCalPage) {
         self.ecu_cal_page.store(page as u8, Ordering::Relaxed);
     }
 
     /// Set the active calibration page for the XCP access (used for test only)
-
     fn set_xcp_cal_page(&self, page: XcpCalPage) {
         self.xcp_cal_page.store(page as u8, Ordering::Relaxed);
     }
 
     /// Get the active calibration page for the ECU access
-
     #[inline]
     fn get_ecu_cal_page(&self) -> XcpCalPage {
         if self.ecu_cal_page.load(Ordering::Relaxed) == XcpCalPage::Ram as u8 {
@@ -646,7 +643,6 @@ impl Xcp {
     }
 
     /// Get the active calibration page for the XCP access
-
     fn get_xcp_cal_page(&self) -> XcpCalPage {
         if self.xcp_cal_page.load(Ordering::Relaxed) == XcpCalPage::Ram as u8 {
             XcpCalPage::Ram
@@ -660,14 +656,12 @@ impl Xcp {
 
     /// Set calibration segment init request  
     /// Called on init cal from XCP server  
-
     fn set_init_request(&self) {
         self.calseg_list.lock().set_init_request();
     }
 
     /// Set calibration segment freeze request  
     /// Called on freeze cal from XCP server  
-
     fn set_freeze_request(&self) {
         self.calseg_list.lock().set_freeze_request();
     }
@@ -798,7 +792,7 @@ extern "C" fn cb_freeze_cal() -> u8 {
 // Direct calibration memory access, read and write memory
 // Here is the fundamental point of unsafety in XCP calibration
 // Read and write are called by XCP on UPLOAD and DNLOAD commands and XCP must assure the correctness of the parameters, which are usually taken from an A2L file
-// Writing with incorrect offset or len might lead to undefined behaviour or at least wrong field values in the calibration segment
+// Writing with incorrect offset or len might lead to undefined behavior or at least wrong field values in the calibration segment
 // Reading with incorrect offset or len will lead to incorrect data shown in the XCP tool
 // @@@@ UNSAFE - direct memory access with pointer arithmetic
 

@@ -51,7 +51,7 @@ impl ServTextDecoder {
 }
 
 impl XcpTextDecoder for ServTextDecoder {
-    // Handle incomming text data from XCP server
+    // Handle incoming text data from XCP server
     fn decode(&self, data: &[u8]) {
         print!("[SERV_TEXT] ");
         let mut j = 0;
@@ -129,7 +129,7 @@ impl XcpDaqDecoder for DaqDecoder {
         assert_eq!(daq_header_size, 4);
     }
 
-    // Handle incomming DAQ DTOs from XCP server
+    // Handle incoming DAQ DTOs from XCP server
     fn decode(&mut self, lost: u32, buf: &[u8]) {
         self.tot_bytes += buf.len() as u64;
         DAQ_BYTES.store(self.tot_bytes, std::sync::atomic::Ordering::Relaxed);
@@ -228,7 +228,7 @@ impl XcpDaqDecoder for DaqDecoder {
 
                 let cur_time = Xcp::get().get_clock();
                 if cur_time < time {
-                    error!("Measurement value time is unplausible");
+                    error!("Measurement value time is not plausible");
                 }
                 let delay = cur_time - time;
                 if delay > 500000000 {
@@ -253,7 +253,7 @@ impl XcpDaqDecoder for DaqDecoder {
                         error!("DAQ_ERROR: wrong test signal value test_{} = {:08X}, should be = {:08X}", i, test, test_ok);
                         DAQ_ERROR.store(true, std::sync::atomic::Ordering::SeqCst);
                     }
-                    o = o + 8;
+                    o += 8;
                 }
             }
 
@@ -464,7 +464,7 @@ async fn test_consistent_calibration(xcp_client: &mut XcpClient) -> bool {
     } else {
         info!("consistent calibration test loop done, {} iterations", CAL_TEST_MAX_ITER);
     }
-    return !error_state;
+    !error_state
 }
 
 //-----------------------------------------------------------------------
@@ -614,7 +614,7 @@ async fn test_calibration(xcp_client: &mut XcpClient, _task_cycle_us: u64) -> bo
         }
     } // Calibration test loop
 
-    return !error_state;
+    !error_state
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------
@@ -868,7 +868,7 @@ pub async fn test_executor(test_mode_cal: TestModeCal, test_mode_daq: TestModeDa
                 .await
                 .map_err(|e| {
                     error_state = true;
-                    error!("Calibrarion of calseg.run failed: {:?}", e);
+                    error!("Calibration of calseg.run failed: {:?}", e);
                 })
                 .ok();
             tokio::time::sleep(Duration::from_millis(1000)).await; // Give the user task some time to finish

@@ -4,13 +4,32 @@
         "malloc.h": "c"
     },
     "cSpell.words": [
+        "ampl",
+        "Appl",
+        "bitflags",
+        "CALPAGE",
+        "calseg",
         "COMPU",
+        "cycletime",
+        "DNLOAD",
         "DONT",
+        "Histogramm",
+        "ifdata",
         "Informatik",
+        "INSTS",
+        "INTIALIZER",
         "Mainloop",
+        "nonoverlapping",
+        "Plite",
+        "reinit",
         "SBYTE",
+        "serv",
         "SLONG",
+        "Slonglong",
+        "thiserror",
         "UBYTE",
+        "Watomic",
+        "xcplib",
         "XCPTL"
     ]
 }

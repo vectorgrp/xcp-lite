@@ -9,7 +9,7 @@
 |   Queue entries include XCP message header, queue can accumulate multiple XCP packets to a segment
 |   Lock free with minimal wait implementation using a seq_lock and a spin loop on the producer side
 |   Optional mutex based mode for higher consumer throughput as a tradeoff for higher producer latency
-|   Testet on ARM weak memory modell
+|   Tested on ARM weak memory model
 |
 | Copyright (c) Vector Informatik GmbH. All rights reserved.
 | See LICENSE file in the project root for details.
@@ -281,7 +281,7 @@ typedef struct {
     atomic_bool flush;
 
 #if defined(QUEUE_SEQ_LOCK)
-    // seq_lock is used to aquire an entry safely
+    // seq_lock is used to acquire an entry safely
     // A spin loop is used to increment the head
     // It is incremented by 0x0000000100000000 on lock and 0x0000000000000001 on unlock
     atomic_uint_fast64_t seq_lock;
@@ -573,7 +573,7 @@ void QueuePush(tQueueHandle queueHandle, tQueueBuffer *const queueBuffer, bool f
 
     // Set flush request
     if (flush) {
-        atomic_store_explicit(&queue->h.flush, true, memory_order_relaxed); // Set flush flag, used by the consumer to priorize packets
+        atomic_store_explicit(&queue->h.flush, true, memory_order_relaxed); // Set flush flag, used by the consumer to prioritize packets
     }
 
     assert(queueBuffer != NULL);
@@ -636,7 +636,7 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
     tail = atomic_load_explicit(&queue->h.tail, memory_order_relaxed);
 
     // Read a consistent head
-    // Consistent means, the validity of the commit state for this entry is garantueed
+    // Consistent means, the validity of the commit state for this entry is assured
 
 #if defined(QUEUE_SEQ_LOCK)
 

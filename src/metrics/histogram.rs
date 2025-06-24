@@ -9,7 +9,7 @@ Histogram
 - When given it a fix axis with a physical unit and step size, the A2L writer will write it a a CHARACTERISTIC with an IF_DATA XCP fixed event
 - Ii uses the conversion rule from step_us as conversion rule for the fix axis (conversion rules have the same name as their objects)
 - All metric fields are measurement variables with addressing mode DYN
-- This allow asyncronous read (polling) and write access to modify or reset the histogram state
+- This allow asynchronous read (polling) and write access to modify or reset the histogram state
 */
 
 //-------------------------------------------------------------------------------------------------
