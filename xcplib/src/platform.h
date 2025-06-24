@@ -163,8 +163,9 @@ void sleepMs(uint32_t ms);
         mutexUnlock(&queue->h.mutex);                                                                                                                                              \
     }
 
-#define atomic_compare_exchange_strong_explicit(a, b, c, d, e) (*a = c, true)
-#define atomic_compare_exchange_weak_explicit(a, b, c, d, e) (*a = c, true)
+// @@@@ TODO: Implement atomic compare exchange with mutex
+#define atomic_compare_exchange_strong_explicit(a, b, c, d, e) (*b = *a, *a = c, true)
+#define atomic_compare_exchange_weak_explicit(a, b, c, d, e) (*b = *a, *a = c, true)
 
 #endif
 

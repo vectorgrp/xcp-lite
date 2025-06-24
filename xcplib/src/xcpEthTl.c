@@ -574,12 +574,19 @@ int32_t XcpTlHandleTransmitQueue(void) {
     // This is needed to assure XCP transport layer header counter consistency among response and DAQ packets
     // In fact this is a XCP design flaw, CANape supports independent DAQ and response packet counters, but other tools don't
 
-    // Timeout to give the caller a chance to do other heath checking or shutdown the server gracefully
-    const uint32_t max_outer_loops = 100; // Number of outer loops before return
     // Burst rate
     const uint32_t max_inner_loops = 1000; // Maximum number of ethernet packets to send in a burst without sleeping
+#ifdef _WIN                                // Windows
+    // Timeout to give the caller a chance to do other heath checking or shutdown the server gracefully
+    const uint32_t max_outer_loops = 10; // Number of outer loops before return
+    // Sleep time in ms after burst or queue empty
+    const uint32_t outer_loop_sleep_ms = 10; // Sleep time in ms for each outer loop
+#else                                        // Linux
+    // Timeout to give the caller a chance to do other heath checking or shutdown the server gracefully
+    const uint32_t max_outer_loops = 100; // Number of outer loops before return
     // Sleep time in ms after burst or queue empty
     const uint32_t outer_loop_sleep_ms = 1; // Sleep time in ms for each outer loop
+#endif
 
     int32_t n = 0;      // Number of bytes sent
     bool flush = false; // Flush queue in regular intervals

@@ -89,7 +89,7 @@ typedef struct {
 
 // Allocate a new segment buffer (in queue->msg_ptr)
 // Not thread save!
-static void getSegmentBuffer(tQueue *queue) {
+static void newSegmentBuffer(tQueue *queue) {
 
     tXcpSegmentBuffer *b;
 
@@ -151,7 +151,7 @@ tQueueHandle QueueInit(uint32_t queue_buffer_size) {
         queue->queue[i].size = 0;           // No data in this segment
     }
 
-    DBG_PRINTF3("QueueInit: queue_buffer_size=%" PRIu32 ", queue_size=%" PRIu32 " (%" PRIu32 " Bytes)\n", queue->queue_buffer_size, queue->queue_size, queue->queue_buffer_size);
+    DBG_PRINTF4("QueueInit: queue_buffer_size=%" PRIu32 ", queue_size=%" PRIu32 " (%" PRIu32 " Bytes)\n", queue->queue_buffer_size, queue->queue_size, queue->queue_buffer_size);
 
     mutexInit(&queue->Mutex_Queue, 0, 1000);
 
@@ -159,7 +159,7 @@ tQueueHandle QueueInit(uint32_t queue_buffer_size) {
     queue->queue_rp = 0;
     queue->queue_len = 0;
     queue->msg_ptr = NULL;
-    getSegmentBuffer(queue);
+    newSegmentBuffer(queue);
     mutexUnlock(&queue->Mutex_Queue);
 
     assert(queue->msg_ptr);
@@ -169,7 +169,7 @@ tQueueHandle QueueInit(uint32_t queue_buffer_size) {
 // Deinitialize and free the queue
 void QueueDeinit(tQueueHandle queueHandle) {
 
-    DBG_PRINTF3("QueueDeinit: queueHandle=%p\n", queueHandle);
+    DBG_PRINTF4("QueueDeinit: queueHandle=%p\n", queueHandle);
 
     tQueue *queue = (tQueue *)queueHandle;
     assert(queue != NULL);
@@ -213,7 +213,7 @@ tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint16_t packet_size) {
     // Get another message buffer from queue, when active buffer ist full
     b = queue->msg_ptr;
     if (b == NULL || (uint16_t)(b->size + msg_size) > XCPTL_MAX_SEGMENT_SIZE) {
-        getSegmentBuffer(queue);
+        newSegmentBuffer(queue);
         b = queue->msg_ptr;
     }
 
@@ -266,7 +266,7 @@ void QueuePush(tQueueHandle queueHandle, tQueueBuffer *const queueBuffer, bool f
 
     // Flush (high priority data commited)
     if (flush && queue->msg_ptr != NULL && queue->msg_ptr->size > 0) {
-        getSegmentBuffer(queue);
+        newSegmentBuffer(queue);
     }
 
     mutexUnlock(&queue->Mutex_Queue);
@@ -299,16 +299,25 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
     if (packets_lost != NULL) {
         *packets_lost = queue->packets_lost;
         if (*packets_lost > 0)
-            DBG_PRINTF3("QueuePeek: packets_lost=%" PRIu32 "\n", *packets_lost);
+            DBG_PRINTF4("QueuePeek: packets_lost=%" PRIu32 "\n", *packets_lost);
         queue->packets_lost = 0; // Reset lost packets count
     }
 
     // Check if there is a message segment ready in the transmit queue
     mutexLock(&queue->Mutex_Queue);
 
-    if (queue->queue_len > 1) {
+    if (queue->queue_len >= 1) {
+
         b = &queue->queue[queue->queue_rp];
-        if (b->uncommited > 0 || b->size == 0) { // Check if this segment has data and is fully commited
+
+        // Flush tail segment buffer if it is not empty
+        if (queue->queue_len == 1 && b->size > 0 && flush) {
+            DBG_PRINT4("QueuePeek: flush\n");
+            newSegmentBuffer(queue);
+        }
+
+        // Return tail segment buffer if it is not empty, fully committed and there are more segments in the queue
+        if (!(queue->queue_len > 1 && b->uncommited == 0 && b->size > 0)) {
             b = NULL;
         }
     }
@@ -328,7 +337,7 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
 
     else {
 
-        DBG_PRINTF3("QueuePeek: flush=%d, packets_lost=%" PRIu32 ", size=%" PRIu32 "\n", flush, *packets_lost, b->size);
+        DBG_PRINTF5("QueuePeek: flush=%d, packets_lost=%" PRIu32 ", size=%" PRIu32 "\n", flush, *packets_lost, b->size);
 
         // Update the transport layer message counters
         uint8_t *p = (tXcpMessage *)b->msg_buffer;
@@ -338,7 +347,7 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
             assert(m->dlc > 0 && m->dlc <= XCPTL_MAX_DTO_SIZE); // Check if the message length is valid
             assert(m->ctr == 0xCCCC);                           // Check if the message is in commited state
             m->ctr = XcpTlGetCtr();                             // Set the transport layer message counter
-            DBG_PRINTF3("QueuePeek: p=%p, dlc=%" PRIu16 ", ctr=0x%04X\n", p, m->dlc, m->ctr);
+            DBG_PRINTF5("QueuePeek: p=%p, dlc=%" PRIu16 ", ctr=0x%04X\n", p, m->dlc, m->ctr);
             p += m->dlc + XCPTL_TRANSPORT_LAYER_HEADER_SIZE;
         };
 
