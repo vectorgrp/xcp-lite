@@ -122,7 +122,7 @@
 
 // Enable event list
 // Not needed for Rust xcp-lite, has its own event management
-// #define XCP_ENABLE_DAQ_EVENT_LIST
+#define XCP_ENABLE_DAQ_EVENT_LIST
 #ifdef XCP_ENABLE_DAQ_EVENT_LIST
 
 // Enable XCP_GET_EVENT_INFO, if this is enabled, A2L file event information will be ignored
@@ -134,7 +134,7 @@
 
 // Enable calibration segment list
 // Not needed for Rust xcp-lite, has its own calibration segment management
-// #define XCP_ENABLE_CALSEG_LIST
+#define XCP_ENABLE_CALSEG_LIST
 #ifdef XCP_ENABLE_CALSEG_LIST
 
 #define XCP_MAX_CALSEG_COUNT 4

@@ -434,7 +434,7 @@ static char gXcpA2lName[XCP_A2L_FILENAME_MAX_LENGTH + 1] = ""; // A2L filename (
 // Set the A2L file (filename without extension .a2l) to be provided to the host for upload
 void ApplXcpSetA2lName(const char *name) {
     assert(name != NULL && strlen(name) < XCP_A2L_FILENAME_MAX_LENGTH);
-    strncpy(gXcpA2lName, name, XCP_A2L_FILENAME_MAX_LENGTH);
+    STRNCPY(gXcpA2lName, name, XCP_A2L_FILENAME_MAX_LENGTH);
 
     // Remove the extension from the name, if it exists
     char *dot = strrchr(gXcpA2lName, '.');
@@ -517,7 +517,7 @@ uint32_t ApplXcpGetId(uint8_t id, uint8_t *buf, uint32_t bufLen) {
         if (buf) {
             if (len >= bufLen - 1)
                 return 0; // Insufficient buffer space
-            strncpy((char *)buf, gXcpA2lName, len);
+            STRNCPY((char *)buf, gXcpA2lName, len);
         }
         DBG_PRINTF3("ApplXcpGetId GET_ID%u name=%s\n", id, gXcpA2lName);
         break;
@@ -543,7 +543,7 @@ uint32_t ApplXcpGetId(uint8_t id, uint8_t *buf, uint32_t bufLen) {
         if (buf) {
             if (len > bufLen - 1)
                 return 0; // Insufficient buffer space
-            strncpy((char *)buf, epk, len);
+            STRNCPY((char *)buf, epk, len);
             DBG_PRINTF3("ApplXcpGetId GET_ID%u EPK=%s\n", id, epk);
         } else {
             DBG_PRINTF3("ApplXcpGetId GET_ID%u EPK as upload (len=%u,value=%s)\n", id, len, epk);

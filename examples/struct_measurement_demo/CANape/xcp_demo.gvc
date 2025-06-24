@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<GfxStorageModel Hash="CB-15-CF-FE-15-33-D0-FB-9C-23-39-15-B2-BF-8B-03" HashVersion="2.0.0.0">
+<GfxStorageModel Hash="B8-FD-F9-32-7A-0B-AA-38-85-B9-71-DC-99-28-5D-0A" HashVersion="2.0.0.0">
   <BindingIdToViewId>
     <Item XmlSingularArray="true">
       <Key>145ac51b-7644-4ede-916f-30f7858b4e5f</Key>
@@ -15,13 +15,12 @@
         <Version>2</Version>
         <ObjectName>data</ObjectName>
         <SourceName>xcp_demo</SourceName>
-        <TypeName>data</TypeName>
         <MessageName>xcp_demo</MessageName>
       </SourceIdentifier>
-      <Model>
+      <Model IsCreatedByView="False">
         <UniqueName>data.point_array[*]</UniqueName>
         <DataSource>
-          <SourceIdentifier>{"ObjectName":"data","SourceName":"xcp_demo","TypeName":"data","MessageName":"xcp_demo"}</SourceIdentifier>
+          <SourceIdentifier>{"ObjectName":"data","SourceName":"xcp_demo","MessageName":"xcp_demo"}</SourceIdentifier>
           <TemplateSourceName>point_array</TemplateSourceName>
           <NativeTemplateSourceName>data.point_array</NativeTemplateSourceName>
           <DisplayedSourceName>point_array[*]</DisplayedSourceName>
@@ -38,9 +37,9 @@
             </DataDimensions>
           </DataDimensions>
           <CompositionType>3</CompositionType>
-          <ObjectType>data, Vector.DA.DynamicObject.34-52-3E-7F-13-AE-11-5A-A6-8F-63-CF-3F-7D-84-58.23.0.11.121, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null</ObjectType>
+          <ObjectType>data, Vector.DA.DynamicObject.09-0E-3A-C8-DC-1A-67-E5-39-84-EB-EE-AD-CC-4E-D9.23.0.20.3237, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null</ObjectType>
           <Parent>
-            <SourceIdentifier>{"ObjectName":"data","SourceName":"xcp_demo","TypeName":"data","MessageName":"xcp_demo"}</SourceIdentifier>
+            <SourceIdentifier>{"ObjectName":"data","SourceName":"xcp_demo","MessageName":"xcp_demo"}</SourceIdentifier>
             <TemplateSourceName>data</TemplateSourceName>
             <NativeTemplateSourceName>data</NativeTemplateSourceName>
             <DisplayedSourceName>data</DisplayedSourceName>
@@ -50,7 +49,7 @@
               <DataDimensions />
             </DataDimensions>
             <CompositionType>0</CompositionType>
-            <ObjectType>data, Vector.DA.DynamicObject.34-52-3E-7F-13-AE-11-5A-A6-8F-63-CF-3F-7D-84-58.23.0.11.121, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null</ObjectType>
+            <ObjectType>data, Vector.DA.DynamicObject.09-0E-3A-C8-DC-1A-67-E5-39-84-EB-EE-AD-CC-4E-D9.23.0.20.3237, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null</ObjectType>
             <Properties>
               <Property>
                 <Name>cpu_temperature</Name>
@@ -90,7 +89,7 @@
                 <Name>point_array[*]</Name>
                 <TemplateName>point_array</TemplateName>
                 <HasChildren>true</HasChildren>
-                <TypeName>data_point_array_Element, Vector.DA.DynamicObject.34-52-3E-7F-13-AE-11-5A-A6-8F-63-CF-3F-7D-84-58.23.0.11.121</TypeName>
+                <TypeName>data_point_array_Element, Vector.DA.DynamicObject.09-0E-3A-C8-DC-1A-67-E5-39-84-EB-EE-AD-CC-4E-D9.23.0.20.3237</TypeName>
                 <DataDimensions>
                   <IsTemplate>false</IsTemplate>
                   <DataDimensions>
@@ -140,7 +139,7 @@
                 <Name>vector</Name>
                 <TemplateName>vector</TemplateName>
                 <HasChildren>false</HasChildren>
-                <TypeName>data_vector, Vector.DA.DynamicObject.34-52-3E-7F-13-AE-11-5A-A6-8F-63-CF-3F-7D-84-58.23.0.11.121</TypeName>
+                <TypeName>data_vector, Vector.DA.DynamicObject.09-0E-3A-C8-DC-1A-67-E5-39-84-EB-EE-AD-CC-4E-D9.23.0.20.3237</TypeName>
                 <DataDimensions>
                   <IsTemplate>false</IsTemplate>
                   <DataDimensions />
@@ -211,7 +210,7 @@ X-Position eines Punktes mit kartesischen Koordinaten</Description>
                       <Parent>
                         <Name>point_array[*]</Name>
                         <TemplateName>point_array</TemplateName>
-                        <TypeName>data_point_array_Element, Vector.DA.DynamicObject.34-52-3E-7F-13-AE-11-5A-A6-8F-63-CF-3F-7D-84-58.23.0.11.121</TypeName>
+                        <TypeName>data_point_array_Element, Vector.DA.DynamicObject.09-0E-3A-C8-DC-1A-67-E5-39-84-EB-EE-AD-CC-4E-D9.23.0.20.3237</TypeName>
                         <DataDimensions>
                           <IsTemplate>false</IsTemplate>
                           <DataDimensions>
@@ -260,7 +259,7 @@ Y-Position eines Punktes mit kartesischen Koordinaten</Description>
                       <Parent>
                         <Name>point_array[*]</Name>
                         <TemplateName>point_array</TemplateName>
-                        <TypeName>data_point_array_Element, Vector.DA.DynamicObject.34-52-3E-7F-13-AE-11-5A-A6-8F-63-CF-3F-7D-84-58.23.0.11.121</TypeName>
+                        <TypeName>data_point_array_Element, Vector.DA.DynamicObject.09-0E-3A-C8-DC-1A-67-E5-39-84-EB-EE-AD-CC-4E-D9.23.0.20.3237</TypeName>
                         <DataDimensions>
                           <IsTemplate>false</IsTemplate>
                           <DataDimensions>
@@ -309,7 +308,7 @@ Z-Position eines Punktes mit kartesischen Koordinaten</Description>
                       <Parent>
                         <Name>point_array[*]</Name>
                         <TemplateName>point_array</TemplateName>
-                        <TypeName>data_point_array_Element, Vector.DA.DynamicObject.34-52-3E-7F-13-AE-11-5A-A6-8F-63-CF-3F-7D-84-58.23.0.11.121</TypeName>
+                        <TypeName>data_point_array_Element, Vector.DA.DynamicObject.09-0E-3A-C8-DC-1A-67-E5-39-84-EB-EE-AD-CC-4E-D9.23.0.20.3237</TypeName>
                         <DataDimensions>
                           <IsTemplate>false</IsTemplate>
                           <DataDimensions>
@@ -1554,4 +1553,5 @@ Priorität (Reihenfolge des Zeichnens) des Objekts. 1 = höchste Priorität -&gt
       </ConstantColor>
     </LocalColorFunctions>
   </ColorFunctions>
+  <GfxGroups />
 </GfxStorageModel>

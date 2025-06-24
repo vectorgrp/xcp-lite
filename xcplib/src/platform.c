@@ -155,29 +155,36 @@ void sleepMs(uint32_t ms) {
 #endif // Windows
 
 /**************************************************************************/
-// Spinlock
+// Atomics
 /**************************************************************************/
 
-#ifndef _WIN
+// stdatomic emulation for Windows
+#ifdef _WIN
 
-void spinLockInit(SPINLOCK *lock) { atomic_store_explicit(lock, 0, memory_order_relaxed); }
+MUTEX gWinMutex;
 
-void spinLock(atomic_int_fast64_t *lock) {
-    int64_t expected = 0;
-    int64_t const desired = 1;
-    while (!atomic_compare_exchange_weak_explicit(lock, &expected, desired, memory_order_acquire, memory_order_relaxed)) {
-        expected = 0;
-#if defined(__x86_64__) || defined(__i386__)
-        __asm__ volatile("pause" ::: "memory");
-#elif defined(__aarch64__) || defined(__arm__)
-        __asm__ volatile("yield" ::: "memory");
-#else
-        // Fallback: do nothing
-#endif
-    }
+bool atomic_compare_exchange_strong_explicit(atomic_bool *a, bool *b, bool c, int d, int e) {
+    (void)d;
+    (void)e;
+
+    mutexLock(&gWinMutex);
+    bool old_value = *a;
+    *a = c;
+    *b = old_value;
+    mutexUnlock(&gWinMutex);
+    return true;
 }
 
-void spinUnlock(atomic_int_fast64_t *lock) { atomic_store_explicit(lock, 0, memory_order_release); }
+bool atomic_compare_exchange_weak_explicit(atomic_bool *a, bool *b, bool c, int d, int e) {
+    (void)d;
+    (void)e;
+    mutexLock(&gWinMutex);
+    bool old_value = *a;
+    *a = c;
+    *b = old_value;
+    mutexUnlock(&gWinMutex);
+    return true;
+}
 
 #endif
 
@@ -395,6 +402,9 @@ bool socketStartup(void) {
     int err;
     WORD wsaVersionRequested;
     WSADATA wsaData;
+
+    // @@@@ TODO: Workaround for Windows
+    mutexInit(&gWinMutex, true, 0);
 
     // Init Winsock2
     wsaVersionRequested = MAKEWORD(2, 2);

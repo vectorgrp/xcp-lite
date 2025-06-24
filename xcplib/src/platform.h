@@ -72,6 +72,7 @@
 
 #if defined(_WIN)
 
+#define _CRT_SECURE_NO_WARNINGS
 #include <time.h>
 #include <windows.h>
 
@@ -113,14 +114,22 @@ int _kbhit(void);
 #endif // PLATFORM_ENABLE_KEYBOARD
 
 //-------------------------------------------------------------------------------
-// Safe sprintf
+// Safe sprintf, strncpy, ...
 
 #if defined(_WIN) // Windows
+
 #define SPRINTF(dest, format, ...) sprintf_s((char *)dest, sizeof(dest), format, __VA_ARGS__)
 #define SNPRINTF(dest, len, format, ...) sprintf_s((char *)dest, len, format, __VA_ARGS__)
+#define STRNCPY(dest, src, n) strncpy(dest, src, n)
+#define STRNLEN(s, n) strnlen_s(s, n)
+
 #elif defined(_LINUX) // Linux
+
 #define SPRINTF(dest, format, ...) snprintf((char *)dest, sizeof(dest), format, __VA_ARGS__)
 #define SNPRINTF(dest, len, format, ...) snprintf((char *)dest, len, format, __VA_ARGS__)
+#define STRNCPY strncpy
+#define STRNLEN strnlen
+
 #endif
 
 //-------------------------------------------------------------------------------
@@ -131,56 +140,6 @@ void sleepNs(uint32_t ns);
 
 // Delay - Less precise and less CPU load, not based on clock, time domain different
 void sleepMs(uint32_t ms);
-
-//-------------------------------------------------------------------------------
-// Atomic operations
-
-#ifndef _WIN
-#include <stdatomic.h>
-#else
-#ifdef _WIN32_
-#error "Windows32 not implemented yet"
-#endif
-
-// On Windows 64 we rely on the x86-64 strong memory model and assume atomic 64 bit load/store
-// Use a mutex for thread safe atomic_fetch_add_explicit and atomic_compare_exchange_explicit
-// The windows version is for demonstration and test purposes, not optimized for minimal locking overhead
-#define memory_order_acq_rel 0
-#define memory_order_relaxed 0
-#define memory_order_acquire 0
-
-#define atomic_bool bool
-#define atomic_uint_fast64_t uint64_t
-#define atomic_uint_fast32_t uint32_t
-
-#define atomic_store_explicit(a, b, c) (*(a)) = (b)
-#define atomic_load_explicit(a, b) (*(a))
-
-#define atomic_fetch_add_explicit(a, b, c)                                                                                                                                         \
-    {                                                                                                                                                                              \
-        mutexLock(&queue->h.mutex);                                                                                                                                                \
-        (*(a)) += (b);                                                                                                                                                             \
-        mutexUnlock(&queue->h.mutex);                                                                                                                                              \
-    }
-
-// @@@@ TODO: Implement atomic compare exchange with mutex
-#define atomic_compare_exchange_strong_explicit(a, b, c, d, e) (*b = *a, *a = c, true)
-#define atomic_compare_exchange_weak_explicit(a, b, c, d, e) (*b = *a, *a = c, true)
-
-#endif
-
-//-------------------------------------------------------------------------------
-// SpinLock
-
-#ifndef _WIN
-
-#define SPINLOCK atomic_int_fast64_t
-
-void spinLockInit(SPINLOCK *lock);
-void spinLock(atomic_int_fast64_t *lock);
-void spinUnlock(atomic_int_fast64_t *lock);
-
-#endif
 
 //-------------------------------------------------------------------------------
 // Mutex
@@ -330,3 +289,52 @@ uint64_t clockGet(void);
 uint64_t clockGetLast(void);
 char *clockGetString(char *s, uint32_t l, uint64_t c);
 char *clockGetTimeString(char *s, uint32_t l, int64_t c);
+
+//-------------------------------------------------------------------------------
+// Atomic operations
+
+#ifndef _WIN
+#include <stdatomic.h>
+#else
+#ifdef _WIN32_
+#error "Windows32 not implemented yet"
+#endif
+
+// On Windows 64 we rely on the x86-64 strong memory model and assume atomic 64 bit load/store
+// Use a mutex for thread safe atomic_fetch_add/sub and atomic_compare_exchange
+// The windows version is for demonstration and test purposes, not optimized for minimal locking overhead
+#define memory_order_acq_rel 0
+#define memory_order_relaxed 0
+#define memory_order_acquire 0
+#define memory_order_release 0
+
+#define atomic_bool uint8_t
+#define atomic_uint_fast64_t uint64_t
+#define atomic_uint_fast32_t uint32_t
+#define atomic_uintptr_t uintptr_t
+#define atomic_uint_fast8_t uint8_t
+#define atomic_uint_fast8_t uint8_t
+
+#define atomic_store_explicit(a, b, c) (*(a)) = (b)
+#define atomic_load_explicit(a, b) (*(a))
+
+extern MUTEX gWinMutex;
+
+#define atomic_fetch_add_explicit(a, b, c)                                                                                                                                         \
+    {                                                                                                                                                                              \
+        mutexLock(&gWinMutex);                                                                                                                                                     \
+        (*(a)) += (b);                                                                                                                                                             \
+        mutexUnlock(&gWinMutex);                                                                                                                                                   \
+    }
+
+#define atomic_fetch_sub_explicit(a, b, c)                                                                                                                                         \
+    {                                                                                                                                                                              \
+        mutexLock(&gWinMutex);                                                                                                                                                     \
+        (*(a)) -= (b);                                                                                                                                                             \
+        mutexUnlock(&gWinMutex);                                                                                                                                                   \
+    }
+
+bool atomic_compare_exchange_strong_explicit(uint8_t *a, uint8_t *b, uint8_t c, int d, int e);
+bool atomic_compare_exchange_weak_explicit(uint8_t *a, uint8_t *b, uint8_t c, int d, int e);
+
+#endif

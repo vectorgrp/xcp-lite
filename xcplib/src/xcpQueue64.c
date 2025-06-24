@@ -82,13 +82,6 @@ Transport Layer segment, message, packet:
 // Use a seq_lock to protect against inconsistency during the entry acquire, the queue is lockfree with minimal spin wait when contention for increasing the head
 #define QUEUE_SEQ_LOCK
 
-// Use a spin lock to acquire an entry, not recommended, see test results
-// #define QUEUE_SPIN_LOCK
-
-#if !defined(QUEUE_SEQ_LOCK) && !defined(QUEUE_SPIN_LOCK)
-#define QUEUE_MUTEX // Use mutex for queue producers
-#endif
-
 // Accumulate XCP packets to multiple XCP messages in a segment obtained with QueuePeek
 #define QUEUE_ACCUMULATE_PACKETS // Accumulate XCP packets to multiple XCP messages obtained with QueuePeek
 
@@ -172,22 +165,6 @@ Lock timing statistics: lockCount=3770338, maxLockTime=146542ns,  avgLockTime=43
 120us: 3
 130us: 1
 140us: 1
-
-// QUEUE_SPIN_LOCK:
-Lock timing statistics: lockCount=3689814, maxLockTime=10044083ns,  avgLockTime=838ns
-0us: 3683171
-10us: 5551
-20us: 516
-30us: 118
-40us: 46
-50us: 21
-60us: 18
-70us: 35
-80us: 9
-90us: 1
-120us: 1
-130us: 11
->: 316
 
 
 // QUEUE_SEQ_LOCK:
@@ -303,11 +280,7 @@ typedef struct {
     atomic_uint_least32_t packets_lost; // Packet lost counter, incremented by producers when a queue entry could not be acquired
     atomic_bool flush;
 
-#if defined(QUEUE_SPIN_LOCK)
-    // A spin lock is used to acquire an entry safely
-    SPINLOCK spin_lock; // Spin lock for queue producers, producers contend on each other but not on the consumer
-
-#elif defined(QUEUE_SEQ_LOCK)
+#if defined(QUEUE_SEQ_LOCK)
     // seq_lock is used to aquire an entry safely
     // A spin loop is used to increment the head
     // It is incremented by 0x0000000100000000 on lock and 0x0000000000000001 on unlock
@@ -371,9 +344,7 @@ static tQueueHandle QueueInitFromMemory(void *queue_memory, uint32_t queue_memor
 
     if (clear_queue) {
 
-#if defined(QUEUE_SPIN_LOCK)
-        spinLockInit(&queue->h.spin_lock); // Initialize the spin lock
-#elif defined(QUEUE_SEQ_LOCK)
+#if defined(QUEUE_SEQ_LOCK)
         queue->h.seq_head = 0;
         atomic_store_explicit(&queue->h.seq_lock, 0, memory_order_relaxed); // Initialize the seq_lock
 #else
@@ -501,22 +472,8 @@ tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint16_t packet_len) {
     // Reserved state has a valid dlc and ctr, ctr is unknown yet and will be marked as CTR_RESERVED for checking
 
     //----------------------------------------------
-    // Use a spin lock to protect the entry acquire
-#if defined(QUEUE_SPIN_LOCK)
-
-    spinLock(&queue->h.spin_lock); // Acquire the spin lock
-    uint64_t tail = atomic_load_explicit(&queue->h.tail, memory_order_relaxed);
-    uint64_t head = atomic_load_explicit(&queue->h.head, memory_order_acquire);
-    if (queue->h.queue_size - msg_len >= head - tail) {
-        entry = (tXcpDtoMessage *)(queue->buffer + (head % queue->h.queue_size));
-        atomic_store_explicit(&entry->ctr_dlc, (CTR_RESERVED << 16) | (uint32_t)(msg_len - XCPTL_TRANSPORT_LAYER_HEADER_SIZE), memory_order_release);
-        atomic_store_explicit(&queue->h.head, head + msg_len, memory_order_release);
-    }
-    spinUnlock(&queue->h.spin_lock); // Release the spin lock
-
-    //----------------------------------------------
     // Use a seq_lock to protect the entry acquire, CAS loop to increment the head
-#elif defined(QUEUE_SEQ_LOCK)
+#if defined(QUEUE_SEQ_LOCK)
 
     uint64_t tail = atomic_load_explicit(&queue->h.tail, memory_order_relaxed);
     uint64_t head = atomic_load_explicit(&queue->h.head, memory_order_acquire);
@@ -720,12 +677,6 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
 
         queue->h.seq_head = head; // Set the last head detected as consistent by the seq lock
     }
-
-#elif defined(QUEUE_SPIN_LOCK)
-
-    spinLock(&queue->h.spin_lock);
-    head = atomic_load_explicit(&queue->h.head, memory_order_acquire);
-    spinUnlock(&queue->h.spin_lock);
 
 #else
 

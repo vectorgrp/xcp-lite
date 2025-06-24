@@ -340,7 +340,7 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
         DBG_PRINTF5("QueuePeek: flush=%d, packets_lost=%" PRIu32 ", size=%" PRIu32 "\n", flush, *packets_lost, b->size);
 
         // Update the transport layer message counters
-        uint8_t *p = (tXcpMessage *)b->msg_buffer;
+        uint8_t *p = b->msg_buffer;
         uint8_t *pl = &b->msg_buffer[b->size] - XCPTL_TRANSPORT_LAYER_HEADER_SIZE; // Pointer to the last possible byte in the segment buffer
         while (p < pl) {
             tXcpMessage *m = (tXcpMessage *)p;                  // Pointer to the current message
