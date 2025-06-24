@@ -25,7 +25,6 @@
 
 #include <assert.h>    // for assert
 #include <inttypes.h>  // for PRIu64
-#include <malloc.h>    // for _aligned_alloc, _aligned_free
 #include <stdatomic.h> // for atomic_
 #include <stdbool.h>   // for bool
 #include <stdint.h>    // for uint32_t, uint64_t, uint8_t, int64_t
@@ -457,7 +456,7 @@ void QueueDeinit(tQueueHandle queueHandle) {
     if (queue->h.from_memory) {
         queue->h.from_memory = false;
     } else {
-        aligned_free(queue);
+        free(queue);
     }
 
     DBG_PRINT4("QueueDeInit\n");
