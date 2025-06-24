@@ -9,12 +9,17 @@
 |   Queue entries include XCP message header, queue can accumulate multiple XCP packets to a segment
 |   Lock free with minimal wait implementation using a seq_lock and a spin loop on the producer side
 |   Optional mutex based mode for higher consumer throughput as a tradeoff for higher producer latency
-|   Testet on ARM weak memory modell
+|   Tested on ARM weak memory model
 |
 | Copyright (c) Vector Informatik GmbH. All rights reserved.
 | See LICENSE file in the project root for details.
 |
  ----------------------------------------------------------------------------*/
+
+#include "platform.h" // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex, spinlock
+
+// Use xcpQueue32.c for 32 Bit platforms or on Windows
+#if defined(PLATFORM_64BIT) && !defined(_WIN)
 
 #include "xcpQueue.h"
 
@@ -26,10 +31,8 @@
 #include <stdio.h>     // for NULL, snprintf
 #include <stdlib.h>    // for free, malloc
 #include <string.h>    // for memcpy, strcmp
-// #include <stdalign.h> // for alignas
 
 #include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...
-#include "platform.h"  // for platform defines (WIN_, LINUX_, MACOS_) and specific implementation of sockets, clock, thread, mutex, spinlock
 
 #include "xcpEthTl.h"  // for XcpTlGetCtr
 #include "xcptl_cfg.h" // for XCPTL_TRANSPORT_LAYER_HEADER_SIZE, XCPTL_MAX_DTO_SIZE, XCPTL_MAX_SEGMENT_SIZE
@@ -64,6 +67,12 @@ static_assert(sizeof(void *) == 8, "This implementation requires a 64 Bit platfo
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
 
+/*
+Transport Layer segment, message, packet:
+    segment (UDP payload, MAX_SEGMENT_SIZE = UDP MTU) = message 1 + message 2 ... + message n
+    message = WORD len + WORD ctr + (protocol layer packet) + fill
+*/
+
 // Different queue implementations with different tradeoffs
 // The default implementation is a mutex based producer lock, no consumer lock and memory fences between producer and consumer.
 
@@ -72,13 +81,6 @@ static_assert(sizeof(void *) == 8, "This implementation requires a 64 Bit platfo
 
 // Use a seq_lock to protect against inconsistency during the entry acquire, the queue is lockfree with minimal spin wait when contention for increasing the head
 #define QUEUE_SEQ_LOCK
-
-// Use a spin lock to acquire an entry, not recommended, see test results
-// #define QUEUE_SPIN_LOCK
-
-#if !defined(QUEUE_SEQ_LOCK) && !defined(QUEUE_SPIN_LOCK)
-#define QUEUE_MUTEX // Use mutex for queue producers
-#endif
 
 // Accumulate XCP packets to multiple XCP messages in a segment obtained with QueuePeek
 #define QUEUE_ACCUMULATE_PACKETS // Accumulate XCP packets to multiple XCP messages obtained with QueuePeek
@@ -101,9 +103,12 @@ static MUTEX lockMutex = MUTEX_INTIALIZER;
 static uint64_t lockTimeMax = 0;
 static uint64_t lockTimeSum = 0;
 static uint64_t lockCount = 0;
-#define LOCK_TIME_HISTOGRAM_SIZE 20 // 200us in 10us steps
-#define HISTOGRAM_STEP 10
-static uint64_t lockTimeHistogram[LOCK_TIME_HISTOGRAM_SIZE] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+#define LOCK_TIME_HISTOGRAM_SIZE 100 // 100us in 1us steps
+#define HISTOGRAM_STEP 100
+static uint64_t lockTimeHistogram[LOCK_TIME_HISTOGRAM_SIZE] = {
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+};
 #endif
 
 // #define TEST_SPIN_LOCK
@@ -145,46 +150,30 @@ const TEST_QUEUE_SIZE: u32 = 1024 * 256; // Size of the XCP server transmit queu
 
 // QUEUE_MUTEX:
 Lock timing statistics: lockCount=3770338, maxLockTime=146542ns,  avgLockTime=432ns
-0ns: 3724782
-10ns: 30965
-20ns: 9535
-30ns: 3027
-40ns: 1127
-50ns: 462
-60ns: 257
-70ns: 96
-80ns: 29
-90ns: 30
-100ns: 10
-110ns: 13
-120ns: 3
-130ns: 1
-140ns: 1
-
-// QUEUE_SPIN_LOCK:
-Lock timing statistics: lockCount=3689814, maxLockTime=10044083ns,  avgLockTime=838ns
-0us: 3683171
-10us: 5551
-20us: 516
-30us: 118
-40us: 46
-50us: 21
-60us: 18
-70us: 35
-80us: 9
-90us: 1
-120us: 1
-130us: 11
->: 316
+0us: 3724782
+10us: 30965
+20us: 9535
+30us: 3027
+40us: 1127
+50us: 462
+60us: 257
+70us: 96
+80us: 29
+90us: 30
+100us: 10
+110us: 13
+120us: 3
+130us: 1
+140us: 1
 
 
 // QUEUE_SEQ_LOCK:
 Lock timing statistics: lockCount=3772703, maxLockTime=49667ns,  avgLockTime=124ns
-0ns: 3766733
-10ns: 5409
-20ns: 477
-30ns: 72
-40ns: 12
+0us: 3766733
+10us: 5409
+20us: 477
+30us: 72
+40us: 12
 
 Producer spin wait statistics:
 1: 21381
@@ -241,16 +230,16 @@ const TEST_QUEUE_SIZE: u32 = 1024 * 256; // Size of the XCP server transmit queu
 
 
 Lock timing statistics: lockCount=1891973, maxLockTime=109167ns,  avgLockTime=146ns
-0ns: 1891855
-10ns: 52
-20ns: 8
-30ns: 27
-40ns: 23
-50ns: 4
-70ns: 1
-80ns: 1
-90ns: 1
-100ns: 1
+0us: 1891855
+10us: 52
+20us: 8
+30us: 27
+40us: 23
+50us: 4
+70us: 1
+80us: 1
+90us: 1
+100us: 1
 
 
 */
@@ -291,12 +280,8 @@ typedef struct {
     atomic_uint_least32_t packets_lost; // Packet lost counter, incremented by producers when a queue entry could not be acquired
     atomic_bool flush;
 
-#if defined(QUEUE_SPIN_LOCK)
-    // A spin lock is used to acquire an entry safely
-    SPINLOCK spin_lock; // Spin lock for queue producers, producers contend on each other but not on the consumer
-
-#elif defined(QUEUE_SEQ_LOCK)
-    // seq_lock is used to aquire an entry safely
+#if defined(QUEUE_SEQ_LOCK)
+    // seq_lock is used to acquire an entry safely
     // A spin loop is used to increment the head
     // It is incremented by 0x0000000100000000 on lock and 0x0000000000000001 on unlock
     atomic_uint_fast64_t seq_lock;
@@ -359,9 +344,7 @@ static tQueueHandle QueueInitFromMemory(void *queue_memory, uint32_t queue_memor
 
     if (clear_queue) {
 
-#if defined(QUEUE_SPIN_LOCK)
-        spinLockInit(&queue->h.spin_lock); // Initialize the spin lock
-#elif defined(QUEUE_SEQ_LOCK)
+#if defined(QUEUE_SEQ_LOCK)
         queue->h.seq_head = 0;
         atomic_store_explicit(&queue->h.seq_lock, 0, memory_order_relaxed); // Initialize the seq_lock
 #else
@@ -405,13 +388,13 @@ void QueueDeinit(tQueueHandle queueHandle) {
 
     // Print statistics
 #ifdef TEST_LOCK_TIMING
-    printf("\nLock timing statistics: lockCount=%" PRIu64 ", maxLockTime=%" PRIu64 "ns,  avgLockTime=%" PRIu64 "ns\n", lockCount, lockTimeMax, lockTimeSum / lockCount);
+    printf("\nLock timing statistics: lockCount=%" PRIu64 ", maxLockTime=%" PRIu64 "ns,  avgLockTime=%" PRIu64 "us\n", lockCount, lockTimeMax / 1000, lockTimeSum / lockCount);
     for (int i = 0; i < LOCK_TIME_HISTOGRAM_SIZE - 1; i++) {
         if (lockTimeHistogram[i])
-            printf("%dns: %" PRIu64 "\n", i * 10, lockTimeHistogram[i]);
+            printf("%dus: %" PRIu64 "\n", i, lockTimeHistogram[i]);
     }
     if (lockTimeHistogram[LOCK_TIME_HISTOGRAM_SIZE - 1])
-        printf(">%uns: %" PRIu64 "\n", LOCK_TIME_HISTOGRAM_SIZE * 10, lockTimeHistogram[LOCK_TIME_HISTOGRAM_SIZE - 1]);
+        printf(">%uus: %" PRIu64 "\n", LOCK_TIME_HISTOGRAM_SIZE, lockTimeHistogram[LOCK_TIME_HISTOGRAM_SIZE - 1]);
     printf("\n");
 #endif
 #ifdef TEST_SPIN_LOCK
@@ -489,22 +472,8 @@ tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint16_t packet_len) {
     // Reserved state has a valid dlc and ctr, ctr is unknown yet and will be marked as CTR_RESERVED for checking
 
     //----------------------------------------------
-    // Use a spin lock to protect the entry acquire
-#if defined(QUEUE_SPIN_LOCK)
-
-    spinLock(&queue->h.spin_lock); // Acquire the spin lock
-    uint64_t tail = atomic_load_explicit(&queue->h.tail, memory_order_relaxed);
-    uint64_t head = atomic_load_explicit(&queue->h.head, memory_order_acquire);
-    if (queue->h.queue_size - msg_len >= head - tail) {
-        entry = (tXcpDtoMessage *)(queue->buffer + (head % queue->h.queue_size));
-        atomic_store_explicit(&entry->ctr_dlc, (CTR_RESERVED << 16) | (uint32_t)(msg_len - XCPTL_TRANSPORT_LAYER_HEADER_SIZE), memory_order_release);
-        atomic_store_explicit(&queue->h.head, head + msg_len, memory_order_release);
-    }
-    spinUnlock(&queue->h.spin_lock); // Release the spin lock
-
-    //----------------------------------------------
     // Use a seq_lock to protect the entry acquire, CAS loop to increment the head
-#elif defined(QUEUE_SEQ_LOCK)
+#if defined(QUEUE_SEQ_LOCK)
 
     uint64_t tail = atomic_load_explicit(&queue->h.tail, memory_order_relaxed);
     uint64_t head = atomic_load_explicit(&queue->h.head, memory_order_acquire);
@@ -604,7 +573,7 @@ void QueuePush(tQueueHandle queueHandle, tQueueBuffer *const queueBuffer, bool f
 
     // Set flush request
     if (flush) {
-        atomic_store_explicit(&queue->h.flush, true, memory_order_relaxed); // Set flush flag, used by the consumer to priorize packets
+        atomic_store_explicit(&queue->h.flush, true, memory_order_relaxed); // Set flush flag, used by the consumer to prioritize packets
     }
 
     assert(queueBuffer != NULL);
@@ -667,7 +636,7 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
     tail = atomic_load_explicit(&queue->h.tail, memory_order_relaxed);
 
     // Read a consistent head
-    // Consistent means, the validity of the commit state for this entry is garantueed
+    // Consistent means, the validity of the commit state for this entry is assured
 
 #if defined(QUEUE_SEQ_LOCK)
 
@@ -708,12 +677,6 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
 
         queue->h.seq_head = head; // Set the last head detected as consistent by the seq lock
     }
-
-#elif defined(QUEUE_SPIN_LOCK)
-
-    spinLock(&queue->h.spin_lock);
-    head = atomic_load_explicit(&queue->h.head, memory_order_acquire);
-    spinUnlock(&queue->h.spin_lock);
 
 #else
 
@@ -879,3 +842,5 @@ void QueueRelease(tQueueHandle queueHandle, tQueueBuffer *const queueBuffer) {
     assert(queueBuffer->size > 0 && queueBuffer->size <= XCPTL_MAX_SEGMENT_SIZE);
     atomic_fetch_add_explicit(&queue->h.tail, queueBuffer->size, memory_order_relaxed);
 }
+
+#endif

@@ -77,9 +77,6 @@
 #include "xcp_cfg.h"   // XCP protocol layer configuration parameters (XCP_xxx)
 #include "xcptl_cfg.h" // XCP transport layer configuration parameters (XCPTL_xxx)
 
-// @@@@ TODO Workaround: Missing declaration for the C standard library function strnlen
-size_t strnlen(const char *s, size_t maxlen);
-
 /****************************************************************************/
 /* Defaults and checks                                                      */
 /****************************************************************************/
@@ -469,8 +466,8 @@ uint32_t XcpGetDaqOverflowCount(void) { return gXcp.DaqOverflowCount; }
 // Set/get the EPK (A2l file version string)
 void XcpSetEpk(const char *epk) {
     assert(epk != NULL);
-    size_t epk_len = strnlen(epk, XCP_EPK_MAX_LENGTH);
-    strncpy(gXcp.Epk, epk, epk_len);
+    size_t epk_len = STRNLEN(epk, XCP_EPK_MAX_LENGTH);
+    STRNCPY(gXcp.Epk, epk, epk_len);
     // Ensure null-termination
     gXcp.Epk[XCP_EPK_MAX_LENGTH] = 0;
     // Remove white spaces from the EPK string
@@ -489,7 +486,7 @@ void XcpSetEpk(const char *epk) {
     DBG_PRINTF3("EPK = '%s'\n", gXcp.Epk);
 }
 const char *XcpGetEpk(void) {
-    if (strnlen(gXcp.Epk, XCP_EPK_MAX_LENGTH) == 0)
+    if (STRNLEN(gXcp.Epk, XCP_EPK_MAX_LENGTH) == 0)
         return NULL;
     return gXcp.Epk;
 }
@@ -549,7 +546,7 @@ tXcpCalSegIndex XcpCreateCalSeg(const char *name, const uint8_t *default_page, u
 
     // Create a new calibration segment
     tXcpCalSeg *c = &gXcp.CalSegList.calseg[i];
-    strncpy(c->name, name, XCP_MAX_CALSEG_NAME);
+    STRNCPY(c->name, name, XCP_MAX_CALSEG_NAME);
     c->name[XCP_MAX_CALSEG_NAME] = 0;
 
     // Set the ecu default page (FLASH page)
@@ -1087,7 +1084,7 @@ static tXcpEventId XcpCreateIndexedEvent(const char *name, uint16_t index, uint3
     gXcp.EventList.event[e].timeCycle = (uint8_t)c;
 
     gXcp.EventList.event[e].index = index; // Index of the event instance
-    strncpy(gXcp.EventList.event[e].name, name, XCP_MAX_EVENT_NAME);
+    STRNCPY(gXcp.EventList.event[e].name, name, XCP_MAX_EVENT_NAME);
     gXcp.EventList.event[e].name[XCP_MAX_EVENT_NAME] = 0;
     gXcp.EventList.event[e].priority = priority;
     DBG_PRINTF3("  Event %u: %s cycle=%uns, prio=%u\n", e, gXcp.EventList.event[e].name, cycleTimeNs, gXcp.EventList.event[e].priority);
@@ -2840,7 +2837,7 @@ void XcpPrint(const char *str) {
     if (!isConnected())
         return;
 
-    uint16_t l = (uint16_t)strnlen(str, XCPTL_MAX_CTO_SIZE - 4);
+    uint16_t l = (uint16_t)STRNLEN(str, XCPTL_MAX_CTO_SIZE - 4);
     tQueueBuffer queueBuffer = QueueAcquire(gXcp.Queue, l + 4);
     uint8_t *crm = queueBuffer.buffer;
     if (crm != NULL) {

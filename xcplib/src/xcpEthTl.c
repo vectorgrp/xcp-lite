@@ -480,16 +480,16 @@ bool XcpEthTlInit(const uint8_t *addr, uint16_t port, bool useTCP, bool blocking
 
 #ifdef OPTION_ENABLE_GET_LOCAL_ADDR
     {
-        uint8_t s_addr[4] = {0, 0, 0, 0};
-        uint8_t s_mac[6] = {0, 0, 0, 0, 0, 0};
-        socketGetLocalAddr(s_mac, s_addr); // Store actual MAC and IP addr for later use
-        DBG_PRINTF3("  MAC=%02X.%02X.%02X.%02X.%02X.%02X IP=%u.%u.%u.%u\n", s_mac[0], s_mac[1], s_mac[2], s_mac[3], s_mac[4], s_mac[5], s_addr[0], s_addr[1], s_addr[2], s_addr[3]);
+        uint8_t addr1[4] = {0, 0, 0, 0};
+        uint8_t mac1[6] = {0, 0, 0, 0, 0, 0};
+        socketGetLocalAddr(mac1, addr1); // Store actual MAC and IP addr for later use
+        DBG_PRINTF3("  MAC=%02X.%02X.%02X.%02X.%02X.%02X IP=%u.%u.%u.%u\n", mac1[0], mac1[1], mac1[2], mac1[3], mac1[4], mac1[5], addr1[0], addr1[1], addr1[2], addr1[3]);
         if (bind_addr[0] == 0) {
-            memcpy(gXcpTl.ServerAddr, s_addr, 4); // Store IP address for XcpEthTlGetInfo
+            memcpy(gXcpTl.ServerAddr, addr1, 4); // Store IP address for XcpEthTlGetInfo
         } else {
             memcpy(gXcpTl.ServerAddr, bind_addr, 4);
         }
-        memcpy(gXcpTl.ServerMac, s_mac, 6); // Store MAC address for XcpEthTlGetInfo
+        memcpy(gXcpTl.ServerMac, mac1, 6); // Store MAC address for XcpEthTlGetInfo
     }
 #endif
 
@@ -574,12 +574,19 @@ int32_t XcpTlHandleTransmitQueue(void) {
     // This is needed to assure XCP transport layer header counter consistency among response and DAQ packets
     // In fact this is a XCP design flaw, CANape supports independent DAQ and response packet counters, but other tools don't
 
-    // Timeout to give the caller a chance to do other heath checking or shutdown the server gracefully
-    const uint32_t max_outer_loops = 100; // Number of outer loops before return
     // Burst rate
     const uint32_t max_inner_loops = 1000; // Maximum number of ethernet packets to send in a burst without sleeping
+#ifdef _WIN                                // Windows
+    // Timeout to give the caller a chance to do other heath checking or shutdown the server gracefully
+    const uint32_t max_outer_loops = 10; // Number of outer loops before return
+    // Sleep time in ms after burst or queue empty
+    const uint32_t outer_loop_sleep_ms = 10; // Sleep time in ms for each outer loop
+#else                                        // Linux
+    // Timeout to give the caller a chance to do other heath checking or shutdown the server gracefully
+    const uint32_t max_outer_loops = 100; // Number of outer loops before return
     // Sleep time in ms after burst or queue empty
     const uint32_t outer_loop_sleep_ms = 1; // Sleep time in ms for each outer loop
+#endif
 
     int32_t n = 0;      // Number of bytes sent
     bool flush = false; // Flush queue in regular intervals
@@ -589,7 +596,7 @@ int32_t XcpTlHandleTransmitQueue(void) {
 
             // Check if there is a segment with multiple messages in the transmit queue
             mutexLock(&gXcpTl.CtrMutex);
-            uint32_t lost;
+            uint32_t lost = 0;
             tQueueBuffer queueBuffer = QueuePeek(gXcpTl.Queue, flush, &lost);
             gXcpTl.Ctr += (uint16_t)lost; // Increase packet counter by lost packets
             uint16_t l = queueBuffer.size;

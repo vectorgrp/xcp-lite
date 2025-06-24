@@ -13,11 +13,9 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64};
 use tokio::time::{Duration, Instant};
 
+use xcp_client::xcp_client::*;
 use xcp_lite::registry::*;
 use xcp_lite::*;
-
-pub use xcp_client::xcp_client::XCPTL_MAX_SEGMENT_SIZE;
-use xcp_client::xcp_client::*;
 
 //-----------------------------------------------------------------------------
 
@@ -53,7 +51,7 @@ impl ServTextDecoder {
 }
 
 impl XcpTextDecoder for ServTextDecoder {
-    // Handle incomming text data from XCP server
+    // Handle incoming text data from XCP server
     fn decode(&self, data: &[u8]) {
         print!("[SERV_TEXT] ");
         let mut j = 0;
@@ -131,7 +129,7 @@ impl XcpDaqDecoder for DaqDecoder {
         assert_eq!(daq_header_size, 4);
     }
 
-    // Handle incomming DAQ DTOs from XCP server
+    // Handle incoming DAQ DTOs from XCP server
     fn decode(&mut self, lost: u32, buf: &[u8]) {
         self.tot_bytes += buf.len() as u64;
         DAQ_BYTES.store(self.tot_bytes, std::sync::atomic::Ordering::Relaxed);
@@ -139,7 +137,7 @@ impl XcpDaqDecoder for DaqDecoder {
         if lost > 0 {
             self.packets_lost += lost;
             DAQ_PACKETS_LOST.store(self.packets_lost, std::sync::atomic::Ordering::Relaxed);
-            // warn!("PACKETS_LOST = {}", lost);
+            warn!("PACKETS_LOST = {}", lost);
         }
 
         let mut timestamp_raw: u32 = 0;
@@ -230,7 +228,7 @@ impl XcpDaqDecoder for DaqDecoder {
 
                 let cur_time = Xcp::get().get_clock();
                 if cur_time < time {
-                    error!("Measurement value time is unplausible");
+                    error!("Measurement value time is not plausible");
                 }
                 let delay = cur_time - time;
                 if delay > 500000000 {
@@ -255,7 +253,7 @@ impl XcpDaqDecoder for DaqDecoder {
                         error!("DAQ_ERROR: wrong test signal value test_{} = {:08X}, should be = {:08X}", i, test, test_ok);
                         DAQ_ERROR.store(true, std::sync::atomic::Ordering::SeqCst);
                     }
-                    o = o + 8;
+                    o += 8;
                 }
             }
 
@@ -343,19 +341,22 @@ pub async fn test_daq(
         if starttime.elapsed().as_millis() > daq_test_duration_ms as u128 {
             break;
         }
-        if DAQ_ERROR.load(std::sync::atomic::Ordering::SeqCst) {
+
+        if DAQ_ERROR.load(std::sync::atomic::Ordering::Relaxed) {
             warn!("DAQ error detected, aborting DAQ test loop");
             error = true;
             break;
         }
-        let packets_lost = DAQ_PACKETS_LOST.load(std::sync::atomic::Ordering::SeqCst);
-        if packets_lost > 0 {
-            warn!("DAQ packet loss detected, aborting DAQ test loop");
+
+        let counter_errors = DAQ_COUNTER_ERRORS.load(std::sync::atomic::Ordering::Relaxed);
+        if counter_errors > 0 {
+            warn!("DAQ counter signal errors detected ({}), aborting DAQ test loop", counter_errors);
             break;
         }
-        let counter_errors = DAQ_COUNTER_ERRORS.load(std::sync::atomic::Ordering::SeqCst);
-        if counter_errors > 0 {
-            warn!("DAQ counter error detected, aborting DAQ test loop");
+
+        let packets_lost = DAQ_PACKETS_LOST.load(std::sync::atomic::Ordering::Relaxed);
+        if packets_lost > 0 {
+            warn!("DAQ packet loss detected ({}), aborting DAQ test loop", packets_lost);
             break;
         }
         tokio::time::sleep(Duration::from_micros(2000)).await;
@@ -463,7 +464,7 @@ async fn test_consistent_calibration(xcp_client: &mut XcpClient) -> bool {
     } else {
         info!("consistent calibration test loop done, {} iterations", CAL_TEST_MAX_ITER);
     }
-    return !error_state;
+    !error_state
 }
 
 //-----------------------------------------------------------------------
@@ -613,7 +614,7 @@ async fn test_calibration(xcp_client: &mut XcpClient, _task_cycle_us: u64) -> bo
         }
     } // Calibration test loop
 
-    return !error_state;
+    !error_state
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------
@@ -867,7 +868,7 @@ pub async fn test_executor(test_mode_cal: TestModeCal, test_mode_daq: TestModeDa
                 .await
                 .map_err(|e| {
                     error_state = true;
-                    error!("Calibrarion of calseg.run failed: {:?}", e);
+                    error!("Calibration of calseg.run failed: {:?}", e);
                 })
                 .ok();
             tokio::time::sleep(Duration::from_millis(1000)).await; // Give the user task some time to finish

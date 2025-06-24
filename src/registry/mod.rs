@@ -326,7 +326,7 @@ impl Default for McXcpTransportLayer {
 // Registry singleton
 
 /// Open registry singleton
-/// Open for modification, mutable access throung Mutex
+/// Open for modification, mutable access through Mutex
 /// Registry is closed when None
 static REGISTRY: Mutex<Option<Registry>> = Mutex::new(None);
 
@@ -386,7 +386,7 @@ pub fn is_closed() -> bool {
 
 /// Close registry
 /// No more changes allowed
-/// Move registry to read only singletom
+/// Move registry to read only singleton
 pub fn close() {
     // Check if registry is already closed
     if is_closed() {
@@ -453,7 +453,7 @@ fn create_flattened_instance_list(reg: &mut Registry, typedef_index: &HashMap<&'
         if let Some(typedef_name) = instance.get_typedef_name() {
             if instance.dim_type.get_dim()[0] > 1 {
                 // Multidimensional typedef field, not supported
-                log::error!("Instance {}: Multidimension field of type {} can not be flattened", name, typedef_name);
+                log::error!("Instance {}: Multidimensional field of type {} can not be flattened", name, typedef_name);
                 assert!(false); // Only basic types are supported
             }
 

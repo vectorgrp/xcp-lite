@@ -27,8 +27,6 @@
 #include "xcp_cfg.h"   // for XCP_xxx
 #include "xcptl_cfg.h" // for XCPTL_xxx
 
-MUTEX gA2lMutex = MUTEX_INTIALIZER; // Mutex for concurrent A2L create macros
-
 static FILE *gA2lFile = NULL;
 
 static bool gA2lUseTCP = false;

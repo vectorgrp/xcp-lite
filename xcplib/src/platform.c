@@ -147,7 +147,7 @@ void sleepNs(uint32_t ns) {
 
 void sleepMs(uint32_t ms) {
     if (ms > 0 && ms < 10) {
-        DBG_PRINT_WARNING("WARNING: cannot precisely sleep less than 10ms!\n");
+        // DBG_PRINT_WARNING("WARNING: cannot precisely sleep less than 10ms!\n");
     }
     Sleep(ms);
 }
@@ -155,27 +155,38 @@ void sleepMs(uint32_t ms) {
 #endif // Windows
 
 /**************************************************************************/
-// Spinlock
+// Atomics
 /**************************************************************************/
 
-void spinLockInit(SPINLOCK *lock) { atomic_store_explicit(lock, 0, memory_order_relaxed); }
+// stdatomic emulation for Windows
+#ifdef _WIN
 
-void spinLock(atomic_int_fast64_t *lock) {
-    int64_t expected = 0;
-    int64_t const desired = 1;
-    while (!atomic_compare_exchange_weak_explicit(lock, &expected, desired, memory_order_acquire, memory_order_relaxed)) {
-        expected = 0;
-#if defined(__x86_64__) || defined(__i386__)
-        __asm__ volatile("pause" ::: "memory");
-#elif defined(__aarch64__) || defined(__arm__)
-        __asm__ volatile("yield" ::: "memory");
-#else
-        // Fallback: do nothing
-#endif
-    }
+MUTEX gWinMutex;
+
+bool atomic_compare_exchange_strong_explicit(atomic_bool *a, bool *b, bool c, int d, int e) {
+    (void)d;
+    (void)e;
+
+    mutexLock(&gWinMutex);
+    bool old_value = *a;
+    *a = c;
+    *b = old_value;
+    mutexUnlock(&gWinMutex);
+    return true;
 }
 
-void spinUnlock(atomic_int_fast64_t *lock) { atomic_store_explicit(lock, 0, memory_order_release); }
+bool atomic_compare_exchange_weak_explicit(atomic_bool *a, bool *b, bool c, int d, int e) {
+    (void)d;
+    (void)e;
+    mutexLock(&gWinMutex);
+    bool old_value = *a;
+    *a = c;
+    *b = old_value;
+    mutexUnlock(&gWinMutex);
+    return true;
+}
+
+#endif
 
 /**************************************************************************/
 // Mutex
@@ -392,6 +403,9 @@ bool socketStartup(void) {
     WORD wsaVersionRequested;
     WSADATA wsaData;
 
+    // @@@@ TODO: Workaround for Windows
+    mutexInit(&gWinMutex, true, 0);
+
     // Init Winsock2
     wsaVersionRequested = MAKEWORD(2, 2);
     err = WSAStartup(wsaVersionRequested, &wsaData);
@@ -465,7 +479,7 @@ bool socketBind(SOCKET sock, uint8_t *addr, uint16_t port) {
     a.sin_port = htons(port);
     if (bind(sock, (SOCKADDR *)&a, sizeof(a)) < 0) {
         if (socketGetLastError() == WSAEADDRINUSE) {
-            DBG_PRINTF_ERROR("Port is already in use!\n");
+            DBG_PRINT_ERROR("Port is already in use!\n");
         } else {
             DBG_PRINTF_ERROR("%d - cannot bind on %u.%u.%u.%u port %u!\n", socketGetLastError(), addr ? addr[0] : 0, addr ? addr[1] : 0, addr ? addr[2] : 0, addr ? addr[3] : 0,
                              port);
