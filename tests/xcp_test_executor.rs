@@ -20,8 +20,8 @@ use xcp_lite::*;
 //-----------------------------------------------------------------------------
 
 // Logging
-pub const OPTION_LOG_LEVEL: log::LevelFilter = log::LevelFilter::Debug;
-pub const OPTION_XCP_LOG_LEVEL: u8 = 4;
+pub const OPTION_LOG_LEVEL: log::LevelFilter = log::LevelFilter::Info;
+pub const OPTION_XCP_LOG_LEVEL: u8 = 3;
 
 //------------------------------------------------------------------------
 // Test parameters
@@ -137,7 +137,7 @@ impl XcpDaqDecoder for DaqDecoder {
         if lost > 0 {
             self.packets_lost += lost;
             DAQ_PACKETS_LOST.store(self.packets_lost, std::sync::atomic::Ordering::Relaxed);
-            // warn!("PACKETS_LOST = {}", lost);
+            warn!("PACKETS_LOST = {}", lost);
         }
 
         let mut timestamp_raw: u32 = 0;
@@ -341,19 +341,22 @@ pub async fn test_daq(
         if starttime.elapsed().as_millis() > daq_test_duration_ms as u128 {
             break;
         }
-        if DAQ_ERROR.load(std::sync::atomic::Ordering::SeqCst) {
+
+        if DAQ_ERROR.load(std::sync::atomic::Ordering::Relaxed) {
             warn!("DAQ error detected, aborting DAQ test loop");
             error = true;
             break;
         }
-        let packets_lost = DAQ_PACKETS_LOST.load(std::sync::atomic::Ordering::SeqCst);
-        if packets_lost > 0 {
-            warn!("DAQ packet loss detected, aborting DAQ test loop");
+
+        let counter_errors = DAQ_COUNTER_ERRORS.load(std::sync::atomic::Ordering::Relaxed);
+        if counter_errors > 0 {
+            warn!("DAQ counter signal errors detected ({}), aborting DAQ test loop", counter_errors);
             break;
         }
-        let counter_errors = DAQ_COUNTER_ERRORS.load(std::sync::atomic::Ordering::SeqCst);
-        if counter_errors > 0 {
-            warn!("DAQ counter error detected, aborting DAQ test loop");
+
+        let packets_lost = DAQ_PACKETS_LOST.load(std::sync::atomic::Ordering::Relaxed);
+        if packets_lost > 0 {
+            warn!("DAQ packet loss detected ({}), aborting DAQ test loop", packets_lost);
             break;
         }
         tokio::time::sleep(Duration::from_micros(2000)).await;

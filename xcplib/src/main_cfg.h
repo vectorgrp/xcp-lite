@@ -50,7 +50,9 @@
 
 // Enable socketGetLocalAddr and XcpEthTlGetInfo
 // Used for convenience to get a correct ip addr in A2L, when bound to ANY 0.0.0.0
+#ifndef _WIN // @@@@ TODO: Crash on Windows
 #define OPTION_ENABLE_GET_LOCAL_ADDR
+#endif
 
 // Logging
 #define OPTION_ENABLE_DBG_PRINTS

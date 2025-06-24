@@ -1,6 +1,7 @@
 {
     "files.associations": {
-        "stdatomic.h": "c"
+        "stdatomic.h": "c",
+        "malloc.h": "c"
     },
     "cSpell.words": [
         "COMPU",
