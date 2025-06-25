@@ -311,8 +311,10 @@ uint32_t ApplXcpGetId(uint8_t id, uint8_t *buf, uint32_t bufLen);
 bool ApplXcpReadA2L(uint8_t size, uint32_t offset, uint8_t *data);
 #endif
 
+// Logging
 void ApplXcpSetLogLevel(uint8_t level);
 
+// Register callbacks
 #ifdef XCP_ENABLE_APP_ADDRESSING
 void ApplXcpRegisterCallbacks(bool (*cb_connect)(void), uint8_t (*cb_prepare_daq)(void), uint8_t (*cb_start_daq)(void), void (*cb_stop_daq)(void),
                               uint8_t (*cb_freeze_daq)(uint8_t clear, uint16_t config_id), uint8_t (*cb_get_cal_page)(uint8_t segment, uint8_t mode),
@@ -330,9 +332,7 @@ void ApplXcpRegisterCallbacks(bool (*cb_connect)(void), uint8_t (*cb_prepare_daq
 
 void ApplXcpRegisterConnectCallback(bool (*cb_connect)(void));
 
-// Maximum length of A2L filename with extension
-#define XCP_A2L_FILENAME_MAX_LENGTH 255
-
 // Set/get the A2L file name (for GET_ID IDT_ASAM_NAME, IDT_ASAM_NAME and for IDT_ASAM_UPLOAD)
+#define XCP_A2L_FILENAME_MAX_LENGTH 255 // Maximum length of A2L filename with extension
 void ApplXcpSetA2lName(const char *name);
 const char *ApplXcpGetA2lName(void);

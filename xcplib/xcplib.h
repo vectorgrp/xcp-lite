@@ -1,5 +1,6 @@
 // Header file for the XCPlite xcplib application interface
-// Used for Rust bindgen to generate FFI bindings for the XCPlite library xcplib
+// A2L generation functions and macros are in src/a2l.h
+// Used for Rust bindgen to generate FFI bindings for xcplib
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -41,6 +42,7 @@ void XcpEthServerGetInfo(bool *out_is_tcp, uint8_t *out_mac, uint8_t *out_addres
 
 #define XCP_UNDEFINED_CALSEG 0xFFFF
 typedef uint16_t tXcpCalSegIndex;
+#define XCP_MAX_CALSEG_NAME 15 // defined in xcp_cfg.h
 
 // Create a calibration segment
 // Thread safe
@@ -59,13 +61,19 @@ void XcpUnlockCalSeg(tXcpCalSegIndex calseg);
 
 #define XCP_UNDEFINED_EVENT_ID 0xFFFF
 typedef uint16_t tXcpEventId;
+#define XCP_MAX_EVENT_NAME 15 // defined in xcp_cfg.h
 
-// Add a measurement event to event list, return event number (0..MAX_EVENT-1)
+// Add a measurement event to event list, return event number (0..XCP_MAX_EVENT_COUNT-1)
 tXcpEventId XcpCreateEvent(const char *name, uint32_t cycleTimeNs /* ns */, uint8_t priority /* 0-normal, >=1 realtime*/);
-// Add a measurement event to event list, return event number (0..MAX_EVENT-1), thread safe, if name exists, an instance id is appended to the name
+// Add a measurement event to event list, return event number (0..XCP_MAX_EVENT_COUNT-1), thread safe, if name exists, an instance id is appended to the name
 tXcpEventId XcpCreateEventInstance(const char *name, uint32_t cycleTimeNs /* ns */, uint8_t priority /* 0-normal, >=1 realtime*/);
 // Get event id by name, returns XCP_UNDEFINED_EVENT_ID if not found
 tXcpEventId XcpFindEvent(const char *name, uint16_t *count);
+
+// Create the XCP event 'name'
+// Cycle time is set to sporadic and priority to normal
+// Setting the cycle time would only have the  benefit for the XCP client tool to estimate the expected data rate of a DAQ setup
+#define DaqCreateEvent(name) XcpCreateEvent(#name, 0, 0)
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // DAQ event convenience macros
@@ -79,11 +87,6 @@ tXcpEventId XcpFindEvent(const char *name, uint16_t *count);
 uint8_t XcpEventExtAt(tXcpEventId event, const uint8_t *base, uint64_t clock);
 uint8_t XcpEventExt(tXcpEventId event, const uint8_t *base);
 uint8_t XcpEventDyn(tXcpEventId *event);
-
-// Create the XCP event 'name'
-// Cycle time is set to sporadic and priority to normal
-// Setting the cycle time would only have the  benefit for the XCP client tool to estimate the expected data rate of a DAQ setup
-#define DaqCreateEvent(name) XcpCreateEvent(#name, 0, 0)
 
 // Trigger the XCP event 'name' for stack (DaqEvent) or relative addressing (DaqEventRelative) mode
 // Error if the event does not exist
@@ -126,17 +129,19 @@ void XcpSetLogLevel(uint8_t level);
 void XcpInit(void);
 
 // Set the A2L file name (for GET_ID IDT_ASAM_NAME, IDT_ASAM_NAME and for IDT_ASAM_UPLOAD)
+// Used by the A2L generator
 #define XCP_A2L_FILENAME_MAX_LENGTH 255 // Maximum length of A2L filename with extension
 void ApplXcpSetA2lName(const char *name);
 
 // EPK software version identifier
+// Used by the A2L generator
 #define XCP_EPK_MAX_LENGTH 32 // Maximum length of EPK string
 void XcpSetEpk(const char *epk);
 
-// Disconnect, stop DAQ, flush queue, flush pending calibrations
+// Force Disconnect, stop DAQ, flush queue, flush pending calibrations
 void XcpDisconnect(void);
 
-// Send terminate session signal event
+// Send terminate session event to the XCP client
 void XcpSendTerminateSessionEvent(void);
 
 // Send a message to the XCP client
@@ -146,8 +151,13 @@ void XcpPrint(const char *str);
 uint64_t ApplXcpGetClock64(void);
 
 // Register XCP callbacks
+// Used by the Rust API
 void ApplXcpRegisterCallbacks(bool (*cb_connect)(void), uint8_t (*cb_prepare_daq)(void), uint8_t (*cb_start_daq)(void), void (*cb_stop_daq)(void),
                               uint8_t (*cb_freeze_daq)(uint8_t clear, uint16_t config_id), uint8_t (*cb_get_cal_page)(uint8_t segment, uint8_t mode),
                               uint8_t (*cb_set_cal_page)(uint8_t segment, uint8_t page, uint8_t mode), uint8_t (*cb_freeze_cal)(void),
                               uint8_t (*cb_init_cal)(uint8_t src_page, uint8_t dst_page), uint8_t (*cb_read)(uint32_t src, uint8_t size, uint8_t *dst),
                               uint8_t (*cb_write)(uint32_t dst, uint8_t size, const uint8_t *src, uint8_t delay), uint8_t (*cb_flush)(void));
+
+// Register a connect callback
+// Used by the A2L generator
+void ApplXcpRegisterConnectCallback(bool (*cb_connect)(void));
