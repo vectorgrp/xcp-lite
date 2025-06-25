@@ -27,6 +27,8 @@
 #include "xcp_cfg.h"   // for XCP_xxx
 #include "xcptl_cfg.h" // for XCPTL_xxx
 
+MUTEX gA2lMutex;
+
 static FILE *gA2lFile = NULL;
 
 static bool gA2lUseTCP = false;
@@ -1048,6 +1050,7 @@ bool A2lInit(const char *a2l_filename, const char *a2l_projectname, const uint8_
     memcpy(&gA2lOptionBindAddr, addr, 4);
     gA2lOptionPort = port;
     gA2lUseTCP = useTCP;
+    mutexInit(&gA2lMutex, false, 1000);
 
     // Check if A2L file already exists and rename it to 'name.old' if it does
     if (file_exists(a2l_filename)) {

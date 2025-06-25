@@ -153,7 +153,7 @@ tQueueHandle QueueInit(uint32_t queue_buffer_size) {
 
     DBG_PRINTF4("QueueInit: queue_buffer_size=%" PRIu32 ", queue_size=%" PRIu32 " (%" PRIu32 " Bytes)\n", queue->queue_buffer_size, queue->queue_size, queue->queue_buffer_size);
 
-    mutexInit(&queue->Mutex_Queue, 0, 1000);
+    mutexInit(&queue->Mutex_Queue, false, 1000);
 
     mutexLock(&queue->Mutex_Queue);
     queue->queue_rp = 0;

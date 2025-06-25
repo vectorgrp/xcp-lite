@@ -404,7 +404,7 @@ bool socketStartup(void) {
     WSADATA wsaData;
 
     // @@@@ TODO: Workaround for Windows
-    mutexInit(&gWinMutex, true, 0);
+    mutexInit(&gWinMutex, false, 1000);
 
     // Init Winsock2
     wsaVersionRequested = MAKEWORD(2, 2);

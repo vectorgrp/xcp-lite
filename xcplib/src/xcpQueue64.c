@@ -103,7 +103,7 @@ Transport Layer segment, message, packet:
 //   cargo test  --features=a2l_reader  -- --test-threads=1 --nocapture  --test test_multi_thread
 // Note that this tests have significant performance impact, do not turn on for production use !!!!!!!!!!!
 
-#define TEST_ACQUIRE_LOCK_TIMING
+// #define TEST_ACQUIRE_LOCK_TIMING
 #ifdef TEST_ACQUIRE_LOCK_TIMING
 static MUTEX lockMutex = MUTEX_INTIALIZER;
 static uint64_t lockTimeMax = 0;
@@ -135,7 +135,7 @@ static uint64_t get_timestamp_ns(void) {
 
 #endif
 
-#define TEST_ACQUIRE_SPIN_COUNT
+// #define TEST_ACQUIRE_SPIN_COUNT
 #ifdef TEST_ACQUIRE_SPIN_COUNT
 #define SPIN_COUNT_HISTOGRAM_SIZE 100 // Up to 100 loops
 static atomic_uint_least32_t spinCountHistogramm[SPIN_COUNT_HISTOGRAM_SIZE] = {
@@ -145,7 +145,7 @@ static atomic_uint_least32_t spinCountHistogramm[SPIN_COUNT_HISTOGRAM_SIZE] = {
 };
 #endif
 
-#define TEST_CONSUMER_SEQ_LOCK_SPIN_COUNT
+// #define TEST_CONSUMER_SEQ_LOCK_SPIN_COUNT
 #ifdef TEST_CONSUMER_SEQ_LOCK_SPIN_COUNT
 #define SEQ_LOCK_HISTOGRAM_SIZE 200  // Up to 200 loops
 static uint32_t seqLockMaxLevel = 0; // Maximum queue level reached
@@ -451,6 +451,15 @@ static tQueueHandle QueueInitFromMemory(void *queue_memory, uint32_t queue_memor
     DBG_PRINT3("Init XCP transport layer queue\n");
     DBG_PRINTF3("  XCPTL_MAX_SEGMENT_SIZE=%u, XCPTL_PACKET_ALIGNMENT=%u, queue: %u DTOs of max %u bytes, %uKiB\n", XCPTL_MAX_SEGMENT_SIZE, XCPTL_PACKET_ALIGNMENT,
                 queue->h.queue_size / MAX_ENTRY_SIZE, MAX_ENTRY_SIZE, (uint32_t)((queue->h.buffer_size + sizeof(tQueueHeader)) / 1024));
+#if defined(QUEUE_SEQ_LOCK)
+    DBG_PRINT3("  QUEUE_SEQ_LOCK\n");
+#endif
+#if defined(QUEUE_NO_LOCK)
+    DBG_PRINT3("  QUEUE_NO_LOCK\n");
+#endif
+#if defined(QUEUE_MUTEX)
+    DBG_PRINT3("  QUEUE_MUTEX\n");
+#endif
 
     if (clear_queue) {
 
