@@ -25,11 +25,11 @@ use xcp_test_executor::test_executor;
 const TEST_CAL: xcp_test_executor::TestModeCal = xcp_test_executor::TestModeCal::Cal; // Execute calibration tests: Cal or None
 const TEST_DAQ: xcp_test_executor::TestModeDaq = xcp_test_executor::TestModeDaq::DaqMultiThread; // Execute measurement tests: MultiThreadDAQ or None
 
-const TEST_TASK_COUNT: usize = 50; // Number of test tasks to create
+const TEST_TASK_COUNT: usize = 50; // Number of test tasks (threads) to create
 const TEST_SIGNAL_COUNT: usize = 32; // Number of signals is TEST_SIGNAL_COUNT + 5 for each task
 const TEST_DURATION_MS: u64 = 10 * 1000; // Stop after TEST_DURATION_MS milliseconds
-const TEST_CYCLE_TIME_US: u32 = 250; // Cycle time in microseconds
-const TEST_QUEUE_SIZE: u32 = 1024 * 1024; // Size of the XCP server transmit queue in Bytes
+const TEST_CYCLE_TIME_US: u32 = 100; // Cycle time in microseconds
+const TEST_QUEUE_SIZE: u32 = 2 * 1024 * 1024; // Size of the XCP server transmit queue in Bytes
 
 //-----------------------------------------------------------------------------
 // Calibration Segment

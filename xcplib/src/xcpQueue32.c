@@ -54,7 +54,7 @@ Transport Layer segment, message, packet:
 #define CACHE_LINE_SIZE 64u // Cache line size, used to align the queue entries and the queue header
 
 typedef struct {
-    uint16_t dlc;     // lenght
+    uint16_t dlc;     // length
     uint16_t ctr;     // message counter
     uint8_t packet[]; // packet
 } tXcpMessage;
@@ -63,7 +63,7 @@ static_assert(sizeof(tXcpMessage) == XCPTL_TRANSPORT_LAYER_HEADER_SIZE, "tXcpMes
 
 typedef struct {
     uint32_t magic;                             // Magic number to identify the segment buffer
-    uint16_t uncommited;                        // Number of uncommited messages in this segment
+    uint16_t uncommitted;                       // Number of uncommitted messages in this segment
     uint16_t size;                              // Number of overall bytes in this segment
     uint8_t msg_buffer[XCPTL_MAX_SEGMENT_SIZE]; // Segment/UDP MTU - concatenated transport layer messages tXcpMessage
 } tXcpSegmentBuffer;
@@ -103,7 +103,7 @@ static void newSegmentBuffer(tQueue *queue) {
             i -= queue->queue_size;
         b = &queue->queue[i];
         b->size = 0;
-        b->uncommited = 0;
+        b->uncommitted = 0;
         queue->msg_ptr = b;
         queue->queue_len++;
         assert(queue->msg_ptr->magic == 0x12345678); // Check magic number
@@ -147,13 +147,13 @@ tQueueHandle QueueInit(uint32_t queue_buffer_size) {
     assert(queue->queue != NULL);
     for (uint32_t i = 0; i < queue->queue_size; i++) {
         queue->queue[i].magic = 0x12345678; // Magic number to identify the segment buffer
-        queue->queue[i].uncommited = 0;     // No uncommited messages
+        queue->queue[i].uncommitted = 0;    // No uncommitted messages
         queue->queue[i].size = 0;           // No data in this segment
     }
 
     DBG_PRINTF4("QueueInit: queue_buffer_size=%" PRIu32 ", queue_size=%" PRIu32 " (%" PRIu32 " Bytes)\n", queue->queue_buffer_size, queue->queue_size, queue->queue_buffer_size);
 
-    mutexInit(&queue->Mutex_Queue, 0, 1000);
+    mutexInit(&queue->Mutex_Queue, false, 1000);
 
     mutexLock(&queue->Mutex_Queue);
     queue->queue_rp = 0;
@@ -176,7 +176,6 @@ void QueueDeinit(tQueueHandle queueHandle) {
 
     clearQueue(queue); // Clear the queue
 
-    //_aligned_free(queue->queue);
     free(queue->queue);
     queue->queue = NULL;
     queue->queue_buffer_size = 0;
@@ -224,8 +223,8 @@ tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint16_t packet_size) {
         p->ctr = 0xEEEE; // Reserved value, indicates that this message is not yet commited
         p->dlc = (uint16_t)packet_size;
         b->size = (uint16_t)(b->size + msg_size);
-        b->uncommited++;
-        DBG_PRINTF5("QueueAcquire: size=%" PRIu16 ", uncommited=%" PRIu16 "\n", b->size, b->uncommited);
+        b->uncommitted++;
+        DBG_PRINTF5("QueueAcquire: size=%" PRIu16 ", uncommitted=%" PRIu16 "\n", b->size, b->uncommitted);
     } else {
         // No segment buffer available, queue overflow
         queue->packets_lost++;
@@ -253,11 +252,11 @@ void QueuePush(tQueueHandle queueHandle, tQueueBuffer *const queueBuffer, bool f
 
     tQueue *queue = (tQueue *)queueHandle;
 
-    DBG_PRINTF5("QueuePush: size=%" PRIu16 ", uncommited=%" PRIu16 "\n", queueBuffer->size, ((tXcpSegmentBuffer *)queueBuffer->handle)->uncommited);
+    DBG_PRINTF5("QueuePush: size=%" PRIu16 ", uncommitted=%" PRIu16 "\n", queueBuffer->size, ((tXcpSegmentBuffer *)queueBuffer->handle)->uncommitted);
 
     mutexLock(&queue->Mutex_Queue);
 
-    ((tXcpSegmentBuffer *)queueBuffer->handle)->uncommited--;
+    ((tXcpSegmentBuffer *)queueBuffer->handle)->uncommitted--;
 
     tXcpMessage *p = (tXcpMessage *)(queueBuffer->buffer - XCPTL_TRANSPORT_LAYER_HEADER_SIZE);
     assert(p->dlc > 0 && p->dlc <= XCPTL_MAX_DTO_SIZE);
@@ -317,7 +316,7 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
         }
 
         // Return tail segment buffer if it is not empty, fully committed and there are more segments in the queue
-        if (!(queue->queue_len > 1 && b->uncommited == 0 && b->size > 0)) {
+        if (!(queue->queue_len > 1 && b->uncommitted == 0 && b->size > 0)) {
             b = NULL;
         }
     }
@@ -366,7 +365,7 @@ void QueueRelease(tQueueHandle queueHandle, tQueueBuffer *const queueBuffer) {
 
     DBG_PRINTF5("QueueRelease: size=%" PRIu16 "\n", queueBuffer->size);
 
-    // Free this segment buffer when succesfully sent
+    // Free this segment buffer when successfully sent
     mutexLock(&queue->Mutex_Queue);
     if (++queue->queue_rp >= queue->queue_size)
         queue->queue_rp = 0;

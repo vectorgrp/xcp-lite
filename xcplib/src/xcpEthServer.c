@@ -185,7 +185,7 @@ extern void *XcpServerTransmitThread(void *par)
     gXcpServer.TransmitThreadRunning = true;
     while (gXcpServer.TransmitThreadRunning) {
 
-        // Transmit all commmited messages from the transmit queue
+        // Transmit all committed messages from the transmit queue
         n = XcpTlHandleTransmitQueue();
         if (n < 0) {
             DBG_PRINT_ERROR("XcpTlHandleTransmitQueue failed!\n");
