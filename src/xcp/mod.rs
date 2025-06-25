@@ -451,7 +451,7 @@ impl Xcp {
             if addr == [0, 0, 0, 0] {
                 unsafe {
                     // @@@@ UNSAFE - C library call
-                    xcplib::XcpEthTlGetInfo(std::ptr::null_mut(), std::ptr::null_mut(), &mut addr[0] as *mut u8, std::ptr::null_mut());
+                    xcplib::XcpEthServerGetInfo(std::ptr::null_mut(), std::ptr::null_mut(), &mut addr[0] as *mut u8, std::ptr::null_mut());
                 }
             }
             let mut reg = registry::get_lock();

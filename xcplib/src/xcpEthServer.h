@@ -7,22 +7,20 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/// Initialize the XCP on Ethernet server instance.
+/// Initialize the XCP on Ethernet server singleton.
 /// @pre User has called XcpInit.
 /// @param address Address to bind to.
 /// @param port Port to bind to.
 /// @param use_tcp Use TCP if true, otherwise UDP.
-/// @param measurement_queue Optional external memory to place the measurement queue.
-/// Pass NULL if server should allocate it.
-/// @param measurement_queue_size Measurement queue size in bytes. Includes the bytes occupied by the queue header.
-/// @return True on success, otherwise false.
+/// @param measurement_queue_size Measurement queue size in bytes. Includes the bytes occupied by the queue header and some space needed for alignment.
+/// @return true on success, otherwise false.
 bool XcpEthServerInit(uint8_t const *address, uint16_t port, bool use_tcp, uint32_t measurement_queue_size);
 
-/// Shutdown the XCP on Ethernet server instance.
+/// Shutdown the XCP on Ethernet server.
 bool XcpEthServerShutdown(void);
 
 /// Get the XCP on Ethernet server instance status.
-/// @return True if the server is running, otherwise false.
+/// @return true if the server is running, otherwise false.
 bool XcpEthServerStatus(void);
 
 /// Get information about the XCP on Ethernet server instance address.

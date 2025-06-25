@@ -7,10 +7,9 @@
 #include <stdio.h>   // for printf
 #include <string.h>  // for sprintf
 
-#include "a2l.h"          // for A2l generation
-#include "platform.h"     // for sleepMs, clockGet
-#include "xcpEthServer.h" // for XcpEthServerInit, XcpEthServerShutdown, XcpEthServerStatus
-#include "xcpLite.h"      // for XcpInit, XcpEventXxx, XcpCreateEvent, XcpCreateCalSeg, DaqXxxx, ...
+#include "a2l.h"      // for xcplib A2l generation
+#include "platform.h" // for sleepMs
+#include "xcplib.h"   // for xcplib application programming interface
 
 #ifdef _WIN
 #define M_PI 3.14159265358979323846
@@ -56,7 +55,7 @@ void *task(void *p)
 
     bool run = true;
     uint32_t delay_us = 1000;
-    uint64_t start_time = clockGet(); // Get the start time in clock ticks
+    uint64_t start_time = ApplXcpGetClock64(); // Get the start time in clock ticks
 
     uint16_t counter = 0; // Local counter variable for measurement
     double channel = 0;
@@ -82,7 +81,7 @@ void *task(void *p)
                 counter = 0;
             }
 
-            channel = (task_id * 10) + params->ampl * sin(M_2PI / params->period * ((double)(clockGet() - start_time) / CLOCK_TICKS_PER_S));
+            channel = (task_id * 10) + params->ampl * sin(M_2PI / params->period * ((double)(ApplXcpGetClock64() - start_time) / CLOCK_TICKS_PER_S));
 
             // Sleep time
             delay_us = params->delay_us;
@@ -145,10 +144,10 @@ int main(void) {
     A2lCreateParameterWithLimits(params, delay_us, "task delay time in us", "us", 0, 1000000);
     A2lCreateParameterWithLimits(params, run, "stop task", "", 0, 1);
 
-    // Create multiple inszances of the same task
+    // Create multiple instances of the same task
     THREAD t[10];
     for (int i = 0; i < 10; i++) {
-        create_thread(&t[i], task); // create multiple inszances of the same task
+        create_thread(&t[i], task); // create multiple instances of the same task
     }
 
     sleepMs(1000);

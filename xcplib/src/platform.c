@@ -25,7 +25,8 @@
 #include <string.h>   // for memcpy, strcmp
 #include <time.h>     // for timespec, nanosleep, CLOCK_MONOTONIC_RAW
 #if defined(_LINUX) || defined(_MACOS)
-#include <unistd.h> // for sleep
+#include <netinet/in.h> // for sockets
+#include <unistd.h>     // for sleep
 #endif
 
 #include "dbg_print.h" // for DBG_LEVEL, DBG_PRINT3, DBG_PRINTF4, DBG...

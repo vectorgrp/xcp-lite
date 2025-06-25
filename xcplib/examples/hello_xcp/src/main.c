@@ -6,10 +6,9 @@
 #include <stdio.h>   // for printf
 #include <string.h>  // for sprintf
 
-#include "a2l.h"          // for A2l generation
-#include "platform.h"     // for sleepMs, clockGet
-#include "xcpEthServer.h" // for XcpEthServerInit, XcpEthServerShutdown, XcpEthServerStatus
-#include "xcpLite.h"      // for XcpInit, XcpEventXxx, XcpCreateEvent, XcpCreateCalSeg, DaqXxxx, ...
+#include "a2l.h"      // for xcplib A2l generation
+#include "platform.h" // for sleepNs
+#include "xcplib.h"   // for xcplib application programming interface
 
 //-----------------------------------------------------------------------------------------------------
 

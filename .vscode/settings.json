@@ -1,7 +1,17 @@
 {
     "files.associations": {
         "stdatomic.h": "c",
-        "malloc.h": "c"
+        "malloc.h": "c",
+        "xcpethserver.h": "c",
+        "xcplite.h": "c",
+        "xcpqueue.h": "c",
+        "xcp_cfg.h": "c",
+        "stdlib.h": "c",
+        "xcpethtl.h": "c",
+        "a2l.h": "c",
+        "stdint.h": "c",
+        "platform.h": "c",
+        "stdbool.h": "c"
     },
     "cSpell.words": [
         "ampl",

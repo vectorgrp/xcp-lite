@@ -168,9 +168,7 @@
 #define XCP_TIMESTAMP_UNIT DAQ_TIMESTAMP_UNIT_1NS // unit
 #define XCP_TIMESTAMP_TICKS 1                     // ticks per unit
 #else
-#ifndef __WRAPPER_H__ // Rust bindgen
 #error "Please define clock resolution"
-#endif
 #endif
 
 // Grandmaster clock (optional, use XcpSetGrandmasterClockInfo, implement ApplXcpGetClockInfoGrandmaster)

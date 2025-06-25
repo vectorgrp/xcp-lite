@@ -7,9 +7,8 @@
 #include <stdbool.h> // for bool
 #include <stdint.h>  // for uintxx_t
 
-#include "dbg_print.h" // for DBG_PRINTF3, DBG_PRINT4, DBG_PRINTF4, DBG...
+#include "../xcplib.h" // for tXcpEventId, tXcpCalSegIndex
 #include "platform.h"  // for atomic_bool
-#include "xcpLite.h"   // for tXcpEventId, tXcpCalSegIndex
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
