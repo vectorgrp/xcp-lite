@@ -95,7 +95,7 @@ Transport Layer segment, message, packet:
 
 // Wait for at least QUEUE_PEEK_THRESHOLD bytes in the queue before returning a segment, to optimize efficiency
 // @@@@ Experimental, not tested yet, could improve performance for high throughput
-// #define QUEUE_PEEK_THRESHOLD XCPTL_MAX_SEGMENT_SIZE
+#define QUEUE_PEEK_THRESHOLD XCPTL_MAX_SEGMENT_SIZE
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
 // Test queue acquire lock timing and spin lock performance test
@@ -309,6 +309,23 @@ Lock timing statistics: lockCount=1891973, maxLockTime=109167ns,  avgLockTime=14
 80us: 1
 90us: 1
 100us: 1
+
+
+// QUEUE_NO_LOCK:
+------------------
+
+Producer acquire lock time statistics: lockCount=264283, maxLockTime=74426ns,  avgLockTime=90ns
+0us: 264268
+10us: 9
+20us: 3
+60us: 1
+70us: 2
+
+Producer acquire spin count statistics:
+2: 544
+3: 4
+
+
 
 
 */
@@ -783,18 +800,26 @@ tQueueBuffer QueuePeek(tQueueHandle queueHandle, bool flush, uint32_t *packets_l
     }
 #endif
 
-    // Require a minimum amount of data, to optimize segment usage (Ethernet frames)
+    // Require a minimum amount of data, to optimize segment usage (less Ethernet frames)
+    // Don't when there is a flush request from producer or consumer
 #if defined(QUEUE_ACCUMULATE_PACKETS) && defined(QUEUE_PEEK_THRESHOLD)
-    if ((max_level <= QUEUE_PEEK_THRESHOLD && (flush || atomic_load_explicit(&queue->h.flush, memory_order_relaxed)))) { // Queue is empty or not above the minimum size
+
+    // Flush request ?
+    if (atomic_load_explicit(&queue->h.flush, memory_order_relaxed)) {
+        flush = true; // Flush request, set by the producer
         atomic_store_explicit(&queue->h.flush, false, memory_order_relaxed);
+    }
+
+    if ((level <= QUEUE_PEEK_THRESHOLD && !flush)) { // Queue is not above the minimum segment size
         tQueueBuffer ret = {
             .buffer = NULL,
             .size = 0,
         };
         return ret;
     }
+
 #else
-    (void)flush;
+    (void)flush; // Unused, suppress warning
 #endif
 
     // Get a pointer to the entry in the queue
