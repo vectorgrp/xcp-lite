@@ -99,11 +99,8 @@ Transport Layer segment, message, packet:
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------
 // Test queue acquire lock timing and spin lock performance test
-// Use
-//   cargo test  --features=a2l_reader  -- --test-threads=1 --nocapture  --test test_performance
-// for high contention
-// Use OPTION_CLOCK_EPOCH_ARB / CLOCK_MONOTONIC_RAW for lower timing noise
-//
+// For high contention use
+//   cargo test  --features=a2l_reader  -- --test-threads=1 --nocapture  --test test_multi_thread
 // Note that this tests have significant performance impact, do not turn on for production use !!!!!!!!!!!
 
 #define TEST_ACQUIRE_LOCK_TIMING
@@ -119,6 +116,16 @@ static uint64_t lockTimeHistogram[LOCK_TIME_HISTOGRAM_SIZE] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 };
+
+// There should be better alternatives in your target specific environment than this portable reference
+// Select a clock mode appropriate for your platform, CLOCK_MONOTONIC_RAW is a good choice for high resolution and monotonicity
+static uint64_t get_timestamp_ns(void) {
+    static const uint64_t kNanosecondsPerSecond = 1000000000ULL;
+    struct timespec ts = {0};
+    clock_gettime(CLOCK_MONOTONIC_RAW, &ts); // NOLINT(missing-includes) // do **not** include internal "bits" headers directly.
+    return ((uint64_t)ts.tv_sec) * kNanosecondsPerSecond + ((uint64_t)ts.tv_nsec);
+}
+
 #endif
 
 #define TEST_ACQUIRE_SPIN_COUNT
@@ -196,22 +203,22 @@ Producer acquire lock time statistics: lockCount=3800489, maxLockTime=150000ns, 
 
 // QUEUE_NO_LOCK:
 ------------------
-Producer acquire lock time statistics: lockCount=3803303, maxLockTime=90000ns,  avgLockTime=93ns
-0us: 3799661
-10us: 3255
-20us: 307
-30us: 63
-40us: 11
-50us: 5
-90us: 1
+Producer acquire lock time statistics: lockCount=3762386, maxLockTime=57958ns,  avgLockTime=127ns
+0us: 3755968
+10us: 5702
+20us: 614
+30us: 82
+40us: 18
+50us: 2
 
 Producer acquire spin count statistics:
-2: 89682
-3: 16010
-4: 3597
-5: 719
-6: 83
-7: 1
+2: 126063
+3: 27016
+4: 5953
+5: 1292
+6: 127
+
+Max queue level reached: 417268 of 2096124, 19%
 
 // QUEUE_SEQ_LOCK:
 ------------------
@@ -314,19 +321,20 @@ Lock timing statistics: lockCount=1891973, maxLockTime=109167ns,  avgLockTime=14
 // QUEUE_NO_LOCK:
 ------------------
 
-Producer acquire lock time statistics: lockCount=264283, maxLockTime=74426ns,  avgLockTime=90ns
-0us: 264268
-10us: 9
-20us: 3
-60us: 1
-70us: 2
+Producer acquire lock time statistics: lockCount=1895983, maxLockTime=337353ns,  avgLockTime=98ns
+0us: 1895867
+10us: 30
+20us: 6
+30us: 28
+40us: 43
+50us: 3
+60us: 4
+80us: 1
+330us: 1
 
 Producer acquire spin count statistics:
-2: 544
-3: 4
-
-
-
+2: 5987
+3: 30
 
 */
 
@@ -550,7 +558,7 @@ tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint16_t packet_len) {
     assert(msg_len <= MAX_ENTRY_SIZE);
 
 #ifdef TEST_ACQUIRE_LOCK_TIMING
-    uint64_t c = clockGet();
+    uint64_t c = get_timestamp_ns();
 #endif
 
     // Prepare a new entry in reserved state
@@ -620,7 +628,7 @@ tQueueBuffer QueueAcquire(tQueueHandle queueHandle, uint16_t packet_len) {
 #endif
 
 #ifdef TEST_ACQUIRE_LOCK_TIMING
-    uint64_t d = clockGet() - c;
+    uint64_t d = get_timestamp_ns() - c;
     mutexLock(&lockMutex);
     if (d > lockTimeMax)
         lockTimeMax = d;
