@@ -93,7 +93,7 @@ const CALPAGE1: CalPage1 = CalPage1 {
 // Stop after 5s
 // Trigger a global event when any task starts or stops
 // Trigger a thread local event, in each loop
-// Once the A2L registry is created on XCP client connect, tli events and variable instances are fixed and addional instances are not visible
+// Once the A2L registry is created on XCP client connect, tli events and variable instances are fixed and additional instances are not visible
 // Tokio occasionally creates new worker threads and destroys old ones very late, so the number of instances may change
 
 #[allow(dead_code)]
@@ -227,7 +227,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             counter = 0;
         }
 
-        // Triger the measurement event "task"
+        // Trigger the measurement event "task"
         // The measurement event timestamp is taken here and captured data is sent to CANape
         event.trigger();
     }
