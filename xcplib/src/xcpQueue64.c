@@ -126,6 +126,13 @@ static uint64_t get_timestamp_ns(void) {
     return ((uint64_t)ts.tv_sec) * kNanosecondsPerSecond + ((uint64_t)ts.tv_nsec);
 }
 
+// inline auto RdtscNow() noexcept -> std::uint64_t {
+//     std::uint32_t low{0};
+//     std::uint64_t high{0};
+//     asm volatile("rdtsc" : "=a"(low), "=d"(high)); // NOLINT(hicpp-no-assembler)
+//     return (high << 32) | low;                     // NOLINT
+// }
+
 #endif
 
 #define TEST_ACQUIRE_SPIN_COUNT
@@ -321,20 +328,31 @@ Lock timing statistics: lockCount=1891973, maxLockTime=109167ns,  avgLockTime=14
 // QUEUE_NO_LOCK:
 ------------------
 
-Producer acquire lock time statistics: lockCount=1895983, maxLockTime=337353ns,  avgLockTime=98ns
-0us: 1895867
-10us: 30
-20us: 6
-30us: 28
-40us: 43
-50us: 3
-60us: 4
-80us: 1
-330us: 1
+Producer acquire lock time statistics: lockCount=105758, maxLockTime=10222ns,  avgLockTime=90ns
+0us: 105757
+10us: 1
 
 Producer acquire spin count statistics:
-2: 5987
-3: 30
+2: 187
+
+Max queue level reached: 220460 of 523260, 42%
+
+
+
+
+Producer acquire lock time statistics: lockCount=1899659, maxLockTime=266315ns,  avgLockTime=89ns
+0us: 1899619
+10us: 8
+20us: 3
+30us: 12
+40us: 16
+260us: 1
+
+Producer acquire spin count statistics:
+2: 3125
+3: 10
+
+Max queue level reached: 77964 of 523260, 14%
 
 */
 
