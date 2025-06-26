@@ -37,6 +37,16 @@ typedef struct params {
 
 const params_t params = {.counter_max = 1000, .delay_us = 1000, .test_byte1 = -1, .test_byte2 = 1, .curve = {0, 1, 2, 3, 4, 5, 6, 7}, .map = {{0}}};
 
+// Global measurement variables
+uint8_t g_counter8 = 0;
+uint16_t g_counter16 = 0;
+uint32_t g_counter32 = 0;
+uint64_t g_counter64 = 0;
+int8_t g_counter8s = 0;
+int16_t g_counter16s = 0;
+int32_t g_counter32s = 0;
+int64_t g_counter64s = 0;
+
 //-----------------------------------------------------------------------------------------------------
 
 // Demo main
@@ -94,6 +104,17 @@ int main(void) {
 
     // Create a measurement event for local variables
     DaqCreateEvent(mainloop);
+
+    // Register global measurement variables
+    A2lSetAbsoluteAddrMode(mainloop);
+    A2lCreatePhysMeasurement(g_counter8, "Measurement variable", 1.0, 0.0, "");
+    A2lCreatePhysMeasurement(g_counter16, "Measurement variable", 1.0, 0.0, "");
+    A2lCreatePhysMeasurement(g_counter32, "Measurement variable", 1.0, 0.0, "");
+    A2lCreatePhysMeasurement(g_counter64, "Measurement variable", 1.0, 0.0, "");
+    A2lCreatePhysMeasurement(g_counter8s, "Measurement variable", 1.0, 0.0, "");
+    A2lCreatePhysMeasurement(g_counter16s, "Measurement variable", 1.0, 0.0, "");
+    A2lCreatePhysMeasurement(g_counter32s, "Measurement variable", 1.0, 0.0, "");
+    A2lCreatePhysMeasurement(g_counter64s, "Measurement variable", 1.0, 0.0, "");
 
     // Register measurement variables located on stack
     A2lSetStackAddrMode(mainloop);
@@ -167,6 +188,15 @@ int main(void) {
         counter16s = (int16_t)counter16;
         counter32s = (int32_t)counter32;
         counter64s = (int64_t)counter64;
+
+        g_counter8 = counter8;
+        g_counter16 = counter16;
+        g_counter32 = counter32;
+        g_counter64 = counter64;
+        g_counter8s = counter8s;
+        g_counter16s = counter16s;
+        g_counter32s = counter32s;
+        g_counter64s = counter64s;
 
         // Calibration demo
         // Visualizes calibration consistency and page switching
