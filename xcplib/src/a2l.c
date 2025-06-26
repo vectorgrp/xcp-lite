@@ -795,29 +795,33 @@ void A2lTypedefParameterComponent_(const char *name, const char *type_name, uint
                                    double max) {
 
     assert(gA2lFile != NULL);
-    (void)unit; // Creating a COMPU_METHOD for the unit is not supported in this function, but it is possible to add it later
 
-    if (x_dim > 1 || y_dim > 1) {
-
-        if (y_dim > 1) {
-            fprintf(gA2lTmpFile, "/begin TYPEDEF_CHARACTERISTIC C_%s \"%s\" MAP %s 0 NO_COMPU_METHOD %g %g", name, comment, type_name, min, max);
-            fprintf(gA2lTmpFile, " MATRIX_DIM %u %u /end TYPEDEF_CHARACTERISTIC\n", x_dim, y_dim);
-        } else {
-            fprintf(gA2lTmpFile, "/begin TYPEDEF_CHARACTERISTIC C_%s \"%s\" CURVE %s 0 NO_COMPU_METHOD %g %g", name, comment, type_name, min, max);
-            fprintf(gA2lTmpFile, " MATRIX_DIM %u /end TYPEDEF_CHARACTERISTIC\n", x_dim);
-        }
-
-        fprintf(gA2lFile, "  /begin STRUCTURE_COMPONENT %s C_%s 0x%X", name, name, offset);
-
+    // TYPEDEF_CHARACTERISTIC VALUE, CURVE or CHARACTERISTIC
+    if (y_dim > 1) {
+        fprintf(gA2lTmpFile, "/begin TYPEDEF_CHARACTERISTIC C_%s \"%s\" MAP %s 0 NO_COMPU_METHOD %g %g", name, comment, type_name, min, max);
+        fprintf(gA2lTmpFile, " /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD %u 0 %u FIX_AXIS_PAR_DIST 0 1 %u /end AXIS_DESCR", x_dim, x_dim - 1, x_dim);
+        fprintf(gA2lTmpFile, " /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD %u 0 %u FIX_AXIS_PAR_DIST 0 1 %u /end AXIS_DESCR", y_dim, y_dim - 1, y_dim);
+    } else if (x_dim > 1) {
+        fprintf(gA2lTmpFile, "/begin TYPEDEF_CHARACTERISTIC C_%s \"%s\" CURVE %s 0 NO_COMPU_METHOD %g %g", name, comment, type_name, min, max);
+        fprintf(gA2lTmpFile, " /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD %u 0 %u FIX_AXIS_PAR_DIST 0 1 %u /end AXIS_DESCR", x_dim, x_dim - 1, x_dim);
     } else {
-
-        fprintf(gA2lFile, "  /begin STRUCTURE_COMPONENT %s %s 0x%X", name, type_name, offset);
-        if (y_dim > 1) {
-            fprintf(gA2lFile, " MATRIX_DIM %u %u", x_dim, y_dim);
-        } else if (x_dim > 1) {
-            fprintf(gA2lFile, " MATRIX_DIM %u", x_dim);
-        }
+        fprintf(gA2lTmpFile, "/begin TYPEDEF_CHARACTERISTIC C_%s \"%s\" VALUE %s 0 NO_COMPU_METHOD %g %g", name, comment, type_name, min, max);
     }
+    if (unit != NULL && strlen(unit) > 0) {
+        fprintf(gA2lTmpFile, " PHYS_UNIT \"%s\"", unit);
+    }
+    fprintf(gA2lTmpFile, " /end TYPEDEF_CHARACTERISTIC\n");
+
+    fprintf(gA2lFile, "  /begin STRUCTURE_COMPONENT %s C_%s 0x%X", name, name, offset);
+
+    // Multi dimensional with basic type
+    //     fprintf(gA2lFile, "  /begin STRUCTURE_COMPONENT %s %s 0x%X", name, type_name, offset);
+    //     if (y_dim > 1) {
+    //         fprintf(gA2lFile, " MATRIX_DIM %u %u", x_dim, y_dim);
+    //     } else if (x_dim > 1) {
+    //         fprintf(gA2lFile, " MATRIX_DIM %u", x_dim);
+    //     }
+
 #ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
     fprintf(gA2lFile, " SYMBOL_TYPE_LINK \"%s\"", name, 0);
 #endif

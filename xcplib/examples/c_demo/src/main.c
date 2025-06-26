@@ -31,6 +31,8 @@ typedef struct params {
     uint32_t delay_us;    // Delay in microseconds for the main loop
     int8_t test_byte1;
     int8_t test_byte2;
+    int8_t array[8];
+    int8_t matrix[8][8];
     int8_t curve[8];
     int8_t map[8][8];
 } params_t;
@@ -89,13 +91,15 @@ int main(void) {
     A2lTypedefParameterComponent(test_byte2, params_t, "Test byte for calibration consistency test", "", -128, 127);
     A2lTypedefParameterComponent(counter_max, params_t, "", "", 0, 2000);
     A2lTypedefParameterComponent(delay_us, params_t, "Mainloop sleep time in us", "us", 0, 1000000);
+    A2lTypedefParameterArrayComponent(array, params_t, "Demo array", "", -128, 127);
+    A2lTypedefParameterMatrixComponent(matrix, params_t, "Demo matrix", "", -128, 127);
     A2lTypedefCurveComponent(curve, params_t, 8, "Demo curve", "", -128, 127);
     A2lTypedefMapComponent(map, params_t, 8, 8, "Demo map", "", -128, 127);
     A2lTypedefEnd();
 
     // Register calibration parameters in the calibration segment
     A2lSetSegAddrMode(calseg, (uint8_t *)&params);
-    A2lCreateTypedefInstance(params, params__t, "Calibration parameters");
+    A2lCreateTypedefInstance(params, params_t, "Calibration parameters");
 
     // A2lCreateParameterWithLimits(params, counter_max, "maximum counter value", "", 0, 2000);
     // A2lCreateParameterWithLimits(params, delay_us, "mainloop delay time in us", "us", 0, 1000000);

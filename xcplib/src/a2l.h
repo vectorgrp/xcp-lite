@@ -325,13 +325,24 @@ void A2lRstDefaultEvent(void);
     }
 
 // Once
-#define A2lTypedefParameterArrayComponent(field_name, typeName)                                                                                                                    \
+#define A2lTypedefParameterArrayComponent(field_name, typeName, comment, unit, min, max)                                                                                           \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
         if (A2lOnce_(&a2l_##field_name##_)) {                                                                                                                                      \
             typeName instance;                                                                                                                                                     \
-            \ A2lTypedefComponent_(#field_name, A2lGetTypeName_C(instance.field_name[0]), sizeof(instance.field_name) / sizeof(instance.field_name[0]),                            \
-                                   ((uint8_t *)&(instance.field_name[0]) - (uint8_t *)&instance));                                                                                 \
+            A2lTypedefComponent_(#field_name, A2lGetTypeName_C(instance.field_name[0]), sizeof(instance.field_name) / sizeof(instance.field_name[0]),                              \
+                                 ((uint8_t *)&(instance.field_name[0]) - (uint8_t *)&instance));                                                                                   \
+        }                                                                                                                                                                          \
+    }
+
+// Once
+#define A2lTypedefParameterMatrixComponent(field_name, typeName, comment, unit, min, max)                                                                                          \
+    {                                                                                                                                                                              \
+        static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
+        if (A2lOnce_(&a2l_##field_name##_)) {                                                                                                                                      \
+            typeName instance;                                                                                                                                                     \
+            A2lTypedefComponent_(#field_name, A2lGetTypeName_C(instance.field_name[0][0]), sizeof(instance.field_name) / sizeof(instance.field_name[0]),                           \
+                                 ((uint8_t *)&(instance.field_name[0]) - (uint8_t *)&instance));                                                                                   \
         }                                                                                                                                                                          \
     }
 
