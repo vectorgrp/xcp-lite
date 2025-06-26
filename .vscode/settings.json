@@ -11,7 +11,12 @@
         "a2l.h": "c",
         "stdint.h": "c",
         "platform.h": "c",
-        "stdbool.h": "c"
+        "stdbool.h": "c",
+        "xcplib.h": "c",
+        "istream": "c",
+        "locale": "c",
+        "tuple": "c",
+        "variant": "c"
     },
     "cSpell.words": [
         "ampl",

@@ -82,29 +82,31 @@ void A2lRstDefaultEvent(void);
 // Stack frame relative addressing mode
 // Can be used without runtime A2L file generation
 
-static inline uint8_t *get_stack_frame_pointer(void) {
-    // #if defined(__x86_64__) || defined(_M_X64)
-    //     void *fp;
-    //     __asm__ volatile("movq %%rbp, %0" : "=r"(fp));
-    //     return (uint8_t *)fp;
-    // #elif defined(__i386__) || defined(_M_IX86)
-    //     void *fp;
-    //     __asm__ volatile("movl %%ebp, %0" : "=r"(fp));
-    //     return (uint8_t *)fp;
-    // #elif defined(__aarch64__)
-    //     void *fp;
-    //     __asm__ volatile("mov %0, x29" : "=r"(fp));
-    //     return (uint8_t *)fp;
-    // #elif defined(__arm__)
-    //     void *fp;
-    //     __asm__ volatile("mov %0, fp" : "=r"(fp));
-    //     return (uint8_t *)fp;
-    // #else
-    // Fallback: take address of a local variable (not always the frame pointer!)
-    uint8_t *fp = (uint8_t *)__builtin_frame_address(0);
-    return fp;
-    // #endif
-}
+#ifndef get_stack_frame_pointer
+#define get_stack_frame_pointer() (uint8_t *)__builtin_frame_address(0)
+#endif
+
+// static inline uint8_t *get_stack_frame_pointer_(void) {
+//  #if defined(__x86_64__) || defined(_M_X64)
+//      void *fp;
+//      __asm__ volatile("movq %%rbp, %0" : "=r"(fp));
+//      return (uint8_t *)fp;
+//  #elif defined(__i386__) || defined(_M_IX86)
+//      void *fp;
+//      __asm__ volatile("movl %%ebp, %0" : "=r"(fp));
+//      return (uint8_t *)fp;
+//  #elif defined(__aarch64__)
+//      void *fp;
+//      __asm__ volatile("mov %0, x29" : "=r"(fp));
+//      return (uint8_t *)fp;
+//  #elif defined(__arm__)
+//      void *fp;
+//      __asm__ volatile("mov %0, fp" : "=r"(fp));
+//      return (uint8_t *)fp;
+//  #else
+//  return (uint8_t *)__builtin_frame_address(0);
+// #endif
+//}
 
 // Set addressing mode to relative for a given event 'name' and base address
 // Error if the event does not exist

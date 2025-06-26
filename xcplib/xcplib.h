@@ -83,6 +83,32 @@ tXcpEventId XcpFindEvent(const char *name, uint16_t *count);
 // No need to take care to store the event id
 // Required option is XCP_ENABLE_DAQ_EVENT_LIST (must be set in xcp_cfg.h)
 
+#ifndef get_stack_frame_pointer
+#define get_stack_frame_pointer() (uint8_t *)__builtin_frame_address(0)
+#endif
+
+// static inline uint8_t *get_stack_frame_pointer_(void) {
+//  #if defined(__x86_64__) || defined(_M_X64)
+//      void *fp;
+//      __asm__ volatile("movq %%rbp, %0" : "=r"(fp));
+//      return (uint8_t *)fp;
+//  #elif defined(__i386__) || defined(_M_IX86)
+//      void *fp;
+//      __asm__ volatile("movl %%ebp, %0" : "=r"(fp));
+//      return (uint8_t *)fp;
+//  #elif defined(__aarch64__)
+//      void *fp;
+//      __asm__ volatile("mov %0, x29" : "=r"(fp));
+//      return (uint8_t *)fp;
+//  #elif defined(__arm__)
+//      void *fp;
+//      __asm__ volatile("mov %0, fp" : "=r"(fp));
+//      return (uint8_t *)fp;
+//  #else
+//      return (uint8_t *)__builtin_frame_address(0);
+//  #endif
+//}
+
 // Used by the DAQ macros
 uint8_t XcpEventExtAt(tXcpEventId event, const uint8_t *base, uint64_t clock);
 uint8_t XcpEventExt(tXcpEventId event, const uint8_t *base);
@@ -100,7 +126,7 @@ uint8_t XcpEventDyn(tXcpEventId *event);
                 assert(false);                                                                                                                                                     \
             }                                                                                                                                                                      \
         } else {                                                                                                                                                                   \
-            XcpEventExtAt(daq_event_stackframe_##name##_, get_stack_frame_pointer(), 0);                                                                                           \
+            XcpEventExt(daq_event_stackframe_##name##_, get_stack_frame_pointer());                                                                                                \
         }                                                                                                                                                                          \
     }
 

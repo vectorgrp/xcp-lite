@@ -68,18 +68,18 @@ static const char *gA2lHeader = "ASAP2_VERSION 1 71\n"
 
 //----------------------------------------------------------------------------------
 static const char *gA2lMemorySegment = "/begin MEMORY_SEGMENT\n"
-                                       "%s \"\" DATA FLASH INTERN 0x%08X 0x%08X -1 -1 -1 -1 -1\n" // name, start, size
+                                       "%s \"\" DATA FLASH INTERN 0x%08X 0x%X -1 -1 -1 -1 -1\n" // name, start, size
                                        "/begin IF_DATA XCP\n"
-                                       "/begin SEGMENT 0x01 0x02 0x00 0x00 0x00 \n"
+                                       "/begin SEGMENT 0x1 0x2 0x0 0x0 0x0\n"
                                        "/begin CHECKSUM XCP_ADD_44 MAX_BLOCK_SIZE 0xFFFF EXTERNAL_FUNCTION \"\" /end CHECKSUM\n"
                                        // 2 calibration pages, 0=working page (RAM), 1=initial readonly page (FLASH), independent access to ECU and XCP page possible
-                                       "/begin PAGE 0x01 ECU_ACCESS_DONT_CARE XCP_READ_ACCESS_DONT_CARE XCP_WRITE_ACCESS_NOT_ALLOWED /end PAGE\n"
-                                       "/begin PAGE 0x00 ECU_ACCESS_DONT_CARE XCP_READ_ACCESS_DONT_CARE XCP_WRITE_ACCESS_DONT_CARE /end PAGE\n"
+                                       "/begin PAGE 0x1 ECU_ACCESS_DONT_CARE XCP_READ_ACCESS_DONT_CARE XCP_WRITE_ACCESS_NOT_ALLOWED /end PAGE\n"
+                                       "/begin PAGE 0x0 ECU_ACCESS_DONT_CARE XCP_READ_ACCESS_DONT_CARE XCP_WRITE_ACCESS_DONT_CARE /end PAGE\n"
                                        "/end SEGMENT\n"
                                        "/end IF_DATA\n"
                                        "/end MEMORY_SEGMENT\n";
 
-static const char *gA2lEpkMemorySegment = "/begin MEMORY_SEGMENT epk  \"\" DATA FLASH INTERN 0x80000000 %u -1 -1 -1 -1 -1 /end MEMORY_SEGMENT\n";
+static const char *gA2lEpkMemorySegment = "/begin MEMORY_SEGMENT epk \"\" DATA FLASH INTERN 0x80000000 %u -1 -1 -1 -1 -1 /end MEMORY_SEGMENT\n";
 
 //----------------------------------------------------------------------------------
 static const char *const gA2lIfDataBegin = "\n/begin IF_DATA XCP\n";
@@ -87,7 +87,7 @@ static const char *const gA2lIfDataBegin = "\n/begin IF_DATA XCP\n";
 //----------------------------------------------------------------------------------
 static const char *gA2lIfDataProtocolLayer = // Parameter: XCP_PROTOCOL_LAYER_VERSION, MAX_CTO, MAX_DTO
     "/begin PROTOCOL_LAYER\n"
-    " 0x%04X"                                        // XCP_PROTOCOL_LAYER_VERSION
+    " 0x%X"                                          // XCP_PROTOCOL_LAYER_VERSION
     " 1000 2000 0 0 0 0 0"                           // Timeouts T1-T7
     " %u %u "                                        // MAX_CTO, MAX_DTO
     "BYTE_ORDER_MSB_LAST ADDRESS_GRANULARITY_BYTE\n" // Intel and BYTE pointers
@@ -166,7 +166,7 @@ static const char *gA2lIfDataBeginDAQ = // Parameter: %u max event, %s timestamp
     "/begin DAQ\n"
     "DYNAMIC 0 %u 0 OPTIMISATION_TYPE_DEFAULT ADDRESS_EXTENSION_FREE IDENTIFICATION_FIELD_TYPE_RELATIVE_BYTE GRANULARITY_ODT_ENTRY_SIZE_DAQ_BYTE 0xF8 OVERLOAD_INDICATION_PID\n"
     "/begin TIMESTAMP_SUPPORTED\n"
-    "0x01 SIZE_DWORD %s TIMESTAMP_FIXED\n"
+    "0x1 SIZE_DWORD %s TIMESTAMP_FIXED\n"
     "/end TIMESTAMP_SUPPORTED\n";
 
 // ... Event list follows, before EndDaq
@@ -178,7 +178,7 @@ static const char *const gA2lIfDataEndDAQ = "/end DAQ\n";
 // XCP_ON_ETH
 static const char *gA2lIfDataEth = // Parameter: %s TCP or UDP, %04X tl version, %u port, %s ip address string, %s TCP or UDP
     "/begin XCP_ON_%s_IP\n"        // Transport Layer
-    "  0x%04X %u ADDRESS \"%s\"\n"
+    "  0x%X %u ADDRESS \"%s\"\n"
 //"OPTIONAL_TL_SUBCMD GET_SERVER_ID\n"
 //"OPTIONAL_TL_SUBCMD GET_DAQ_ID\n"
 //"OPTIONAL_TL_SUBCMD SET_DAQ_ID\n"
@@ -376,13 +376,13 @@ static const char *getTypeMin(tA2lTypeId type) {
         min = "-2147483648";
         break;
     case A2L_TYPE_INT64:
-        min = "-1E12";
+        min = "-1e12";
         break;
     case A2L_TYPE_FLOAT:
-        min = "-1E12";
+        min = "-1e12";
         break;
     case A2L_TYPE_DOUBLE:
-        min = "-1E12";
+        min = "-1e12";
         break;
     default:
         min = "0";
@@ -412,7 +412,7 @@ static const char *getTypeMax(tA2lTypeId type) {
         max = "4294967295";
         break;
     default:
-        max = "1E12";
+        max = "1e12";
     }
     return max;
 }
@@ -433,17 +433,17 @@ static const char *getPhysMin(tA2lTypeId type, double factor, double offset) {
         value = -1E12;
         break;
     case A2L_TYPE_FLOAT:
-        value = -1E12;
+        value = -1e12;
         break;
     case A2L_TYPE_DOUBLE:
-        value = -1E12;
+        value = -1e12;
         break;
     default:
         value = 0.0;
     }
 
     static char str[20];
-    SNPRINTF(str, 20, "%f", factor * value + offset);
+    SNPRINTF(str, 20, "%g", factor * value + offset);
     return str;
 }
 
@@ -472,7 +472,7 @@ static const char *getPhysMax(tA2lTypeId type, double factor, double offset) {
         value = 1E12;
     }
     static char str[20];
-    SNPRINTF(str, 20, "%f", factor * value + offset);
+    SNPRINTF(str, 20, "%g", factor * value + offset);
     return str;
 }
 
