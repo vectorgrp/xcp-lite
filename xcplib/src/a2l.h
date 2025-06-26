@@ -104,8 +104,8 @@ void A2lRstDefaultEvent(void);
 //      __asm__ volatile("mov %0, fp" : "=r"(fp));
 //      return (uint8_t *)fp;
 //  #else
-//  return (uint8_t *)__builtin_frame_address(0);
-// #endif
+//      return (uint8_t *)__builtin_frame_address(0);
+//  #endif
 //}
 
 // Set addressing mode to relative for a given event 'name' and base address
@@ -281,12 +281,35 @@ void A2lRstDefaultEvent(void);
     }
 
 // Once
-#define A2lTypedefParameterComponent(field_name, typeName)                                                                                                                         \
+#define A2lTypedefParameterComponent(field_name, typeName, comment, unit, min, max)                                                                                                \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
         if (A2lOnce_(&a2l_##field_name##_)) {                                                                                                                                      \
             typeName instance;                                                                                                                                                     \
-            \ A2lTypedefComponent_(#field_name, A2lGetTypeName_C(instance.field_name), 1, ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance));                             \
+            A2lTypedefParameterComponent_(#field_name, A2lGetTypeName_C(instance.field_name), 1, 1, ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance), comment, unit,     \
+                                          min, max);                                                                                                                               \
+        }                                                                                                                                                                          \
+    }
+
+// Once
+#define A2lTypedefCurveComponent(field_name, typeName, x_dim, comment, unit, min, max)                                                                                             \
+    {                                                                                                                                                                              \
+        static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
+        if (A2lOnce_(&a2l_##field_name##_)) {                                                                                                                                      \
+            typeName instance;                                                                                                                                                     \
+            A2lTypedefParameterComponent_(#field_name, A2lGetTypeName_C(instance.field_name[0]), x_dim, 1, ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance), comment,    \
+                                          unit, min, max);                                                                                                                         \
+        }                                                                                                                                                                          \
+    }
+
+// Once
+#define A2lTypedefMapComponent(field_name, typeName, x_dim, y_dim, comment, unit, min, max)                                                                                        \
+    {                                                                                                                                                                              \
+        static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
+        if (A2lOnce_(&a2l_##field_name##_)) {                                                                                                                                      \
+            typeName instance;                                                                                                                                                     \
+            A2lTypedefParameterComponent_(#field_name, A2lGetTypeName_C(instance.field_name[0][0]), x_dim, y_dim, ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance),      \
+                                          comment, unit, min, max);                                                                                                                \
         }                                                                                                                                                                          \
     }
 
@@ -365,6 +388,8 @@ void A2lCreateMeasurementArray_(const char *instance_name, const char *name, tA2
 // Create typedefs
 void A2lTypedefBegin_(const char *name, uint32_t size, const char *comment);
 void A2lTypedefComponent_(const char *name, const char *type_name, uint16_t x_dim, uint32_t offset);
+void A2lTypedefParameterComponent_(const char *name, const char *type_name, uint16_t x_dim, uint16_t y_dim, uint32_t offset, const char *comment, const char *unit, double min,
+                                   double max);
 void A2lTypedefEnd_(void);
 void A2lCreateTypedefInstance_(const char *instance_name, const char *type_name, uint16_t x_dim, uint8_t ext, uint32_t addr, const char *comment);
 

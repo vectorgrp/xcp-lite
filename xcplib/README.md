@@ -23,8 +23,8 @@ Visit the Virtual VectorAcedemy for an E-Learning on XCP:
 
 - Breaking changes to V6.  
 - Lockless transmit queue. Works on x86-64 strong and ARM-64 weak memory model.  
-- Measurement of and write access to variables on stack.  
-- Supports multiple calibration segments with working and reference page with independent page switching
+- Measurement and read access to variables on stack.  
+- Supports multiple calibration segments with working and reference page and independent page switching
 - Lock free and thread safe calibration parameter access, consistent calibration changes and page switches.  
 - Build as a library.  
 - Used (as FFI library) for the rust xcp-lite version.  
@@ -37,7 +37,7 @@ Visit the Virtual VectorAcedemy for an E-Learning on XCP:
 - Prepared for PTP synchronized timestamps.  
 - Supports calibration and measurement of structures
 - User friendly code instrumentation to create calibration parameter segments, measurement variables and A2L metadata descriptions.  
-- Measurement of global or local stack variables.  
+- Measurement of global (static) or local (stack) variables.  
 - Thread safe, lock-free and wait-free ECU access to calibration data.  
 - Calibration page switching and consistent calibration.  
 
@@ -49,10 +49,65 @@ XCPprof is a product in Vectors AUTOSAR MICROSAR and CANbedded product portfolio
 
 hello_xcp:  
   Getting started with a simple demo in C with minimum code and features.  
-  Shows the basics how to integrate XCP in existing applications.  
+  Shows the basics how to integrate XCP in an existing application.  
+  Create an event and measure an integer variable on stack and in global memory
 
 c_demo:  
   Shows more complex data objects (structs, arrays), calibration objects (axis, maps and curves).  
+  Measurement variables on stack and in global memory
   Consistent calibration changes and measurement.  
   Calibration page switching and EPK version check.  
   
+struct_demo
+  Shows how to define types for nested structs, array struct components and arrays of structs
+
+multi_thread_demo
+  Shows measurement in multiple thread
+  Create thread local instances of events and measurements
+  Share a calibration parameter segment among the threads
+  Access to calibration parameters is thread safe and consistent
+
+## Build
+
+Be sure EPK is updated for a new build.
+EPK is generated from __DATE__ and __TIME__ in a2l.h
+
+Build the library and all examples:
+
+'''
+
+cmake -DCMAKE_BUILD_TYPE=Debug -S . -B build  
+touch src/a2l.c
+make --directory ./build
+
+./build/hello_xcp.out
+./build/c_demo.out
+./build/multi_thread_demo.out
+./build/struct_demo.out
+
+'''
+
+## A2L file generation options
+
+As default the A2L file is created during runtime and provided for upload to the XCP client.  
+The A2L file is always up to date with correct address information.  
+
+Another option is, to create the A2L file once and update it with an A2L update tool such as the CANape integrated A2L Updater or Open Source a2ltool.  
+Note that currently, the A2L tools will only update absolute addresses for variables and instances in global memory.  
+
+XCPlite makes intensive use of relative addressing.  
+This is indicated by the address extension:  
+0 - Calibration segment (A2L MEMORY_SEGMENT) relative address, high word of the address is the calibration segment index
+1 - Absolute address (relative to main module load address)
+2 - Signed 32Bit relative address, default is relative to the stack frame pointer of the function which triggers the event  
+3 - Signed 16Bit relative address, high word of the address is the event id. This allows polling access for the variable
+
+Future versions of the A2L updaters might support these addressing schemes.  
+
+'''
+
+a2ltool c_demo.a2l --elffile c_demo.out --update --output c_demo_updated.a2l
+a2ltool c_demo.a2l --enable-structures --update-mode PRESERVE  --elffile c_demo.out --update --output c_demo_updated.a2l
+
+a2ltool --create -e c_demo.out    --measurement-regex "counter" --measurement-regex "params" --output c_demo.a2l
+'''

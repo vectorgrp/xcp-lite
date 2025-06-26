@@ -30,6 +30,7 @@
 MUTEX gA2lMutex;
 
 static FILE *gA2lFile = NULL;
+static FILE *gA2lTmpFile = NULL;
 
 static bool gA2lUseTCP = false;
 static uint16_t gA2lOptionPort = 5555;
@@ -481,11 +482,13 @@ static bool A2lOpen(const char *filename, const char *projectname) {
     DBG_PRINTF3("A2L create %s\n", filename);
 
     gA2lFile = NULL;
+    gA2lTmpFile = NULL;
     gA2lFixedEvent = XCP_UNDEFINED_EVENT_ID;
     gA2lMeasurements = gA2lParameters = gA2lTypedefs = gA2lInstances = gA2lConversions = gA2lComponents = 0;
     gA2lFile = fopen(filename, "w");
-    if (gA2lFile == 0) {
-        DBG_PRINTF_ERROR("Could not create A2L file %s!\n", filename);
+    gA2lTmpFile = fopen("tmp.a2l", "w");
+    if (gA2lFile == 0 || gA2lTmpFile == 0) {
+        DBG_PRINT_ERROR("Could not create A2L file!\n");
         return false;
     }
 
@@ -494,19 +497,23 @@ static bool A2lOpen(const char *filename, const char *projectname) {
 
     // Create header
     fprintf(gA2lFile, gA2lHeader, projectname, projectname);
+    fprintf(gA2lFile, "\n");
+
+    fprintf(gA2lTmpFile, "\n/* Typedefs */\n");
 
     // Create standard record layouts for elementary types
+    // In the tmp.a2l file - will be merges later as there might be more typedefs during the generation process
     for (int i = -10; i <= +10; i++) {
         tA2lTypeId id = (tA2lTypeId)i;
         const char *at = A2lGetA2lTypeName(id);
         if (at != NULL) {
             const char *t = getRecordLayoutName(id);
-            fprintf(gA2lFile, "/begin RECORD_LAYOUT %s FNC_VALUES 1 %s ROW_DIR DIRECT /end RECORD_LAYOUT\n", t, at);
-            fprintf(gA2lFile, "/begin TYPEDEF_MEASUREMENT M_%s \"\" %s NO_COMPU_METHOD 0 0 %s %s /end TYPEDEF_MEASUREMENT\n", t, at, getTypeMin(id), getTypeMax(id));
-            fprintf(gA2lFile, "/begin TYPEDEF_CHARACTERISTIC C_%s \"\" VALUE %s 0 NO_COMPU_METHOD %s %s /end TYPEDEF_CHARACTERISTIC\n", t, t, getTypeMin(id), getTypeMax(id));
+            fprintf(gA2lTmpFile, "/begin RECORD_LAYOUT %s FNC_VALUES 1 %s ROW_DIR DIRECT /end RECORD_LAYOUT\n", t, at);
+            fprintf(gA2lTmpFile, "/begin TYPEDEF_MEASUREMENT M_%s \"\" %s NO_COMPU_METHOD 0 0 %s %s /end TYPEDEF_MEASUREMENT\n", t, at, getTypeMin(id), getTypeMax(id));
+            fprintf(gA2lTmpFile, "/begin TYPEDEF_CHARACTERISTIC C_%s \"\" VALUE %s 0 NO_COMPU_METHOD %s %s /end TYPEDEF_CHARACTERISTIC\n", t, t, getTypeMin(id), getTypeMax(id));
         }
     }
-    fprintf(gA2lFile, "\n");
+    fprintf(gA2lTmpFile, "\n");
 
     return true;
 }
@@ -646,12 +653,6 @@ void A2lSetDynAddrMode(const tXcpEventId *event) {
     A2lSetFixedEvent(*event);
 }
 
-void A2lSetSegAddrMode(tXcpCalSegIndex calseg_index, const uint8_t *calseg) {
-    gA2lAddrIndex = calseg_index;
-    gA2lAddrBase = calseg;
-    gAl2AddrExt = XCP_ADDR_EXT_SEG;
-}
-
 void A2lRstAddrMode(void) {
     gA2lFixedEvent = XCP_UNDEFINED_EVENT_ID;
     gAl2AddrExt = XCP_UNDEFINED_ADDR_EXT;
@@ -660,9 +661,17 @@ void A2lRstAddrMode(void) {
 }
 
 //----------------------------------------------------------------------------------
-// Set address mode by event name
+// Set addressing mode
 
-// Absolute with fixed event by name
+// Set relative address mode with calibration segment index
+void A2lSetSegAddrMode(tXcpCalSegIndex calseg_index, const uint8_t *calseg) {
+    gA2lAddrIndex = calseg_index;
+    gA2lAddrBase = calseg;
+    gAl2AddrExt = XCP_ADDR_EXT_SEG;
+    fprintf(gA2lFile, "\n/* Relative addressing mode: calseg=%u */\n", calseg_index);
+}
+
+// Set relative address mode with event name
 void A2lSetRelativeAddrMode_(const char *event_name, const uint8_t *base_addr) {
 
     assert(gA2lFile != NULL);
@@ -678,7 +687,7 @@ void A2lSetRelativeAddrMode_(const char *event_name, const uint8_t *base_addr) {
     fprintf(gA2lFile, "\n/* Relative addressing mode: event=%s (%u), addr_ext=%u, addr_base=%p */\n", event_name, event, gAl2AddrExt, (void *)gA2lAddrBase);
 }
 
-// Relative with fixed event name and base address
+// Set absolute address mode with fixed event name
 void A2lSetAbsoluteAddrMode_(const char *event_name) {
 
     assert(gA2lFile != NULL);
@@ -766,12 +775,49 @@ void A2lTypedefBegin_(const char *name, uint32_t size, const char *comment) {
     gA2lTypedefs++;
 }
 
+// For scalar measurement and parameter components
 void A2lTypedefComponent_(const char *name, const char *type_name, uint16_t x_dim, uint32_t offset) {
 
     assert(gA2lFile != NULL);
     fprintf(gA2lFile, "  /begin STRUCTURE_COMPONENT %s %s 0x%X", name, type_name, offset);
     if (x_dim > 1)
         fprintf(gA2lFile, " MATRIX_DIM %u", x_dim);
+#ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
+    fprintf(gA2lFile, " SYMBOL_TYPE_LINK \"%s\"", name, 0);
+#endif
+    fprintf(gA2lFile, " /end STRUCTURE_COMPONENT\n");
+
+    gA2lComponents++;
+}
+
+// For multidimensional parameter components with TYPEDEF_CHARACTERISTIC for fields with comment, unit, min, max
+void A2lTypedefParameterComponent_(const char *name, const char *type_name, uint16_t x_dim, uint16_t y_dim, uint32_t offset, const char *comment, const char *unit, double min,
+                                   double max) {
+
+    assert(gA2lFile != NULL);
+    (void)unit; // Creating a COMPU_METHOD for the unit is not supported in this function, but it is possible to add it later
+
+    if (x_dim > 1 || y_dim > 1) {
+
+        if (y_dim > 1) {
+            fprintf(gA2lTmpFile, "/begin TYPEDEF_CHARACTERISTIC C_%s \"%s\" MAP %s 0 NO_COMPU_METHOD %g %g", name, comment, type_name, min, max);
+            fprintf(gA2lTmpFile, " MATRIX_DIM %u %u /end TYPEDEF_CHARACTERISTIC\n", x_dim, y_dim);
+        } else {
+            fprintf(gA2lTmpFile, "/begin TYPEDEF_CHARACTERISTIC C_%s \"%s\" CURVE %s 0 NO_COMPU_METHOD %g %g", name, comment, type_name, min, max);
+            fprintf(gA2lTmpFile, " MATRIX_DIM %u /end TYPEDEF_CHARACTERISTIC\n", x_dim);
+        }
+
+        fprintf(gA2lFile, "  /begin STRUCTURE_COMPONENT %s C_%s 0x%X", name, name, offset);
+
+    } else {
+
+        fprintf(gA2lFile, "  /begin STRUCTURE_COMPONENT %s %s 0x%X", name, type_name, offset);
+        if (y_dim > 1) {
+            fprintf(gA2lFile, " MATRIX_DIM %u %u", x_dim, y_dim);
+        } else if (x_dim > 1) {
+            fprintf(gA2lFile, " MATRIX_DIM %u", x_dim);
+        }
+    }
 #ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
     fprintf(gA2lFile, " SYMBOL_TYPE_LINK \"%s\"", name, 0);
 #endif
@@ -1014,6 +1060,20 @@ bool A2lFinalize(void) {
         sprintf(epk, "EPK_%s_%s", __DATE__, __TIME__);
         XcpSetEpk(epk);
 
+        // Merge the tmp.a2l file with the main A2L file
+        if (gA2lTmpFile != NULL) {
+            fclose(gA2lTmpFile);
+            gA2lTmpFile = fopen("tmp.a2l", "r");
+            char line[512];
+            while (fgets(line, sizeof(line), gA2lTmpFile) != NULL) {
+                fprintf(gA2lFile, "%s", line);
+            }
+            fclose(gA2lTmpFile);
+            gA2lTmpFile = NULL;
+            // Remove the temporary file
+            remove("tmp.a2l");
+        }
+
         // Create MOD_PAR section with EPK and calibration segments
         A2lCreate_MOD_PAR();
 
@@ -1021,8 +1081,10 @@ bool A2lFinalize(void) {
         A2lCreate_ETH_IF_DATA(gA2lUseTCP, gA2lOptionBindAddr, gA2lOptionPort);
 
         fprintf(gA2lFile, "%s", gA2lFooter);
+
         fclose(gA2lFile);
         gA2lFile = NULL;
+
         DBG_PRINTF3("A2L created: %u measurements, %u params, %u typedefs, %u components, %u instances, %u conversions\n\n", gA2lMeasurements, gA2lParameters, gA2lTypedefs,
                     gA2lComponents, gA2lInstances, gA2lConversions);
     }

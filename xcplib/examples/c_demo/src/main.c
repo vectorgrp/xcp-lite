@@ -83,14 +83,26 @@ int main(void) {
     // Note that it can be used in only one ECU thread (in Rust terminology, it is Send, but not Sync)
     uint16_t calseg = XcpCreateCalSeg("params", (const uint8_t *)&params, sizeof(params));
 
+    // Create a typedef struct for the calibration parameters
+    A2lTypedefBegin(params_t, "Calibration parameters typedef");
+    A2lTypedefParameterComponent(test_byte1, params_t, "Test byte for calibration consistency test", "", 0, 255);
+    A2lTypedefParameterComponent(test_byte2, params_t, "Test byte for calibration consistency test", "", -128, 127);
+    A2lTypedefParameterComponent(counter_max, params_t, "", "", 0, 2000);
+    A2lTypedefParameterComponent(delay_us, params_t, "Mainloop sleep time in us", "us", 0, 1000000);
+    A2lTypedefCurveComponent(curve, params_t, 8, "Demo curve", "", -128, 127);
+    A2lTypedefMapComponent(map, params_t, 8, 8, "Demo map", "", -128, 127);
+    A2lTypedefEnd();
+
     // Register calibration parameters in the calibration segment
     A2lSetSegAddrMode(calseg, (uint8_t *)&params);
-    A2lCreateParameterWithLimits(params, counter_max, "maximum counter value", "", 0, 2000);
-    A2lCreateParameterWithLimits(params, delay_us, "mainloop delay time in us", "us", 0, 1000000);
-    A2lCreateParameter(params, test_byte1, "", "");
-    A2lCreateParameter(params, test_byte2, "", "");
-    A2lCreateCurve(params, curve, 8, "", "");
-    A2lCreateMap(params, map, 8, 8, "", "");
+    A2lCreateTypedefInstance(params, params__t, "Calibration parameters");
+
+    // A2lCreateParameterWithLimits(params, counter_max, "maximum counter value", "", 0, 2000);
+    // A2lCreateParameterWithLimits(params, delay_us, "mainloop delay time in us", "us", 0, 1000000);
+    // A2lCreateParameter(params, test_byte1, "", "");
+    // A2lCreateParameter(params, test_byte2, "", "");
+    // A2lCreateCurve(params, curve, 8, "", "");
+    // A2lCreateMap(params, map, 8, 8, "", "");
 
     // Variables on stack
     uint8_t counter8 = 0;
@@ -103,7 +115,8 @@ int main(void) {
     int64_t counter64s = 0;
 
     // Create a measurement event for local variables
-    DaqCreateEvent(mainloop);
+    // Alternative: DaqCreateEvent(mainloop); // No need to take care about the event id, it is identified by the name
+    tXcpEventId mainloop_event = XcpCreateEvent("mainloop", 0, 0);
 
     // Register global measurement variables
     A2lSetAbsoluteAddrMode(mainloop);
@@ -141,18 +154,19 @@ int main(void) {
     A2lCreateMeasurementMatrix(map_f32, "matrix float[4][8]");
 
     // Create a measurement typedef for the calibration parameter struct
-    A2lTypedefBegin(params_t, "The calibration parameter struct as measurement typedef");
-    A2lTypedefMeasurementComponent(test_byte1, params_t);
-    A2lTypedefMeasurementComponent(test_byte2, params_t);
-    A2lTypedefMeasurementComponent(counter_max, params_t);
-    A2lTypedefMeasurementComponent(delay_us, params_t);
+    typedef params_t params_measurement_t;
+    A2lTypedefBegin(params_measurement_t, "The calibration parameter struct as measurement typedef");
+    A2lTypedefMeasurementComponent(test_byte1, params_measurement_t);
+    A2lTypedefMeasurementComponent(test_byte2, params_measurement_t);
+    A2lTypedefMeasurementComponent(counter_max, params_measurement_t);
+    A2lTypedefMeasurementComponent(delay_us, params_measurement_t);
     A2lTypedefEnd();
 
     // Demo
     // Create a static measurement variable which is a copy of the calibration parameter segment to verify calibration changes and consistency
-    static params_t params_copy;
+    static params_measurement_t params_copy;
     A2lSetAbsoluteAddrMode(mainloop);
-    A2lCreateTypedefInstance(params_copy, params_t, "A copy of the current calibration parameters");
+    A2lCreateTypedefInstance(params_copy, params_measurement_t, "A copy of the current calibration parameters");
 
     for (;;) {
         // Lock the calibration parameter segment for consistent and safe access
@@ -215,8 +229,9 @@ int main(void) {
         // Unlock the calibration segment
         XcpUnlockCalSeg(calseg);
 
-        // Trigger the measurement event
-        DaqEvent(mainloop);
+        // Trigger the measurement event for global and local variables on stack
+        // Alternative: DaqEvent(mainloop); // Event id by name, no need to take care about the event id and the stack frame pointer
+        XcpEventExt(mainloop_event, get_stack_frame_pointer());
 
         // Check server status
         if (!XcpEthServerStatus()) {

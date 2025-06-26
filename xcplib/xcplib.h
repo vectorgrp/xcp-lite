@@ -87,6 +87,7 @@ tXcpEventId XcpFindEvent(const char *name, uint16_t *count);
 #define get_stack_frame_pointer() (uint8_t *)__builtin_frame_address(0)
 #endif
 
+// __builtin_frame_address is GCC/Clang compiler specific extension
 // static inline uint8_t *get_stack_frame_pointer_(void) {
 //  #if defined(__x86_64__) || defined(_M_X64)
 //      void *fp;
