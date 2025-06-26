@@ -507,7 +507,7 @@ static bool A2lOpen(const char *filename, const char *projectname) {
         tA2lTypeId id = (tA2lTypeId)i;
         const char *at = A2lGetA2lTypeName(id);
         if (at != NULL) {
-            const char *t = A2lGetRecordLayoutName(id);
+            const char *t = A2lGetRecordLayoutName_(id);
             fprintf(gA2lTmpFile, "/begin RECORD_LAYOUT %s FNC_VALUES 1 %s ROW_DIR DIRECT /end RECORD_LAYOUT\n", t, at);
             fprintf(gA2lTmpFile, "/begin TYPEDEF_MEASUREMENT M_%s \"\" %s NO_COMPU_METHOD 0 0 %s %s /end TYPEDEF_MEASUREMENT\n", t, at, getTypeMin(id), getTypeMax(id));
             fprintf(gA2lTmpFile, "/begin TYPEDEF_CHARACTERISTIC C_%s \"\" VALUE %s 0 NO_COMPU_METHOD %s %s /end TYPEDEF_CHARACTERISTIC\n", t, t, getTypeMin(id), getTypeMax(id));
