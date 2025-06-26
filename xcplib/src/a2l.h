@@ -53,9 +53,12 @@ static_assert(sizeof(long long) == 8, "sizeof(long long) must be 8 bytes for A2L
 const char *A2lGetA2lTypeName(tA2lTypeId type);
 const char *A2lGetA2lTypeName_M(tA2lTypeId type);
 const char *A2lGetA2lTypeName_C(tA2lTypeId type);
+const char *A2lGetRecordLayoutName_(tA2lTypeId type);
+
 #define A2lGetTypeName(type) A2lGetA2lTypeName(A2lGetTypeId(type))
 #define A2lGetTypeName_M(type) A2lGetA2lTypeName_M(A2lGetTypeId(type))
 #define A2lGetTypeName_C(type) A2lGetA2lTypeName_C(A2lGetTypeId(type))
+#define A2lGetRecordLayoutName(type) A2lGetRecordLayoutName_(A2lGetTypeId(type))
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 extern MUTEX gA2lMutex;
@@ -286,8 +289,8 @@ void A2lRstDefaultEvent(void);
         static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
         if (A2lOnce_(&a2l_##field_name##_)) {                                                                                                                                      \
             typeName instance;                                                                                                                                                     \
-            A2lTypedefParameterComponent_(#field_name, A2lGetTypeName_C(instance.field_name), 1, 1, ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance), comment, unit,     \
-                                          min, max);                                                                                                                               \
+            A2lTypedefParameterComponent_(#field_name, A2lGetRecordLayoutName(instance.field_name), 1, 1, ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance), comment,     \
+                                          unit, min, max);                                                                                                                         \
         }                                                                                                                                                                          \
     }
 
@@ -297,8 +300,8 @@ void A2lRstDefaultEvent(void);
         static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
         if (A2lOnce_(&a2l_##field_name##_)) {                                                                                                                                      \
             typeName instance;                                                                                                                                                     \
-            A2lTypedefParameterComponent_(#field_name, A2lGetTypeName_C(instance.field_name[0]), x_dim, 1, ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance), comment,    \
-                                          unit, min, max);                                                                                                                         \
+            A2lTypedefParameterComponent_(#field_name, A2lGetRecordLayoutName(instance.field_name[0]), x_dim, 1, ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance),       \
+                                          comment, unit, min, max);                                                                                                                \
         }                                                                                                                                                                          \
     }
 
@@ -308,8 +311,8 @@ void A2lRstDefaultEvent(void);
         static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
         if (A2lOnce_(&a2l_##field_name##_)) {                                                                                                                                      \
             typeName instance;                                                                                                                                                     \
-            A2lTypedefParameterComponent_(#field_name, A2lGetTypeName_C(instance.field_name[0][0]), x_dim, y_dim, ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance),      \
-                                          comment, unit, min, max);                                                                                                                \
+            A2lTypedefParameterComponent_(#field_name, A2lGetRecordLayoutName(instance.field_name[0][0]), x_dim, y_dim,                                                            \
+                                          ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance), comment, unit, min, max);                                                    \
         }                                                                                                                                                                          \
     }
 
