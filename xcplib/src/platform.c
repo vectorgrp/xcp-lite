@@ -148,7 +148,7 @@ void sleepNs(uint32_t ns) {
 
 void sleepMs(uint32_t ms) {
     if (ms > 0 && ms < 10) {
-        // DBG_PRINT_WARNING("WARNING: cannot precisely sleep less than 10ms!\n");
+        // DBG_PRINT_WARNING("cannot precisely sleep less than 10ms!\n");
     }
     Sleep(ms);
 }

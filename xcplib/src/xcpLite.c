@@ -1927,7 +1927,7 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
 #ifdef DBG_LEVEL
         DBG_PRINTF3("CONNECT mode=%u\n", CRO_CONNECT_MODE);
         if ((gXcp.SessionStatus & SS_CONNECTED) != 0)
-            DBG_PRINT_WARNING("WARNING: Already connected! DAQ setup cleared! Legacy mode activated!\n");
+            DBG_PRINT_WARNING("Already connected! DAQ setup cleared! Legacy mode activated!\n");
 #endif
 
         // Check application is ready for XCP connect
@@ -1959,7 +1959,7 @@ static uint8_t XcpAsyncCommand(bool async, const uint32_t *cmdBuf, uint8_t cmdLe
             XcpPrintCmd(CRO);
 #endif
         if (!isConnected() && CRO_CMD != CC_TRANSPORT_LAYER_CMD) { // Must be connected, exception are the transport layer commands
-            DBG_PRINT_WARNING("WARNING: Command ignored because not in connected state, no response sent!\n");
+            DBG_PRINT_WARNING("Command ignored because not in connected state, no response sent!\n");
             return CRC_CMD_IGNORED;
         }
 
@@ -2850,7 +2850,7 @@ void XcpPrint(const char *str) {
         crm[i + 3] = 0;
         QueuePush(gXcp.Queue, &queueBuffer, true);
     } else { // Queue overflow
-        DBG_PRINT_WARNING("WARNING: queue overflow\n");
+        DBG_PRINT_WARNING("queue overflow\n");
     }
 }
 

@@ -154,20 +154,21 @@ void A2lRstDefaultEvent(void);
     }
 
 // Once
-#define A2lCreateCurve(instance_name, name, xdim, comment, unit)                                                                                                                   \
+#define A2lCreateCurve(instance_name, name, xdim, comment, unit, min, max)                                                                                                         \
     {                                                                                                                                                                              \
         static atomic_bool a2l_par_##name##_ = false;                                                                                                                              \
         if (A2lOnce_(&a2l_par_##name##_))                                                                                                                                          \
-            A2lCreateCurve_(#instance_name "." #name, A2lGetTypeId(instance_name.name[0]), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&instance_name.name[0]), xdim, comment, unit); \
+            A2lCreateCurve_(#instance_name "." #name, A2lGetTypeId(instance_name.name[0]), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&instance_name.name[0]), xdim, comment, unit,  \
+                            min, max);                                                                                                                                             \
     }
 
 // Once
-#define A2lCreateMap(instance_name, name, xdim, ydim, comment, unit)                                                                                                               \
+#define A2lCreateMap(instance_name, name, xdim, ydim, comment, unit, min, max)                                                                                                     \
     {                                                                                                                                                                              \
         static atomic_bool a2l_par_##name##_ = false;                                                                                                                              \
         if (A2lOnce_(&a2l_par_##name##_))                                                                                                                                          \
             A2lCreateMap_(#instance_name "." #name, A2lGetTypeId(instance_name.name[0][0]), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&instance_name.name[0][0]), xdim, ydim,       \
-                          comment, unit);                                                                                                                                          \
+                          comment, unit, min, max);                                                                                                                                \
     }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -401,5 +402,5 @@ void A2lCreateTypedefInstance_(const char *instance_name, const char *type_name,
 
 // Create parameters
 void A2lCreateParameter_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, const char *comment, const char *unit, double min, double max);
-void A2lCreateMap_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, uint32_t xdim, uint32_t ydim, const char *comment, const char *unit);
-void A2lCreateCurve_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, uint32_t xdim, const char *comment, const char *unit);
+void A2lCreateMap_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, uint32_t xdim, uint32_t ydim, const char *comment, const char *unit, double min, double max);
+void A2lCreateCurve_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, uint32_t xdim, const char *comment, const char *unit, double min, double max);

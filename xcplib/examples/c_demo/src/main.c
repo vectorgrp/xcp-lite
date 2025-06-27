@@ -18,10 +18,11 @@
 #define OPTION_A2L_FILE_NAME "C_Demo.a2l" // A2L file name
 #define OPTION_USE_TCP false              // TCP or UDP
 #define OPTION_SERVER_PORT 5555           // Port
-#define OPTION_SERVER_ADDR {0, 0, 0, 0}   // Bind addr, 0.0.0.0 = ANY
+// #define OPTION_SERVER_ADDR {0, 0, 0, 0}   // Bind addr, 0.0.0.0 = ANY
 // #define OPTION_SERVER_ADDR {127, 0, 0, 1} // Bind addr, 0.0.0.0 = ANY
-#define OPTION_QUEUE_SIZE 1024 * 32 // Size of the measurement queue in bytes, must be a multiple of 8
-#define OPTION_LOG_LEVEL 3
+#define OPTION_SERVER_ADDR {172, 19, 13, 143} // 172.19.13.143
+#define OPTION_QUEUE_SIZE 1024 * 32           // Size of the measurement queue in bytes, must be a multiple of 8
+#define OPTION_LOG_LEVEL 4
 
 //-----------------------------------------------------------------------------------------------------
 
@@ -104,10 +105,10 @@ int main(void) {
     // Alternative: Without using a typedef, create the parameters directly
     // A2lCreateParameter(params, counter_max, "maximum counter value", "", 0, 2000);
     // A2lCreateParameter(params, delay_us, "mainloop delay time in us", "us", 0, 1000000);
-    // A2lCreateParameter(params, test_byte1, "", "", 0, 255);
+    // A2lCreateParameter(params, test_byte1, "", "", -128, 127);
     // A2lCreateParameter(params, test_byte2, "", "", -128, 127);
-    // A2lCreateCurve(params, curve, 8, "", "");
-    // A2lCreateMap(params, map, 8, 8, "", "");
+    // A2lCreateCurve(params, curve, 8, "", "", -128, 127);
+    // A2lCreateMap(params, map, 8, 8, "", "", -128, 127);
 
     // Variables on stack
     uint8_t counter8 = 0;
@@ -173,49 +174,26 @@ int main(void) {
     A2lSetAbsoluteAddrMode(mainloop);
     A2lCreateTypedefInstance(params_copy, params_measurement_t, "A copy of the current calibration parameters");
 
+    uint32_t delay_us = 1000;
     for (;;) {
         // Lock the calibration parameter segment for consistent and safe access
         // Calibration segment locking is completely lock-free and wait-free (no mutexes, system calls or CAS operations )
         // It returns a pointer to the active page (working or reference) of the calibration segment
         params_t *params = (params_t *)XcpLockCalSeg(calseg);
 
-        // Sleep for the specified delay parameter in microseconds
-        sleepNs(params->delay_us * 1000);
+        if (delay_us != params->delay_us) {
+            delay_us = params->delay_us;
+            char buffer[64];
+            SNPRINTF(buffer, sizeof(buffer), "Mainloop sleep duration changed to %uus", delay_us);
+            XcpPrint(buffer);
+            printf("%s\n", buffer);
+        }
 
         // Local variables for measurement
         counter16++;
         if (counter16 > params->counter_max) {
             counter16 = 0;
-
-            for (int i = 0; i < 8; i++) {
-                curve_f32[i] += i;
-                if (curve_f32[i] > 2000) {
-                    curve_f32[i] = 0;
-                }
-                for (int j = 0; j < 4; j++) {
-                    map_f32[j][i] += i + j;
-                    if (map_f32[j][i] > 2000) {
-                        map_f32[j][i] = 0;
-                    }
-                }
-            }
         }
-        counter8 = (uint8_t)(counter16 & 0xFF);
-        counter32 = (uint32_t)counter16;
-        counter64 = (uint64_t)counter16;
-        counter8s = (int8_t)counter8;
-        counter16s = (int16_t)counter16;
-        counter32s = (int32_t)counter32;
-        counter64s = (int64_t)counter64;
-
-        g_counter8 = counter8;
-        g_counter16 = counter16;
-        g_counter32 = counter32;
-        g_counter64 = counter64;
-        g_counter8s = counter8s;
-        g_counter16s = counter16s;
-        g_counter32s = counter32s;
-        g_counter64s = counter64s;
 
         // Calibration demo
         // Visualizes calibration consistency and page switching
@@ -243,6 +221,41 @@ int main(void) {
             printf("\nXCP Server failed\n");
             break;
         }
+
+        if (counter16 == 0) {
+            for (int i = 0; i < 8; i++) {
+                curve_f32[i] += i;
+                if (curve_f32[i] > 2000) {
+                    curve_f32[i] = 0;
+                }
+                for (int j = 0; j < 4; j++) {
+                    map_f32[j][i] += i + j;
+                    if (map_f32[j][i] > 2000) {
+                        map_f32[j][i] = 0;
+                    }
+                }
+            }
+        }
+
+        counter8 = (uint8_t)(counter16 & 0xFF);
+        counter32 = (uint32_t)counter16;
+        counter64 = (uint64_t)counter16;
+        counter8s = (int8_t)counter8;
+        counter16s = (int16_t)counter16;
+        counter32s = (int32_t)counter32;
+        counter64s = (int64_t)counter64;
+
+        g_counter8 = counter8;
+        g_counter16 = counter16;
+        g_counter32 = counter32;
+        g_counter64 = counter64;
+        g_counter8s = counter8s;
+        g_counter16s = counter16s;
+        g_counter32s = counter32s;
+        g_counter64s = counter64s;
+
+        // Sleep for the specified delay parameter in microseconds
+        sleepNs(delay_us * 1000);
 
         A2lFinalize(); // Optional: Finalize the A2L file generation early, to write the A2L now, not when the client connects
 

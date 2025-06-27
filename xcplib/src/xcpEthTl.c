@@ -216,7 +216,7 @@ static bool handleXcpCommand(tXcpCtoMessage *p, uint8_t *srcAddr, uint16_t srcPo
 
             // Check unicast ip address, not allowed to change
             if (memcmp(&gXcpTl.MasterAddr, srcAddr, sizeof(gXcpTl.MasterAddr)) != 0) { // Message from different master received
-                DBG_PRINTF_WARNING("WARNING: message from unknown new master %u.%u.%u.%u, disconnecting!\n", srcAddr[0], srcAddr[1], srcAddr[2], srcAddr[3]);
+                DBG_PRINTF_WARNING("message from unknown new master %u.%u.%u.%u, disconnecting!\n", srcAddr[0], srcAddr[1], srcAddr[2], srcAddr[3]);
                 XcpDisconnect();
                 gXcpTl.MasterAddrValid = false;
                 return true; // Disconnect
@@ -224,7 +224,7 @@ static bool handleXcpCommand(tXcpCtoMessage *p, uint8_t *srcAddr, uint16_t srcPo
 
             // Check unicast master udp port, not allowed to change
             if (gXcpTl.MasterPort != srcPort) {
-                DBG_PRINTF_WARNING("WARNING: master port changed from %u to %u, disconnecting!\n", gXcpTl.MasterPort, srcPort);
+                DBG_PRINTF_WARNING("master port changed from %u to %u, disconnecting!\n", gXcpTl.MasterPort, srcPort);
                 XcpDisconnect();
                 gXcpTl.MasterAddrValid = false;
                 return true; // Disconnect
@@ -253,7 +253,7 @@ static bool handleXcpCommand(tXcpCtoMessage *p, uint8_t *srcAddr, uint16_t srcPo
             QueueClear(gXcpTl.Queue);
             XcpCommand((const uint32_t *)&p->packet[0], (uint8_t)p->dlc); // Handle CONNECT command
         } else {
-            DBG_PRINT_WARNING("WARNING: handleXcpCommand: no valid CONNECT command\n");
+            DBG_PRINT_WARNING("handleXcpCommand: no valid CONNECT command\n");
         }
     }
 
@@ -404,7 +404,7 @@ extern void *XcpTlMulticastThread(void *par)
         if (gXcpTl.MasterAddrValid && memcmp(gXcpTl.MasterAddr, srcAddr, 4) == 0) {
             handleXcpMulticastCommand(n, (tXcpCtoMessage *)buffer, srcAddr, srcPort);
         } else {
-            DBG_PRINTF_WARNING("WARNING: Ignored Multicast from %u.%u.%u.%u:%u\n", srcAddr[0], srcAddr[1], srcAddr[2], srcAddr[3], srcPort);
+            DBG_PRINTF_WARNING("Ignored Multicast from %u.%u.%u.%u:%u\n", srcAddr[0], srcAddr[1], srcAddr[2], srcAddr[3], srcPort);
         }
 #else
         handleXcpMulticastCommand(n, (tXcpCtoMessage *)buffer, srcAddr, srcPort);

@@ -927,14 +927,14 @@ void A2lCreateParameter_(const char *name, tA2lTypeId type, uint8_t ext, uint32_
     gA2lParameters++;
 }
 
-void A2lCreateMap_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, uint32_t xdim, uint32_t ydim, const char *comment, const char *unit) {
+void A2lCreateMap_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, uint32_t xdim, uint32_t ydim, const char *comment, const char *unit, double min, double max) {
 
     assert(gA2lFile != NULL);
     fprintf(gA2lFile,
-            "/begin CHARACTERISTIC %s \"%s\" MAP 0x%X %s 0 NO_COMPU_METHOD %s %s"
+            "/begin CHARACTERISTIC %s \"%s\" MAP 0x%X %s 0 NO_COMPU_METHOD %g %g"
             " /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD  %u 0 %u FIX_AXIS_PAR_DIST 0 1 %u /end AXIS_DESCR"
             " /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD  %u 0 %u FIX_AXIS_PAR_DIST 0 1 %u /end AXIS_DESCR",
-            name, comment, addr, A2lGetRecordLayoutName_(type), getTypeMin(type), getTypeMax(type), xdim, xdim - 1, xdim, ydim, ydim - 1, ydim);
+            name, comment, addr, A2lGetRecordLayoutName_(type), min, max, xdim, xdim - 1, xdim, ydim, ydim - 1, ydim);
     printPhysUnit(unit);
     printAddrExt(ext);
 #ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
@@ -946,13 +946,13 @@ void A2lCreateMap_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr
     gA2lParameters++;
 }
 
-void A2lCreateCurve_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, uint32_t xdim, const char *comment, const char *unit) {
+void A2lCreateCurve_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, uint32_t xdim, const char *comment, const char *unit, double min, double max) {
 
     assert(gA2lFile != NULL);
     fprintf(gA2lFile,
-            "/begin CHARACTERISTIC %s \"%s\" CURVE 0x%X %s 0 NO_COMPU_METHOD %s %s"
+            "/begin CHARACTERISTIC %s \"%s\" CURVE 0x%X %s 0 NO_COMPU_METHOD %g %g"
             " /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD  %u 0 %u FIX_AXIS_PAR_DIST 0 1 %u /end AXIS_DESCR",
-            name, comment, addr, A2lGetRecordLayoutName_(type), getTypeMin(type), getTypeMax(type), xdim, xdim - 1, xdim);
+            name, comment, addr, A2lGetRecordLayoutName_(type), min, max, xdim, xdim - 1, xdim);
     printPhysUnit(unit);
     printAddrExt(ext);
 #ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
