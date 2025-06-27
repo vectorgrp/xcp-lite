@@ -899,7 +899,7 @@ void A2lCreateMeasurementArray_(const char *instance_name, const char *name, tA2
         conv = symbol_name;
         gA2lConversions++;
     }
-    fprintf(gA2lFile, "/begin CHARACTERISTIC %s \"%s\" VAL_BLK 0x%X %s 0 %s %s %s MATRIX_DIM %u %u", symbol_name, comment, addr, A2lGetRecordLayoutName(type), conv,
+    fprintf(gA2lFile, "/begin CHARACTERISTIC %s \"%s\" VAL_BLK 0x%X %s 0 %s %s %s MATRIX_DIM %u %u", symbol_name, comment, addr, A2lGetRecordLayoutName_(type), conv,
             getTypeMin(type), getTypeMax(type), x_dim, y_dim);
     printAddrExt(ext);
 #ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
@@ -913,32 +913,16 @@ void A2lCreateMeasurementArray_(const char *instance_name, const char *name, tA2
 //----------------------------------------------------------------------------------
 // Parameters
 
-void A2lCreateParameterWithLimits_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, const char *comment, const char *unit, double min, double max) {
+void A2lCreateParameter_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, const char *comment, const char *unit, double min, double max) {
 
     assert(gA2lFile != NULL);
-    fprintf(gA2lFile, "/begin CHARACTERISTIC %s \"%s\" VALUE 0x%X %s 0 NO_COMPU_METHOD %g %g", name, comment, addr, A2lGetRecordLayoutName(type), min, max);
+    fprintf(gA2lFile, "/begin CHARACTERISTIC %s \"%s\" VALUE 0x%X %s 0 NO_COMPU_METHOD %g %g", name, comment, addr, A2lGetRecordLayoutName_(type), min, max);
     printPhysUnit(unit);
     printAddrExt(ext);
 #ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
     fprintf(gA2lFile, " SYMBOL_LINK \"%s\" %u", name, 0);
 #endif
     A2lCreateMeasurement_IF_DATA();
-    fprintf(gA2lFile, " /end CHARACTERISTIC\n");
-    gA2lParameters++;
-}
-
-void A2lCreateParameter_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, const char *comment, const char *unit) {
-
-    assert(gA2lFile != NULL);
-    fprintf(gA2lFile, "/begin CHARACTERISTIC %s \"%s\" VALUE 0x%X %s 0 NO_COMPU_METHOD %s %s", name, comment, addr, A2lGetRecordLayoutName(type), getTypeMin(type),
-            getTypeMax(type));
-    printPhysUnit(unit);
-    printAddrExt(ext);
-#ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
-    fprintf(gA2lFile, " SYMBOL_LINK \"%s\" %u", name, 0);
-#endif
-    A2lCreateMeasurement_IF_DATA();
-
     fprintf(gA2lFile, " /end CHARACTERISTIC\n");
     gA2lParameters++;
 }
@@ -950,7 +934,7 @@ void A2lCreateMap_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr
             "/begin CHARACTERISTIC %s \"%s\" MAP 0x%X %s 0 NO_COMPU_METHOD %s %s"
             " /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD  %u 0 %u FIX_AXIS_PAR_DIST 0 1 %u /end AXIS_DESCR"
             " /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD  %u 0 %u FIX_AXIS_PAR_DIST 0 1 %u /end AXIS_DESCR",
-            name, comment, addr, A2lGetRecordLayoutName(type), getTypeMin(type), getTypeMax(type), xdim, xdim - 1, xdim, ydim, ydim - 1, ydim);
+            name, comment, addr, A2lGetRecordLayoutName_(type), getTypeMin(type), getTypeMax(type), xdim, xdim - 1, xdim, ydim, ydim - 1, ydim);
     printPhysUnit(unit);
     printAddrExt(ext);
 #ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
@@ -968,7 +952,7 @@ void A2lCreateCurve_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t ad
     fprintf(gA2lFile,
             "/begin CHARACTERISTIC %s \"%s\" CURVE 0x%X %s 0 NO_COMPU_METHOD %s %s"
             " /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD  %u 0 %u FIX_AXIS_PAR_DIST 0 1 %u /end AXIS_DESCR",
-            name, comment, addr, A2lGetRecordLayoutName(type), getTypeMin(type), getTypeMax(type), xdim, xdim - 1, xdim);
+            name, comment, addr, A2lGetRecordLayoutName_(type), getTypeMin(type), getTypeMax(type), xdim, xdim - 1, xdim);
     printPhysUnit(unit);
     printAddrExt(ext);
 #ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS

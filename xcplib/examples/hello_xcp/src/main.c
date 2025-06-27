@@ -74,8 +74,8 @@ int main(void) {
 
     // Register calibration parameters in the calibration segment
     A2lSetSegAddrMode(calseg, (uint8_t *)&params);
-    A2lCreateParameterWithLimits(params, counter_max, "Maximum counter value", "", 0, 2000);
-    A2lCreateParameterWithLimits(params, delay_us, "Mainloop delay time in us", "us", 0, 999999);
+    A2lCreateParameter(params, counter_max, "Maximum counter value", "", 0, 2000);
+    A2lCreateParameter(params, delay_us, "Mainloop delay time in us", "us", 0, 999999);
 
     // Create a measurement event
     DaqCreateEvent(mainloop);

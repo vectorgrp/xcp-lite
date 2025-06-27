@@ -144,24 +144,16 @@ void A2lRstDefaultEvent(void);
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // Create parameters in a calibration segment or in global memory
 
-// Not thread safe, not once
-#define A2lCreateParameter(instance_name, name, comment, unit)                                                                                                                     \
+// Once
+#define A2lCreateParameter(instance_name, name, comment, unit, min, max)                                                                                                           \
     {                                                                                                                                                                              \
         static atomic_bool a2l_par_##name##_ = false;                                                                                                                              \
         if (A2lOnce_(&a2l_par_##name##_))                                                                                                                                          \
-            A2lCreateParameter_(#instance_name "." #name, A2lGetTypeId(instance_name.name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&instance_name.name), comment, unit);         \
+            A2lCreateParameter_(#instance_name "." #name, A2lGetTypeId(instance_name.name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&instance_name.name), comment, unit, min,     \
+                                max);                                                                                                                                              \
     }
 
-// Not thread safe, not once
-#define A2lCreateParameterWithLimits(instance_name, name, comment, unit, min, max)                                                                                                 \
-    {                                                                                                                                                                              \
-        static atomic_bool a2l_par_##name##_ = false;                                                                                                                              \
-        if (A2lOnce_(&a2l_par_##name##_))                                                                                                                                          \
-            A2lCreateParameterWithLimits_(#instance_name "." #name, A2lGetTypeId(instance_name.name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&instance_name.name), comment,      \
-                                          unit, min, max);                                                                                                                         \
-    }
-
-// Not thread safe, not once
+// Once
 #define A2lCreateCurve(instance_name, name, xdim, comment, unit)                                                                                                                   \
     {                                                                                                                                                                              \
         static atomic_bool a2l_par_##name##_ = false;                                                                                                                              \
@@ -169,7 +161,7 @@ void A2lRstDefaultEvent(void);
             A2lCreateCurve_(#instance_name "." #name, A2lGetTypeId(instance_name.name[0]), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&instance_name.name[0]), xdim, comment, unit); \
     }
 
-// Not thread safe, not once
+// Once
 #define A2lCreateMap(instance_name, name, xdim, ydim, comment, unit)                                                                                                               \
     {                                                                                                                                                                              \
         static atomic_bool a2l_par_##name##_ = false;                                                                                                                              \
@@ -408,7 +400,6 @@ void A2lTypedefEnd_(void);
 void A2lCreateTypedefInstance_(const char *instance_name, const char *type_name, uint16_t x_dim, uint8_t ext, uint32_t addr, const char *comment);
 
 // Create parameters
-void A2lCreateParameter_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, const char *comment, const char *unit);
-void A2lCreateParameterWithLimits_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, const char *comment, const char *unit, double min, double max);
+void A2lCreateParameter_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, const char *comment, const char *unit, double min, double max);
 void A2lCreateMap_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, uint32_t xdim, uint32_t ydim, const char *comment, const char *unit);
 void A2lCreateCurve_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, uint32_t xdim, const char *comment, const char *unit);

@@ -87,7 +87,7 @@ int main(void) {
 
     // Create a typedef struct for the calibration parameters
     A2lTypedefBegin(params_t, "Calibration parameters typedef");
-    A2lTypedefParameterComponent(test_byte1, params_t, "Test byte for calibration consistency test", "", 0, 255);
+    A2lTypedefParameterComponent(test_byte1, params_t, "Test byte for calibration consistency test", "", -128, 127);
     A2lTypedefParameterComponent(test_byte2, params_t, "Test byte for calibration consistency test", "", -128, 127);
     A2lTypedefParameterComponent(counter_max, params_t, "", "", 0, 2000);
     A2lTypedefParameterComponent(delay_us, params_t, "Mainloop sleep time in us", "us", 0, 1000000);
@@ -97,14 +97,15 @@ int main(void) {
     A2lTypedefMapComponent(map, params_t, 8, 8, "Demo map", "", -128, 127);
     A2lTypedefEnd();
 
-    // Register calibration parameters in the calibration segment
+    // Register the calibration parameter struct in the calibration segment
     A2lSetSegAddrMode(calseg, (uint8_t *)&params);
     A2lCreateTypedefInstance(params, params_t, "Calibration parameters");
 
-    // A2lCreateParameterWithLimits(params, counter_max, "maximum counter value", "", 0, 2000);
-    // A2lCreateParameterWithLimits(params, delay_us, "mainloop delay time in us", "us", 0, 1000000);
-    // A2lCreateParameter(params, test_byte1, "", "");
-    // A2lCreateParameter(params, test_byte2, "", "");
+    // Alternative: Without using a typedef, create the parameters directly
+    // A2lCreateParameter(params, counter_max, "maximum counter value", "", 0, 2000);
+    // A2lCreateParameter(params, delay_us, "mainloop delay time in us", "us", 0, 1000000);
+    // A2lCreateParameter(params, test_byte1, "", "", 0, 255);
+    // A2lCreateParameter(params, test_byte2, "", "", -128, 127);
     // A2lCreateCurve(params, curve, 8, "", "");
     // A2lCreateMap(params, map, 8, 8, "", "");
 

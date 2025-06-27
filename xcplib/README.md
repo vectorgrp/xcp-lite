@@ -106,8 +106,10 @@ Future versions of the A2L updaters might support these addressing schemes.
 
 '''
 
+../../xcp-lite-rdm/target/debug/examples/a2l_tool
+../../xcp-lite-rdm/target/debug/examples/a2l_tool  --check --strict -a C_Demo.a2l
+
 a2ltool c_demo.a2l --elffile c_demo.out --update --output c_demo_updated.a2l
 a2ltool c_demo.a2l --enable-structures --update-mode PRESERVE  --elffile c_demo.out --update --output c_demo_updated.a2l
-
 a2ltool --create -e c_demo.out    --measurement-regex "counter" --measurement-regex "params" --output c_demo.a2l
 '''
