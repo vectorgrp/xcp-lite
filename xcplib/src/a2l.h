@@ -171,11 +171,19 @@ void A2lSetAbsoluteAddrMode_(const char *event_name);
 // Measurements are registered once, it is allowed to use the following macros in local scope which is run multiple times
 
 // Once
-#define A2lCreateMeasurement(name, comment, unit_or_conversion)                                                                                                                    \
+#define A2lCreateMeasurement(name, comment, unit)                                                                                                                                  \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
         if (A2lOnce_(&a2l_##name##_))                                                                                                                                              \
-            A2lCreateMeasurement_(NULL, #name, A2lGetTypeId(name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&(name)), unit_or_conversion, comment);                                \
+            A2lCreateMeasurement_(NULL, #name, A2lGetTypeId(name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&(name)), unit, 0.0, 0.0, comment);                                    \
+    }
+
+// Once
+#define A2lCreatePhysMeasurement(name, comment, unit_or_conversion, min, max)                                                                                                      \
+    {                                                                                                                                                                              \
+        static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
+        if (A2lOnce_(&a2l_##name##_))                                                                                                                                              \
+            A2lCreateMeasurement_(NULL, #name, A2lGetTypeId(name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&(name)), unit_or_conversion, min, max, comment);                      \
     }
 
 // Thread safe
@@ -184,7 +192,7 @@ void A2lSetAbsoluteAddrMode_(const char *event_name);
     {                                                                                                                                                                              \
         mutexLock(&gA2lMutex);                                                                                                                                                     \
         A2lSetDynAddrMode_(event, (const uint8_t *)&event);                                                                                                                        \
-        A2lCreateMeasurement_(instance_name, #name, A2lGetTypeId(name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&(name)), unit_or_conversion, comment);                           \
+        A2lCreateMeasurement_(instance_name, #name, A2lGetTypeId(name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&(name)), unit_or_conversion, 0.0, 0.0, comment);                 \
         mutexUnlock(&gA2lMutex);                                                                                                                                                   \
     }
 
@@ -386,7 +394,8 @@ uint8_t A2lGetAddrExt_(void);
 // Create measurements
 const char *A2lCreateLinearConversion_(const char *name, const char *comment, const char *unit, double factor, double offset);
 
-void A2lCreateMeasurement_(const char *instance_name, const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, const char *unit_or_conversion, const char *comment);
+void A2lCreateMeasurement_(const char *instance_name, const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, const char *unit_or_conversion, double min, double max,
+                           const char *comment);
 
 void A2lCreateMeasurementArray_(const char *instance_name, const char *name, tA2lTypeId type, int x_dim, int y_dim, uint8_t ext, uint32_t addr, const char *unit_or_conversion,
                                 const char *comment);

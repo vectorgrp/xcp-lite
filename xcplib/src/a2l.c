@@ -947,7 +947,8 @@ void A2lCreateTypedefInstance_(const char *instance_name, const char *typeName, 
 //----------------------------------------------------------------------------------
 // Measurements
 
-void A2lCreateMeasurement_(const char *instance_name, const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, const char *unit_or_conversion, const char *comment) {
+void A2lCreateMeasurement_(const char *instance_name, const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, const char *unit_or_conversion, double phys_min,
+                           double phys_max, const char *comment) {
 
     assert(gA2lFile != NULL);
 
@@ -956,11 +957,22 @@ void A2lCreateMeasurement_(const char *instance_name, const char *name, tA2lType
         A2lAddToGroup(name);
     }
 
-    if (comment == NULL)
+    if (comment == NULL) {
         comment = "";
-    double min = getTypeMin(type);
-    double max = getTypeMax(type);
-    const char *conv = getConversion(unit_or_conversion, &min, &max);
+    }
+
+    double min, max;
+    const char *conv;
+    if (phys_min == 0.0 && phys_max == 0.0) {
+        min = getTypeMin(type);
+        max = getTypeMax(type);
+        conv = getConversion(unit_or_conversion, &min, &max);
+    } else {
+        min = phys_min;
+        max = phys_max;
+        conv = getConversion(unit_or_conversion, NULL, NULL);
+    }
+
     fprintf(gA2lFile, "/begin MEASUREMENT %s \"%s\" %s %s 0 0 %g %g ECU_ADDRESS 0x%X", symbol_name, comment, A2lGetA2lTypeName(type), conv, min, max, addr);
     printAddrExt(ext);
     printPhysUnit(gA2lFile, unit_or_conversion);

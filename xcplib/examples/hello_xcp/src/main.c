@@ -90,8 +90,8 @@ int main(void) {
     A2lSetAbsoluteAddrMode(mainloop);
     // Temperature conversion factor 0, offset -50 results in 0°C at 50
     const char *conv = A2lCreateLinearConversion(Temperature, "Temperature in °C from unsigned byte", "°C", 1.0, -50.0);
-    A2lCreateMeasurement(temperature, "Motor temperature in °C", conv);
-    A2lCreateMeasurement(speed, "Speed in Kmh", "Kmh");
+    A2lCreatePhysMeasurement(temperature, "Motor temperature in °C", conv, -50.0, 200.0);
+    A2lCreatePhysMeasurement(speed, "Speed in Kmh", "Kmh", 0, 250.0);
 
     // Register a local measurement variable (loop_counter)
     uint16_t loop_counter = 0;
@@ -113,6 +113,10 @@ int main(void) {
         if (loop_counter > params->counter_max) {
             loop_counter = 0;
         }
+
+        // Global measurement variables
+        temperature = 50 + 21;
+        speed += (250 - speed) * 0.00001;
 
         // Unlock the calibration segment
         XcpUnlockCalSeg(calseg);
