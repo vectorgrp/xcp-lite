@@ -134,7 +134,7 @@ int main(void) {
     // It provides safe (thread safe against XCP modifications), lock-free and consistent access to the calibration parameters
     // It supports XCP/ECU independant page switching, checksum calculation and reinitialization (copy reference page to working page)
     // Note that it can be used in only one ECU thread (in Rust terminology, it is Send, but not Sync)
-    tXcpCalSegIndex calseg = XcpCreateCalSeg("params", &params, sizeof(params));
+    tXcpCalSegIndex calseg = XcpCreateCalSeg("Parameters", &params, sizeof(params));
 
     // Register individual calibration parameters in the calibration segment
     A2lSetSegmentAddrMode(calseg, params);
