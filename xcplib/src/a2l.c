@@ -32,7 +32,11 @@ MUTEX gA2lMutex;
 static FILE *gA2lFile = NULL;
 static FILE *gA2lTypedefsFile = NULL;
 static FILE *gA2lGroupsFile = NULL;
+
 static FILE *gA2lConversionsFile = NULL;
+static char gA2lConvName[256];
+static double gA2lConvFactor = 1.0;
+static double gA2lConvOffset = 0.0;
 
 static char gA2lAutoGroups = true;            // Automatically create groups for measurements and parameters
 static const char *gA2lAutoGroupName = NULL;  // Current open group
@@ -203,9 +207,8 @@ static const char *const gA2lIfDataEnd = "/end IF_DATA\n\n";
 static const char *const gA2lFooter = "/end MODULE\n"
                                       "/end PROJECT\n";
 
-#define printPhysUnit(unit)                                                                                                                                                        \
-    if (unit != NULL && strlen(unit) > 0)                                                                                                                                          \
-        fprintf(gA2lFile, " PHYS_UNIT \"%s\"", unit);
+//----------------------------------------------------------------------------------
+
 #define printAddrExt(ext)                                                                                                                                                          \
     if (ext > 0)                                                                                                                                                                   \
         fprintf(gA2lFile, " ECU_ADDRESS_EXTENSION %u", ext);
@@ -371,7 +374,7 @@ const char *A2lGetRecordLayoutName_(tA2lTypeId type) {
     }
 }
 
-static const char *getTypeMin(tA2lTypeId type) {
+static const char *getTypeMinString(tA2lTypeId type) {
     const char *min;
     switch (type) {
     case A2L_TYPE_INT8:
@@ -398,7 +401,7 @@ static const char *getTypeMin(tA2lTypeId type) {
     return min;
 }
 
-static const char *getTypeMax(tA2lTypeId type) {
+static const char *getTypeMaxString(tA2lTypeId type) {
     const char *max;
     switch (type) {
     case A2L_TYPE_INT8:
@@ -424,64 +427,58 @@ static const char *getTypeMax(tA2lTypeId type) {
     }
     return max;
 }
-
-static const char *getPhysMin(tA2lTypeId type, double factor, double offset) {
-    double value = 0.0;
+static double getTypeMin(tA2lTypeId type) {
+    double min;
     switch (type) {
     case A2L_TYPE_INT8:
-        value = -128;
+        min = -128;
         break;
     case A2L_TYPE_INT16:
-        value = -32768;
+        min = -32768;
         break;
     case A2L_TYPE_INT32:
-        value = -(double)2147483648;
+        min = -2147483648;
         break;
     case A2L_TYPE_INT64:
-        value = -1E12;
+        min = -1e12;
         break;
     case A2L_TYPE_FLOAT:
-        value = -1e12;
+        min = -1e12;
         break;
     case A2L_TYPE_DOUBLE:
-        value = -1e12;
+        min = -1e12;
         break;
     default:
-        value = 0.0;
+        min = 0;
     }
-
-    static char str[20];
-    SNPRINTF(str, 20, "%g", factor * value + offset);
-    return str;
+    return min;
 }
 
-static const char *getPhysMax(tA2lTypeId type, double factor, double offset) {
-    double value = 0.0;
+static double getTypeMax(tA2lTypeId type) {
+    double max;
     switch (type) {
     case A2L_TYPE_INT8:
-        value = 127;
+        max = 127;
         break;
     case A2L_TYPE_INT16:
-        value = 32767;
+        max = 32767;
         break;
     case A2L_TYPE_INT32:
-        value = 2147483647;
+        max = 2147483647;
         break;
     case A2L_TYPE_UINT8:
-        value = 255;
+        max = 255;
         break;
     case A2L_TYPE_UINT16:
-        value = 65535;
+        max = 65535;
         break;
     case A2L_TYPE_UINT32:
-        value = 4294967295;
+        max = 4294967295;
         break;
     default:
-        value = 1E12;
+        max = 1e12;
     }
-    static char str[20];
-    SNPRINTF(str, 20, "%g", factor * value + offset);
-    return str;
+    return max;
 }
 
 static bool A2lOpen(const char *filename, const char *projectname) {
@@ -520,9 +517,10 @@ static bool A2lOpen(const char *filename, const char *projectname) {
         if (at != NULL) {
             const char *t = A2lGetRecordLayoutName_(id);
             fprintf(gA2lTypedefsFile, "/begin RECORD_LAYOUT %s FNC_VALUES 1 %s ROW_DIR DIRECT /end RECORD_LAYOUT\n", t, at);
-            fprintf(gA2lTypedefsFile, "/begin TYPEDEF_MEASUREMENT M_%s \"\" %s NO_COMPU_METHOD 0 0 %s %s /end TYPEDEF_MEASUREMENT\n", t, at, getTypeMin(id), getTypeMax(id));
-            fprintf(gA2lTypedefsFile, "/begin TYPEDEF_CHARACTERISTIC C_%s \"\" VALUE %s 0 NO_COMPU_METHOD %s %s /end TYPEDEF_CHARACTERISTIC\n", t, t, getTypeMin(id),
-                    getTypeMax(id));
+            fprintf(gA2lTypedefsFile, "/begin TYPEDEF_MEASUREMENT M_%s \"\" %s NO_COMPU_METHOD 0 0 %s %s /end TYPEDEF_MEASUREMENT\n", t, at, getTypeMinString(id),
+                    getTypeMaxString(id));
+            fprintf(gA2lTypedefsFile, "/begin TYPEDEF_CHARACTERISTIC C_%s \"\" VALUE %s 0 NO_COMPU_METHOD %s %s /end TYPEDEF_CHARACTERISTIC\n", t, t, getTypeMinString(id),
+                    getTypeMaxString(id));
         }
     }
     fprintf(gA2lTypedefsFile, "\n");
@@ -794,6 +792,62 @@ uint32_t A2lGetAddr_(const void *p) {
 }
 
 //----------------------------------------------------------------------------------
+// Conversions
+
+void printPhysUnit(FILE *file, const char *unit_or_conversion) {
+
+    // It is a phys unit if the string is not NULL and does not start with "conv."
+    size_t len = strlen(unit_or_conversion);
+    if (unit_or_conversion != NULL && !(len > 5 && strncmp(unit_or_conversion, "conv.", 5) == 0)) {
+        fprintf(file, " PHYS_UNIT \"%s\"", unit_or_conversion);
+    }
+}
+
+static const char *getConversion(const char *unit_or_conversion, double *min, double *max) {
+
+    // If the unit_or_conversion string begins with "conv." it is a conversion method name, return it directly
+    if (unit_or_conversion != NULL && strlen(unit_or_conversion) > 5 && strncmp(unit_or_conversion, "conv.", 5) == 0) {
+
+        double factor = 1.0, offset = -50.0;
+
+        // Adjust min and max values according to the conversion method
+        if (min != NULL) {
+            *min = *min * factor + offset;
+        }
+        if (max != NULL) {
+            *max = *max * factor + offset;
+        }
+        // Conversion method
+        return unit_or_conversion;
+    } else {
+        // Otherwise return "NO_COMPU_METHOD";
+        return "NO_COMPU_METHOD";
+    }
+}
+
+const char *A2lCreateLinearConversion_(const char *name, const char *comment, const char *unit, double factor, double offset) {
+
+    assert(gA2lFile != NULL);
+
+    if (unit == NULL)
+        unit = "";
+    if (comment == NULL)
+        comment = "";
+
+    // Build the conversion name with prefix "conv." and store it in a static variable
+    // Rememner factor and offset for later use
+    SNPRINTF(gA2lConvName, sizeof(gA2lConvName), "conv.%s", name);
+    gA2lConvFactor = factor;
+    gA2lConvOffset = offset;
+
+    fprintf(gA2lConversionsFile, "/begin COMPU_METHOD conv.%s \"%s\" LINEAR \"%%6.3\" \"%s\" COEFFS_LINEAR %g %g /end COMPU_METHOD\n", name, comment, unit, factor, offset);
+    gA2lConversions++;
+
+    // Return the conversion name for reference when creating measurements
+    return gA2lConvName;
+}
+
+//----------------------------------------------------------------------------------
 // Typedefs
 
 // Begin a typedef structure
@@ -850,9 +904,7 @@ void A2lTypedefParameterComponent_(const char *name, const char *type_name, uint
     } else {
         fprintf(gA2lTypedefsFile, "/begin TYPEDEF_CHARACTERISTIC C_%s \"%s\" VALUE %s 0 NO_COMPU_METHOD %g %g", name, comment, type_name, min, max);
     }
-    if (unit != NULL && strlen(unit) > 0) {
-        fprintf(gA2lTypedefsFile, " PHYS_UNIT \"%s\"", unit);
-    }
+    printPhysUnit(gA2lTypedefsFile, unit);
     fprintf(gA2lTypedefsFile, " /end TYPEDEF_CHARACTERISTIC\n");
 
     fprintf(gA2lFile, "  /begin STRUCTURE_COMPONENT %s C_%s 0x%X", name, name, offset);
@@ -895,8 +947,7 @@ void A2lCreateTypedefInstance_(const char *instance_name, const char *typeName, 
 //----------------------------------------------------------------------------------
 // Measurements
 
-void A2lCreateMeasurement_(const char *instance_name, const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, double factor, double offset, const char *unit,
-                           const char *comment) {
+void A2lCreateMeasurement_(const char *instance_name, const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, const char *unit_or_conversion, const char *comment) {
 
     assert(gA2lFile != NULL);
 
@@ -905,20 +956,14 @@ void A2lCreateMeasurement_(const char *instance_name, const char *name, tA2lType
         A2lAddToGroup(name);
     }
 
-    if (unit == NULL)
-        unit = "";
     if (comment == NULL)
         comment = "";
-    const char *conv = "NO_COMPU_METHOD";
-    if (factor != 1.0 || offset != 0.0) {
-        fprintf(gA2lFile, "/begin COMPU_METHOD %s \"\" LINEAR \"%%6.3\" \"%s\" COEFFS_LINEAR %g %g /end COMPU_METHOD\n", symbol_name, unit != NULL ? unit : "", factor, offset);
-        conv = symbol_name;
-        gA2lConversions++;
-    }
-    fprintf(gA2lFile, "/begin MEASUREMENT %s \"%s\" %s %s 0 0 %s %s ECU_ADDRESS 0x%X", symbol_name, comment, A2lGetA2lTypeName(type), conv, getPhysMin(type, factor, offset),
-            getPhysMax(type, factor, offset), addr);
+    double min = getTypeMin(type);
+    double max = getTypeMax(type);
+    const char *conv = getConversion(unit_or_conversion, &min, &max);
+    fprintf(gA2lFile, "/begin MEASUREMENT %s \"%s\" %s %s 0 0 %g %g ECU_ADDRESS 0x%X", symbol_name, comment, A2lGetA2lTypeName(type), conv, min, max, addr);
     printAddrExt(ext);
-    printPhysUnit(unit);
+    printPhysUnit(gA2lFile, unit_or_conversion);
     if (gAl2AddrExt == XCP_ADDR_EXT_ABS || gAl2AddrExt == XCP_ADDR_EXT_DYN) { // Absolute or dynamic address mode allows write access
         fprintf(gA2lFile, " READ_WRITE");
     }
@@ -931,8 +976,8 @@ void A2lCreateMeasurement_(const char *instance_name, const char *name, tA2lType
     gA2lMeasurements++;
 }
 
-void A2lCreateMeasurementArray_(const char *instance_name, const char *name, tA2lTypeId type, int x_dim, int y_dim, uint8_t ext, uint32_t addr, double factor, double offset,
-                                const char *unit, const char *comment) {
+void A2lCreateMeasurementArray_(const char *instance_name, const char *name, tA2lTypeId type, int x_dim, int y_dim, uint8_t ext, uint32_t addr, const char *unit,
+                                const char *comment) {
 
     assert(gA2lFile != NULL);
 
@@ -946,14 +991,9 @@ void A2lCreateMeasurementArray_(const char *instance_name, const char *name, tA2
     if (comment == NULL)
         comment = "";
     const char *conv = "NO_COMPU_METHOD";
-    if (factor != 1.0 || offset != 0.0) {
-        fprintf(gA2lFile, "/begin COMPU_METHOD %s.Conversion \"\" LINEAR \"%%6.3\" \"%s\" COEFFS_LINEAR %g %g /end COMPU_METHOD\n", symbol_name, unit != NULL ? unit : "", factor,
-                offset);
-        conv = symbol_name;
-        gA2lConversions++;
-    }
+
     fprintf(gA2lFile, "/begin CHARACTERISTIC %s \"%s\" VAL_BLK 0x%X %s 0 %s %s %s MATRIX_DIM %u %u", symbol_name, comment, addr, A2lGetRecordLayoutName_(type), conv,
-            getTypeMin(type), getTypeMax(type), x_dim, y_dim);
+            getTypeMinString(type), getTypeMaxString(type), x_dim, y_dim);
     printAddrExt(ext);
 #ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
     fprintf(gA2lFile, " SYMBOL_LINK \"%s\" %u", symbol_name, 0);
@@ -974,7 +1014,7 @@ void A2lCreateParameter_(const char *name, tA2lTypeId type, uint8_t ext, uint32_
     }
 
     fprintf(gA2lFile, "/begin CHARACTERISTIC %s \"%s\" VALUE 0x%X %s 0 NO_COMPU_METHOD %g %g", name, comment, addr, A2lGetRecordLayoutName_(type), min, max);
-    printPhysUnit(unit);
+    printPhysUnit(gA2lFile, unit);
     printAddrExt(ext);
 #ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
     fprintf(gA2lFile, " SYMBOL_LINK \"%s\" %u", name, 0);
@@ -996,7 +1036,7 @@ void A2lCreateMap_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr
             " /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD  %u 0 %u FIX_AXIS_PAR_DIST 0 1 %u /end AXIS_DESCR"
             " /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD  %u 0 %u FIX_AXIS_PAR_DIST 0 1 %u /end AXIS_DESCR",
             name, comment, addr, A2lGetRecordLayoutName_(type), min, max, xdim, xdim - 1, xdim, ydim, ydim - 1, ydim);
-    printPhysUnit(unit);
+    printPhysUnit(gA2lFile, unit);
     printAddrExt(ext);
 #ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
     fprintf(gA2lFile, " SYMBOL_LINK \"%s\" %u", name, 0);
@@ -1018,7 +1058,7 @@ void A2lCreateCurve_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t ad
             "/begin CHARACTERISTIC %s \"%s\" CURVE 0x%X %s 0 NO_COMPU_METHOD %g %g"
             " /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD  %u 0 %u FIX_AXIS_PAR_DIST 0 1 %u /end AXIS_DESCR",
             name, comment, addr, A2lGetRecordLayoutName_(type), min, max, xdim, xdim - 1, xdim);
-    printPhysUnit(unit);
+    printPhysUnit(gA2lFile, unit);
     printAddrExt(ext);
 #ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
     fprintf(gA2lFile, " SYMBOL_LINK \"%s\" %u", name, 0);
@@ -1070,7 +1110,7 @@ void A2lEndGroup(void) {
     mutexUnlock(&gA2lMutex);
 }
 
-void A2lMeasurementGroup(const char *name, int count, ...) {
+void A2lCreateMeasurementGroup(const char *name, int count, ...) {
 
     va_list ap;
 
@@ -1088,7 +1128,7 @@ void A2lMeasurementGroup(const char *name, int count, ...) {
     mutexUnlock(&gA2lMutex);
 }
 
-void A2lMeasurementGroupFromList(const char *name, char *names[], uint32_t count) {
+void A2lCreateMeasurementGroupFromList(const char *name, char *names[], uint32_t count) {
 
     assert(gA2lGroupsFile != NULL);
     mutexLock(&gA2lMutex);
@@ -1102,7 +1142,7 @@ void A2lMeasurementGroupFromList(const char *name, char *names[], uint32_t count
     mutexUnlock(&gA2lMutex);
 }
 
-void A2lParameterGroup(const char *name, int count, ...) {
+void A2lCreateParameterGroup(const char *name, int count, ...) {
 
     va_list ap;
 
@@ -1120,7 +1160,7 @@ void A2lParameterGroup(const char *name, int count, ...) {
     mutexUnlock(&gA2lMutex);
 }
 
-void A2lParameterGroupFromList(const char *name, const char *pNames[], int count) {
+void A2lCreateParameterGroupFromList(const char *name, const char *pNames[], int count) {
 
     assert(gA2lGroupsFile != NULL);
     mutexLock(&gA2lMutex);

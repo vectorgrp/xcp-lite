@@ -24,8 +24,8 @@
 #define OPTION_LOG_LEVEL 3
 
 //-----------------------------------------------------------------------------------------------------
-
 // Demo calibration parameters
+
 typedef struct params {
     uint16_t counter_max; // Maximum value for the counters
     uint32_t delay_us;    // Delay in microseconds for the main loop
@@ -35,6 +35,12 @@ typedef struct params {
 
 // Default values
 const params_t params = {.counter_max = 1000, .delay_us = 1000, .test_byte1 = -1, .test_byte2 = 1};
+
+//-----------------------------------------------------------------------------------------------------
+// Demo measurement values
+
+static uint8_t temperature = 50; // In Celcius, 0 is -55 °C, 255 is +200 °C
+static float speed = 0.0f;       // Speed in Kmh
 
 //-----------------------------------------------------------------------------------------------------
 
@@ -65,11 +71,10 @@ int main(void) {
     ApplXcpSetA2lName(OPTION_A2L_FILE_NAME);
 #endif
 
-    // Create a calibration segment for the calibration parameter struct
+    // Create a calibration segment named 'Parameters' for the calibration parameter struct
     // This segment has a working page (RAM) and a reference page (FLASH), it creates a MEMORY_SEGMENT in the A2L file
     // It provides safe (thread safe against XCP modifications), lock-free and consistent access to the calibration parameters
-    // It supports XCP/ECU independant page switching, checksum calculation and reinitialization (copy reference page to working page)
-    // Note that it can be used in only one ECU thread (in Rust terminology, it is Send, but not Sync)
+    // It supports XCP/ECU independent page switching, checksum calculation and reinitialization (copy reference page to working page)
     tXcpCalSegIndex calseg = XcpCreateCalSeg("Parameters", &params, sizeof(params));
 
     // Register calibration parameters in the calibration segment
@@ -77,18 +82,21 @@ int main(void) {
     A2lCreateParameter(params, counter_max, "Maximum counter value", "", 0, 2000);
     A2lCreateParameter(params, delay_us, "Mainloop delay time in us", "us", 0, 999999);
 
-    // Create a measurement event
+    // Create a measurement event named "mainloop"
     DaqCreateEvent(mainloop);
 
-    // Register a global measurement variable (counter)
-    static uint16_t counter = 0;
-    A2lSetAbsoluteAddrMode(mainloop); // Set absolute addressing mode with event mainloop
-    A2lCreateMeasurement(counter, "Measurement variable in global memory");
+    // Register a global measurement variables
+    // Set absolute addressing mode with event mainloop
+    A2lSetAbsoluteAddrMode(mainloop);
+    // Temperature conversion factor 0, offset -50 results in 0°C at 50
+    const char *conv = A2lCreateLinearConversion(Temperature, "Temperature in °C from unsigned byte", "°C", 1.0, -50.0);
+    A2lCreateMeasurement(temperature, "Motor temperature in °C", conv);
+    A2lCreateMeasurement(speed, "Speed in Kmh", "Kmh");
 
-    // Register a local measurement variable (counter_local)
-    uint16_t counter_local = 0;
+    // Register a local measurement variable (loop_counter)
+    uint16_t loop_counter = 0;
     A2lSetStackAddrMode(mainloop); // Set stack relative addressing mode with event mainloop
-    A2lCreateMeasurement(counter_local, "Measurement variable on stack");
+    A2lCreateMeasurement(loop_counter, "Loop counter, local measurement variable on stack", "");
 
     A2lFinalize(); // Optional: Finalize the A2L file generation early, otherwise it would be written when the client tool connects
 
@@ -98,22 +106,22 @@ int main(void) {
         // It returns a pointer to the active page (working or reference) of the calibration segment
         params_t *params = (params_t *)XcpLockCalSeg(calseg);
 
-        // Sleep for the specified delay parameter in microseconds
-        sleepNs(params->delay_us * 1000);
+        uint32_t delay_us = params->delay_us; // Get the delay parameter in microseconds
 
         // Local variable for measurement
-        counter++;
-        if (counter > params->counter_max) {
-            counter = 0;
+        loop_counter++;
+        if (loop_counter > params->counter_max) {
+            loop_counter = 0;
         }
 
         // Unlock the calibration segment
         XcpUnlockCalSeg(calseg);
 
-        counter_local = counter + 10;
-
         // Trigger measurement events
         DaqEvent(mainloop);
+
+        // Sleep for the specified delay parameter in microseconds, don't sleep with the XCP lock held to give the XCP client a chance to calibrate the parameters
+        sleepNs(delay_us * 1000);
 
     } // for (;;)
 

@@ -66,8 +66,8 @@ void *task(void *p)
     char task_name[32];
     sprintf(task_name, "task_%u", task_id);
 
-    A2lCreateMeasurementInstance(task_name, event, counter, "task loop counter");
-    A2lCreateMeasurementInstance(task_name, event, channel, "task sine signal");
+    A2lCreateMeasurementInstance(task_name, event, counter, "task loop counter", "");
+    A2lCreateMeasurementInstance(task_name, event, channel, "task sine signal", "");
 
     printf("Start task %u\n", task_id);
 
@@ -119,9 +119,9 @@ int main(void) {
         return 1;
     }
 
-    // Enable A2L generation and prepare the A2L file, finalize the A2L file on XCP connect
+    // Enable A2L generation and prepare the A2L file, finalize the A2L file on XCP connect, no auto grouping
 #ifdef OPTION_ENABLE_A2L_GENERATOR
-    if (!A2lInit(OPTION_A2L_FILE_NAME, OPTION_A2L_PROJECT_NAME, addr, OPTION_SERVER_PORT, OPTION_USE_TCP, true, true)) {
+    if (!A2lInit(OPTION_A2L_FILE_NAME, OPTION_A2L_PROJECT_NAME, addr, OPTION_SERVER_PORT, OPTION_USE_TCP, true, false)) {
         return 1;
     }
 #else
@@ -134,7 +134,7 @@ int main(void) {
     // It provides safe (thread safe against XCP modifications), lock-free and consistent access to the calibration parameters
     // It supports XCP/ECU independant page switching, checksum calculation and reinitialization (copy reference page to working page)
     // Note that it can be used in only one ECU thread (in Rust terminology, it is Send, but not Sync)
-    tXcpCalSegIndex calseg = XcpCreateCalSeg("Parameters", &params, sizeof(params));
+    calseg = XcpCreateCalSeg("Parameters", &params, sizeof(params));
 
     // Register individual calibration parameters in the calibration segment
     A2lSetSegmentAddrMode(calseg, params);
@@ -143,6 +143,7 @@ int main(void) {
     A2lCreateParameter(params, period, "Period", "s", 0.1, 10.0);
     A2lCreateParameter(params, delay_us, "task delay time in us", "us", 0, 1000000);
     A2lCreateParameter(params, run, "stop task", "", 0, 1);
+    A2lCreateParameterGroup("Parameters", 5, "params.counter_max", "params.ampl", "params.period", "params.delay_us", "params.run");
 
     // Create multiple instances of the same task
     THREAD t[10];

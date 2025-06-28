@@ -162,50 +162,48 @@ void A2lSetAbsoluteAddrMode_(const char *event_name);
     }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// Create conversions
+
+#define A2lCreateLinearConversion(name, comment, unit, factor, offset) A2lCreateLinearConversion_(#name, comment, unit, factor, offset);
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // Create measurements on stack or in global memory
 // Measurements are registered once, it is allowed to use the following macros in local scope which is run multiple times
 
 // Once
-#define A2lCreateMeasurement(name, comment)                                                                                                                                        \
+#define A2lCreateMeasurement(name, comment, unit_or_conversion)                                                                                                                    \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
         if (A2lOnce_(&a2l_##name##_))                                                                                                                                              \
-            A2lCreateMeasurement_(NULL, #name, A2lGetTypeId(name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&(name)), 1.0, 0.0, NULL, comment);                                    \
+            A2lCreateMeasurement_(NULL, #name, A2lGetTypeId(name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&(name)), unit_or_conversion, comment);                                \
     }
 
 // Thread safe
 // Create thread local measurement instance, combine with XcpCreateEventInstance() and DaqEventInstance()
-#define A2lCreateMeasurementInstance(instance_name, event, name, comment)                                                                                                          \
+#define A2lCreateMeasurementInstance(instance_name, event, name, comment, unit_or_conversion)                                                                                      \
     {                                                                                                                                                                              \
         mutexLock(&gA2lMutex);                                                                                                                                                     \
         A2lSetDynAddrMode_(event, (const uint8_t *)&event);                                                                                                                        \
-        A2lCreateMeasurement_(instance_name, #name, A2lGetTypeId(name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&(name)), 1.0, 0.0, NULL, comment);                               \
+        A2lCreateMeasurement_(instance_name, #name, A2lGetTypeId(name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&(name)), unit_or_conversion, comment);                           \
         mutexUnlock(&gA2lMutex);                                                                                                                                                   \
     }
 
 // Once
-#define A2lCreatePhysMeasurement(name, comment, factor, offset, unit)                                                                                                              \
+#define A2lCreateMeasurementArray(name, comment, unit_or_conversion)                                                                                                               \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
         if (A2lOnce_(&a2l_##name##_))                                                                                                                                              \
-            A2lCreateMeasurement_(NULL, #name, A2lGetTypeId(name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&name), factor, offset, unit, comment);                                \
+            A2lCreateMeasurementArray_(NULL, #name, A2lGetTypeId(name[0]), sizeof(name) / sizeof(name[0]), 1, A2lGetAddrExt_(), A2lGetAddr_(&name[0]), unit_or_conversion,         \
+                                       comment);                                                                                                                                   \
     }
 
 // Once
-#define A2lCreateMeasurementArray(name, comment)                                                                                                                                   \
-    {                                                                                                                                                                              \
-        static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
-        if (A2lOnce_(&a2l_##name##_))                                                                                                                                              \
-            A2lCreateMeasurementArray_(NULL, #name, A2lGetTypeId(name[0]), sizeof(name) / sizeof(name[0]), 1, A2lGetAddrExt_(), A2lGetAddr_(&name[0]), 1.0, 0.0, "", comment);     \
-    }
-
-// Once
-#define A2lCreateMeasurementMatrix(name, comment)                                                                                                                                  \
+#define A2lCreateMeasurementMatrix(name, comment, unit_or_conversion)                                                                                                              \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
         if (A2lOnce_(&a2l_##name##_))                                                                                                                                              \
             A2lCreateMeasurementArray_(NULL, #name, A2lGetTypeId(name[0][0]), sizeof(name[0]) / sizeof(name[0][0]), sizeof(name) / sizeof(name[0]), A2lGetAddrExt_(),              \
-                                       A2lGetAddr_(&name[0]), 1.0, 0.0, "", comment);                                                                                              \
+                                       A2lGetAddr_(&name[0]), unit_or_conversion, comment);                                                                                        \
     }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -358,11 +356,11 @@ void A2lBeginGroup(const char *name, const char *comment, bool is_parameter_grou
 void A2lAddToGroup(const char *name);
 void A2lEndGroup(void);
 
-void A2lParameterGroup(const char *name, int count, ...);
-void A2lParameterGroupFromList(const char *name, const char *pNames[], int count);
+void A2lCreateParameterGroup(const char *name, int count, ...);
+void A2lCreateParameterGroupFromList(const char *name, const char *pNames[], int count);
 
-void A2lMeasurementGroup(const char *name, int count, ...);
-void A2lMeasurementGroupFromList(const char *name, char *names[], uint32_t count);
+void A2lCreateMeasurementGroup(const char *name, int count, ...);
+void A2lCreateMeasurementGroupFromList(const char *name, char *names[], uint32_t count);
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -386,11 +384,12 @@ uint32_t A2lGetAddr_(const void *addr);
 uint8_t A2lGetAddrExt_(void);
 
 // Create measurements
-void A2lCreateMeasurement_(const char *instance_name, const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, double factor, double offset, const char *unit,
-                           const char *comment);
+const char *A2lCreateLinearConversion_(const char *name, const char *comment, const char *unit, double factor, double offset);
 
-void A2lCreateMeasurementArray_(const char *instance_name, const char *name, tA2lTypeId type, int x_dim, int y_dim, uint8_t ext, uint32_t addr, double factor, double offset,
-                                const char *unit, const char *comment);
+void A2lCreateMeasurement_(const char *instance_name, const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, const char *unit_or_conversion, const char *comment);
+
+void A2lCreateMeasurementArray_(const char *instance_name, const char *name, tA2lTypeId type, int x_dim, int y_dim, uint8_t ext, uint32_t addr, const char *unit_or_conversion,
+                                const char *comment);
 
 // Create typedefs
 void A2lTypedefBegin_(const char *name, uint32_t size, const char *comment);

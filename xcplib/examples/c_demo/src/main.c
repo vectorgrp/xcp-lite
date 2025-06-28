@@ -123,25 +123,25 @@ int main(void) {
 
     // Register global measurement variables
     A2lSetAbsoluteAddrMode(mainloop);
-    A2lCreatePhysMeasurement(g_counter8, "Measurement variable", 1.0, 0.0, "");
-    A2lCreatePhysMeasurement(g_counter16, "Measurement variable", 1.0, 0.0, "");
-    A2lCreatePhysMeasurement(g_counter32, "Measurement variable", 1.0, 0.0, "");
-    A2lCreatePhysMeasurement(g_counter64, "Measurement variable", 1.0, 0.0, "");
-    A2lCreatePhysMeasurement(g_counter8s, "Measurement variable", 1.0, 0.0, "");
-    A2lCreatePhysMeasurement(g_counter16s, "Measurement variable", 1.0, 0.0, "");
-    A2lCreatePhysMeasurement(g_counter32s, "Measurement variable", 1.0, 0.0, "");
-    A2lCreatePhysMeasurement(g_counter64s, "Measurement variable", 1.0, 0.0, "");
+    A2lCreateMeasurement(g_counter8, "Measurement variable", "");
+    A2lCreateMeasurement(g_counter16, "Measurement variable", "");
+    A2lCreateMeasurement(g_counter32, "Measurement variable", "");
+    A2lCreateMeasurement(g_counter64, "Measurement variable", "");
+    A2lCreateMeasurement(g_counter8s, "Measurement variable", "");
+    A2lCreateMeasurement(g_counter16s, "Measurement variable", "");
+    A2lCreateMeasurement(g_counter32s, "Measurement variable", "");
+    A2lCreateMeasurement(g_counter64s, "Measurement variable", "");
 
     // Register measurement variables located on stack
     A2lSetStackAddrMode(mainloop);
-    A2lCreatePhysMeasurement(counter8, "Measurement variable", 1.0, 0.0, "");
-    A2lCreatePhysMeasurement(counter16, "Measurement variable", 1.0, 0.0, "");
-    A2lCreatePhysMeasurement(counter32, "Measurement variable", 1.0, 0.0, "");
-    A2lCreatePhysMeasurement(counter64, "Measurement variable", 1.0, 0.0, "");
-    A2lCreatePhysMeasurement(counter8s, "Measurement variable", 1.0, 0.0, "");
-    A2lCreatePhysMeasurement(counter16s, "Measurement variable", 1.0, 0.0, "");
-    A2lCreatePhysMeasurement(counter32s, "Measurement variable", 1.0, 0.0, "");
-    A2lCreatePhysMeasurement(counter64s, "Measurement variable", 1.0, 0.0, "");
+    A2lCreateMeasurement(counter8, "Measurement variable", "");
+    A2lCreateMeasurement(counter16, "Measurement variable", "");
+    A2lCreateMeasurement(counter32, "Measurement variable", "");
+    A2lCreateMeasurement(counter64, "Measurement variable", "");
+    A2lCreateMeasurement(counter8s, "Measurement variable", "");
+    A2lCreateMeasurement(counter16s, "Measurement variable", "");
+    A2lCreateMeasurement(counter32s, "Measurement variable", "");
+    A2lCreateMeasurement(counter64s, "Measurement variable", "");
 
     // Multidimensional measurements on stack
     float array_f32[8] = {000, 100, 200, 300, 400, 500, 600, 700};
@@ -153,8 +153,8 @@ int main(void) {
 
     };
 
-    A2lCreateMeasurementArray(array_f32, "array float[8]");
-    A2lCreateMeasurementMatrix(matrix_f32, "matrix float[4][8]");
+    A2lCreateMeasurementArray(array_f32, "array float[8]", "");
+    A2lCreateMeasurementMatrix(matrix_f32, "matrix float[4][8]", "");
 
     // Create a measurement typedef for the calibration parameter struct
     typedef params_t params_measurement_t;
