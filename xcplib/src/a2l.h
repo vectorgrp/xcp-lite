@@ -134,7 +134,6 @@ void A2lSetAbsoluteAddrMode_(const char *event_name);
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // Create parameters in a calibration segment or in global memory
 
-// Once
 #define A2lCreateParameter(instance_name, name, comment, unit, min, max)                                                                                                           \
     {                                                                                                                                                                              \
         static atomic_bool a2l_par_##name##_ = false;                                                                                                                              \
@@ -143,7 +142,6 @@ void A2lSetAbsoluteAddrMode_(const char *event_name);
                                 max);                                                                                                                                              \
     }
 
-// Once
 #define A2lCreateCurve(instance_name, name, xdim, comment, unit, min, max)                                                                                                         \
     {                                                                                                                                                                              \
         static atomic_bool a2l_par_##name##_ = false;                                                                                                                              \
@@ -152,7 +150,6 @@ void A2lSetAbsoluteAddrMode_(const char *event_name);
                             min, max);                                                                                                                                             \
     }
 
-// Once
 #define A2lCreateMap(instance_name, name, xdim, ydim, comment, unit, min, max)                                                                                                     \
     {                                                                                                                                                                              \
         static atomic_bool a2l_par_##name##_ = false;                                                                                                                              \
@@ -170,7 +167,6 @@ void A2lSetAbsoluteAddrMode_(const char *event_name);
 // Create measurements on stack or in global memory
 // Measurements are registered once, it is allowed to use the following macros in local scope which is run multiple times
 
-// Once
 #define A2lCreateMeasurement(name, comment, unit)                                                                                                                                  \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
@@ -178,7 +174,6 @@ void A2lSetAbsoluteAddrMode_(const char *event_name);
             A2lCreateMeasurement_(NULL, #name, A2lGetTypeId(name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&(name)), unit, 0.0, 0.0, comment);                                    \
     }
 
-// Once
 #define A2lCreatePhysMeasurement(name, comment, unit_or_conversion, min, max)                                                                                                      \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
@@ -196,7 +191,6 @@ void A2lSetAbsoluteAddrMode_(const char *event_name);
         mutexUnlock(&gA2lMutex);                                                                                                                                                   \
     }
 
-// Once
 #define A2lCreateMeasurementArray(name, comment, unit_or_conversion)                                                                                                               \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
@@ -205,7 +199,6 @@ void A2lSetAbsoluteAddrMode_(const char *event_name);
                                        comment);                                                                                                                                   \
     }
 
-// Once
 #define A2lCreateMeasurementMatrix(name, comment, unit_or_conversion)                                                                                                              \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
@@ -217,7 +210,6 @@ void A2lSetAbsoluteAddrMode_(const char *event_name);
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // Create typedefs and typedef components
 
-// Once
 #define A2lCreateTypedefInstance(name, typeName, comment)                                                                                                                          \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
@@ -226,7 +218,6 @@ void A2lSetAbsoluteAddrMode_(const char *event_name);
         }                                                                                                                                                                          \
     }
 
-// Once
 #define A2lCreateTypedefReference(name, typeName, comment)                                                                                                                         \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
@@ -235,7 +226,6 @@ void A2lSetAbsoluteAddrMode_(const char *event_name);
         }                                                                                                                                                                          \
     }
 
-// Once
 #define A2lCreateTypedefArray(name, typeName, dim, comment)                                                                                                                        \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
@@ -244,7 +234,6 @@ void A2lSetAbsoluteAddrMode_(const char *event_name);
         }                                                                                                                                                                          \
     }
 
-// Once
 #define A2lCreateTypedefArrayReference(name, typeName, dim, comment)                                                                                                               \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
@@ -253,7 +242,6 @@ void A2lSetAbsoluteAddrMode_(const char *event_name);
         }                                                                                                                                                                          \
     }
 
-// Once
 #define A2lTypedefBegin(type_name, comment)                                                                                                                                        \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##type_name##_ = false;                                                                                                                             \
@@ -262,7 +250,6 @@ void A2lSetAbsoluteAddrMode_(const char *event_name);
         }                                                                                                                                                                          \
     }
 
-// Once
 #define A2lTypedefMeasurementComponent(field_name, typedef_name)                                                                                                                   \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
@@ -272,40 +259,66 @@ void A2lSetAbsoluteAddrMode_(const char *event_name);
         }                                                                                                                                                                          \
     }
 
-// Once
 #define A2lTypedefParameterComponent(field_name, typeName, comment, unit, min, max)                                                                                                \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
         if (A2lOnce_(&a2l_##field_name##_)) {                                                                                                                                      \
             typeName instance;                                                                                                                                                     \
             A2lTypedefParameterComponent_(#field_name, A2lGetRecordLayoutName(instance.field_name), 1, 1, ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance), comment,     \
-                                          unit, min, max);                                                                                                                         \
+                                          unit, min, max, NULL, NULL);                                                                                                             \
         }                                                                                                                                                                          \
     }
 
-// Once
 #define A2lTypedefCurveComponent(field_name, typeName, x_dim, comment, unit, min, max)                                                                                             \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
         if (A2lOnce_(&a2l_##field_name##_)) {                                                                                                                                      \
             typeName instance;                                                                                                                                                     \
             A2lTypedefParameterComponent_(#field_name, A2lGetRecordLayoutName(instance.field_name[0]), x_dim, 1, ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance),       \
-                                          comment, unit, min, max);                                                                                                                \
+                                          comment, unit, min, max, NULL, NULL);                                                                                                    \
         }                                                                                                                                                                          \
     }
 
-// Once
+#define A2lTypedefCurveComponentWithSharedAxis(field_name, typeName, x_dim, comment, unit, min, max, x_axis)                                                                       \
+    {                                                                                                                                                                              \
+        static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
+        if (A2lOnce_(&a2l_##field_name##_)) {                                                                                                                                      \
+            typeName instance;                                                                                                                                                     \
+            A2lTypedefParameterComponent_(#field_name, A2lGetRecordLayoutName(instance.field_name[0]), x_dim, 1, ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance),       \
+                                          comment, unit, min, max, x_axis, NULL);                                                                                                  \
+        }                                                                                                                                                                          \
+    }
+
 #define A2lTypedefMapComponent(field_name, typeName, x_dim, y_dim, comment, unit, min, max)                                                                                        \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
         if (A2lOnce_(&a2l_##field_name##_)) {                                                                                                                                      \
             typeName instance;                                                                                                                                                     \
             A2lTypedefParameterComponent_(#field_name, A2lGetRecordLayoutName(instance.field_name[0][0]), x_dim, y_dim,                                                            \
-                                          ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance), comment, unit, min, max);                                                    \
+                                          ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance), comment, unit, min, max, NULL, NULL);                                        \
         }                                                                                                                                                                          \
     }
 
-// Once
+#define A2lTypedefMapComponentWithSharedAxis(field_name, typeName, x_dim, y_dim, comment, unit, min, max, x_axis, y_axis)                                                          \
+    {                                                                                                                                                                              \
+        static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
+        if (A2lOnce_(&a2l_##field_name##_)) {                                                                                                                                      \
+            typeName instance;                                                                                                                                                     \
+            A2lTypedefParameterComponent_(#field_name, A2lGetRecordLayoutName(instance.field_name[0][0]), x_dim, y_dim,                                                            \
+                                          ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance), comment, unit, min, max, x_axis, y_axis);                                    \
+        }                                                                                                                                                                          \
+    }
+
+#define A2lTypedefAxisComponent(field_name, typeName, x_dim, comment, unit, min, max)                                                                                              \
+    {                                                                                                                                                                              \
+        static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
+        if (A2lOnce_(&a2l_##field_name##_)) {                                                                                                                                      \
+            typeName instance;                                                                                                                                                     \
+            A2lTypedefParameterComponent_(#field_name, A2lGetRecordLayoutName(instance.field_name[0]), x_dim, 0, ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance),       \
+                                          comment, unit, min, max, NULL, NULL);                                                                                                    \
+        }                                                                                                                                                                          \
+    }
+
 #define A2lTypedefMeasurementArrayComponent(field_name, typedef_name)                                                                                                              \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
@@ -316,7 +329,6 @@ void A2lSetAbsoluteAddrMode_(const char *event_name);
         }                                                                                                                                                                          \
     }
 
-// Once
 #define A2lTypedefParameterArrayComponent(field_name, typeName, comment, unit, min, max)                                                                                           \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
@@ -327,7 +339,6 @@ void A2lSetAbsoluteAddrMode_(const char *event_name);
         }                                                                                                                                                                          \
     }
 
-// Once
 #define A2lTypedefParameterMatrixComponent(field_name, typeName, comment, unit, min, max)                                                                                          \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
@@ -338,7 +349,6 @@ void A2lSetAbsoluteAddrMode_(const char *event_name);
         }                                                                                                                                                                          \
     }
 
-// Once
 #define A2lTypedefComponent(field_name, field_type_name, field_dim, typedef_name)                                                                                                  \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
@@ -348,7 +358,6 @@ void A2lSetAbsoluteAddrMode_(const char *event_name);
         }                                                                                                                                                                          \
     }
 
-// Once
 #define A2lTypedefEnd()                                                                                                                                                            \
     {                                                                                                                                                                              \
         static atomic_bool a2l_once = false;                                                                                                                                       \
@@ -404,7 +413,8 @@ void A2lCreateMeasurementArray_(const char *instance_name, const char *name, tA2
 void A2lTypedefBegin_(const char *name, uint32_t size, const char *comment);
 void A2lTypedefComponent_(const char *name, const char *type_name, uint16_t x_dim, uint32_t offset);
 void A2lTypedefParameterComponent_(const char *name, const char *type_name, uint16_t x_dim, uint16_t y_dim, uint32_t offset, const char *comment, const char *unit, double min,
-                                   double max);
+                                   double max, const char *x_axis, const char *y_axis);
+
 void A2lTypedefEnd_(void);
 void A2lCreateTypedefInstance_(const char *instance_name, const char *type_name, uint16_t x_dim, uint8_t ext, uint32_t addr, const char *comment);
 

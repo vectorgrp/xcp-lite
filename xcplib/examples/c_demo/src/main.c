@@ -32,11 +32,20 @@ typedef struct params {
     uint32_t delay_us;    // Delay in microseconds for the main loop
     int8_t test_byte1;
     int8_t test_byte2;
-    int8_t curve[8];
-    int8_t map[8][8];
+    int8_t map[8][8];    // A map with 8x8 points and fix axis
+    float curve[8];      // A curve with 8 points and shared axis curve_axis
+    float curve_axis[8]; // Axis for the curve
 } params_t;
 
-const params_t params = {.counter_max = 1000, .delay_us = 1000, .test_byte1 = -1, .test_byte2 = 1, .curve = {0, 1, 2, 3, 4, 5, 6, 7}, .map = {{0}}};
+const params_t params = {
+    .counter_max = 1000,
+    .delay_us = 1000,
+    .test_byte1 = -1,
+    .test_byte2 = 1,
+    .map = {{0}},
+    .curve = {0, 1, 2, 3, 4, 3, 2, 1},
+    .curve_axis = {0, 1, 2, 4, 6, 9, 13, 15},
+};
 
 // Global measurement variables
 uint8_t g_counter8 = 0;
@@ -80,7 +89,7 @@ int main(void) {
     // Create a calibration segment for the calibration parameter struct
     // This segment has a working page (RAM) and a reference page (FLASH), it creates a MEMORY_SEGMENT in the A2L file
     // It provides safe (thread safe against XCP modifications), lock-free and consistent access to the calibration parameters
-    // It supports XCP/ECU independant page switching, checksum calculation and reinitialization (copy reference page to working page)
+    // It supports XCP/ECU independent page switching, checksum calculation and reinitialization (copy reference page to working page)
     // Note that it can be used in only one ECU thread (in Rust terminology, it is Send, but not Sync)
     tXcpCalSegIndex calseg = XcpCreateCalSeg("Parameters", &params, sizeof(params));
 
@@ -90,13 +99,13 @@ int main(void) {
     A2lTypedefParameterComponent(test_byte2, params_t, "Test byte for calibration consistency test", "", -128, 127);
     A2lTypedefParameterComponent(counter_max, params_t, "", "", 0, 2000);
     A2lTypedefParameterComponent(delay_us, params_t, "Mainloop sleep time in us", "us", 0, 1000000);
-    A2lTypedefCurveComponent(curve, params_t, 8, "Demo curve", "", -128, 127);
     A2lTypedefMapComponent(map, params_t, 8, 8, "Demo map", "", -128, 127);
+    A2lTypedefCurveComponentWithSharedAxis(curve, params_t, 8, "Demo curve with shared axis curve_axis", "Volt", 0, 1000.0, "curve_axis");
+    A2lTypedefAxisComponent(curve_axis, params_t, 8, "Demo axis for curve", "Nm", 0, 20);
     A2lTypedefEnd();
 
-    A2lSetSegmentAddrMode(calseg, params);
-
     // Register the calibration parameter struct in the calibration segment
+    A2lSetSegmentAddrMode(calseg, params);
     A2lCreateTypedefInstance(params, params_t, "Calibration parameters");
 
     // Alternative: Without using a typedef, create the clibration parameters directly

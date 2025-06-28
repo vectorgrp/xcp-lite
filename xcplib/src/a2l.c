@@ -857,9 +857,6 @@ void A2lTypedefBegin_(const char *name, uint32_t size, const char *comment) {
     assert(gA2lFile != NULL);
     mutexLock(&gA2lMutex);
     fprintf(gA2lFile, "/begin TYPEDEF_STRUCTURE %s \"%s\" 0x%X", name, comment, size);
-#ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
-    fprintf(gA2lFile, " SYMBOL_TYPE_LINK \"%s\"", name, 0);
-#endif
     fprintf(gA2lFile, "\n");
     gA2lTypedefs++;
 }
@@ -879,9 +876,6 @@ void A2lTypedefComponent_(const char *name, const char *type_name, uint16_t x_di
     fprintf(gA2lFile, "  /begin STRUCTURE_COMPONENT %s %s 0x%X", name, type_name, offset);
     if (x_dim > 1)
         fprintf(gA2lFile, " MATRIX_DIM %u", x_dim);
-#ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
-    fprintf(gA2lFile, " SYMBOL_TYPE_LINK \"%s\"", name, 0);
-#endif
     fprintf(gA2lFile, " /end STRUCTURE_COMPONENT\n");
 
     gA2lComponents++;
@@ -889,38 +883,57 @@ void A2lTypedefComponent_(const char *name, const char *type_name, uint16_t x_di
 
 // For multidimensional parameter components with TYPEDEF_CHARACTERISTIC for fields with comment, unit, min, max
 void A2lTypedefParameterComponent_(const char *name, const char *type_name, uint16_t x_dim, uint16_t y_dim, uint32_t offset, const char *comment, const char *unit, double min,
-                                   double max) {
+                                   double max, const char *x_axis, const char *y_axis) {
 
     assert(gA2lFile != NULL);
 
-    // TYPEDEF_CHARACTERISTIC VALUE, CURVE or CHARACTERISTIC
-    if (y_dim > 1) {
-        fprintf(gA2lTypedefsFile, "/begin TYPEDEF_CHARACTERISTIC C_%s \"%s\" MAP %s 0 NO_COMPU_METHOD %g %g", name, comment, type_name, min, max);
-        fprintf(gA2lTypedefsFile, " /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD %u 0 %u FIX_AXIS_PAR_DIST 0 1 %u /end AXIS_DESCR", x_dim, x_dim - 1, x_dim);
-        fprintf(gA2lTypedefsFile, " /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD %u 0 %u FIX_AXIS_PAR_DIST 0 1 %u /end AXIS_DESCR", y_dim, y_dim - 1, y_dim);
-    } else if (x_dim > 1) {
-        fprintf(gA2lTypedefsFile, "/begin TYPEDEF_CHARACTERISTIC C_%s \"%s\" CURVE %s 0 NO_COMPU_METHOD %g %g", name, comment, type_name, min, max);
-        fprintf(gA2lTypedefsFile, " /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD %u 0 %u FIX_AXIS_PAR_DIST 0 1 %u /end AXIS_DESCR", x_dim, x_dim - 1, x_dim);
-    } else {
-        fprintf(gA2lTypedefsFile, "/begin TYPEDEF_CHARACTERISTIC C_%s \"%s\" VALUE %s 0 NO_COMPU_METHOD %g %g", name, comment, type_name, min, max);
+    // TYPEDEF_AXIS
+    if (y_dim == 0 && x_dim > 1) {
+        fprintf(gA2lTypedefsFile, "/begin TYPEDEF_AXIS A_%s \"%s\" NO_INPUT_QUANTITY %s 0 NO_COMPU_METHOD %u %g %g", name, comment, type_name, x_dim, min, max);
+        printPhysUnit(gA2lTypedefsFile, unit);
+        fprintf(gA2lTypedefsFile, " /end TYPEDEF_AXIS\n");
+        fprintf(gA2lFile, "  /begin STRUCTURE_COMPONENT %s A_%s 0x%X /end STRUCTURE_COMPONENT\n", name, name, offset);
+
     }
-    printPhysUnit(gA2lTypedefsFile, unit);
-    fprintf(gA2lTypedefsFile, " /end TYPEDEF_CHARACTERISTIC\n");
 
-    fprintf(gA2lFile, "  /begin STRUCTURE_COMPONENT %s C_%s 0x%X", name, name, offset);
-
-    // Multi dimensional with basic type
-    //     fprintf(gA2lFile, "  /begin STRUCTURE_COMPONENT %s %s 0x%X", name, type_name, offset);
-    //     if (y_dim > 1) {
-    //         fprintf(gA2lFile, " MATRIX_DIM %u %u", x_dim, y_dim);
-    //     } else if (x_dim > 1) {
-    //         fprintf(gA2lFile, " MATRIX_DIM %u", x_dim);
-    //     }
-
-#ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
-    fprintf(gA2lFile, " SYMBOL_TYPE_LINK \"%s\"", name, 0);
-#endif
-    fprintf(gA2lFile, " /end STRUCTURE_COMPONENT\n");
+    // TYPEDEF_CHARACTERISTIC
+    else {
+        // MAP
+        if (y_dim > 1) {
+            fprintf(gA2lTypedefsFile, "/begin TYPEDEF_CHARACTERISTIC C_%s \"%s\" MAP %s 0 NO_COMPU_METHOD %g %g", name, comment, type_name, min, max);
+            if (x_axis == NULL)
+                fprintf(gA2lTypedefsFile, " /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD %u 0 %u FIX_AXIS_PAR_DIST 0 1 %u /end AXIS_DESCR", x_dim, x_dim - 1,
+                        x_dim);
+            else
+                fprintf(gA2lTypedefsFile, " /begin AXIS_DESCR COM_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD %u 0.0 0.0 AXIS_PTS_REF THIS.%s /end AXIS_DESCR", x_dim, x_axis);
+            if (y_axis == NULL)
+                fprintf(gA2lTypedefsFile, " /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD %u 0 %u FIX_AXIS_PAR_DIST 0 1 %u /end AXIS_DESCR", y_dim, y_dim - 1,
+                        y_dim);
+            else
+                fprintf(gA2lTypedefsFile, " /begin AXIS_DESCR COM_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD %u 0.0 0.0 AXIS_PTS_REF THIS.%s /end AXIS_DESCR", y_dim, y_axis);
+        }
+        // CURVE
+        else if (x_dim > 1) {
+            fprintf(gA2lTypedefsFile, "/begin TYPEDEF_CHARACTERISTIC C_%s \"%s\" CURVE %s 0 NO_COMPU_METHOD %g %g", name, comment, type_name, min, max);
+            if (x_axis == NULL)
+                fprintf(gA2lTypedefsFile, " /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD %u 0 %u FIX_AXIS_PAR_DIST 0 1 %u /end AXIS_DESCR", x_dim, x_dim - 1,
+                        x_dim);
+            else
+                fprintf(gA2lTypedefsFile, " /begin AXIS_DESCR COM_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD %u 0.0 0.0 AXIS_PTS_REF THIS.%s /end AXIS_DESCR", x_dim, x_axis);
+        }
+        // VALUE
+        else if (x_dim == 1 && y_dim == 1) {
+            fprintf(gA2lTypedefsFile, "/begin TYPEDEF_CHARACTERISTIC C_%s \"%s\" VALUE %s 0 NO_COMPU_METHOD %g %g", name, comment, type_name, min, max);
+        }
+        //
+        else {
+            DBG_PRINTF_ERROR("Invalid dimensions: x_dim=%u, y_dim=%u\n", x_dim, y_dim);
+            assert(0);
+        }
+        printPhysUnit(gA2lTypedefsFile, unit);
+        fprintf(gA2lTypedefsFile, " /end TYPEDEF_CHARACTERISTIC\n");
+        fprintf(gA2lFile, "  /begin STRUCTURE_COMPONENT %s C_%s 0x%X /end STRUCTURE_COMPONENT\n", name, name, offset);
+    }
 
     gA2lComponents++;
 }
@@ -980,9 +993,6 @@ void A2lCreateMeasurement_(const char *instance_name, const char *name, tA2lType
         fprintf(gA2lFile, " READ_WRITE");
     }
 
-#ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
-    fprintf(gA2lFile, " SYMBOL_LINK \"%s\" %u", symbol_name, 0);
-#endif
     A2lCreateMeasurement_IF_DATA();
     fprintf(gA2lFile, " /end MEASUREMENT\n");
     gA2lMeasurements++;
@@ -1007,9 +1017,7 @@ void A2lCreateMeasurementArray_(const char *instance_name, const char *name, tA2
     fprintf(gA2lFile, "/begin CHARACTERISTIC %s \"%s\" VAL_BLK 0x%X %s 0 %s %s %s MATRIX_DIM %u %u", symbol_name, comment, addr, A2lGetRecordLayoutName_(type), conv,
             getTypeMinString(type), getTypeMaxString(type), x_dim, y_dim);
     printAddrExt(ext);
-#ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
-    fprintf(gA2lFile, " SYMBOL_LINK \"%s\" %u", symbol_name, 0);
-#endif
+
     A2lCreateMeasurement_IF_DATA();
     fprintf(gA2lFile, " /end CHARACTERISTIC\n");
     gA2lMeasurements++;
@@ -1028,9 +1036,6 @@ void A2lCreateParameter_(const char *name, tA2lTypeId type, uint8_t ext, uint32_
     fprintf(gA2lFile, "/begin CHARACTERISTIC %s \"%s\" VALUE 0x%X %s 0 NO_COMPU_METHOD %g %g", name, comment, addr, A2lGetRecordLayoutName_(type), min, max);
     printPhysUnit(gA2lFile, unit);
     printAddrExt(ext);
-#ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
-    fprintf(gA2lFile, " SYMBOL_LINK \"%s\" %u", name, 0);
-#endif
     A2lCreateMeasurement_IF_DATA();
     fprintf(gA2lFile, " /end CHARACTERISTIC\n");
     gA2lParameters++;
@@ -1050,11 +1055,7 @@ void A2lCreateMap_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr
             name, comment, addr, A2lGetRecordLayoutName_(type), min, max, xdim, xdim - 1, xdim, ydim, ydim - 1, ydim);
     printPhysUnit(gA2lFile, unit);
     printAddrExt(ext);
-#ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
-    fprintf(gA2lFile, " SYMBOL_LINK \"%s\" %u", name, 0);
-#endif
     A2lCreateMeasurement_IF_DATA();
-
     fprintf(gA2lFile, " /end CHARACTERISTIC\n");
     gA2lParameters++;
 }
@@ -1072,9 +1073,6 @@ void A2lCreateCurve_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t ad
             name, comment, addr, A2lGetRecordLayoutName_(type), min, max, xdim, xdim - 1, xdim);
     printPhysUnit(gA2lFile, unit);
     printAddrExt(ext);
-#ifdef OPTION_ENABLE_A2L_SYMBOL_LINKS
-    fprintf(gA2lFile, " SYMBOL_LINK \"%s\" %u", name, 0);
-#endif
     A2lCreateMeasurement_IF_DATA();
 
     fprintf(gA2lFile, " /end CHARACTERISTIC\n");

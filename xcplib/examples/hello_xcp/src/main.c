@@ -27,20 +27,18 @@
 // Demo calibration parameters
 
 typedef struct params {
-    uint16_t counter_max; // Maximum value for the counters
-    uint32_t delay_us;    // Delay in microseconds for the main loop
-    int8_t test_byte1;
-    int8_t test_byte2;
+    uint16_t counter_max; // Maximum value for the counter
+    uint32_t delay_us;    // Sleep timein microseconds for the main loop
 } params_t;
 
 // Default values
-const params_t params = {.counter_max = 1000, .delay_us = 1000, .test_byte1 = -1, .test_byte2 = 1};
+const params_t params = {.counter_max = 1000, .delay_us = 1000};
 
 //-----------------------------------------------------------------------------------------------------
 // Demo measurement values
 
 static uint8_t temperature = 50; // In Celcius, 0 is -55 °C, 255 is +200 °C
-static float speed = 0.0f;       // Speed in Kmh
+static float speed = 0.0f;       // Speed in km/h
 
 //-----------------------------------------------------------------------------------------------------
 
@@ -85,17 +83,17 @@ int main(void) {
     // Create a measurement event named "mainloop"
     DaqCreateEvent(mainloop);
 
-    // Register a global measurement variables
-    // Set absolute addressing mode with event mainloop
+    // Register global measurement variables (temperature, speed)
+    // Set absolute addressing mode with default event mainloop
     A2lSetAbsoluteAddrMode(mainloop);
     // Temperature conversion factor 0, offset -50 results in 0°C at 50
     const char *conv = A2lCreateLinearConversion(Temperature, "Temperature in °C from unsigned byte", "°C", 1.0, -50.0);
     A2lCreatePhysMeasurement(temperature, "Motor temperature in °C", conv, -50.0, 200.0);
-    A2lCreatePhysMeasurement(speed, "Speed in Kmh", "Kmh", 0, 250.0);
+    A2lCreatePhysMeasurement(speed, "Speed in km/h", "km/h", 0, 250.0);
 
     // Register a local measurement variable (loop_counter)
     uint16_t loop_counter = 0;
-    A2lSetStackAddrMode(mainloop); // Set stack relative addressing mode with event mainloop
+    A2lSetStackAddrMode(mainloop); // Set stack relative addressing mode with fixed event mainloop
     A2lCreateMeasurement(loop_counter, "Loop counter, local measurement variable on stack", "");
 
     A2lFinalize(); // Optional: Finalize the A2L file generation early, otherwise it would be written when the client tool connects

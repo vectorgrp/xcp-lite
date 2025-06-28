@@ -17,7 +17,10 @@
         "locale": "c",
         "tuple": "c",
         "variant": "c",
-        "ios": "c"
+        "ios": "c",
+        "limits": "c",
+        "ratio": "c",
+        "algorithm": "c"
     },
     "cSpell.words": [
         "ampl",
