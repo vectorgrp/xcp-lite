@@ -67,29 +67,20 @@ extern MUTEX gA2lMutex;
 // Set mode (address generation and event) for all following A2lCreateXxxx macros and functions
 // Not thread safe !!!!!
 
-void A2lSetAbsAddrMode(void);                                                // Absolute addressing mode
-void A2lSetSegAddrMode(tXcpCalSegIndex calseg_index, const uint8_t *calseg); // Calibration segment relative addressing mode
-void A2lSetRelAddrMode(const tXcpEventId *event);                            // Relative addressing mode, event is used as base address, max offset is signed int 32 Bit
-void A2lSetDynAddrMode(const tXcpEventId *event); // Dynamic addressing mode, event is used as base address with write access, offset limited to signed int 16 Bit
-void A2lRstAddrMode(void);
-
+// Set addressing mode by event name or calibration segment index
+void A2lSetSegmentAddrMode_(tXcpCalSegIndex calseg_index, const uint8_t *calseg_instance); // Calibration segment relative addressing mode
 void A2lSetRelativeAddrMode_(const char *event_name, const uint8_t *stack_frame_pointer);
 void A2lSetAbsoluteAddrMode_(const char *event_name);
-
-void A2lSetFixedEvent(tXcpEventId event);
-void A2lRstFixedEvent(void);
-void A2lSetDefaultEvent(tXcpEventId event);
-void A2lRstDefaultEvent(void);
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // Stack frame relative addressing mode
 // Can be used without runtime A2L file generation
 
 #ifndef get_stack_frame_pointer
-#define get_stack_frame_pointer() (uint8_t *)__builtin_frame_address(0)
+#define get_stack_frame_pointer() (const uint8_t *)__builtin_frame_address(0)
 #endif
 
-// static inline uint8_t *get_stack_frame_pointer_(void) {
+// static inline const uint8_t *get_stack_frame_pointer_(void) {
 //  #if defined(__x86_64__) || defined(_M_X64)
 //      void *fp;
 //      __asm__ volatile("movq %%rbp, %0" : "=r"(fp));
@@ -111,6 +102,10 @@ void A2lRstDefaultEvent(void);
 //  #endif
 //}
 
+// Set segment relative address mode
+// Error if the segment index does not exist
+#define A2lSetSegmentAddrMode(seg_index, seg_instance) A2lSetSegmentAddrMode_(seg_index, (const uint8_t *)&seg_instance);
+
 // Set addressing mode to relative for a given event 'name' and base address
 // Error if the event does not exist
 // Use in combination with DaqEvent(name)
@@ -121,6 +116,11 @@ void A2lRstDefaultEvent(void);
             A2lSetRelativeAddrMode_(#name, (const uint8_t *)base_addr);                                                                                                            \
     }
 
+// Set addressing mode to stack and event 'name'
+// Error if the event does not exist
+// Use in combination with DaqEvent(name)
+#define A2lSetStackAddrMode(name) A2lSetRelativeAddrMode(name, get_stack_frame_pointer());
+
 // Set addressing mode to absolute and event 'name'
 // Error if the event does not exist
 // Use in combination with DaqEvent(name)
@@ -129,16 +129,6 @@ void A2lRstDefaultEvent(void);
         static atomic_bool a2l_mode_abs_##name##_ = false;                                                                                                                         \
         if (A2lOnce_(&a2l_mode_abs_##name##_))                                                                                                                                     \
             A2lSetAbsoluteAddrMode_(#name);                                                                                                                                        \
-    }
-
-// Set addressing mode to stack and event 'name'
-// Error if the event does not exist
-// Use in combination with DaqEvent(name)
-#define A2lSetStackAddrMode(name)                                                                                                                                                  \
-    {                                                                                                                                                                              \
-        static atomic_bool a2l_mode_stack_##name##_ = false;                                                                                                                       \
-        if (A2lOnce_(&a2l_mode_stack_##name##_))                                                                                                                                   \
-            A2lSetRelativeAddrMode_(#name, get_stack_frame_pointer());                                                                                                             \
     }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -184,11 +174,11 @@ void A2lRstDefaultEvent(void);
     }
 
 // Thread safe
-// Create thread local measurement instance, combine with XcpCreateEventInstance() and XcpEventDyn()
+// Create thread local measurement instance, combine with XcpCreateEventInstance() and DaqEventInstance()
 #define A2lCreateMeasurementInstance(instance_name, event, name, comment)                                                                                                          \
     {                                                                                                                                                                              \
         mutexLock(&gA2lMutex);                                                                                                                                                     \
-        A2lSetDynAddrMode(&event);                                                                                                                                                 \
+        A2lSetDynAddrMode_(event, (const uint8_t *)&event);                                                                                                                        \
         A2lCreateMeasurement_(instance_name, #name, A2lGetTypeId(name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&(name)), 1.0, 0.0, NULL, comment);                               \
         mutexUnlock(&gA2lMutex);                                                                                                                                                   \
     }
@@ -364,15 +354,20 @@ void A2lRstDefaultEvent(void);
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // Create groups
 
+void A2lBeginGroup(const char *name, const char *comment, bool is_parameter_group);
+void A2lAddToGroup(const char *name);
+void A2lEndGroup(void);
+
 void A2lParameterGroup(const char *name, int count, ...);
 void A2lParameterGroupFromList(const char *name, const char *pNames[], int count);
+
 void A2lMeasurementGroup(const char *name, int count, ...);
 void A2lMeasurementGroupFromList(const char *name, char *names[], uint32_t count);
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 // Init A2L generation
-bool A2lInit(const char *a2l_filename, const char *a2l_projectname, const uint8_t *addr, uint16_t port, bool useTCP, bool finalize_on_connect);
+bool A2lInit(const char *a2l_filename, const char *a2l_projectname, const uint8_t *addr, uint16_t port, bool useTCP, bool finalize_on_connect, bool auto_groups);
 
 // Finish A2L generation
 bool A2lFinalize(void);
@@ -381,6 +376,11 @@ bool A2lFinalize(void);
 // Helper functions used in the for A2L generation macros
 
 bool A2lOnce_(atomic_bool *once);
+
+void A2lSetAbsAddrMode_(tXcpEventId default_event_id);
+void A2lSetDynAddrMode_(tXcpEventId event_id, const uint8_t *base);
+void A2lSetSegAddrMode_(tXcpCalSegIndex calseg_index, const uint8_t *calseg_instance_addr);
+void A2lSetRelAddrMode_(tXcpEventId event_id, const uint8_t *base);
 
 uint32_t A2lGetAddr_(const void *addr);
 uint8_t A2lGetAddrExt_(void);

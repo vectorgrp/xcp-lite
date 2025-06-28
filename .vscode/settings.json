@@ -16,7 +16,8 @@
         "istream": "c",
         "locale": "c",
         "tuple": "c",
-        "variant": "c"
+        "variant": "c",
+        "ios": "c"
     },
     "cSpell.words": [
         "ampl",

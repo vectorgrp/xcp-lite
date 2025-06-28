@@ -121,7 +121,7 @@ int main(void) {
 
     // Enable A2L generation and prepare the A2L file, finalize the A2L file on XCP connect
 #ifdef OPTION_ENABLE_A2L_GENERATOR
-    if (!A2lInit(OPTION_A2L_FILE_NAME, OPTION_A2L_PROJECT_NAME, addr, OPTION_SERVER_PORT, OPTION_USE_TCP, true)) {
+    if (!A2lInit(OPTION_A2L_FILE_NAME, OPTION_A2L_PROJECT_NAME, addr, OPTION_SERVER_PORT, OPTION_USE_TCP, true, true)) {
         return 1;
     }
 #else
@@ -134,10 +134,10 @@ int main(void) {
     // It provides safe (thread safe against XCP modifications), lock-free and consistent access to the calibration parameters
     // It supports XCP/ECU independant page switching, checksum calculation and reinitialization (copy reference page to working page)
     // Note that it can be used in only one ECU thread (in Rust terminology, it is Send, but not Sync)
-    calseg = XcpCreateCalSeg("params", (const uint8_t *)&params, sizeof(params));
+    tXcpCalSegIndex calseg = XcpCreateCalSeg("params", &params, sizeof(params));
 
     // Register individual calibration parameters in the calibration segment
-    A2lSetSegAddrMode(calseg, (uint8_t *)&params);
+    A2lSetSegmentAddrMode(calseg, params);
     A2lCreateParameter(params, counter_max, "Max counter value, wrap around", "", 0, 10000.0);
     A2lCreateParameter(params, ampl, "Amplitude", "Volt", 0, 100.0);
     A2lCreateParameter(params, period, "Period", "s", 0.1, 10.0);

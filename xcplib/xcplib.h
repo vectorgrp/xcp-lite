@@ -47,7 +47,7 @@ typedef uint16_t tXcpCalSegIndex;
 // Create a calibration segment
 // Thread safe
 // Returns the handle or XCP_UNDEFINED_CALSEG when out of memory
-tXcpCalSegIndex XcpCreateCalSeg(const char *name, const uint8_t *default_page, uint16_t size);
+tXcpCalSegIndex XcpCreateCalSeg(const char *name, const void *default_page, uint16_t size);
 
 // Lock a calibration segment and return a pointer to the ECU page
 uint8_t const *XcpLockCalSeg(tXcpCalSegIndex calseg);
@@ -84,11 +84,11 @@ tXcpEventId XcpFindEvent(const char *name, uint16_t *count);
 // Required option is XCP_ENABLE_DAQ_EVENT_LIST (must be set in xcp_cfg.h)
 
 #ifndef get_stack_frame_pointer
-#define get_stack_frame_pointer() (uint8_t *)__builtin_frame_address(0)
+#define get_stack_frame_pointer() (const uint8_t *)__builtin_frame_address(0)
 #endif
 
 // __builtin_frame_address is GCC/Clang compiler specific extension
-// static inline uint8_t *get_stack_frame_pointer_(void) {
+// static inline const uint8_t *get_stack_frame_pointer_(void) {
 //  #if defined(__x86_64__) || defined(_M_X64)
 //      void *fp;
 //      __asm__ volatile("movq %%rbp, %0" : "=r"(fp));

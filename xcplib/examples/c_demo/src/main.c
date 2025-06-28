@@ -18,10 +18,10 @@
 #define OPTION_A2L_FILE_NAME "C_Demo.a2l" // A2L file name
 #define OPTION_USE_TCP false              // TCP or UDP
 #define OPTION_SERVER_PORT 5555           // Port
-// #define OPTION_SERVER_ADDR {0, 0, 0, 0}   // Bind addr, 0.0.0.0 = ANY
+#define OPTION_SERVER_ADDR {0, 0, 0, 0}   // Bind addr, 0.0.0.0 = ANY
 // #define OPTION_SERVER_ADDR {127, 0, 0, 1} // Bind addr, 0.0.0.0 = ANY
-#define OPTION_SERVER_ADDR {172, 19, 13, 143} // 172.19.13.143
-#define OPTION_QUEUE_SIZE 1024 * 32           // Size of the measurement queue in bytes, must be a multiple of 8
+// #define OPTION_SERVER_ADDR {172, 19, 13, 143} // 172.19.13.143
+#define OPTION_QUEUE_SIZE 1024 * 32 // Size of the measurement queue in bytes, must be a multiple of 8
 #define OPTION_LOG_LEVEL 4
 
 //-----------------------------------------------------------------------------------------------------
@@ -32,8 +32,6 @@ typedef struct params {
     uint32_t delay_us;    // Delay in microseconds for the main loop
     int8_t test_byte1;
     int8_t test_byte2;
-    int8_t array[8];
-    int8_t matrix[8][8];
     int8_t curve[8];
     int8_t map[8][8];
 } params_t;
@@ -71,7 +69,7 @@ int main(void) {
 
     // Enable A2L generation and prepare the A2L file, finalize the A2L file on XCP connect
 #ifdef OPTION_ENABLE_A2L_GENERATOR
-    if (!A2lInit(OPTION_A2L_FILE_NAME, OPTION_A2L_PROJECT_NAME, addr, OPTION_SERVER_PORT, OPTION_USE_TCP, true)) {
+    if (!A2lInit(OPTION_A2L_FILE_NAME, OPTION_A2L_PROJECT_NAME, addr, OPTION_SERVER_PORT, OPTION_USE_TCP, true, true)) {
         return 1;
     }
 #else
@@ -84,7 +82,7 @@ int main(void) {
     // It provides safe (thread safe against XCP modifications), lock-free and consistent access to the calibration parameters
     // It supports XCP/ECU independant page switching, checksum calculation and reinitialization (copy reference page to working page)
     // Note that it can be used in only one ECU thread (in Rust terminology, it is Send, but not Sync)
-    uint16_t calseg = XcpCreateCalSeg("params", (const uint8_t *)&params, sizeof(params));
+    tXcpCalSegIndex calseg = XcpCreateCalSeg("Parameters", &params, sizeof(params));
 
     // Create a typedef struct for the calibration parameters
     A2lTypedefBegin(params_t, "Calibration parameters typedef");
@@ -92,17 +90,16 @@ int main(void) {
     A2lTypedefParameterComponent(test_byte2, params_t, "Test byte for calibration consistency test", "", -128, 127);
     A2lTypedefParameterComponent(counter_max, params_t, "", "", 0, 2000);
     A2lTypedefParameterComponent(delay_us, params_t, "Mainloop sleep time in us", "us", 0, 1000000);
-    A2lTypedefParameterArrayComponent(array, params_t, "Demo array", "", -128, 127);
-    A2lTypedefParameterMatrixComponent(matrix, params_t, "Demo matrix", "", -128, 127);
     A2lTypedefCurveComponent(curve, params_t, 8, "Demo curve", "", -128, 127);
     A2lTypedefMapComponent(map, params_t, 8, 8, "Demo map", "", -128, 127);
     A2lTypedefEnd();
 
+    A2lSetSegmentAddrMode(calseg, params);
+
     // Register the calibration parameter struct in the calibration segment
-    A2lSetSegAddrMode(calseg, (uint8_t *)&params);
     A2lCreateTypedefInstance(params, params_t, "Calibration parameters");
 
-    // Alternative: Without using a typedef, create the parameters directly
+    // Alternative: Without using a typedef, create the clibration parameters directly
     // A2lCreateParameter(params, counter_max, "maximum counter value", "", 0, 2000);
     // A2lCreateParameter(params, delay_us, "mainloop delay time in us", "us", 0, 1000000);
     // A2lCreateParameter(params, test_byte1, "", "", -128, 127);
@@ -147,8 +144,8 @@ int main(void) {
     A2lCreatePhysMeasurement(counter64s, "Measurement variable", 1.0, 0.0, "");
 
     // Multidimensional measurements on stack
-    float curve_f32[8] = {000, 100, 200, 300, 400, 500, 600, 700};
-    float map_f32[4][8] = {
+    float array_f32[8] = {000, 100, 200, 300, 400, 500, 600, 700};
+    float matrix_f32[4][8] = {
         {0, 100, 200, 300, 400, 500, 600, 700},
         {0, 200, 300, 400, 500, 600, 700, 800},
         {0, 300, 400, 500, 600, 700, 800, 900},
@@ -156,8 +153,8 @@ int main(void) {
 
     };
 
-    A2lCreateMeasurementArray(curve_f32, "array float[8]");
-    A2lCreateMeasurementMatrix(map_f32, "matrix float[4][8]");
+    A2lCreateMeasurementArray(array_f32, "array float[8]");
+    A2lCreateMeasurementMatrix(matrix_f32, "matrix float[4][8]");
 
     // Create a measurement typedef for the calibration parameter struct
     typedef params_t params_measurement_t;
@@ -224,14 +221,14 @@ int main(void) {
 
         if (counter16 == 0) {
             for (int i = 0; i < 8; i++) {
-                curve_f32[i] += i;
-                if (curve_f32[i] > 2000) {
-                    curve_f32[i] = 0;
+                array_f32[i] += i;
+                if (array_f32[i] > 2000) {
+                    array_f32[i] = 0;
                 }
                 for (int j = 0; j < 4; j++) {
-                    map_f32[j][i] += i + j;
-                    if (map_f32[j][i] > 2000) {
-                        map_f32[j][i] = 0;
+                    matrix_f32[j][i] += i + j;
+                    if (matrix_f32[j][i] > 2000) {
+                        matrix_f32[j][i] = 0;
                     }
                 }
             }

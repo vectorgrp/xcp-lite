@@ -512,11 +512,11 @@ tXcpCalSegList const *XcpGetCalSegList(void) {
 }
 
 // Get a pointer to a calibration segment struct
-// tXcpCalSeg const *XcpGetCalSeg(tXcpCalSegIndex calseg) {
-//     if (!isStarted() || calseg >= gXcp.CalSegList.count)
-//         return NULL;
-//     return &gXcp.CalSegList.calseg[calseg];
-// }
+tXcpCalSeg const *XcpGetCalSeg(tXcpCalSegIndex calseg) {
+    if (!isStarted() || calseg >= gXcp.CalSegList.count)
+        return NULL;
+    return &gXcp.CalSegList.calseg[calseg];
+}
 
 // Get the XCP/A2L address (address mode XCP_ADDR_MODE_SEG) of a calibration segment
 uint32_t XcpGetCalSegBaseAddress(tXcpCalSegIndex calseg) {
@@ -528,7 +528,7 @@ uint32_t XcpGetCalSegBaseAddress(tXcpCalSegIndex calseg) {
 // Create a calibration segment
 // Thread safe
 // Returns the handle (calibration segment index) or XCP_UNDEFINED_CALSEG when out of memory
-tXcpCalSegIndex XcpCreateCalSeg(const char *name, const uint8_t *default_page, uint16_t size) {
+tXcpCalSegIndex XcpCreateCalSeg(const char *name, const void *default_page, uint16_t size) {
 
     if (!isInitialized()) {
         DBG_PRINT_ERROR("XCP not initialized\n");
@@ -550,7 +550,7 @@ tXcpCalSegIndex XcpCreateCalSeg(const char *name, const uint8_t *default_page, u
     c->name[XCP_MAX_CALSEG_NAME] = 0;
 
     // Set the ecu default page (FLASH page)
-    c->default_page = default_page;
+    c->default_page = (uint8_t *)default_page;
 
     // Allocate the ecu working page (RAM page)
     c->xcp_page = malloc(size);

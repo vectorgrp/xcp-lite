@@ -189,13 +189,16 @@ typedef struct {
 // Get calibration segment  list
 tXcpCalSegList const *XcpGetCalSegList(void);
 
+// Get a pointer to the calibration segment struct
+tXcpCalSeg const *XcpGetCalSeg(tXcpCalSegIndex calseg);
+
 // Get the XCP/A2L address of a calibration segment
 uint32_t XcpGetCalSegBaseAddress(tXcpCalSegIndex calseg);
 
 // Create a calibration segment
 // Thread safe
 // Returns the handle or XCP_UNDEFINED_CALSEG when out of memory
-tXcpCalSegIndex XcpCreateCalSeg(const char *name, const uint8_t *default_page, uint16_t size);
+tXcpCalSegIndex XcpCreateCalSeg(const char *name, const void *default_page, uint16_t size);
 
 // Lock a calibration segment and return a pointer to the ECU page
 uint8_t const *XcpLockCalSeg(tXcpCalSegIndex calseg);
