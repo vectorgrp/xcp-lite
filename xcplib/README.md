@@ -57,6 +57,7 @@ c_demo:
   Measurement variables on stack and in global memory
   Consistent calibration changes and measurement.  
   Calibration page switching and EPK version check.  
+  Note: A2lTypedefCurveComponentWithSharedAxis uses THIS. references to shared axis in typedef structures. This requires CANape24 or higher
   
 struct_demo
   Shows how to define types for nested structs, array struct components and arrays of structs

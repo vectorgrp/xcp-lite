@@ -42,7 +42,14 @@ const params_t params = {
     .delay_us = 1000,
     .test_byte1 = -1,
     .test_byte2 = 1,
-    .map = {{0}},
+    .map = {{0, 0, 0, 0, 0, 0, 0, 0},
+            {0, 1, 1, 1, 1, 1, 0, 0},
+            {0, 1, 3, 3, 3, 1, 0, 0},
+            {0, 1, 3, 3, 3, 1, 0, 0},
+            {0, 1, 3, 3, 3, 1, 0, 0},
+            {0, 1, 1, 1, 1, 1, 0, 0},
+            {0, 0, 0, 0, 0, 0, 0, 0},
+            {0, 0, 0, 0, 0, 0, 0, 0}},
     .curve = {0, 1, 2, 3, 4, 3, 2, 1},
     .curve_axis = {0, 1, 2, 4, 6, 9, 13, 15},
 };
@@ -108,7 +115,7 @@ int main(void) {
     A2lSetSegmentAddrMode(calseg, params);
     A2lCreateTypedefInstance(params, params_t, "Calibration parameters");
 
-    // Alternative: Without using a typedef, create the clibration parameters directly
+    // Alternative: Without using a typedef, create the calibration parameters directly
     // A2lCreateParameter(params, counter_max, "maximum counter value", "", 0, 2000);
     // A2lCreateParameter(params, delay_us, "mainloop delay time in us", "us", 0, 1000000);
     // A2lCreateParameter(params, test_byte1, "", "", -128, 127);

@@ -650,7 +650,8 @@ static void A2lCreateMeasurement_IF_DATA(void) {
             if (gA2lFixedEvent != XCP_UNDEFINED_EVENT_ID) {
                 fprintf(gA2lFile, " /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT 0x%X /end DAQ_EVENT /end IF_DATA", gA2lFixedEvent);
             } else if (gA2lDefaultEvent != XCP_UNDEFINED_EVENT_ID) {
-                fprintf(gA2lFile, " /begin IF_DATA XCP /begin DAQ_EVENT VARIABLE DEFAULT_EVENT_LIST EVENT 0x%X /end DAQ_EVENT /end IF_DATA", gA2lDefaultEvent);
+                fprintf(gA2lFile, " /begin IF_DATA XCP /begin DAQ_EVENT VARIABLE /begin DEFAULT_EVENT_LIST EVENT 0x%X /end DEFAULT_EVENT_LIST /end DAQ_EVENT /end IF_DATA",
+                        gA2lDefaultEvent);
             }
         }
     }
