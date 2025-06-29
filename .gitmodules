@@ -1,0 +1,3 @@
+[submodule "xcplib"]
+	path = xcplib
+	url = https://github.com/vectorgrp/XCPlite
