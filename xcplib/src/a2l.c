@@ -509,16 +509,29 @@ static bool A2lOpen(const char *filename, const char *projectname) {
     fprintf(gA2lGroupsFile, "\n/* Groups */\n");           // groups temporary file
     fprintf(gA2lConversionsFile, "\n/* Conversions */\n"); // conversions temporary file
 
-    // Create standard record layouts for elementary types
-    // In the tmp.a2l file - will be merges later as there might be more typedefs during the generation process
+    // Create predefined conversions
+    // In the conversions.a2l file - will be merges later as there might be more conversions during the generation process
+    fprintf(gA2lConversionsFile, "/begin COMPU_METHOD conv.BOOL \"\" TAB_VERB \"%%.0\" \"\" COMPU_TAB_REF conv.BOOL.table /end COMPU_METHOD\n");
+    fprintf(gA2lConversionsFile, "/begin COMPU_VTAB conv.BOOL.table \"\" TAB_VERB 2 0 \"false\" 1 \"true\" /end COMPU_VTAB\n");
+    fprintf(gA2lConversionsFile, "\n");
+
+    // Create predefined standard record layouts and typedefs for elementary types
+    // In the typedefs.a2l file - will be merges later as there might be more typedefs during the generation process
     for (int i = -10; i <= +10; i++) {
         tA2lTypeId id = (tA2lTypeId)i;
         const char *at = A2lGetA2lTypeName(id);
         if (at != NULL) {
             const char *t = A2lGetRecordLayoutName_(id);
+            // RECORD_LAYOUTs for standard types U8,I8,...,F64 (Position 1 increasing index)
+            // Example: /begin RECORD_LAYOUT U64 FNC_VALUES 1 A_UINT64 ROW_DIR DIRECT /end RECORD_LAYOUT
             fprintf(gA2lTypedefsFile, "/begin RECORD_LAYOUT %s FNC_VALUES 1 %s ROW_DIR DIRECT /end RECORD_LAYOUT\n", t, at);
+            // RECORD_LAYOUTs for axis points with standard types A_U8,A_I8,... (Positionn 1 increasing index)
+            // Example: /begin RECORD_LAYOUT A_F32 AXIS_PTS_X 1 FLOAT32_IEEE INDEX_INCR DIRECT /end RECORD_LAYOUT
+            fprintf(gA2lTypedefsFile, "/begin RECORD_LAYOUT A_%s AXIS_PTS_X 1 %s INDEX_INCR DIRECT /end RECORD_LAYOUT\n", t, at);
+            // Example: /begin TYPEDEF_MEASUREMENT M_F64 "" FLOAT64_IEEE NO_COMPU_METHOD 0 0 -1e12 1e12 /end TYPEDEF_MEASUREMENT
             fprintf(gA2lTypedefsFile, "/begin TYPEDEF_MEASUREMENT M_%s \"\" %s NO_COMPU_METHOD 0 0 %s %s /end TYPEDEF_MEASUREMENT\n", t, at, getTypeMinString(id),
                     getTypeMaxString(id));
+            // Example: /begin TYPEDEF_CHARACTERISTIC C_U8 "" VALUE U8 0 NO_COMPU_METHOD 0 255 /end TYPEDEF_CHARACTERISTIC
             fprintf(gA2lTypedefsFile, "/begin TYPEDEF_CHARACTERISTIC C_%s \"\" VALUE %s 0 NO_COMPU_METHOD %s %s /end TYPEDEF_CHARACTERISTIC\n", t, t, getTypeMinString(id),
                     getTypeMaxString(id));
         }
@@ -889,7 +902,7 @@ void A2lTypedefParameterComponent_(const char *name, const char *type_name, uint
 
     // TYPEDEF_AXIS
     if (y_dim == 0 && x_dim > 1) {
-        fprintf(gA2lTypedefsFile, "/begin TYPEDEF_AXIS A_%s \"%s\" NO_INPUT_QUANTITY %s 0 NO_COMPU_METHOD %u %g %g", name, comment, type_name, x_dim, min, max);
+        fprintf(gA2lTypedefsFile, "/begin TYPEDEF_AXIS A_%s \"%s\" NO_INPUT_QUANTITY A_%s 0 NO_COMPU_METHOD %u %g %g", name, comment, type_name, x_dim, min, max);
         printPhysUnit(gA2lTypedefsFile, unit);
         fprintf(gA2lTypedefsFile, " /end TYPEDEF_AXIS\n");
         fprintf(gA2lFile, "  /begin STRUCTURE_COMPONENT %s A_%s 0x%X /end STRUCTURE_COMPONENT\n", name, name, offset);
