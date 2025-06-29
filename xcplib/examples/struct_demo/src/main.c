@@ -7,10 +7,9 @@
 #include <stdlib.h>  // for free, malloc
 #include <string.h>  // for sprintf
 
-#include "a2l.h"          // for A2l generation
-#include "platform.h"     // for sleepMs
-#include "xcpEthServer.h" // for XcpEthServerInit, XcpEthServerShutdown, XcpEthServerStatus
-#include "xcpLite.h"      // for XcpInit, XcpEventXxx, XcpCreateEvent, XcpCreateCalSeg, DaqXxxx, ...
+#include "a2l.h"      // for xcplib A2l generation
+#include "platform.h" // for sleepMs
+#include "xcplib.h"   // for xcplib application programming interface
 
 //-----------------------------------------------------------------------------------------------------
 
@@ -78,7 +77,7 @@ int main(void) {
 
     // Enable A2L generation and prepare the A2L file, finalize the A2L file on XCP connect
 #ifdef OPTION_ENABLE_A2L_GENERATOR
-    if (!A2lInit(OPTION_A2L_FILE_NAME, OPTION_A2L_PROJECT_NAME, addr, OPTION_SERVER_PORT, OPTION_USE_TCP, true)) {
+    if (!A2lInit(OPTION_A2L_FILE_NAME, OPTION_A2L_PROJECT_NAME, addr, OPTION_SERVER_PORT, OPTION_USE_TCP, true, true)) {
         return 1;
     }
 #else
@@ -91,11 +90,11 @@ int main(void) {
     // It provides safe (thread safe against XCP modifications), lock-free and consistent access to the calibration parameters
     // It supports XCP/ECU independant page switching, checksum calculation and reinitialization (copy reference page to working page)
     // Note that it can be used in only one ECU thread (in Rust terminology, it is Send, but not Sync)
-    uint16_t calseg = XcpCreateCalSeg("params", (const uint8_t *)&params, sizeof(params));
+    tXcpCalSegIndex calseg = XcpCreateCalSeg("Parameters", &params, sizeof(params));
 
     // Register individual calibration parameters in the calibration segment
-    A2lSetSegAddrMode(calseg, (uint8_t *)&params);
-    A2lCreateParameterWithLimits(params, delay_us, "mainloop delay time in us", "us", 0, 1000000);
+    A2lSetSegmentAddrMode(calseg, params);
+    A2lCreateParameter(params, delay_us, "mainloop delay time in us", "us", 0, 1000000);
 
     // Create a A2L typedef for struct2_t
     A2lTypedefBegin(struct2_t, "A2L typedef for struct2_t");
@@ -138,14 +137,14 @@ int main(void) {
 
     // Stack
     A2lSetStackAddrMode(event); // stack relative addressing mode
-    A2lCreatePhysMeasurement(local_counter, "Stack measurement variable", 1.0, 0.0, "");
+    A2lCreateMeasurement(local_counter, "Stack measurement variable", "");
     A2lCreateTypedefInstance(local_struct2, struct2_t, "Instance of test_struct2_t");
     A2lCreateTypedefInstance(local_struct1, struct1_t, "Instance of test_struct1_t");
     A2lCreateTypedefArray(local_struct1_array, struct1_t, 8, "Array [10] of struct1_t");
 
     // static/global
     A2lSetAbsoluteAddrMode(event); // absolute addressing mode
-    A2lCreatePhysMeasurement(static_counter, "Global measurement variable ", 1.0, 0.0, "");
+    A2lCreateMeasurement(static_counter, "Global measurement variable ", "");
     A2lCreateTypedefInstance(static_struct2, struct2_t, "Instance of test_struct2_t");
     A2lCreateTypedefInstance(static_struct1, struct1_t, "Instance of test_struct1_t");
     A2lCreateTypedefArray(static_struct1_array, struct1_t, 8, "Array [10] of struct1_t");

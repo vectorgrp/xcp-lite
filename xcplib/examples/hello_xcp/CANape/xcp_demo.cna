@@ -10,8 +10,8 @@ PrgDate=29.04.2025
 Description=
 CreationTime=21:05
 CreationDate=07/07/2024 ; Month/Day/Year
-ModificationTime=14:06
-ModificationDate=06/21/2025 ; Month/Day/Year
+ModificationTime=19:36
+ModificationDate=06/28/2025 ; Month/Day/Year
 Protected=0
 CurrentWindowsACP=1252
 
@@ -176,14 +176,14 @@ SubConfigsCount=0
 Count=0
 
 [MEASUREMENT_LIST]
-Count=2
+Count=3
 OfflineFileName=xcp_demo.mf4
 OfflineFileCount=1
 MeaCfgLabellistName=
 
 [MEASUREMENT_OBJECT_1]
 Module=xcp_demo
-Name=counter
+Name=loop_counter
 Disabled=0
 Mode=2147483648
 Rate=0
@@ -197,67 +197,6 @@ HasManagedDisplay=0
 DisplayCount=1
 
 [MEASUREMENT_OBJECT_1_DISPLAY_1]
-Window=3
-Index=1
-Color=65535
-ApplyColorToBackground=0
-ColorFunction=0
-ColorFunctionScope=1
-LineTyp=2
-YMinHome=0
-YMaxHome=1000
-YMin=0
-YMax=1000
-XOffsetNS=0
-XOffset=0
-ValueFormat=3
-BitMask=1
-ShowYAxis=1
-Width=10
-LineStyle=1
-MarkerType=1
-SRMainValue=0
-InvalidValueDrawMode=3
-LineWidth=1
-Precision=-2
-Digits=6
-Enabled=1
-StoredFocused=1
-SublMask=1
-MeaSublMask=3
-LockScaling=0
-RightAxis=0
-MapMode=2
-OverlayGridColor=0
-ShadingMode=3
-EditOffset=1
-EditFactor=2
-WAxisLabel=
-XAxisLabel=
-YAxisLabel=
-AxisCaption=
-Row=0
-Col=0
-YAxis_ID=0
-AxisTemplate=
-GUID=DISPLAY_422c2b7e-3558-4bd1-a1a8-b614459bbf7e
-
-[MEASUREMENT_OBJECT_2]
-Module=xcp_demo
-Name=counter_local
-Disabled=0
-Mode=2147483648
-Rate=0
-ModeIsDefault=1
-Row=0
-Column=0
-MeaReferenced=1
-ArchivBy_1=Recorder1
-IsFallback=0
-HasManagedDisplay=0
-DisplayCount=1
-
-[MEASUREMENT_OBJECT_2_DISPLAY_1]
 Window=3
 Index=0
 Color=65280
@@ -301,7 +240,129 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_d86c2e84-0d7f-41e1-bcd9-8b4d84b056c0
+GUID=DISPLAY_7f547459-ae45-4f9d-b911-c974ac78ffa2
+
+[MEASUREMENT_OBJECT_2]
+Module=xcp_demo
+Name=speed
+Disabled=0
+Mode=2147483648
+Rate=0
+ModeIsDefault=1
+Row=0
+Column=0
+MeaReferenced=1
+ArchivBy_1=Recorder1
+IsFallback=0
+HasManagedDisplay=0
+DisplayCount=1
+
+[MEASUREMENT_OBJECT_2_DISPLAY_1]
+Window=3
+Index=2
+Color=255
+ApplyColorToBackground=0
+ColorFunction=0
+ColorFunctionScope=1
+LineTyp=2
+YMinHome=0
+YMaxHome=250
+YMin=0
+YMax=250
+XOffsetNS=0
+XOffset=0
+ValueFormat=3
+BitMask=1
+ShowYAxis=1
+Width=10
+LineStyle=1
+MarkerType=1
+SRMainValue=0
+InvalidValueDrawMode=3
+LineWidth=1
+Precision=-2
+Digits=6
+Enabled=1
+StoredFocused=1
+SublMask=1
+MeaSublMask=3
+LockScaling=0
+RightAxis=0
+MapMode=2
+OverlayGridColor=0
+ShadingMode=3
+EditOffset=1
+EditFactor=2
+WAxisLabel=
+XAxisLabel=
+YAxisLabel=
+AxisCaption=
+Row=0
+Col=0
+YAxis_ID=0
+AxisTemplate=
+GUID=DISPLAY_736d4f73-7414-49b0-906a-5af6cba84d9e
+
+[MEASUREMENT_OBJECT_3]
+Module=xcp_demo
+Name=temperature
+Disabled=0
+Mode=2147483648
+Rate=0
+ModeIsDefault=1
+Row=0
+Column=0
+MeaReferenced=1
+ArchivBy_1=Recorder1
+IsFallback=0
+HasManagedDisplay=0
+DisplayCount=1
+
+[MEASUREMENT_OBJECT_3_DISPLAY_1]
+Window=3
+Index=1
+Color=65535
+ApplyColorToBackground=0
+ColorFunction=0
+ColorFunctionScope=1
+LineTyp=2
+YMinHome=-50
+YMaxHome=200
+YMin=-50
+YMax=200
+XOffsetNS=0
+XOffset=0
+ValueFormat=3
+BitMask=255
+ShowYAxis=1
+Width=10
+LineStyle=1
+MarkerType=1
+SRMainValue=0
+InvalidValueDrawMode=3
+LineWidth=1
+Precision=-2
+Digits=6
+Enabled=1
+StoredFocused=0
+SublMask=1
+MeaSublMask=3
+LockScaling=0
+RightAxis=0
+MapMode=2
+OverlayGridColor=0
+ShadingMode=3
+EditOffset=1
+EditFactor=2
+WAxisLabel=
+XAxisLabel=
+YAxisLabel=
+AxisCaption=
+Row=0
+Col=0
+YAxis_ID=0
+AxisTemplate=
+GUID=DISPLAY_d88d8100-c003-4992-8564-1e801c2ffade
 
 [MEASUREMENT_OPTIONS]
 RemainingRecordingTime=5000
@@ -389,7 +450,7 @@ WindowSymbols=1
 GlobalCursor=1
 GlobalCursorTime=12530
 GlobalCursorTimeNs=12530690041
-MainWindowPos=1, 0, 0, 2328, 1420 ;cmd, x, y, w, h
+MainWindowPos=1, 0, 0, 2461, 1421 ;cmd, x, y, w, h
 
 [PAR_COMMENT]
 1="Name",""
@@ -553,14 +614,16 @@ TreeExpand_10=Alle\Geräte\xcp_demo\xcp_demo_autodetect.a2l\hello_xcp\hello_xcp.m
 TreeExpand_11=Alle\Geräte\xcp_demo\xcp_demo_autodetect.a2l\Characteristics\hello_xcp
 TreeExpand_12=Alle\Geräte\xcp_demo\xcp_demo_autodetect.a2l\Characteristics\my_params
 TreeExpand_13=Alle\Messliste\Alle Signale
-TreeExpand_14=$Alle\Geräte
-TreeExpand_15=#Alle\Geräte\xcp_demo\xcp_demo_autodetect.a2l\counter_global
-TreeExpand_16=@Alle\Geräte\xcp_demo
-TreeExpand_17=$Alle\Geräte\xcp_demo\xcp_demo_autodetect.a2l
-TreeExpand_18=#Alle\Geräte\xcp_demo\xcp_demo_autodetect.a2l\counter
-TreeExpand_19=@Alle\Messliste
-TreeExpand_20=$Alle\Messliste\Alle Signale
-TreeExpand_21=#Alle\Messliste\Globale Variablen
+TreeExpand_14=Alle\Geräte\xcp_demo\xcp_demo_autodetect.a2l\Events
+TreeExpand_15=Alle\Geräte\xcp_demo\xcp_demo_autodetect.a2l\Events\mainloop
+TreeExpand_16=$Alle\Geräte
+TreeExpand_17=#Alle\Geräte\xcp_demo\xcp_demo_autodetect.a2l\counter_global
+TreeExpand_18=@Alle\Geräte\xcp_demo
+TreeExpand_19=$Alle\Geräte\xcp_demo\xcp_demo_autodetect.a2l
+TreeExpand_20=#Alle\Geräte\xcp_demo\xcp_demo_autodetect.a2l\Events\mainloop\loop_counter
+TreeExpand_21=@Alle\Messliste
+TreeExpand_22=$Alle\Messliste\Alle Signale
+TreeExpand_23=#Alle\Messliste\Globale Variablen
 TextSearchCaseSensitive=0
 TextSearchUseMode=1
 TextSearchSearchFullText=1
@@ -640,7 +703,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_ce9af029-672d-4aaa-a3f8-d4a1cba4bb81
+GUID=DISPLAY_fd3e8e0e-a294-4483-baa4-bc5301d18aaf
 
 [WINDOW_1_OBJECT_2]
 Type=2
@@ -689,7 +752,7 @@ Row=0
 Col=0
 YAxis_ID=0
 AxisTemplate=
-GUID=DISPLAY_d1e15d3f-13af-4d65-83f1-c1b6bc9039a2
+GUID=DISPLAY_236390a3-536e-429d-96e5-adfbe44e48c4
 
 [WINDOW_2]
 ComponentCount=1
@@ -708,18 +771,18 @@ ShowSignalComments=1
 DisplayMask=1 ; pages 1
 
 [WINDOW_3]
-XLen=9361
+XLen=38921
 XMin=0
 XMinNs=0
-XMax=21918
-XMaxNs=21918303567
+XMax=31490
+XMaxNs=31490698925
 Grid=1
 Mark=1
 YValue=2
 ShowLegend=2
 ShowLegendHeader=1
-LegendPixWidth=342
-LegendPixWidth_dpi96=171
+LegendPixWidth=430
+LegendPixWidth_dpi96=215
 LegendPixHeight=196
 LegendPixHeight_dpi96=98
 LegendPos=2
@@ -728,13 +791,13 @@ Average=0
 ShowMinMax=1
 XYModeIndexP1=-1
 DisplayModeAuto=0
-XStart=17486
+XStart=0
 AbsoluteTimeMode=0
-YAxisWidth=118
-YAxisWidth_dpi96=59
+YAxisWidth=362
+YAxisWidth_dpi96=181
 RightYAxisWidth=0
 RightYAxisWidth_dpi96=0
-ObjectMode=0
+ObjectMode=1
 DisplayMode=1
 ShowSignalMode=0
 AxisScrollPos2=0
@@ -774,11 +837,13 @@ DisplayMask=1 ; pages 1
 
 [WINDOW_3_LEG_COLUMNS]
 ScreenDPIinSection=192
-COUNT=2
+COUNT=3
 COL_0=31, 246
 COL_0_dpi96=31, 123
-COL_1=1048578, 94
-COL_1_dpi96=1048578, 47
+COL_1=1048578, 104
+COL_1_dpi96=1048578, 52
+COL_2=16, 80
+COL_2_dpi96=16, 40
 
 [WINDOW_4]
 ShowTime=1

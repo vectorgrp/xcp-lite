@@ -18,7 +18,7 @@ fn main() {
     // Generate C code bindings for xcplib
     if is_posix {
         let bindings = bindgen::Builder::default()
-            .header("xcplib/wrapper.h")
+            .header("xcplib/xcplib.h")
             //
             //.clang_args(&["-target", "x86_64-pc-windows-msvc"])
             .clang_arg("-Ixcplib/src")
@@ -29,9 +29,8 @@ fn main() {
             // Protocol layer
             .allowlist_function("XcpInit")
             .allowlist_function("XcpDisconnect")
-            // Transport layer
-            .allowlist_function("XcpEthTlGetInfo")
             // Server
+            .allowlist_function("XcpEthServerGetInfo")
             .allowlist_function("XcpEthServerInit")
             .allowlist_function("XcpEthServerShutdown")
             .allowlist_function("XcpEthServerStatus")
@@ -64,6 +63,7 @@ fn main() {
         .file("xcplib/src/xcpEthTl.c")
         .file("xcplib/src/xcpEthServer.c");
     if is_posix {
+        //builder.define("_POSIX_C_SOURCE", "200112L");
         builder.flag("-std=c11");
         if is_release {
             builder.flag("-O2");
@@ -74,8 +74,7 @@ fn main() {
     builder.compile("xcplib");
 
     // Tell cargo to invalidate the built crate whenever any of these files changed.
-    println!("cargo:rerun-if-changed=xcplib/c_test.c");
-    println!("cargo:rerun-if-changed=xcplib/wrapper.h");
+    println!("cargo:rerun-if-changed=xcplib/xcplib.h");
     println!("cargo:rerun-if-changed=xcplib/src/main_cfg.h");
     println!("cargo:rerun-if-changed=xcplib/src/xcptl_cfg.h");
     println!("cargo:rerun-if-changed=xcplib/src/xcp_cfg.h");

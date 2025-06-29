@@ -7,10 +7,9 @@
 #include <stdio.h>   // for printf
 #include <string.h>  // for sprintf
 
-#include "a2l.h"          // for A2l generation
-#include "platform.h"     // for sleepMs, clockGet
-#include "xcpEthServer.h" // for XcpEthServerInit, XcpEthServerShutdown, XcpEthServerStatus
-#include "xcpLite.h"      // for XcpInit, XcpEventXxx, XcpCreateEvent, XcpCreateCalSeg, DaqXxxx, ...
+#include "a2l.h"      // for xcplib A2l generation
+#include "platform.h" // for sleepMs
+#include "xcplib.h"   // for xcplib application programming interface
 
 #ifdef _WIN
 #define M_PI 3.14159265358979323846
@@ -56,7 +55,7 @@ void *task(void *p)
 
     bool run = true;
     uint32_t delay_us = 1000;
-    uint64_t start_time = clockGet(); // Get the start time in clock ticks
+    uint64_t start_time = ApplXcpGetClock64(); // Get the start time in clock ticks
 
     uint16_t counter = 0; // Local counter variable for measurement
     double channel = 0;
@@ -67,8 +66,8 @@ void *task(void *p)
     char task_name[32];
     sprintf(task_name, "task_%u", task_id);
 
-    A2lCreateMeasurementInstance(task_name, event, counter, "task loop counter");
-    A2lCreateMeasurementInstance(task_name, event, channel, "task sine signal");
+    A2lCreateMeasurementInstance(task_name, event, counter, "task loop counter", "");
+    A2lCreateMeasurementInstance(task_name, event, channel, "task sine signal", "");
 
     printf("Start task %u\n", task_id);
 
@@ -82,7 +81,7 @@ void *task(void *p)
                 counter = 0;
             }
 
-            channel = (task_id * 10) + params->ampl * sin(M_2PI / params->period * ((double)(clockGet() - start_time) / CLOCK_TICKS_PER_S));
+            channel = (task_id * 10) + params->ampl * sin(M_2PI / params->period * ((double)(ApplXcpGetClock64() - start_time) / CLOCK_TICKS_PER_S));
 
             // Sleep time
             delay_us = params->delay_us;
@@ -120,9 +119,9 @@ int main(void) {
         return 1;
     }
 
-    // Enable A2L generation and prepare the A2L file, finalize the A2L file on XCP connect
+    // Enable A2L generation and prepare the A2L file, finalize the A2L file on XCP connect, no auto grouping
 #ifdef OPTION_ENABLE_A2L_GENERATOR
-    if (!A2lInit(OPTION_A2L_FILE_NAME, OPTION_A2L_PROJECT_NAME, addr, OPTION_SERVER_PORT, OPTION_USE_TCP, true)) {
+    if (!A2lInit(OPTION_A2L_FILE_NAME, OPTION_A2L_PROJECT_NAME, addr, OPTION_SERVER_PORT, OPTION_USE_TCP, true, false)) {
         return 1;
     }
 #else
@@ -135,20 +134,21 @@ int main(void) {
     // It provides safe (thread safe against XCP modifications), lock-free and consistent access to the calibration parameters
     // It supports XCP/ECU independant page switching, checksum calculation and reinitialization (copy reference page to working page)
     // Note that it can be used in only one ECU thread (in Rust terminology, it is Send, but not Sync)
-    calseg = XcpCreateCalSeg("params", (const uint8_t *)&params, sizeof(params));
+    calseg = XcpCreateCalSeg("Parameters", &params, sizeof(params));
 
     // Register individual calibration parameters in the calibration segment
-    A2lSetSegAddrMode(calseg, (uint8_t *)&params);
-    A2lCreateParameterWithLimits(params, counter_max, "Max counter value, wrap around", "", 0, 10000.0);
-    A2lCreateParameterWithLimits(params, ampl, "Amplitude", "Volt", 0, 100.0);
-    A2lCreateParameterWithLimits(params, period, "Period", "s", 0.1, 10.0);
-    A2lCreateParameterWithLimits(params, delay_us, "task delay time in us", "us", 0, 1000000);
-    A2lCreateParameterWithLimits(params, run, "stop task", "", 0, 1);
+    A2lSetSegmentAddrMode(calseg, params);
+    A2lCreateParameter(params, counter_max, "Max counter value, wrap around", "", 0, 10000.0);
+    A2lCreateParameter(params, ampl, "Amplitude", "Volt", 0, 100.0);
+    A2lCreateParameter(params, period, "Period", "s", 0.1, 10.0);
+    A2lCreateParameter(params, delay_us, "task delay time in us", "us", 0, 1000000);
+    A2lCreateParameter(params, run, "stop task", "", 0, 1);
+    A2lCreateParameterGroup("Parameters", 5, "params.counter_max", "params.ampl", "params.period", "params.delay_us", "params.run");
 
-    // Create multiple inszances of the same task
+    // Create multiple instances of the same task
     THREAD t[10];
     for (int i = 0; i < 10; i++) {
-        create_thread(&t[i], task); // create multiple inszances of the same task
+        create_thread(&t[i], task); // create multiple instances of the same task
     }
 
     sleepMs(1000);

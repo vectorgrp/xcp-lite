@@ -7,9 +7,8 @@
 #include <stdbool.h> // for bool
 #include <stdint.h>  // for uintxx_t
 
-#include "dbg_print.h" // for DBG_PRINTF3, DBG_PRINT4, DBG_PRINTF4, DBG...
+#include "../xcplib.h" // for tXcpEventId, tXcpCalSegIndex
 #include "platform.h"  // for atomic_bool
-#include "xcpLite.h"   // for tXcpEventId, tXcpCalSegIndex
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -54,9 +53,12 @@ static_assert(sizeof(long long) == 8, "sizeof(long long) must be 8 bytes for A2L
 const char *A2lGetA2lTypeName(tA2lTypeId type);
 const char *A2lGetA2lTypeName_M(tA2lTypeId type);
 const char *A2lGetA2lTypeName_C(tA2lTypeId type);
+const char *A2lGetRecordLayoutName_(tA2lTypeId type);
+
 #define A2lGetTypeName(type) A2lGetA2lTypeName(A2lGetTypeId(type))
 #define A2lGetTypeName_M(type) A2lGetA2lTypeName_M(A2lGetTypeId(type))
 #define A2lGetTypeName_C(type) A2lGetA2lTypeName_C(A2lGetTypeId(type))
+#define A2lGetRecordLayoutName(type) A2lGetRecordLayoutName_(A2lGetTypeId(type))
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 extern MUTEX gA2lMutex;
@@ -65,47 +67,44 @@ extern MUTEX gA2lMutex;
 // Set mode (address generation and event) for all following A2lCreateXxxx macros and functions
 // Not thread safe !!!!!
 
-void A2lSetAbsAddrMode(void);                                                // Absolute addressing mode
-void A2lSetSegAddrMode(tXcpCalSegIndex calseg_index, const uint8_t *calseg); // Calibration segment relative addressing mode
-void A2lSetRelAddrMode(const tXcpEventId *event);                            // Relative addressing mode, event is used as base address, max offset is signed int 32 Bit
-void A2lSetDynAddrMode(const tXcpEventId *event); // Dynamic addressing mode, event is used as base address with write access, offset limited to signed int 16 Bit
-void A2lRstAddrMode(void);
-
+// Set addressing mode by event name or calibration segment index
+void A2lSetSegmentAddrMode_(tXcpCalSegIndex calseg_index, const uint8_t *calseg_instance); // Calibration segment relative addressing mode
 void A2lSetRelativeAddrMode_(const char *event_name, const uint8_t *stack_frame_pointer);
 void A2lSetAbsoluteAddrMode_(const char *event_name);
-
-void A2lSetFixedEvent(tXcpEventId event);
-void A2lRstFixedEvent(void);
-void A2lSetDefaultEvent(tXcpEventId event);
-void A2lRstDefaultEvent(void);
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // Stack frame relative addressing mode
 // Can be used without runtime A2L file generation
 
-static inline uint8_t *get_stack_frame_pointer(void) {
-    // #if defined(__x86_64__) || defined(_M_X64)
-    //     void *fp;
-    //     __asm__ volatile("movq %%rbp, %0" : "=r"(fp));
-    //     return (uint8_t *)fp;
-    // #elif defined(__i386__) || defined(_M_IX86)
-    //     void *fp;
-    //     __asm__ volatile("movl %%ebp, %0" : "=r"(fp));
-    //     return (uint8_t *)fp;
-    // #elif defined(__aarch64__)
-    //     void *fp;
-    //     __asm__ volatile("mov %0, x29" : "=r"(fp));
-    //     return (uint8_t *)fp;
-    // #elif defined(__arm__)
-    //     void *fp;
-    //     __asm__ volatile("mov %0, fp" : "=r"(fp));
-    //     return (uint8_t *)fp;
-    // #else
-    // Fallback: take address of a local variable (not always the frame pointer!)
-    uint8_t *fp = (uint8_t *)__builtin_frame_address(0);
-    return fp;
-    // #endif
-}
+#ifndef get_stack_frame_pointer
+#define get_stack_frame_pointer() (const uint8_t *)__builtin_frame_address(0)
+#endif
+
+// static inline const uint8_t *get_stack_frame_pointer_(void) {
+//  #if defined(__x86_64__) || defined(_M_X64)
+//      void *fp;
+//      __asm__ volatile("movq %%rbp, %0" : "=r"(fp));
+//      return (uint8_t *)fp;
+//  #elif defined(__i386__) || defined(_M_IX86)
+//      void *fp;
+//      __asm__ volatile("movl %%ebp, %0" : "=r"(fp));
+//      return (uint8_t *)fp;
+//  #elif defined(__aarch64__)
+//      void *fp;
+//      __asm__ volatile("mov %0, x29" : "=r"(fp));
+//      return (uint8_t *)fp;
+//  #elif defined(__arm__)
+//      void *fp;
+//      __asm__ volatile("mov %0, fp" : "=r"(fp));
+//      return (uint8_t *)fp;
+//  #else
+//      return (uint8_t *)__builtin_frame_address(0);
+//  #endif
+//}
+
+// Set segment relative address mode
+// Error if the segment index does not exist
+#define A2lSetSegmentAddrMode(seg_index, seg_instance) A2lSetSegmentAddrMode_(seg_index, (const uint8_t *)&seg_instance);
 
 // Set addressing mode to relative for a given event 'name' and base address
 // Error if the event does not exist
@@ -117,6 +116,11 @@ static inline uint8_t *get_stack_frame_pointer(void) {
             A2lSetRelativeAddrMode_(#name, (const uint8_t *)base_addr);                                                                                                            \
     }
 
+// Set addressing mode to stack and event 'name'
+// Error if the event does not exist
+// Use in combination with DaqEvent(name)
+#define A2lSetStackAddrMode(name) A2lSetRelativeAddrMode(name, get_stack_frame_pointer());
+
 // Set addressing mode to absolute and event 'name'
 // Error if the event does not exist
 // Use in combination with DaqEvent(name)
@@ -127,104 +131,85 @@ static inline uint8_t *get_stack_frame_pointer(void) {
             A2lSetAbsoluteAddrMode_(#name);                                                                                                                                        \
     }
 
-// Set addressing mode to stack and event 'name'
-// Error if the event does not exist
-// Use in combination with DaqEvent(name)
-#define A2lSetStackAddrMode(name)                                                                                                                                                  \
-    {                                                                                                                                                                              \
-        static atomic_bool a2l_mode_stack_##name##_ = false;                                                                                                                       \
-        if (A2lOnce_(&a2l_mode_stack_##name##_))                                                                                                                                   \
-            A2lSetRelativeAddrMode_(#name, get_stack_frame_pointer());                                                                                                             \
-    }
-
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // Create parameters in a calibration segment or in global memory
 
-// Not thread safe, not once
-#define A2lCreateParameter(instance_name, name, comment, unit)                                                                                                                     \
+#define A2lCreateParameter(instance_name, name, comment, unit, min, max)                                                                                                           \
     {                                                                                                                                                                              \
         static atomic_bool a2l_par_##name##_ = false;                                                                                                                              \
         if (A2lOnce_(&a2l_par_##name##_))                                                                                                                                          \
-            A2lCreateParameter_(#instance_name "." #name, A2lGetTypeId(instance_name.name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&instance_name.name), comment, unit);         \
+            A2lCreateParameter_(#instance_name "." #name, A2lGetTypeId(instance_name.name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&instance_name.name), comment, unit, min,     \
+                                max);                                                                                                                                              \
     }
 
-// Not thread safe, not once
-#define A2lCreateParameterWithLimits(instance_name, name, comment, unit, min, max)                                                                                                 \
+#define A2lCreateCurve(instance_name, name, xdim, comment, unit, min, max)                                                                                                         \
     {                                                                                                                                                                              \
         static atomic_bool a2l_par_##name##_ = false;                                                                                                                              \
         if (A2lOnce_(&a2l_par_##name##_))                                                                                                                                          \
-            A2lCreateParameterWithLimits_(#instance_name "." #name, A2lGetTypeId(instance_name.name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&instance_name.name), comment,      \
-                                          unit, min, max);                                                                                                                         \
+            A2lCreateCurve_(#instance_name "." #name, A2lGetTypeId(instance_name.name[0]), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&instance_name.name[0]), xdim, comment, unit,  \
+                            min, max);                                                                                                                                             \
     }
 
-// Not thread safe, not once
-#define A2lCreateCurve(instance_name, name, xdim, comment, unit)                                                                                                                   \
-    {                                                                                                                                                                              \
-        static atomic_bool a2l_par_##name##_ = false;                                                                                                                              \
-        if (A2lOnce_(&a2l_par_##name##_))                                                                                                                                          \
-            A2lCreateCurve_(#instance_name "." #name, A2lGetTypeId(instance_name.name[0]), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&instance_name.name[0]), xdim, comment, unit); \
-    }
-
-// Not thread safe, not once
-#define A2lCreateMap(instance_name, name, xdim, ydim, comment, unit)                                                                                                               \
+#define A2lCreateMap(instance_name, name, xdim, ydim, comment, unit, min, max)                                                                                                     \
     {                                                                                                                                                                              \
         static atomic_bool a2l_par_##name##_ = false;                                                                                                                              \
         if (A2lOnce_(&a2l_par_##name##_))                                                                                                                                          \
             A2lCreateMap_(#instance_name "." #name, A2lGetTypeId(instance_name.name[0][0]), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&instance_name.name[0][0]), xdim, ydim,       \
-                          comment, unit);                                                                                                                                          \
+                          comment, unit, min, max);                                                                                                                                \
     }
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// Create conversions
+
+#define A2lCreateLinearConversion(name, comment, unit, factor, offset) A2lCreateLinearConversion_(#name, comment, unit, factor, offset);
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // Create measurements on stack or in global memory
 // Measurements are registered once, it is allowed to use the following macros in local scope which is run multiple times
 
-// Once
-#define A2lCreateMeasurement(name, comment)                                                                                                                                        \
+#define A2lCreateMeasurement(name, comment, unit)                                                                                                                                  \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
         if (A2lOnce_(&a2l_##name##_))                                                                                                                                              \
-            A2lCreateMeasurement_(NULL, #name, A2lGetTypeId(name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&(name)), 1.0, 0.0, NULL, comment);                                    \
+            A2lCreateMeasurement_(NULL, #name, A2lGetTypeId(name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&(name)), unit, 0.0, 0.0, comment);                                    \
+    }
+
+#define A2lCreatePhysMeasurement(name, comment, unit_or_conversion, min, max)                                                                                                      \
+    {                                                                                                                                                                              \
+        static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
+        if (A2lOnce_(&a2l_##name##_))                                                                                                                                              \
+            A2lCreateMeasurement_(NULL, #name, A2lGetTypeId(name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&(name)), unit_or_conversion, min, max, comment);                      \
     }
 
 // Thread safe
-// Create thread local measurement instance, combine with XcpCreateEventInstance() and XcpEventDyn()
-#define A2lCreateMeasurementInstance(instance_name, event, name, comment)                                                                                                          \
+// Create thread local measurement instance, combine with XcpCreateEventInstance() and DaqEventInstance()
+#define A2lCreateMeasurementInstance(instance_name, event, name, comment, unit_or_conversion)                                                                                      \
     {                                                                                                                                                                              \
         mutexLock(&gA2lMutex);                                                                                                                                                     \
-        A2lSetDynAddrMode(&event);                                                                                                                                                 \
-        A2lCreateMeasurement_(instance_name, #name, A2lGetTypeId(name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&(name)), 1.0, 0.0, NULL, comment);                               \
+        A2lSetDynAddrMode_(event, (const uint8_t *)&event);                                                                                                                        \
+        A2lCreateMeasurement_(instance_name, #name, A2lGetTypeId(name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&(name)), unit_or_conversion, 0.0, 0.0, comment);                 \
         mutexUnlock(&gA2lMutex);                                                                                                                                                   \
     }
 
-// Once
-#define A2lCreatePhysMeasurement(name, comment, factor, offset, unit)                                                                                                              \
+#define A2lCreateMeasurementArray(name, comment, unit_or_conversion)                                                                                                               \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
         if (A2lOnce_(&a2l_##name##_))                                                                                                                                              \
-            A2lCreateMeasurement_(NULL, #name, A2lGetTypeId(name), A2lGetAddrExt_(), A2lGetAddr_((uint8_t *)&name), factor, offset, unit, comment);                                \
+            A2lCreateMeasurementArray_(NULL, #name, A2lGetTypeId(name[0]), sizeof(name) / sizeof(name[0]), 1, A2lGetAddrExt_(), A2lGetAddr_(&name[0]), unit_or_conversion,         \
+                                       comment);                                                                                                                                   \
     }
 
-// Once
-#define A2lCreateMeasurementArray(name, comment)                                                                                                                                   \
-    {                                                                                                                                                                              \
-        static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
-        if (A2lOnce_(&a2l_##name##_))                                                                                                                                              \
-            A2lCreateMeasurementArray_(NULL, #name, A2lGetTypeId(name[0]), sizeof(name) / sizeof(name[0]), 1, A2lGetAddrExt_(), A2lGetAddr_(&name[0]), 1.0, 0.0, "", comment);     \
-    }
-
-// Once
-#define A2lCreateMeasurementMatrix(name, comment)                                                                                                                                  \
+#define A2lCreateMeasurementMatrix(name, comment, unit_or_conversion)                                                                                                              \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
         if (A2lOnce_(&a2l_##name##_))                                                                                                                                              \
             A2lCreateMeasurementArray_(NULL, #name, A2lGetTypeId(name[0][0]), sizeof(name[0]) / sizeof(name[0][0]), sizeof(name) / sizeof(name[0]), A2lGetAddrExt_(),              \
-                                       A2lGetAddr_(&name[0]), 1.0, 0.0, "", comment);                                                                                              \
+                                       A2lGetAddr_(&name[0]), unit_or_conversion, comment);                                                                                        \
     }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // Create typedefs and typedef components
 
-// Once
 #define A2lCreateTypedefInstance(name, typeName, comment)                                                                                                                          \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
@@ -233,7 +218,6 @@ static inline uint8_t *get_stack_frame_pointer(void) {
         }                                                                                                                                                                          \
     }
 
-// Once
 #define A2lCreateTypedefReference(name, typeName, comment)                                                                                                                         \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
@@ -242,7 +226,6 @@ static inline uint8_t *get_stack_frame_pointer(void) {
         }                                                                                                                                                                          \
     }
 
-// Once
 #define A2lCreateTypedefArray(name, typeName, dim, comment)                                                                                                                        \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
@@ -251,7 +234,6 @@ static inline uint8_t *get_stack_frame_pointer(void) {
         }                                                                                                                                                                          \
     }
 
-// Once
 #define A2lCreateTypedefArrayReference(name, typeName, dim, comment)                                                                                                               \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
@@ -260,7 +242,6 @@ static inline uint8_t *get_stack_frame_pointer(void) {
         }                                                                                                                                                                          \
     }
 
-// Once
 #define A2lTypedefBegin(type_name, comment)                                                                                                                                        \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##type_name##_ = false;                                                                                                                             \
@@ -269,7 +250,6 @@ static inline uint8_t *get_stack_frame_pointer(void) {
         }                                                                                                                                                                          \
     }
 
-// Once
 #define A2lTypedefMeasurementComponent(field_name, typedef_name)                                                                                                                   \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##name##_ = false;                                                                                                                                  \
@@ -279,17 +259,66 @@ static inline uint8_t *get_stack_frame_pointer(void) {
         }                                                                                                                                                                          \
     }
 
-// Once
-#define A2lTypedefParameterComponent(field_name, typeName)                                                                                                                         \
+#define A2lTypedefParameterComponent(field_name, typeName, comment, unit, min, max)                                                                                                \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
         if (A2lOnce_(&a2l_##field_name##_)) {                                                                                                                                      \
             typeName instance;                                                                                                                                                     \
-            \ A2lTypedefComponent_(#field_name, A2lGetTypeName_C(instance.field_name), 1, ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance));                             \
+            A2lTypedefParameterComponent_(#field_name, A2lGetRecordLayoutName(instance.field_name), 1, 1, ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance), comment,     \
+                                          unit, min, max, NULL, NULL);                                                                                                             \
         }                                                                                                                                                                          \
     }
 
-// Once
+#define A2lTypedefCurveComponent(field_name, typeName, x_dim, comment, unit, min, max)                                                                                             \
+    {                                                                                                                                                                              \
+        static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
+        if (A2lOnce_(&a2l_##field_name##_)) {                                                                                                                                      \
+            typeName instance;                                                                                                                                                     \
+            A2lTypedefParameterComponent_(#field_name, A2lGetRecordLayoutName(instance.field_name[0]), x_dim, 1, ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance),       \
+                                          comment, unit, min, max, NULL, NULL);                                                                                                    \
+        }                                                                                                                                                                          \
+    }
+
+#define A2lTypedefCurveComponentWithSharedAxis(field_name, typeName, x_dim, comment, unit, min, max, x_axis)                                                                       \
+    {                                                                                                                                                                              \
+        static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
+        if (A2lOnce_(&a2l_##field_name##_)) {                                                                                                                                      \
+            typeName instance;                                                                                                                                                     \
+            A2lTypedefParameterComponent_(#field_name, A2lGetRecordLayoutName(instance.field_name[0]), x_dim, 1, ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance),       \
+                                          comment, unit, min, max, x_axis, NULL);                                                                                                  \
+        }                                                                                                                                                                          \
+    }
+
+#define A2lTypedefMapComponent(field_name, typeName, x_dim, y_dim, comment, unit, min, max)                                                                                        \
+    {                                                                                                                                                                              \
+        static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
+        if (A2lOnce_(&a2l_##field_name##_)) {                                                                                                                                      \
+            typeName instance;                                                                                                                                                     \
+            A2lTypedefParameterComponent_(#field_name, A2lGetRecordLayoutName(instance.field_name[0][0]), x_dim, y_dim,                                                            \
+                                          ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance), comment, unit, min, max, NULL, NULL);                                        \
+        }                                                                                                                                                                          \
+    }
+
+#define A2lTypedefMapComponentWithSharedAxis(field_name, typeName, x_dim, y_dim, comment, unit, min, max, x_axis, y_axis)                                                          \
+    {                                                                                                                                                                              \
+        static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
+        if (A2lOnce_(&a2l_##field_name##_)) {                                                                                                                                      \
+            typeName instance;                                                                                                                                                     \
+            A2lTypedefParameterComponent_(#field_name, A2lGetRecordLayoutName(instance.field_name[0][0]), x_dim, y_dim,                                                            \
+                                          ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance), comment, unit, min, max, x_axis, y_axis);                                    \
+        }                                                                                                                                                                          \
+    }
+
+#define A2lTypedefAxisComponent(field_name, typeName, x_dim, comment, unit, min, max)                                                                                              \
+    {                                                                                                                                                                              \
+        static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
+        if (A2lOnce_(&a2l_##field_name##_)) {                                                                                                                                      \
+            typeName instance;                                                                                                                                                     \
+            A2lTypedefParameterComponent_(#field_name, A2lGetRecordLayoutName(instance.field_name[0]), x_dim, 0, ((uint8_t *)&(instance.field_name) - (uint8_t *)&instance),       \
+                                          comment, unit, min, max, NULL, NULL);                                                                                                    \
+        }                                                                                                                                                                          \
+    }
+
 #define A2lTypedefMeasurementArrayComponent(field_name, typedef_name)                                                                                                              \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
@@ -300,18 +329,26 @@ static inline uint8_t *get_stack_frame_pointer(void) {
         }                                                                                                                                                                          \
     }
 
-// Once
-#define A2lTypedefParameterArrayComponent(field_name, typeName)                                                                                                                    \
+#define A2lTypedefParameterArrayComponent(field_name, typeName, comment, unit, min, max)                                                                                           \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
         if (A2lOnce_(&a2l_##field_name##_)) {                                                                                                                                      \
             typeName instance;                                                                                                                                                     \
-            \ A2lTypedefComponent_(#field_name, A2lGetTypeName_C(instance.field_name[0]), sizeof(instance.field_name) / sizeof(instance.field_name[0]),                            \
-                                   ((uint8_t *)&(instance.field_name[0]) - (uint8_t *)&instance));                                                                                 \
+            A2lTypedefComponent_(#field_name, A2lGetTypeName_C(instance.field_name[0]), sizeof(instance.field_name) / sizeof(instance.field_name[0]),                              \
+                                 ((uint8_t *)&(instance.field_name[0]) - (uint8_t *)&instance));                                                                                   \
         }                                                                                                                                                                          \
     }
 
-// Once
+#define A2lTypedefParameterMatrixComponent(field_name, typeName, comment, unit, min, max)                                                                                          \
+    {                                                                                                                                                                              \
+        static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
+        if (A2lOnce_(&a2l_##field_name##_)) {                                                                                                                                      \
+            typeName instance;                                                                                                                                                     \
+            A2lTypedefComponent_(#field_name, A2lGetTypeName_C(instance.field_name[0][0]), sizeof(instance.field_name) / sizeof(instance.field_name[0]),                           \
+                                 ((uint8_t *)&(instance.field_name[0]) - (uint8_t *)&instance));                                                                                   \
+        }                                                                                                                                                                          \
+    }
+
 #define A2lTypedefComponent(field_name, field_type_name, field_dim, typedef_name)                                                                                                  \
     {                                                                                                                                                                              \
         static atomic_bool a2l_##field_name##_ = false;                                                                                                                            \
@@ -321,7 +358,6 @@ static inline uint8_t *get_stack_frame_pointer(void) {
         }                                                                                                                                                                          \
     }
 
-// Once
 #define A2lTypedefEnd()                                                                                                                                                            \
     {                                                                                                                                                                              \
         static atomic_bool a2l_once = false;                                                                                                                                       \
@@ -333,15 +369,20 @@ static inline uint8_t *get_stack_frame_pointer(void) {
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // Create groups
 
-void A2lParameterGroup(const char *name, int count, ...);
-void A2lParameterGroupFromList(const char *name, const char *pNames[], int count);
-void A2lMeasurementGroup(const char *name, int count, ...);
-void A2lMeasurementGroupFromList(const char *name, char *names[], uint32_t count);
+void A2lBeginGroup(const char *name, const char *comment, bool is_parameter_group);
+void A2lAddToGroup(const char *name);
+void A2lEndGroup(void);
+
+void A2lCreateParameterGroup(const char *name, int count, ...);
+void A2lCreateParameterGroupFromList(const char *name, const char *pNames[], int count);
+
+void A2lCreateMeasurementGroup(const char *name, int count, ...);
+void A2lCreateMeasurementGroupFromList(const char *name, char *names[], uint32_t count);
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 // Init A2L generation
-bool A2lInit(const char *a2l_filename, const char *a2l_projectname, const uint8_t *addr, uint16_t port, bool useTCP, bool finalize_on_connect);
+bool A2lInit(const char *a2l_filename, const char *a2l_projectname, const uint8_t *addr, uint16_t port, bool useTCP, bool finalize_on_connect, bool auto_groups);
 
 // Finish A2L generation
 bool A2lFinalize(void);
@@ -351,24 +392,33 @@ bool A2lFinalize(void);
 
 bool A2lOnce_(atomic_bool *once);
 
+void A2lSetAbsAddrMode_(tXcpEventId default_event_id);
+void A2lSetDynAddrMode_(tXcpEventId event_id, const uint8_t *base);
+void A2lSetSegAddrMode_(tXcpCalSegIndex calseg_index, const uint8_t *calseg_instance_addr);
+void A2lSetRelAddrMode_(tXcpEventId event_id, const uint8_t *base);
+
 uint32_t A2lGetAddr_(const void *addr);
 uint8_t A2lGetAddrExt_(void);
 
 // Create measurements
-void A2lCreateMeasurement_(const char *instance_name, const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, double factor, double offset, const char *unit,
+const char *A2lCreateLinearConversion_(const char *name, const char *comment, const char *unit, double factor, double offset);
+
+void A2lCreateMeasurement_(const char *instance_name, const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, const char *unit_or_conversion, double min, double max,
                            const char *comment);
 
-void A2lCreateMeasurementArray_(const char *instance_name, const char *name, tA2lTypeId type, int x_dim, int y_dim, uint8_t ext, uint32_t addr, double factor, double offset,
-                                const char *unit, const char *comment);
+void A2lCreateMeasurementArray_(const char *instance_name, const char *name, tA2lTypeId type, int x_dim, int y_dim, uint8_t ext, uint32_t addr, const char *unit_or_conversion,
+                                const char *comment);
 
 // Create typedefs
 void A2lTypedefBegin_(const char *name, uint32_t size, const char *comment);
 void A2lTypedefComponent_(const char *name, const char *type_name, uint16_t x_dim, uint32_t offset);
+void A2lTypedefParameterComponent_(const char *name, const char *type_name, uint16_t x_dim, uint16_t y_dim, uint32_t offset, const char *comment, const char *unit, double min,
+                                   double max, const char *x_axis, const char *y_axis);
+
 void A2lTypedefEnd_(void);
 void A2lCreateTypedefInstance_(const char *instance_name, const char *type_name, uint16_t x_dim, uint8_t ext, uint32_t addr, const char *comment);
 
 // Create parameters
-void A2lCreateParameter_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, const char *comment, const char *unit);
-void A2lCreateParameterWithLimits_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, const char *comment, const char *unit, double min, double max);
-void A2lCreateMap_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, uint32_t xdim, uint32_t ydim, const char *comment, const char *unit);
-void A2lCreateCurve_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, uint32_t xdim, const char *comment, const char *unit);
+void A2lCreateParameter_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, const char *comment, const char *unit, double min, double max);
+void A2lCreateMap_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, uint32_t xdim, uint32_t ydim, const char *comment, const char *unit, double min, double max);
+void A2lCreateCurve_(const char *name, tA2lTypeId type, uint8_t ext, uint32_t addr, uint32_t xdim, const char *comment, const char *unit, double min, double max);

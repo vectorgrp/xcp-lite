@@ -545,6 +545,7 @@ void QueueDeinit(tQueueHandle queueHandle) {
 #endif
 
     if (queue->h.from_memory) {
+        // @@@@ TODO: QueueDeinit resets the shared flag, so the memory is freed multiple times if there are more than two queues accessing the same memory.
         queue->h.from_memory = false;
     } else {
         free(queue);
