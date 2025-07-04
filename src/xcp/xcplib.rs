@@ -18,7 +18,10 @@ unsafe extern "C" {
 }
 pub type tXcpEventId = u16;
 unsafe extern "C" {
-    pub fn XcpEventExt(event: tXcpEventId, base: *const u8) -> u8;
+    pub fn XcpEventExt(event: tXcpEventId, base: *const u8);
+}
+unsafe extern "C" {
+    pub fn XcpEvent(event: tXcpEventId);
 }
 unsafe extern "C" {
     pub fn XcpSetLogLevel(level: u8);

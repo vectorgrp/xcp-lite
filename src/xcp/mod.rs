@@ -146,7 +146,7 @@ impl XcpEvent {
     /// The provenance of the pointer (len, lifetime) is is guaranteed , it refers to self
     /// The buffer must match its registry description, to avoid corrupt data given to the XCP tool
     //#[allow(clippy::not_unsafe_ptr_arg_deref)]
-    pub unsafe fn trigger_ext(self, base: *const u8) -> u8 {
+    pub unsafe fn trigger_ext(self, base: *const u8) {
         // @@@@ UNSAFE - C library call and transferring a pointer and its valid memory range to XCPlite FFI
 
         unsafe { xcplib::XcpEventExt(self.get_id(), base) }
