@@ -24,10 +24,12 @@ unsafe extern "C" {
     pub fn XcpEvent(event: tXcpEventId);
 }
 unsafe extern "C" {
+    #[doc = " Set log level\n @param log level (0 = no logging, 1 = error, 2 = warning, 3 = info, 4 = debug, 5 = trace)"]
     pub fn XcpSetLogLevel(level: u8);
 }
 unsafe extern "C" {
-    pub fn XcpInit();
+    #[doc = " Initialize the XCP singleton, must be called befor starting the server"]
+    pub fn XcpInit(activate: bool);
 }
 unsafe extern "C" {
     pub fn ApplXcpSetA2lName(name: *const ::std::os::raw::c_char);
@@ -36,15 +38,19 @@ unsafe extern "C" {
     pub fn XcpSetEpk(epk: *const ::std::os::raw::c_char);
 }
 unsafe extern "C" {
+    #[doc = " Force Disconnect\n Stop DAQ, flush queue, flush pending calibrations"]
     pub fn XcpDisconnect();
 }
 unsafe extern "C" {
+    #[doc = " Send terminate session event to the XCP client"]
     pub fn XcpSendTerminateSessionEvent();
 }
 unsafe extern "C" {
+    #[doc = " Send a message to the XCP client"]
     pub fn XcpPrint(str_: *const ::std::os::raw::c_char);
 }
 unsafe extern "C" {
+    #[doc = " Get the current DAQ clock value\n @return time in CLOCK_TICKS_PER_S units"]
     pub fn ApplXcpGetClock64() -> u64;
 }
 unsafe extern "C" {
