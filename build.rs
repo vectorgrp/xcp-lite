@@ -62,6 +62,9 @@ fn main() {
         .file("xcplib/src/xcpQueue32.c")
         .file("xcplib/src/xcpEthTl.c")
         .file("xcplib/src/xcpEthServer.c");
+
+    builder.define("XCPLIB_FOR_RUST", None);
+
     if is_posix {
         //builder.define("_POSIX_C_SOURCE", "200112L");
         builder.flag("-std=c11");
