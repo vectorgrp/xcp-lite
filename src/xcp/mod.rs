@@ -337,7 +337,7 @@ impl Xcp {
         unsafe {
             // Initialize the XCP protocol layer
             // @@@@ UNSAFE - C library calls
-            xcplib::XcpInit();
+            xcplib::XcpInit(true);
 
             // Register the callbacks from xcplib
             // @@@@ UNSAFE - C library calls
