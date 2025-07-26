@@ -18,17 +18,19 @@ unsafe extern "C" {
 }
 pub type tXcpEventId = u16;
 unsafe extern "C" {
-    pub fn XcpEventExt(event: tXcpEventId, base: *const u8);
-}
-unsafe extern "C" {
+    #[doc = " Trigger the XCP event 'event' for stack relative or absolute addressing\n @param event Event id.\n Assumes XCP address extension XCP_ADDR_EXT_REL is used for stack relative addressing and XCP_ADDR_EXT_ABS for absolute addressing."]
     pub fn XcpEvent(event: tXcpEventId);
 }
 unsafe extern "C" {
-    #[doc = " Set log level\n @param log level (0 = no logging, 1 = error, 2 = warning, 3 = info, 4 = debug, 5 = trace)"]
+    #[doc = " Trigger the XCP event 'event' for stack relative or absolute addressing and with explicitly given base address for relative addressing mode (DYN)\n @param event\n @param base address pointer for the relative (XCP_ADDR_EXT_DYN) addressing mode (from A2lSetRelativeAddrMode(base)).\n Assumes XCP_ADDR_EXT_REL is used for stack relative addressing and XCP_ADDR_EXT_ABS for absolute addressing."]
+    pub fn XcpEventExt(event: tXcpEventId, base: *const u8);
+}
+unsafe extern "C" {
+    #[doc = " Set log level\n Log level 4 provides a trace of all XCP commands and responses.\n @param level (0 = no logging, 1 = error, 2 = warning, 3 = info, 4 = debug, 5 = trace)"]
     pub fn XcpSetLogLevel(level: u8);
 }
 unsafe extern "C" {
-    #[doc = " Initialize the XCP singleton, must be called befor starting the server"]
+    #[doc = " Initialize the XCP singleton, activate XCP, must be called before starting the server\n If XCP is not activated, the server will not start and all XCP instrumentation will be passive with minimal overhead\n @param activate If true, the XCP library is activated"]
     pub fn XcpInit(activate: bool);
 }
 unsafe extern "C" {
@@ -42,15 +44,15 @@ unsafe extern "C" {
     pub fn XcpDisconnect();
 }
 unsafe extern "C" {
-    #[doc = " Send terminate session event to the XCP client"]
+    #[doc = " Send terminate session event to the XCP client\n Force the XCP client to terminate the session"]
     pub fn XcpSendTerminateSessionEvent();
 }
 unsafe extern "C" {
-    #[doc = " Send a message to the XCP client"]
+    #[doc = " Send a message to the XCP client\n @param str Message to send, appears in the XCP client write log window"]
     pub fn XcpPrint(str_: *const ::std::os::raw::c_char);
 }
 unsafe extern "C" {
-    #[doc = " Get the current DAQ clock value\n @return time in CLOCK_TICKS_PER_S units"]
+    #[doc = " Get the current DAQ clock value\n @return time in CLOCK_TICKS_PER_S units\n Resolution and epoch is defined in main_cfg.h\n Epoch may be PTP or arbitrary\n Resolution is 1ns or 1us"]
     pub fn ApplXcpGetClock64() -> u64;
 }
 unsafe extern "C" {
