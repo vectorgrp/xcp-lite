@@ -1,22 +1,9 @@
 # xcp-lite
 
-XCP for Rust - based on XCPlite (https://github.com/vectorgrp/XCPlite)  
+XCP for Rust - based on XCPlite (<https://github.com/vectorgrp/XCPlite>)  
   
 Disclaimer: This code is in experimental state. There is no release yet.  
-
-Note: This repo contains a newer version of XCPlite (in folder xcplib).  
-This version is not released yet.  
-
-* Breaking changes to V6.
-* Compiles as C11.  
-* Lockless transmit queue. Works on x86-64 strong and ARM-64 weak memory model.  
-* Measurement of and write access to variables on stack.  
-* Supports multiple calibration segments with working and reference page with independent page switching.  
-* Lock free and thread safe calibration parameter access, consistent calibration changes and page switches.  
-* More C examples.   
-* Build as a library.  
-* Used (as FFI library) for the rust xcp-lite version.
-
+Note: This repo refers to an unreleased version of XCPlite as a submodule (in folder xcplib, currently V0.9.2).  
 
 xcp-lite is a Rust API for measurement and calibration, which uses the ASAM XCP protocol for communication with a measurement and calibration tool like CANape and ASAM A2L for data description.  
 
@@ -114,7 +101,6 @@ Demonstrates using XCP in an async tokio based application
 Measure a lidar point cloud and visualize it in CANapes 3D scene window  
 Use CDR serialization over XCP and the CDR/IDL schema generator proc-macro
 
-
 ## Code instrumentation for measurement and calibration
   
 There are 3 important types: Xcp, XcpEvent/DaqEvent and CalSeg.  
@@ -122,7 +108,7 @@ Xcp is a wrapper for XCPlite. It is a singleton. There is a builder to initializ
   
 CalSeg is a generic type used to encapsulate structs containing calibration parameters. This is called a calibration segment and the parameter struct wrapped is a calibration page. A calibration page must be Copy and may contain nested structs of basic types or arrays with dimension up to 2.  
   
-A CalSeg has interior mutability. Parameter mutation happens only on acquiring a calibration segment guard.   
+A CalSeg has interior mutability. Parameter mutation happens only on acquiring a calibration segment guard.
   
 A CalSeg may be shared among multiple threads. It it cloned like an Arc, implements the Deref trait for convenience and does not do any locks to deref to the inner calibration parameter page struct.
 
@@ -130,7 +116,6 @@ Measurement code instrumentation provides event definition, registration or capt
 
 The registration of objects has to be completed, before the A2L file is generated. The A2L is created at latest on connect of the XCP client tool. Objects created later, will not be visible to CANape.  
   
-
 ## Safety Considerations
 
 The fundamental functional concept of this XCP implementation is, to mutate the calibration variables in their original binary representation in a thread safe, transparent wrapper type.  
@@ -189,7 +174,6 @@ Feature a2l_reader is needed for xcp_client based testing
 ```
 
 Use --nocapture because the debug output from the XCPlite C library is via normal printf
-
 
 ## Notes
 
