@@ -201,6 +201,7 @@ pub const CC_CONNECT: u8 = 0xFF;
 pub const CC_DISCONNECT: u8 = 0xFE;
 pub const CC_SHORT_DOWNLOAD: u8 = 0xED;
 pub const CC_SYNC: u8 = 0xFC;
+pub const CC_GET_COMM_MODE_INFO: u8 = 0xFB;
 pub const CC_GET_ID: u8 = 0xFA;
 pub const CC_UPLOAD: u8 = 0xF5;
 pub const CC_SHORT_UPLOAD: u8 = 0xF4;
@@ -208,6 +209,7 @@ pub const CC_USER: u8 = 0xF1;
 pub const CC_NOP: u8 = 0xC1;
 pub const CC_SET_CAL_PAGE: u8 = 0xEB;
 pub const CC_GET_CAL_PAGE: u8 = 0xEA;
+pub const CC_GET_PAGE_PROCESSOR_INFO: u8 = 0xE9;
 pub const CC_GET_SEGMENT_INFO: u8 = 0xE8;
 pub const CC_GET_PAGE_INFO: u8 = 0xE7;
 pub const CC_SET_SEGMENT_MODE: u8 = 0xE6;
@@ -231,6 +233,7 @@ pub const CC_ALLOC_DAQ: u8 = 0xD5;
 pub const CC_ALLOC_ODT: u8 = 0xD4;
 pub const CC_ALLOC_ODT_ENTRY: u8 = 0xD3;
 pub const CC_TIME_CORRELATION_PROPERTIES: u8 = 0xC6;
+pub const CC_GET_VERSION: u8 = 0xC0;
 
 #[derive(Debug)]
 enum XcpCommand {
@@ -649,8 +652,25 @@ impl XcpTaskControl {
 
 /// XCP client
 pub struct XcpClient {
+    // Information from connect and get_comm_mode_info commands
+    pub resources: u8,
+    pub comm_mode_basic: u8,
+    pub max_cto_size: u8,
+    pub max_dto_size: u16,
+    pub protocol_version: u16,
+    pub transport_layer_version: u16,
+    pub comm_mode_optional: u8,
+    pub driver_version: u8,
+    pub max_segments: u8,
+    pub freeze_supported: bool,
+    pub max_events: u16,
+
+    timestamp_resolution_ns: u64,
+    daq_header_size: u8,
+
     bind_addr: SocketAddr,
     dest_addr: SocketAddr,
+
     socket: Option<Arc<UdpSocket>>,
     receive_task: Option<tokio::task::JoinHandle<()>>,
     rx_cmd_resp: Option<mpsc::Receiver<Vec<u8>>>,
@@ -658,10 +678,6 @@ pub struct XcpClient {
     task_control: XcpTaskControl,
     daq_decoder: Option<Arc<Mutex<dyn XcpDaqDecoder>>>,
     ctr: u16,
-    max_cto_size: u8,
-    max_dto_size: u16,
-    timestamp_resolution_ns: u64,
-    daq_header_size: u8,
     registry: Option<xcp_lite::registry::Registry>,
     calibration_object_list: Vec<XcpClientCalibrationObject>,
     measurement_object_list: Vec<XcpClientMeasurementObject>,
@@ -683,8 +699,17 @@ impl XcpClient {
             task_control: XcpTaskControl::new(),
             daq_decoder: None,
             ctr: 0,
+            resources: 0,
+            comm_mode_basic: 0,
+            comm_mode_optional: 0,
+            driver_version: 0,
             max_cto_size: 0,
             max_dto_size: 0,
+            max_segments: 0,
+            max_events: 0,
+            freeze_supported: false,
+            protocol_version: 0,
+            transport_layer_version: 0,
             timestamp_resolution_ns: 1,
             daq_header_size: 4,
             registry: None,
@@ -913,11 +938,37 @@ impl XcpClient {
         // Connect
         let data = self.send_command(XcpCommandBuilder::new(CC_CONNECT).add_u8(0).build()).await?;
         assert!(data.len() >= 8);
+        let resources = data[1];
+        let comm_mode_basic = data[2];
         let max_cto_size: u8 = data[3];
         let max_dto_size: u16 = (data[4] as u16) | ((data[5] as u16) << 8);
-        debug!("XCP client connected, max_cto_size = {}, max_dto_size = {}", max_cto_size, max_dto_size);
+        let protocol_version: u8 = data[6];
+        let transport_layer_version: u8 = data[7];
+        self.resources = resources;
+        self.comm_mode_basic = comm_mode_basic;
         self.max_cto_size = max_cto_size;
         self.max_dto_size = max_dto_size;
+        self.protocol_version = protocol_version as u16;
+        self.transport_layer_version = transport_layer_version as u16;
+
+        // Get version info
+        let data = self.send_command(XcpCommandBuilder::new(CC_GET_VERSION).add_u8(0).build()).await?;
+        self.protocol_version = (data[2] as u16) << 8 | data[3] as u16;
+        self.transport_layer_version = (data[4] as u16) << 8 | data[5] as u16;
+
+        // Get comm mode info
+        let data = self.send_command(XcpCommandBuilder::new(CC_GET_COMM_MODE_INFO).add_u8(0).build()).await?;
+        self.comm_mode_optional = data[2]; // Master block mode and interleaved mode not supported yet
+        self.driver_version = data[7];
+
+        // Get calibration page count and freeze support
+        let data = self.send_command(XcpCommandBuilder::new(CC_GET_PAGE_PROCESSOR_INFO).add_u8(0).build()).await?;
+        self.max_segments = data[1];
+        self.freeze_supported = (data[2] & 0x01) != 0;
+
+        // Get event count
+        let data = self.send_command(XcpCommandBuilder::new(CC_GET_DAQ_PROCESSOR_INFO).add_u8(0).build()).await?;
+        self.max_events = (data[4] as u16) | ((data[5] as u16) << 8);
 
         // Notify the rx task
         self.task_control.connected = true; // the task will end, when it gets connected = false over the XcpControl channel
@@ -977,7 +1028,7 @@ impl XcpClient {
         let data = self.send_command(XcpCommandBuilder::new(CC_GET_ID).add_u8(id_type).build()).await?;
 
         assert_eq!(data[0], 0xFF);
-        assert!(id_type == XCP_IDT_ASAM_UPLOAD || id_type == XCP_IDT_ASAM_NAME); // others not supported yet
+        assert!(id_type == XCP_IDT_ASAM_UPLOAD || id_type == XCP_IDT_ASAM_NAME || id_type == XCP_IDT_ASCII || id_type == XCP_IDT_ASAM_EPK); // others not supported yet
         let mode = data[1]; // 0 = data by upload, 1 = data in response
 
         // Decode size
@@ -989,7 +1040,24 @@ impl XcpClient {
 
         // Data ready for upload
         if mode == 0 {
-            Ok((size, None))
+            // Upload the result immediately, if size fits in one upload command
+            if size < self.max_cto_size as u32 {
+                let data = self.upload(size as u8).await?;
+                let name = String::from_utf8(data[1..=(size as usize)].to_vec());
+                match name {
+                    Ok(name) => {
+                        debug!("  -> text result = {}", name);
+                        Ok((0, Some(name)))
+                    }
+                    Err(_) => {
+                        error!("GET_ID mode={} -> invalid string {:?}", id_type, data);
+                        Err(Box::new(XcpClientError::new(CRC_CMD_SYNTAX, CC_GET_ID)) as Box<dyn Error>)
+                    }
+                }
+            } else {
+                // Return size for later upload
+                Ok((size, None))
+            }
         }
         // Data in response
         else {
@@ -1088,6 +1156,75 @@ impl XcpClient {
     }
 
     //------------------------------------------------------------------------
+    // XCP segment info services
+
+    /// Get segment info
+    pub async fn get_segment_info(&mut self, segment_number: u8) -> Result<(u32, u16, String), Box<dyn Error>> {
+        //addr
+        let data = self
+            .send_command(
+                XcpCommandBuilder::new(CC_GET_SEGMENT_INFO)
+                    .add_u8(0) // get basic address info
+                    .add_u8(segment_number)
+                    .add_u8(0) // get addr
+                    .add_u8(0)
+                    .build(),
+            )
+            .await?;
+
+        let addr = u32::from_le_bytes([data[4], data[5], data[6], data[7]]);
+        // Length
+        let data = self
+            .send_command(
+                XcpCommandBuilder::new(CC_GET_SEGMENT_INFO)
+                    .add_u8(0) // get basic address info
+                    .add_u8(segment_number)
+                    .add_u8(1) // get length
+                    .add_u8(0)
+                    .build(),
+            )
+            .await?;
+        let length = u32::from_le_bytes([data[4], data[5], data[6], data[7]]).try_into().unwrap();
+
+        // name
+        let data = self
+            .send_command(
+                XcpCommandBuilder::new(CC_GET_SEGMENT_INFO)
+                    .add_u8(0) // get standard info
+                    .add_u8(segment_number)
+                    .add_u8(2) // get name
+                    .add_u8(0)
+                    .build(),
+            )
+            .await?;
+        let name_length: u8 = u32::from_le_bytes([data[4], data[5], data[6], data[7]]).try_into().unwrap();
+        let data = self.upload(name_length).await?;
+        let res = String::from_utf8(data[1..=(name_length as usize)].to_vec());
+        let name = match res {
+            Ok(name) => name,
+            Err(_) => {
+                return Err(Box::new(XcpClientError::new(CRC_CMD_SYNTAX, CC_GET_SEGMENT_INFO)) as Box<dyn Error>);
+            }
+        };
+
+        Ok((addr, length, name))
+    }
+
+    /// Get page info
+    pub async fn get_page_info(&mut self, segment_number: u8, page_number: u8) -> Result<Vec<u8>, Box<dyn Error>> {
+        let data = self
+            .send_command(
+                XcpCommandBuilder::new(CC_GET_PAGE_INFO)
+                    .add_u8(0) // Reserved
+                    .add_u8(segment_number)
+                    .add_u8(page_number)
+                    .build(),
+            )
+            .await?;
+        Ok(data)
+    }
+
+    //------------------------------------------------------------------------
     // XCP DAQ services
 
     /// Get DAQ clock timestamp resolution in ns
@@ -1109,6 +1246,19 @@ impl XcpClient {
             daq_properties, max_daq, max_event, min_daq, daq_key_byte, self.daq_header_size
         );
         Ok(())
+    }
+
+    pub async fn get_daq_event_info(&mut self, event_id: u16) -> Result<String, Box<dyn Error>> {
+        let data = self.send_command(XcpCommandBuilder::new(CC_GET_DAQ_EVENT_INFO).add_u8(0).add_u16(event_id).build()).await?;
+        let event_name_len = data[3];
+        let data = self.upload(event_name_len).await?;
+        let res = String::from_utf8(data[1..=(event_name_len as usize)].to_vec());
+        match res {
+            Ok(event_name) => {
+                return Ok(event_name);
+            }
+            Err(_) => Err(Box::new(XcpClientError::new(CRC_CMD_SYNTAX, CC_GET_DAQ_EVENT_INFO)) as Box<dyn Error>),
+        }
     }
 
     async fn free_daq(&mut self) -> Result<(), Box<dyn Error>> {
@@ -1282,23 +1432,9 @@ impl XcpClient {
     // A2L upload
 
     // Get the A2L via XCP upload and GET_ID4 (XCP_IDT_ASAM_UPLOAD)
-    pub async fn a2l_loader(&mut self) -> Result<(), Box<dyn Error>> {
-        // Send XCP GET_ID GET_ID XCP_IDT_ASAM_NAME to obtain the A2L filename
-        info!("XCP GET_ID XCP_IDT_ASAM_NAME");
-        let res = self.get_id(XCP_IDT_ASAM_NAME).await;
-        let a2l_name = match res {
-            Ok((_, Some(id))) => id,
-            Err(e) => {
-                panic!("GET_ID failed, Error: {}", e);
-            }
-            _ => {
-                panic!("Empty string");
-            }
-        };
-        info!("A2l file name from GET_ID IDT_ASAM_NAME = {}", a2l_name);
-
-        // Use the same filname for the uploaded file as CANape does <name>_autodetect.a2l
-        let a2l_filename = format!("{}_autodetect.a2l", a2l_name);
+    pub async fn a2l_loader(&mut self, a2l_name: &str) -> Result<(), Box<dyn Error>> {
+        // Use the same filename for the uploaded file as CANape does <name>_autodetect.a2l
+        let a2l_filename = format!("{}_autodetect", a2l_name);
         let mut a2l_path = std::path::PathBuf::new();
         a2l_path.set_file_name(a2l_filename);
         a2l_path.set_extension("a2l");
@@ -1316,7 +1452,7 @@ impl XcpClient {
         let mut writer = std::io::BufWriter::new(file);
         let mut size = file_size;
         while size > 0 {
-            let n = if size > 200 { 200 } else { size as u8 };
+            let n = if size >= self.max_cto_size as u32 { self.max_cto_size - 1 } else { size as u8 };
             size -= n as u32;
             let data = self.upload(n).await?;
             trace!("xcp_client.upload: {} bytes = {:?}", data.len(), data);

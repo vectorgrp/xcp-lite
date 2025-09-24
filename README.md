@@ -170,7 +170,6 @@ Feature a2l_reader is needed for xcp_client based testing
 ```
   cargo test --features=a2l_reader  -- --test-threads=1 --nocapture
   cargo test --features=a2l_reader  -- --test-threads=1 --nocapture  --test test_multi_thread
-  cargo test --features=shm_mode  -- --test-threads=1 --nocapture  --test test_performance
 ```
 
 Use --nocapture because the debug output from the XCPlite C library is via normal printf

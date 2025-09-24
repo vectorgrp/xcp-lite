@@ -23,6 +23,7 @@ fn main() {
             //.clang_args(&["-target", "x86_64-pc-windows-msvc"])
             .clang_arg("-Ixcplib/src")
             .clang_arg("-Ixcplib")
+            .clang_arg("-DXCPLIB_FOR_RUST")
             .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
             //
             .blocklist_type("T_CLOCK_INFO")

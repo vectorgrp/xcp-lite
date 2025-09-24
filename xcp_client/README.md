@@ -24,6 +24,8 @@ Options:
           Lists all measurement variables
       --list-cal
           Lists all calibration variables
+      --cal `<NAME>` `<VALUE>`
+          Set calibration variable to a value (format: "variable_name value")
   -m, --measurement-list <MEASUREMENT_LIST>...
           Specifies the variables names for DAQ measurement, 'all' or a list of names separated by space
   -a, --a2l-filename <A2L_FILENAME>
@@ -32,6 +34,27 @@ Options:
           Print help
   -V, --version
           Print version
+
+## Examples
+
+### List calibration variables
+
+```bash
+cargo run --example=xcp_client -- --list-cal ".*"
+```
+
+### Set a calibration variable
+
+```bash
+cargo run --example=xcp_client -- --cal variable_name 42.5
+```
+
+### Measure variables
+
+```bash
+cargo run --example=xcp_client -- -m ".*" -t 5000
+```
+
 
 
 
@@ -70,6 +93,5 @@ Options:
 
     // Disconnect
     xcp_client.disconnect().await?);
-
 
    ```

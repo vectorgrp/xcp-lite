@@ -64,6 +64,11 @@ struct Args {
     #[arg(short, long, default_value_t = 5000)]
     time_ms: u64, // -t --time
 
+    // --cal
+    /// Set calibration variable to a value (format: "variable_name value")
+    #[clap(long, value_names = ["NAME", "VALUE"], num_args = 2)]
+    cal: Vec<String>,
+
     /// --test
     #[arg(long, default_value_t = false)]
     test: bool,
@@ -101,13 +106,10 @@ const TEST_DAQ: xcp_test_executor::TestModeDaq = xcp_test_executor::TestModeDaq:
 const TEST_DURATION_MS: u64 = 5000;
 
 //------------------------------------------------------------------------
-// Demo
+// Handle incoming DAQ data
+// Prints the decoded data to the console
 
 const MAX_EVENT: usize = 64;
-
-// DaqDecoder for xcp_client_demo - handle incoming DAQ data
-// This is a simple example of a DAQ decoder that prints the decoded data to the console
-// It can be used as a template for more advanced DAQ decoders
 
 #[derive(Debug)]
 struct DaqDecoder {
@@ -132,7 +134,6 @@ impl DaqDecoder {
     }
 }
 
-// Decoder for DAQ data
 impl XcpDaqDecoder for DaqDecoder {
     // Set start time and init
     fn start(&mut self, daq_odt_entries: Vec<Vec<OdtEntry>>, timestamp: u64) {
@@ -270,7 +271,8 @@ impl XcpDaqDecoder for DaqDecoder {
 }
 
 //------------------------------------------------------------------------
-// Handle incomming SERV_TEXT data
+// Handle incoming SERV_TEXT data
+// Prints the text to the console
 
 #[derive(Debug, Clone, Copy)]
 struct ServTextDecoder;
@@ -294,15 +296,16 @@ impl XcpTextDecoder for ServTextDecoder {
 }
 
 //------------------------------------------------------------------------
-// A simple example how to use the XCP client
+//  XCP client
 
-async fn xcp_client_demo(
+async fn xcp_client(
     dest_addr: std::net::SocketAddr,
     local_addr: std::net::SocketAddr,
     list_cal: String,
     list_mea: String,
     measurement_list: Vec<String>,
     measurement_time_ms: u64,
+    cal_args: Vec<String>,
 ) -> Result<(), Box<dyn Error>> {
     // Create xcp_client
     let mut xcp_client = XcpClient::new(dest_addr, local_addr);
@@ -311,10 +314,79 @@ async fn xcp_client_demo(
     info!("XCP Connect");
     let daq_decoder = Arc::new(Mutex::new(DaqDecoder::new()));
     xcp_client.connect(Arc::clone(&daq_decoder), ServTextDecoder::new()).await?;
+    info!("XCP MAX_CTO = {}", xcp_client.max_cto_size);
+    info!("XCP MAX_DTO = {}", xcp_client.max_dto_size);
+    info!(
+        "XCP RESOURCES = 0x{:02X} {} {} {} {}",
+        xcp_client.resources,
+        if (xcp_client.resources & 0x01) != 0 { "CAL" } else { "" },
+        if (xcp_client.resources & 0x04) != 0 { "DAQ" } else { "" },
+        if (xcp_client.resources & 0x10) != 0 { "PGM" } else { "" },
+        if (xcp_client.resources & 0x40) != 0 { "STM" } else { "" }
+    );
+    info!("XCP COMM_MODE_BASIC = 0x{:02X}", xcp_client.comm_mode_basic);
+    assert!((xcp_client.comm_mode_basic & 0x07) == 0); // Address granularity != 1 and motorola format not supported
+    info!("XCP PROTOCOL_VERSION = 0x{:04X}", xcp_client.protocol_version);
+    info!("XCP TRANSPORT_LAYER_VERSION = 0x{:04X}", xcp_client.transport_layer_version);
+    info!("XCP DRIVER_VERSION = 0x{:02X}", xcp_client.driver_version);
+    info!("XCP MAX_SEGMENTS = {}", xcp_client.max_segments);
+    info!("XCP FREEZE_SUPPORTED = {}", xcp_client.freeze_supported);
+    info!("XCP MAX_EVENTS = {}", xcp_client.max_events);
+
+    // Get name
+    let res = xcp_client.get_id(XCP_IDT_ASCII).await;
+    let name = match res {
+        Ok((_, Some(id))) => id,
+        Err(e) => {
+            panic!("GET_ID failed, Error: {}", e);
+        }
+        _ => {
+            panic!("Empty string");
+        }
+    };
+    info!("GET_ID XCP_IDT_ASCII = {}", name);
+
+    // Get A2L name
+    let res = xcp_client.get_id(XCP_IDT_ASAM_NAME).await;
+    let a2l_name = match res {
+        Ok((_, Some(id))) => id,
+        Err(e) => {
+            panic!("GET_ID failed, Error: {}", e);
+        }
+        _ => {
+            panic!("Empty string");
+        }
+    };
+    info!("GET_ID XCP_IDT_ASAM_NAME = {}", a2l_name);
+
+    // Get EPK
+    let res = xcp_client.get_id(XCP_IDT_ASAM_EPK).await;
+    let epk = match res {
+        Ok((_, Some(id))) => id,
+        Err(e) => {
+            panic!("GET_ID failed, Error: {}", e);
+        }
+        _ => {
+            panic!("Empty string");
+        }
+    };
+    info!("GET_ID IDT_EPK = {}", epk);
+
+    // Get event information
+    for i in 0..xcp_client.max_events {
+        let event_name = xcp_client.get_daq_event_info(i).await?;
+        info!("Event {}: {}", i, event_name);
+    }
+
+    // Get segment and page information
+    for i in 0..xcp_client.max_segments {
+        let (addr, length, name) = xcp_client.get_segment_info(i).await?;
+        info!("Segment {}: {} addr={:08X} length={} ", i, name, addr, length);
+    }
 
     // Upload A2L file
     info!("Load A2L file");
-    xcp_client.a2l_loader().await?;
+    xcp_client.a2l_loader(&a2l_name).await?;
 
     // Print all known calibration objects and get their current value
     if !list_cal.is_empty() {
@@ -344,6 +416,38 @@ async fn xcp_client_demo(
                 }
             }
         }
+        println!();
+        return Ok(());
+    }
+
+    // Set calibration variable
+    if !cal_args.is_empty() {
+        if cal_args.len() != 2 {
+            return Err("Calibration command requires exactly 2 arguments: variable name and value".into());
+        }
+
+        let var_name = &cal_args[0];
+        let value_str = &cal_args[1];
+
+        // Parse the value as a double
+        let value: f64 = value_str.parse().map_err(|_| format!("Failed to parse '{}' as a double value", value_str))?;
+
+        println!();
+        println!("Setting calibration variable '{}' to {}", var_name, value);
+
+        // Create calibration object
+        let handle = xcp_client
+            .create_calibration_object(var_name)
+            .await
+            .map_err(|e| format!("Failed to create calibration object for '{}': {}", var_name, e))?;
+
+        // Set the value using f64 (most calibration tools can handle type conversion)
+        xcp_client
+            .set_value_f64(handle, value)
+            .await
+            .map_err(|e| format!("Failed to set value for '{}': {}", var_name, e))?;
+
+        println!("Successfully set '{}' = {}", var_name, value);
         println!();
         return Ok(());
     }
@@ -413,8 +517,12 @@ async fn xcp_client_demo(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    info!("xcp_client");
+
+    // Parse command line arguments
     let args = Args::parse();
 
+    // Initialize logging
     let log_level = args.log_level.to_log_level_filter();
     env_logger::Builder::new()
         .target(env_logger::Target::Stdout)
@@ -424,24 +532,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .format_target(false)
         .init();
 
+    // Parse IP addresses
     let dest_addr: std::net::SocketAddr = args.dest_addr.parse().map_err(|e| format!("{}", e))?;
     let local_addr: std::net::SocketAddr = args.bind_addr.parse().map_err(|e| format!("{}", e))?;
-    info!("dest_addr: {}", dest_addr);
-    info!("local_addr: {}", local_addr);
+    info!("XCP server dest addr: {}", dest_addr);
+    info!("XCP client local bind addr: {}", local_addr);
 
     // Run the test executor if --test is specified
     if args.test {
-        test_executor(dest_addr, local_addr, TEST_CAL, TEST_DAQ, TEST_DURATION_MS).await; // Start the test executor
-        Ok(())
-    } else {
-        // Measurement variable list from command line
-        let measurement_list = args.mea;
-        if !measurement_list.is_empty() {
-            info!("measurement_list: {:?}", measurement_list);
-        }
-
-        // Start XCP client
-
-        xcp_client_demo(dest_addr, local_addr, args.list_cal, args.list_mea, measurement_list, args.time_ms).await
+        test_executor(dest_addr, local_addr, TEST_CAL, TEST_DAQ, TEST_DURATION_MS).await
     }
+    // Run the XCP client
+    else {
+        let _ = xcp_client(dest_addr, local_addr, args.list_cal, args.list_mea, args.mea, args.time_ms, args.cal).await;
+    }
+
+    Ok(())
 }

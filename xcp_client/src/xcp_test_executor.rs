@@ -466,7 +466,7 @@ pub async fn test_setup(
     if load_a2l {
         // Upload A2L file from XCP server
         if upload_a2l {
-            xcp_client.a2l_loader().await.unwrap();
+            xcp_client.a2l_loader("test").await.unwrap();
         }
         // Load the A2L file from file
         else {

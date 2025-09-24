@@ -18,11 +18,11 @@ unsafe extern "C" {
 }
 pub type tXcpEventId = u16;
 unsafe extern "C" {
-    #[doc = " Trigger the XCP event 'event' for stack relative or absolute addressing\n @param event Event id.\n Assumes XCP address extension XCP_ADDR_EXT_REL is used for stack relative addressing and XCP_ADDR_EXT_ABS for absolute addressing."]
+    #[doc = " Trigger the XCP event 'event' for stack absolute addressing mode (XCP_ADDR_EXT_ABS)\n @param event Event id.\n Assumes XCP address extension XCP_ADDR_EXT_REL is used for stack relative addressing and XCP_ADDR_EXT_ABS for absolute addressing."]
     pub fn XcpEvent(event: tXcpEventId);
 }
 unsafe extern "C" {
-    #[doc = " Trigger the XCP event 'event' for stack relative or absolute addressing and with explicitly given base address for relative addressing mode (DYN)\n @param event\n @param base address pointer for the relative (XCP_ADDR_EXT_DYN) addressing mode (from A2lSetRelativeAddrMode(base)).\n Assumes XCP_ADDR_EXT_REL is used for stack relative addressing and XCP_ADDR_EXT_ABS for absolute addressing."]
+    #[doc = " Trigger the XCP event 'event' for relative or absolute addressing mode with explicitly given base address (XCP_ADDR_EXT_DYN)\n @param event\n @param base address pointer for the relative (XCP_ADDR_EXT_DYN) addressing mode"]
     pub fn XcpEventExt(event: tXcpEventId, base: *const u8);
 }
 unsafe extern "C" {
