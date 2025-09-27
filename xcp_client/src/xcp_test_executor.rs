@@ -419,7 +419,7 @@ pub async fn test_setup(
 
     info!("  dest_addr: {}", dest_addr);
     info!("  local_addr: {}", local_addr);
-    let mut xcp_client = XcpClient::new(dest_addr, local_addr);
+    let mut xcp_client = XcpClient::new(false, dest_addr, local_addr); // false = UDP
     let daq_decoder: Arc<parking_lot::lock_api::Mutex<parking_lot::RawMutex, DaqDecoder>> = Arc::new(Mutex::new(DaqDecoder::new()));
     let serv_text_decoder = ServTextDecoder::new();
     xcp_client.connect(Arc::clone(&daq_decoder), serv_text_decoder).await.unwrap();

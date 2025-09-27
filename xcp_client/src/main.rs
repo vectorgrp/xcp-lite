@@ -10,10 +10,10 @@
 use parking_lot::Mutex;
 use std::net::Ipv4Addr;
 use std::{error::Error, sync::Arc};
-use xcp_lite::registry::{McAddress, McDimType, McEvent, McObjectType, McSupportData, McValueType, Registry};
+use xcp_lite::registry::{McEvent};
 
 // External crates for ELF parsing
-use goblin;
+//use goblin;
 
 mod xcp_client;
 use xcp_client::*;
@@ -48,6 +48,11 @@ struct Args {
     /// Bind address, master port number
     #[arg(short, long, default_value = "0.0.0.0:9999")]
     bind_addr: String,
+
+    // --tcp
+    /// Use TCP instead of UDP for XCP communication
+    #[arg(long, default_value_t = false)]
+    tcp: bool,
 
     // -a, --a2l
     /// Specify the name for the A2L file
@@ -319,6 +324,7 @@ impl XcpTextDecoder for ServTextDecoder {
 //------------------------------------------------------------------------
 //  Binary reader (ELF and Mach-O)
 
+/*
 fn read_elf(reg: &mut Registry, file_name: &str) -> Result<(), Box<dyn Error>> {
     use std::fs::read;
 
@@ -345,7 +351,7 @@ fn read_elf(reg: &mut Registry, file_name: &str) -> Result<(), Box<dyn Error>> {
 }
 
 fn process_elf_file(reg: &mut Registry, elf: &goblin::elf::Elf) -> Result<(), Box<dyn std::error::Error>> {
-    
+
     // Extract only global variable symbols (exclude functions and local variables)
     for sym in elf.syms.iter() {
         let bind = sym.st_bind();
@@ -355,10 +361,10 @@ fn process_elf_file(reg: &mut Registry, elf: &goblin::elf::Elf) -> Result<(), Bo
 
         // Only show GLOBAL object symbols (variables)
         // Exclude functions (STT_FUNC) and local variables (STB_LOCAL)
-        if typ == goblin::elf::sym::STT_OBJECT 
-            && bind == goblin::elf::sym::STB_GLOBAL 
-            && sec != 0 
-            && !name.is_empty() 
+        if typ == goblin::elf::sym::STT_OBJECT
+            && bind == goblin::elf::sym::STB_GLOBAL
+            && sec != 0
+            && !name.is_empty()
             && !name.starts_with("__")  // Exclude compiler-generated symbols
             && !name.starts_with("_")   // Exclude private/system symbols
         {
@@ -382,11 +388,13 @@ fn process_elf_file(reg: &mut Registry, elf: &goblin::elf::Elf) -> Result<(), Bo
 
     Ok(())
 }
+*/
 
 //------------------------------------------------------------------------
 //  XCP client
 
 async fn xcp_client(
+    tcp: bool,
     dest_addr: std::net::SocketAddr,
     local_addr: std::net::SocketAddr,
     a2l_name: String,
@@ -399,10 +407,10 @@ async fn xcp_client(
     cal_args: Vec<String>,
 ) -> Result<(), Box<dyn Error>> {
     // Create xcp_client
-    let mut xcp_client = XcpClient::new(dest_addr, local_addr);
+    let mut xcp_client = XcpClient::new(tcp, dest_addr, local_addr);
 
     // Connect to the XCP server
-    info!("XCP Connect");
+    info!("XCP Connect using {}", if tcp { "TCP" } else { "UDP" });
     let daq_decoder = Arc::new(Mutex::new(DaqDecoder::new()));
     xcp_client.connect(Arc::clone(&daq_decoder), ServTextDecoder::new()).await?;
     info!("XCP MAX_CTO = {}", xcp_client.max_cto_size);
@@ -473,7 +481,6 @@ async fn xcp_client(
             return Err("A2L upload failed".into());
         }
     }
-
     // Create A2L from segment and event information obtained from the XCP server
     // Add measurement and calibration variables from ELF file if specified
     else {
@@ -503,7 +510,7 @@ async fn xcp_client(
         // Read binary file if specified
         if !_elf_name.is_empty() {
             info!("Reading binary file: {}", _elf_name);
-            read_elf(&mut reg, &_elf_name)?;
+            //read_elf(&mut reg, &_elf_name)?;
         }
 
         let a2l_path = std::path::Path::new(&a2l_name).with_extension("a2l");
@@ -516,7 +523,7 @@ async fn xcp_client(
         println!();
         let cal_objects = xcp_client.find_characteristics(list_cal.as_str());
         println!("Calibration variables:");
-        if !cal_objects.is_empty() {        
+        if !cal_objects.is_empty() {
             for name in &cal_objects {
                 let h: XcpCalibrationObjectHandle = xcp_client.create_calibration_object(name).await?;
                 match xcp_client.get_calibration_object(h).get_a2l_type().encoding {
@@ -541,11 +548,9 @@ async fn xcp_client(
                 }
             }
             println!();
-        }
-        else {
+        } else {
             println!(" None");
         }
-        
     }
 
     // Set calibration variable
@@ -577,7 +582,6 @@ async fn xcp_client(
 
         println!("Successfully set '{}' = {}", var_name, value);
         println!();
-        
     }
 
     // Print all known measurement objects
@@ -680,7 +684,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
     // Run the XCP client
     else {
-        let _ = xcp_client(
+        let res = xcp_client(
+            args.tcp,
             dest_addr,
             local_addr,
             args.a2l,
@@ -693,6 +698,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
             args.cal,
         )
         .await;
+        if let Err(e) = res {
+            error!("XCP client failed, Error: {}", e);
+        }
     }
 
     Ok(())

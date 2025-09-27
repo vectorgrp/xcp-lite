@@ -25,8 +25,8 @@ byteorder = "1.5.0"
 regex = "1.11.1"
 lazy_static = "1.4"
 
-goblin = "0.8"
-gimli = "0.28"
+#goblin = "0.8"
+#gimli = "0.28"
 
 a2lfile = { version="3.0.0" }
 xcp_lite = { path = "../", features = ["a2l_reader"] }
