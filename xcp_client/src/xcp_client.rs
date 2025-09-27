@@ -248,6 +248,7 @@ enum XcpCommand {
     GetId = CC_GET_ID as isize,
     SetCalPage = CC_SET_CAL_PAGE as isize,
     GetCalPage = CC_GET_CAL_PAGE as isize,
+    GetPageProcessorInfo = CC_GET_PAGE_PROCESSOR_INFO as isize,
     GetSegmentInfo = CC_GET_SEGMENT_INFO as isize,
     GetPageInfo = CC_GET_PAGE_INFO as isize,
     SetSegmentMode = CC_SET_SEGMENT_MODE as isize,
@@ -287,6 +288,7 @@ impl From<u8> for XcpCommand {
             CC_GET_ID => XcpCommand::GetId,
             CC_SET_CAL_PAGE => XcpCommand::SetCalPage,
             CC_GET_CAL_PAGE => XcpCommand::GetCalPage,
+            CC_GET_PAGE_PROCESSOR_INFO => XcpCommand::GetPageProcessorInfo,
             CC_GET_SEGMENT_INFO => XcpCommand::GetSegmentInfo,
             CC_GET_PAGE_INFO => XcpCommand::GetPageInfo,
             CC_SET_SEGMENT_MODE => XcpCommand::SetSegmentMode,
@@ -310,7 +312,10 @@ impl From<u8> for XcpCommand {
             CC_ALLOC_ODT => XcpCommand::AllocOdt,
             CC_ALLOC_ODT_ENTRY => XcpCommand::AllocOdtEntry,
             CC_TIME_CORRELATION_PROPERTIES => XcpCommand::TimeCorrelationProperties,
-            _ => panic!("Unknown command code: 0x{:02X}", code),
+            _ => {
+                error!("Unknown command code: 0x{:02X}", code);
+                panic!("Unknown command code: 0x{:02X}", code);
+            }
         }
     }
 }
@@ -665,6 +670,8 @@ pub struct XcpClient {
     pub freeze_supported: bool,
     pub max_events: u16,
 
+    pub registry: Option<xcp_lite::registry::Registry>,
+
     timestamp_resolution_ns: u64,
     daq_header_size: u8,
 
@@ -678,7 +685,7 @@ pub struct XcpClient {
     task_control: XcpTaskControl,
     daq_decoder: Option<Arc<Mutex<dyn XcpDaqDecoder>>>,
     ctr: u16,
-    registry: Option<xcp_lite::registry::Registry>,
+
     calibration_object_list: Vec<XcpClientCalibrationObject>,
     measurement_object_list: Vec<XcpClientMeasurementObject>,
 }
@@ -688,8 +695,9 @@ impl XcpClient {
     // new
     //
     #[allow(clippy::type_complexity)]
-    pub fn new(dest_addr: SocketAddr, bind_addr: SocketAddr) -> XcpClient {
+    pub fn new(tcp: bool, dest_addr: SocketAddr, bind_addr: SocketAddr) -> XcpClient {
         XcpClient {
+            tcp: tcp,
             bind_addr,
             dest_addr,
             socket: None,
@@ -957,18 +965,32 @@ impl XcpClient {
         self.transport_layer_version = (data[4] as u16) << 8 | data[5] as u16;
 
         // Get comm mode info
-        let data = self.send_command(XcpCommandBuilder::new(CC_GET_COMM_MODE_INFO).add_u8(0).build()).await?;
-        self.comm_mode_optional = data[2]; // Master block mode and interleaved mode not supported yet
-        self.driver_version = data[7];
+        if self.comm_mode_basic & 0x80 != 0 {
+            let data = self.send_command(XcpCommandBuilder::new(CC_GET_COMM_MODE_INFO).add_u8(0).build()).await?;
+            self.comm_mode_optional = data[2]; // Master block mode and interleaved mode not supported yet
+            self.driver_version = data[7];
+        }
 
         // Get calibration page count and freeze support
-        let data = self.send_command(XcpCommandBuilder::new(CC_GET_PAGE_PROCESSOR_INFO).add_u8(0).build()).await?;
-        self.max_segments = data[1];
-        self.freeze_supported = (data[2] & 0x01) != 0;
+        let res = self.send_command(XcpCommandBuilder::new(CC_GET_PAGE_PROCESSOR_INFO).add_u8(0).build()).await;
+        match res {
+            Ok(data) => {
+                assert!(data.len() >= 3);
+                self.max_segments = data[1];
+                self.freeze_supported = (data[2] & 0x01) != 0;
+            }
+            Err(e) => {
+                warn!("GET_PAGE_PROCESSOR_INFO failed: {}", e);
+                self.max_segments = 0;
+                self.freeze_supported = false;
+            }
+        }
 
-        // Get event count
-        let data = self.send_command(XcpCommandBuilder::new(CC_GET_DAQ_PROCESSOR_INFO).add_u8(0).build()).await?;
-        self.max_events = (data[4] as u16) | ((data[5] as u16) << 8);
+        // Get DAQ header size and event count
+        self.get_daq_processor_info().await?;
+
+        // let data = self.send_command(XcpCommandBuilder::new(CC_GET_DAQ_PROCESSOR_INFO).add_u8(0).build()).await?;
+        // self.max_events = (data[4] as u16) | ((data[5] as u16) << 8);
 
         // Notify the rx task
         self.task_control.connected = true; // the task will end, when it gets connected = false over the XcpControl channel
@@ -976,9 +998,6 @@ impl XcpClient {
         self.tx_task_control.as_ref().unwrap().send(self.task_control).await.unwrap();
 
         assert!(self.is_connected());
-
-        // Get DAQ properties
-        self.get_daq_processor_info().await?;
 
         // Initialize DAQ clock
         self.time_correlation_properties().await?; // Set 64 bit response format for GET_DAQ_CLOCK
@@ -1025,10 +1044,10 @@ impl XcpClient {
     // Get server identification
     // @@@@ TODO other types, only XCP_IDT_ASAM_UPLOAD supported
     pub async fn get_id(&mut self, id_type: u8) -> Result<(u32, Option<String>), Box<dyn Error>> {
-        let data = self.send_command(XcpCommandBuilder::new(CC_GET_ID).add_u8(id_type).build()).await?;
-
-        assert_eq!(data[0], 0xFF);
         assert!(id_type == XCP_IDT_ASAM_UPLOAD || id_type == XCP_IDT_ASAM_NAME || id_type == XCP_IDT_ASCII || id_type == XCP_IDT_ASAM_EPK); // others not supported yet
+
+        let data = self.send_command(XcpCommandBuilder::new(CC_GET_ID).add_u8(id_type).build()).await?;
+        assert_eq!(data[0], 0xFF);
         let mode = data[1]; // 0 = data by upload, 1 = data in response
 
         // Decode size
@@ -1036,7 +1055,7 @@ impl XcpClient {
         for i in (4..8).rev() {
             size = (size << 8) | (data[i] as u32);
         }
-        debug!("GET_ID mode={} -> size = {}", id_type, size);
+        info!("GET_ID mode={} -> size = {}", id_type, size);
 
         // Data ready for upload
         if mode == 0 {
@@ -1235,7 +1254,7 @@ impl XcpClient {
         let daq_properties = c.read_u8()?;
         assert!((daq_properties & 0x10) == 0x10, "DAQ timestamps must be available");
         let max_daq = c.read_u16::<LittleEndian>()?;
-        let max_event = c.read_u16::<LittleEndian>()?;
+        self.max_events = c.read_u16::<LittleEndian>()?;
         let min_daq = c.read_u8()?;
         let daq_key_byte = c.read_u8()?;
         self.daq_header_size = (daq_key_byte >> 6) + 1;
@@ -1243,7 +1262,7 @@ impl XcpClient {
 
         debug!(
             "GET_DAQ_PROPERTIES daq_properties = 0x{:0X}, max_daq = {}, max_event = {}, min_daq = {}, daq_key_byte = 0x{:0X} (header_size={})",
-            daq_properties, max_daq, max_event, min_daq, daq_key_byte, self.daq_header_size
+            daq_properties, max_daq, self.max_events, min_daq, daq_key_byte, self.daq_header_size
         );
         Ok(())
     }

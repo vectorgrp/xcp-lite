@@ -81,7 +81,7 @@ impl From<McText> for String {
 impl From<Option<&String>> for McText {
     fn from(s: Option<&String>) -> Self {
         if let Some(s) = s {
-            log::debug!("From<String> to McText: Leak String '{s}' to &'static str");
+            log::trace!("From<String> to McText: Leak String '{s}' to &'static str");
             let s = s.clone().into_boxed_str();
             let s = Box::leak(s);
 
@@ -94,7 +94,7 @@ impl From<Option<&String>> for McText {
 
 impl From<&String> for McText {
     fn from(s: &String) -> Self {
-        log::debug!("From<String> to McText: Leak String '{s}' to &'static str");
+        log::trace!("From<String> to McText: Leak String '{s}' to &'static str");
         let s = s.clone().into_boxed_str();
         let s = Box::leak(s);
 
@@ -104,7 +104,7 @@ impl From<&String> for McText {
 
 impl From<String> for McText {
     fn from(s: String) -> Self {
-        log::debug!("From<String> to McText: Leak String '{s}' to &'static str");
+        log::trace!("From<String> to McText: Leak String '{s}' to &'static str");
         let s = s.into_boxed_str();
         let s = Box::leak(s);
 
@@ -228,7 +228,7 @@ fn check_identifier(s: &str) -> bool {
 
 impl From<String> for McIdentifier {
     fn from(s: String) -> Self {
-        log::debug!("From<String> to McIdentifier: Leak String '{s}' to &'static str");
+        log::trace!("From<String> to McIdentifier: Leak String '{s}' to &'static str");
         let mut s = s.clone();
         to_identifier(&mut s);
         let s = s.into_boxed_str();

@@ -326,7 +326,6 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
     // Memory segments
 
     // Add memory segments and EPK
-    let mut index = 0;
     if let Some(mod_par) = &module.mod_par {
         // EPK
         if let Some(epk) = &mod_par.epk {
@@ -337,20 +336,23 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
         }
 
         // Memory segments
+        let mut index = 0;
+        let mut number: u8 = 0; // Number is part of the memory segment IF_DATA, not used here
         for m in mod_par.memory_segment.iter() {
             let name = m.get_name().to_string();
             let addr_ext = 0; // @@@@ xcp-lite address extensions hardcoded here, would be in IF_DATA
             let addr = m.address;
             let size = m.size;
             if vector_xcp_mode {
+                // Get index from addr, in vector mode the high word of the segment address is the segment number
+                let addr_index = ((addr >> 16) & 0x7FFF) as u16;
+                assert!(number as u16 == addr_index);
+
                 if name == "epk" {
-                    // Predefined memory segment for EPK, just ignore
+                    // Predefined memory segment for EPK, just ignore, don't increment index
+                    number += 1;
                     continue;
                 }
-                // Get index from addr
-                index = ((addr >> 16) & 0x7FFF) as u16 - 1; // EPK segment is virtual, index starts with 0
-            } else {
-                index += 1; // Index starts with 1, 0 is predefined EPK segment
             }
 
             let res = registry.cal_seg_list.add_a2l_cal_seg(name, index, addr_ext, addr, size);
@@ -360,6 +362,9 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
                     warn!("Failed to add calibration segment: {}", e);
                 }
             }
+
+            index += 1;
+            number += 1;
         }
     }
 

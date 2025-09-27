@@ -8,7 +8,12 @@
 // cargo r --example xcp_client -- -h
 
 use parking_lot::Mutex;
+use std::net::Ipv4Addr;
 use std::{error::Error, sync::Arc};
+use xcp_lite::registry::{McAddress, McDimType, McEvent, McObjectType, McSupportData, McValueType, Registry};
+
+// External crates for ELF parsing
+use goblin;
 
 mod xcp_client;
 use xcp_client::*;
@@ -39,13 +44,29 @@ struct Args {
     #[arg(short, long, default_value_t = 5555)]
     port: u16,
 
-    // -b -- bind-addr
+    // -b --bind-addr
     /// Bind address, master port number
     #[arg(short, long, default_value = "0.0.0.0:9999")]
     bind_addr: String,
 
+    // -a, --a2l
+    /// Specify the name for the A2L file
+    #[arg(short, long, default_value = "xcp_client")]
+    a2l: String,
+
+    // -e, --elf
+    /// Specify the name of the ELF file
+    #[arg(short, long, default_value = "")]
+    elf: String,
+
+    // --load-a2l
+    /// Load A2L file from XCP server
+    /// Requires that the XCP server supports the A2L upload command
+    #[arg(long, default_value_t = false)]
+    load_a2l: bool,
+
     // --list_mea
-    /// Lists all matchin measurement variables found in the A2L file
+    /// Lists all matching measurement variables found in the A2L file
     #[clap(long, default_value = "")]
     list_mea: String,
 
@@ -296,11 +317,81 @@ impl XcpTextDecoder for ServTextDecoder {
 }
 
 //------------------------------------------------------------------------
+//  Binary reader (ELF and Mach-O)
+
+fn read_elf(reg: &mut Registry, file_name: &str) -> Result<(), Box<dyn Error>> {
+    use std::fs::read;
+
+    println!("Starting binary analysis of: {}", file_name);
+
+    // Read and parse binary file
+    let buffer = read(file_name).map_err(|e| format!("Failed to read binary file '{}': {}", file_name, e))?;
+    println!("Successfully read {} bytes from binary file", buffer.len());
+
+    // Parse the object file (auto-detect format)
+    let object = goblin::Object::parse(&buffer).map_err(|e| format!("Failed to parse binary file: {}", e))?;
+    match object {
+        goblin::Object::Elf(elf) => {
+            println!("Detected ELF format");
+            process_elf_file(reg, &elf)?;
+        }
+        _ => {
+            println!("Unsupported object format");
+            return Err(format!("Unsupported object format").into());
+        }
+    }
+
+    Ok(())
+}
+
+fn process_elf_file(reg: &mut Registry, elf: &goblin::elf::Elf) -> Result<(), Box<dyn std::error::Error>> {
+    
+    // Extract only global variable symbols (exclude functions and local variables)
+    for sym in elf.syms.iter() {
+        let bind = sym.st_bind();
+        let typ = sym.st_type();
+        let sec = sym.st_shndx;
+        let name = elf.strtab.get_at(sym.st_name).unwrap_or("").trim_end_matches('\0');
+
+        // Only show GLOBAL object symbols (variables)
+        // Exclude functions (STT_FUNC) and local variables (STB_LOCAL)
+        if typ == goblin::elf::sym::STT_OBJECT 
+            && bind == goblin::elf::sym::STB_GLOBAL 
+            && sec != 0 
+            && !name.is_empty() 
+            && !name.starts_with("__")  // Exclude compiler-generated symbols
+            && !name.starts_with("_")   // Exclude private/system symbols
+        {
+            let addr = sym.st_value;
+            let size = sym.st_size;
+
+            println!("Global Variable - Address: 0x{:08x}, Size: {}, Name: {}", addr, size, name);
+            let mc_support_data = McSupportData::new(McObjectType::Measurement);
+            let dim_type = match size {
+                1 => McDimType::new(McValueType::Ubyte, 0, 0),
+                2 => McDimType::new(McValueType::Uword, 0, 0),
+                4 => McDimType::new(McValueType::Ulong, 0, 0),
+                8 => McDimType::new(McValueType::Ulonglong, 0, 0),
+                _ => McDimType::new(McValueType::Ubyte, 0, 0),
+            };
+            let _= reg.instance_list.add_instance(name.to_string().clone(), dim_type, mc_support_data, McAddress::new_a2l(addr as u32, 1));
+        }
+    }
+
+
+
+    Ok(())
+}
+
+//------------------------------------------------------------------------
 //  XCP client
 
 async fn xcp_client(
     dest_addr: std::net::SocketAddr,
     local_addr: std::net::SocketAddr,
+    a2l_name: String,
+    load_a2l: bool,
+    _elf_name: String,
     list_cal: String,
     list_mea: String,
     measurement_list: Vec<String>,
@@ -346,19 +437,6 @@ async fn xcp_client(
     };
     info!("GET_ID XCP_IDT_ASCII = {}", name);
 
-    // Get A2L name
-    let res = xcp_client.get_id(XCP_IDT_ASAM_NAME).await;
-    let a2l_name = match res {
-        Ok((_, Some(id))) => id,
-        Err(e) => {
-            panic!("GET_ID failed, Error: {}", e);
-        }
-        _ => {
-            panic!("Empty string");
-        }
-    };
-    info!("GET_ID XCP_IDT_ASAM_NAME = {}", a2l_name);
-
     // Get EPK
     let res = xcp_client.get_id(XCP_IDT_ASAM_EPK).await;
     let epk = match res {
@@ -372,52 +450,102 @@ async fn xcp_client(
     };
     info!("GET_ID IDT_EPK = {}", epk);
 
-    // Get event information
-    for i in 0..xcp_client.max_events {
-        let event_name = xcp_client.get_daq_event_info(i).await?;
-        info!("Event {}: {}", i, event_name);
+    // Load A2L file from XCP server
+    if load_a2l {
+        // Get A2L name
+        let res = xcp_client.get_id(XCP_IDT_ASAM_NAME).await;
+        let a2l_name = match res {
+            Ok((_, Some(id))) => id,
+            Err(e) => {
+                panic!("GET_ID failed, Error: {}", e);
+            }
+            _ => {
+                panic!("Empty string");
+            }
+        };
+        info!("GET_ID XCP_IDT_ASAM_NAME = {}", a2l_name);
+
+        // Upload A2L file
+        info!("Load A2L file");
+        let res = xcp_client.a2l_loader(&a2l_name).await;
+        if let Err(e) = res {
+            error!("A2L upload failed, Error: {}", e);
+            return Err("A2L upload failed".into());
+        }
     }
 
-    // Get segment and page information
-    for i in 0..xcp_client.max_segments {
-        let (addr, length, name) = xcp_client.get_segment_info(i).await?;
-        info!("Segment {}: {} addr={:08X} length={} ", i, name, addr, length);
-    }
+    // Create A2L from segment and event information obtained from the XCP server
+    // Add measurement and calibration variables from ELF file if specified
+    else {
+        // Create an empty A2L registry
+        let mut reg = xcp_lite::registry::Registry::new();
+        reg.set_app_info(name, "created by xcp_client", 0);
+        reg.set_app_version(epk, 0x80000000);
+        let protocol = "UDP";
+        let addr = Ipv4Addr::new(127, 0, 0, 1);
+        let port = 5555;
+        reg.set_xcp_params(protocol, addr, port);
 
-    // Upload A2L file
-    info!("Load A2L file");
-    xcp_client.a2l_loader(&a2l_name).await?;
+        // Get event information
+        for i in 0..xcp_client.max_events {
+            let name = xcp_client.get_daq_event_info(i).await?;
+            info!("Event {}: {}", i, name);
+            reg.event_list.add_event(McEvent::new(name, 0, i, 0)).unwrap();
+        }
+
+        // Get segment and page information
+        for i in 0..xcp_client.max_segments {
+            let (addr, length, name) = xcp_client.get_segment_info(i).await?;
+            info!("Segment {}: {} addr={:08X} length={} ", i, name, addr, length);
+            reg.cal_seg_list.add_cal_seg(name, i as u16, length as u32).unwrap();
+        }
+
+        // Read binary file if specified
+        if !_elf_name.is_empty() {
+            info!("Reading binary file: {}", _elf_name);
+            read_elf(&mut reg, &_elf_name)?;
+        }
+
+        let a2l_path = std::path::Path::new(&a2l_name).with_extension("a2l");
+        reg.write_a2l(&a2l_path, true).unwrap();
+        xcp_client.registry = Some(reg);
+    }
 
     // Print all known calibration objects and get their current value
     if !list_cal.is_empty() {
         println!();
-        println!("Calibration variables:");
         let cal_objects = xcp_client.find_characteristics(list_cal.as_str());
-        for name in &cal_objects {
-            let h: XcpCalibrationObjectHandle = xcp_client.create_calibration_object(name).await?;
-            match xcp_client.get_calibration_object(h).get_a2l_type().encoding {
-                A2lTypeEncoding::Signed => {
-                    let v = xcp_client.get_value_i64(h);
-                    let o = xcp_client.get_calibration_object(h);
-                    println!(" {} {}:{:08X} = {}", o.get_name(), o.get_a2l_addr().ext, o.get_a2l_addr().addr, v);
-                }
-                A2lTypeEncoding::Unsigned => {
-                    let v = xcp_client.get_value_u64(h);
-                    let o = xcp_client.get_calibration_object(h);
-                    println!(" {} {}:{:08X} = {}", o.get_name(), o.get_a2l_addr().ext, o.get_a2l_addr().addr, v);
-                }
-                A2lTypeEncoding::Float => {
-                    let v = xcp_client.get_value_f64(h);
-                    let o = xcp_client.get_calibration_object(h);
-                    println!(" {} {}:{:08X} = {}", o.get_name(), o.get_a2l_addr().ext, o.get_a2l_addr().addr, v);
-                }
-                A2lTypeEncoding::Blob => {
-                    println!(" {} = [...]", name);
+        println!("Calibration variables:");
+        if !cal_objects.is_empty() {        
+            for name in &cal_objects {
+                let h: XcpCalibrationObjectHandle = xcp_client.create_calibration_object(name).await?;
+                match xcp_client.get_calibration_object(h).get_a2l_type().encoding {
+                    A2lTypeEncoding::Signed => {
+                        let v = xcp_client.get_value_i64(h);
+                        let o = xcp_client.get_calibration_object(h);
+                        println!(" {} {}:{:08X} = {}", o.get_name(), o.get_a2l_addr().ext, o.get_a2l_addr().addr, v);
+                    }
+                    A2lTypeEncoding::Unsigned => {
+                        let v = xcp_client.get_value_u64(h);
+                        let o = xcp_client.get_calibration_object(h);
+                        println!(" {} {}:{:08X} = {}", o.get_name(), o.get_a2l_addr().ext, o.get_a2l_addr().addr, v);
+                    }
+                    A2lTypeEncoding::Float => {
+                        let v = xcp_client.get_value_f64(h);
+                        let o = xcp_client.get_calibration_object(h);
+                        println!(" {} {}:{:08X} = {}", o.get_name(), o.get_a2l_addr().ext, o.get_a2l_addr().addr, v);
+                    }
+                    A2lTypeEncoding::Blob => {
+                        println!(" {} = [...]", name);
+                    }
                 }
             }
+            println!();
         }
-        println!();
-        return Ok(());
+        else {
+            println!(" None");
+        }
+        
     }
 
     // Set calibration variable
@@ -449,61 +577,69 @@ async fn xcp_client(
 
         println!("Successfully set '{}' = {}", var_name, value);
         println!();
-        return Ok(());
+        
     }
 
     // Print all known measurement objects
     if !list_mea.is_empty() {
         println!();
-        println!("Measurement variables:");
         let mea_objects = xcp_client.find_measurements(&list_mea);
-        for name in &mea_objects {
-            if let Some(h) = xcp_client.create_measurement_object(name) {
-                let o = xcp_client.get_measurement_object(h);
-                println!(" {} {} {}", o.get_name(), o.get_a2l_addr(), o.get_a2l_type());
+        println!("Measurement variables:");
+        if !mea_objects.is_empty() {
+            for name in &mea_objects {
+                if let Some(h) = xcp_client.create_measurement_object(name) {
+                    let o = xcp_client.get_measurement_object(h);
+                    println!(" {} {} {}", o.get_name(), o.get_a2l_addr(), o.get_a2l_type());
+                }
             }
+            println!();
+        } else {
+            println!(" None");
         }
-        println!();
-        return Ok(());
     }
 
     // Measurement
     if !measurement_list.is_empty() {
+        // Create list of measurement variable names
         let list = if measurement_list.len() == 1 {
             // Regular expression
             xcp_client.find_measurements(measurement_list[0].as_str())
         } else {
-            // Just a list of names
+            // Just a list of names given on the command line
             measurement_list
         };
-
-        // Create measurement objects for all names in the lis
-        // Multi dimensional objects not supported yet
-        info!("Measurement list:");
-        for name in &list {
-            if let Some(o) = xcp_client.create_measurement_object(name) {
-                info!(r#"  {}: {}"#, o.0, name);
-            }
+        if list.is_empty() {
+            warn!("No measurement variables found");
         }
-        info!("");
+        // Start measurement
+        else {
+            // Create measurement objects for all names in the list
+            // Multi dimensional objects not supported yet
+            info!("Measurement list:");
+            for name in &list {
+                if let Some(o) = xcp_client.create_measurement_object(name) {
+                    info!(r#"  {}: {}"#, o.0, name);
+                }
+            }
 
-        // Measure for n seconds
-        // 32 bit DAQ timestamp will overflow after 4.2s
-        let start_time = tokio::time::Instant::now();
-        xcp_client.start_measurement().await?;
-        tokio::time::sleep(std::time::Duration::from_millis(measurement_time_ms)).await;
-        xcp_client.stop_measurement().await?;
-        let elapsed_time = start_time.elapsed().as_micros();
+            // Measure for n seconds
+            // 32 bit DAQ timestamp will overflow after 4.2s
+            let start_time = tokio::time::Instant::now();
+            xcp_client.start_measurement().await?;
+            tokio::time::sleep(std::time::Duration::from_millis(measurement_time_ms)).await;
+            xcp_client.stop_measurement().await?;
+            let elapsed_time = start_time.elapsed().as_micros();
 
-        // Print statistics from DAQ decoder
-        let event_count = daq_decoder.lock().event_count;
-        let byte_count = daq_decoder.lock().byte_count;
-        info!(
-            "Measurement done, {} events, {:.0} event/s, {:.3} Mbytes/s",
-            event_count,
-            event_count as f64 * 1_000_000.0 / elapsed_time as f64,
-            byte_count as f64 / elapsed_time as f64
-        );
+            // Print statistics from DAQ decoder
+            let event_count = daq_decoder.lock().event_count;
+            let byte_count = daq_decoder.lock().byte_count;
+            info!(
+                "Measurement done, {} events, {:.0} event/s, {:.3} Mbytes/s",
+                event_count,
+                event_count as f64 * 1_000_000.0 / elapsed_time as f64,
+                byte_count as f64 / elapsed_time as f64
+            );
+        }
     }
 
     // Disconnect
@@ -544,7 +680,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
     // Run the XCP client
     else {
-        let _ = xcp_client(dest_addr, local_addr, args.list_cal, args.list_mea, args.mea, args.time_ms, args.cal).await;
+        let _ = xcp_client(
+            dest_addr,
+            local_addr,
+            args.a2l,
+            args.load_a2l,
+            args.elf,
+            args.list_cal,
+            args.list_mea,
+            args.mea,
+            args.time_ms,
+            args.cal,
+        )
+        .await;
     }
 
     Ok(())

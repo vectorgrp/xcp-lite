@@ -173,7 +173,7 @@ impl Default for McSupportData {
 
 impl Clone for McSupportData {
     fn clone(&self) -> Self {
-        log::debug!("Cloning McSupportData");
+        log::trace!("Cloning McSupportData");
         McSupportData {
             object_type: self.object_type,
             qualifier: self.qualifier,
