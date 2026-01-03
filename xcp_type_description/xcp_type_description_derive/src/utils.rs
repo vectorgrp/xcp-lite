@@ -99,32 +99,47 @@ pub fn parse_field_attributes(
     (field_attribute, qualifier, comment, min, max, step, factor.unwrap(), offset.unwrap(), unit, x_axis, y_axis)
 }
 
-pub fn dimensions(ty: &Type) -> (u16, u16) {
+pub fn normalize_tokens(ts: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
+    ts.into_iter()
+        .flat_map(|tt| match tt {
+            proc_macro2::TokenTree::Group(g) if g.delimiter() == proc_macro2::Delimiter::None => normalize_tokens(g.stream()).into_iter().collect::<Vec<_>>(),
+            other => vec![other],
+        })
+        .collect()
+}
+
+pub fn dimensions(ty: &syn::Type) -> (u16, u16) {
     match ty {
-        Type::Array(TypeArray { elem, len, .. }) => {
-            let length = match len {
-                syn::Expr::Lit(expr_lit) => {
-                    if let Lit::Int(lit_int) = &expr_lit.lit {
-                        lit_int.base10_parse::<usize>().unwrap()
-                    } else {
-                        panic!("Expected an integer literal for array length");
-                    }
-                }
-                _ => panic!("Expected an integer literal for array length"),
-            };
+        syn::Type::Array(arr) => handle_array(arr),
 
-            let (inner_x, inner_y) = dimensions(elem);
+        _ => (0, 0),
+    }
+}
 
-            if inner_x == 0 && inner_y == 0 {
-                (length.try_into().unwrap(), 0)
-            } else if inner_y == 0 {
-                (inner_x, length.try_into().unwrap())
+fn handle_array(arr: &syn::TypeArray) -> (u16, u16) {
+    let len = extract_array_len(&arr.len).unwrap_or(0);
+    let (ix, iy) = dimensions(&arr.elem);
+    if ix == 0 && iy == 0 {
+        (len as u16, 0)
+    } else if iy == 0 {
+        (ix, len as u16)
+    } else {
+        (ix, iy * len as u16)
+    }
+}
+
+fn extract_array_len(expr: &syn::Expr) -> Option<usize> {
+    match expr {
+        syn::Expr::Lit(l) => {
+            if let syn::Lit::Int(i) = &l.lit {
+                i.base10_parse().ok()
             } else {
-                // @@@@ TODO ????
-                (inner_x, inner_y)
+                panic!("Expected an integer literal for array length");
             }
         }
-        _ => (0, 0),
+        syn::Expr::Paren(p) => extract_array_len(&p.expr),
+        syn::Expr::Group(g) => extract_array_len(&g.expr),
+        _ => panic!("Expected an integer literal for array length"),
     }
 }
 

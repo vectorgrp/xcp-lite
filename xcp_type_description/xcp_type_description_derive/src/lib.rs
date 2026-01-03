@@ -3,6 +3,7 @@ extern crate proc_macro;
 mod utils;
 
 use proc_macro::TokenStream;
+use quote::ToTokens;
 use quote::quote;
 use syn::{Data, DeriveInput, Expr, parse_macro_input};
 
@@ -26,9 +27,9 @@ pub fn xcp_type_description_derive(input: TokenStream) -> TokenStream {
 fn generate_type_description_impl(data_struct: syn::DataStruct, value_type: &syn::Ident) -> proc_macro2::TokenStream {
     let field_handlers = data_struct.fields.iter().map(|field| {
         let field_name = &field.ident; // Field identifier
-        let field_data_type = &field.ty; // Field type
+        let raw_type_tokens = field.ty.to_token_stream();
+        let field_data_type = &syn::parse2(utils::normalize_tokens(raw_type_tokens)).expect("failed to parse normalized"); // Field type
         let (x_dim, y_dim) = dimensions(field_data_type); //Dimension of type is array
-
         // Field attributes
         // #[axis/characteristic/measurement(...)]  attr = access_type, comment, min, max, step, factor, offset, unit, x_axis, y_axis
         let field_attributes = &field.attrs;
