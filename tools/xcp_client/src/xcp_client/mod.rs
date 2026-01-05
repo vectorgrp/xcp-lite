@@ -1902,9 +1902,18 @@ impl XcpClient {
                 debug!("  Added ExtendedLinearAddress record: 0x{:04X} (base=0x{:08X})", upper_addr, (upper_addr as u32) << 16);
             }
 
-            // Create an IHEX data record for this segment (segments are always < 64KB)
-            ihex_records.push(ihex::Record::Data { offset: lower_addr, value: data });
-            debug!("  Added Data record: offset=0x{:04X}, length={}", lower_addr, seg_length);
+            // Create IHEX data records for this calibration segments of 32 bytes (segments are always < 64KB)
+            const CHUNK_SIZE: usize = 32;
+            for (i, chunk) in data.chunks(CHUNK_SIZE).enumerate() {
+                let chunk_offset = lower_addr + (i * CHUNK_SIZE) as u16;
+
+                ihex_records.push(ihex::Record::Data {
+                    offset: chunk_offset,
+                    value: chunk.to_vec(),
+                });
+
+                debug!("  Added Data record: offset=0x{:04X}, length={}", chunk_offset, chunk.len());
+            }
         }
 
         // Add End-Of-File record
