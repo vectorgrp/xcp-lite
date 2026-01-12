@@ -579,7 +579,7 @@ async fn test_calibration(xcp_client: &mut XcpClient, _task_cycle_us: u64) -> bo
 
         // Get address of calibration variable cal_seg.cal_test
         let registry = xcp_client.get_registry();
-        let instance_cal_test = registry.instance_list.find_instance("cal_seg.cal_test", McObjectType::Characteristic, None).unwrap();
+        let instance_cal_test = registry.instance_list.get_instance("cal_seg.cal_test", McObjectType::Characteristic, None).unwrap();
         let addr_cal_test = instance_cal_test.get_address().get_a2l_addr(registry);
         debug!("Address of cal_seg.cal_test = {}:0x{:X}\n", addr_cal_test.0, addr_cal_test.1);
 
@@ -680,7 +680,11 @@ pub async fn test_setup(task_count: usize, load_a2l: bool, upload_a2l: bool) -> 
     if load_a2l {
         // Upload A2L file from XCP server
         if upload_a2l {
-            xcp_client.a2l_upload("test").await.unwrap();
+            let mut reg = Registry::new();
+            let a2l_path = std::path::Path::new("test").with_extension("a2l");
+            xcp_client.upload_a2l_into_registry(&a2l_path, &mut reg).await.unwrap();
+            xcp_client.set_registry(reg);
+            info!("A2L file uploaded from XCP server into registry from {:?}", a2l_path);
         }
         // Load the A2L file from file
         else {
@@ -720,7 +724,7 @@ pub async fn test_setup(task_count: usize, load_a2l: bool, upload_a2l: bool) -> 
         let epk = resp[1..=8].to_vec();
         let epk_string = String::from_utf8(epk.clone()).unwrap();
         info!("Upload EPK = {} {:?}", epk_string, epk);
-        debug!("A2l EPK = {}", xcp_client.a2l_epk().unwrap());
+        debug!("A2l EPK = {}", xcp_client.get_epk().unwrap());
         //assert_eq!(epk_string.as_str(), xcp_client.a2l_epk().unwrap(), "EPK mismatch"); // @@@@ TODO
     }
 

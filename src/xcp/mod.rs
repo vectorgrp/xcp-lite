@@ -117,18 +117,16 @@ impl XcpEvent {
         self.index
     }
 
-    /// Trigger a XCP event and provide a base pointer for relative addressing mode (XCP_ADDR_EXT_DYN or XCP_ADDR_EXT_REL)
+    /// Trigger a XCP event and provide a base pointer for relative addressing mode (XCP_ADDR_EXT_DYN)
     /// McAddress of the associated measurement variables must be relative to base
     ///
     /// # Safety
     /// This is a C ffi call, which gets a pointer to a daq capture buffer
     /// The provenance of the pointer (len, lifetime) is is guaranteed , it refers to self
     /// The buffer must match its registry description, to avoid corrupt data given to the XCP tool
-    //#[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub unsafe fn trigger_ext(self, base: *const u8) {
         // @@@@ UNSAFE - C library call and transferring a pointer and its valid memory range to XCPlite FFI
-        // @@@@ TODO: Clarify DYN versus REL addressing mode
-        unsafe { xcplib::XcpEventExt2(self.get_id(), base, base) }
+        unsafe { xcplib::XcpEventExt(self.get_id(), base) }
     }
 }
 
@@ -501,7 +499,7 @@ impl Xcp {
         let check = true;
         #[cfg(not(test))]
         let check = false;
-        registry::get().write_a2l(&path, "xcp-lite", app_name, "", app_name, "XCPLITE__C_DR", check)?;
+        registry::get().write_a2l(&path, "xcp-lite", app_name, "", app_name, "XCPLITE__CASDD", check)?;
 
         // Notify xcplib of the A2L file
         unsafe {
@@ -584,7 +582,7 @@ pub mod xcp_test {
         unsafe {
             xcplib::XcpReset();
         }
-        let xcp = Xcp::init("Test", "EPK_V1.0.0", TEST_XCP_LOG_LEVEL);
+        let xcp = Xcp::init("Test", "EPK_V1.1.0", TEST_XCP_LOG_LEVEL);
         xcp.event_list.lock().clear();
 
         xcp

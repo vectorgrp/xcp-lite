@@ -297,9 +297,12 @@ impl GenerateA2l for McEvent {
         // Priority 0
         // @@@@ TODO CANape does not accept CONSISTENCY EVENT for serialized data types !!!!!!!!!!
         if index > 0 {
-            write!(writer, "\t\t\t/begin EVENT \"{:.98}_{}\" \"{:.6}_{}\" ", name, index, name, index)?;
+            let name = format!("{}_{}", name, index);
+            let short_name = if name.len() > 8 { &name[name.len() - 8..] } else { &name };
+            write!(writer, "\t\t\t/begin EVENT \"{:.100}\" \"{}\" ", name, short_name)?;
         } else {
-            write!(writer, "\t\t\t/begin EVENT \"{:.100}\" \"{:.8}\" ", name, name)?;
+            let short_name = if name.len() > 8 { &name[name.len() - 8..] } else { &name };
+            write!(writer, "\t\t\t/begin EVENT \"{:.100}\" \"{}\" ", name, short_name)?;
         }
         writeln!(writer, "{} DAQ 0xFF {} {} {} CONSISTENCY DAQ /end EVENT", id, time_cycle, time_unit, priority)
     }
@@ -519,7 +522,7 @@ impl McInstance {
         let name = &self.name;
 
         // Addressing
-        let event_id = self.address.event_id();
+        let event_id = self.address.get_event_id();
         let (ext, addr) = self.address.get_a2l_addr(writer.registry);
 
         // McSupportData
@@ -615,7 +618,7 @@ impl McInstance {
                 }
                 // XCP_ADDR_EXT_DYN makes it possible to write a measurement object
                 // @@@@ EXPERIMENTAL - not thread safe
-                if ext == McAddress::XCP_ADDR_EXT_DYN {
+                if self.address.is_event_relative() {
                     write!(writer, " READ_WRITE")?;
                 }
                 if !unit.is_empty() {
@@ -974,7 +977,7 @@ ASAP2_VERSION 1 71
             writeln!(self, "\n/* Measurements for event '{}' */", e.name)?;
             for m in self.registry.instance_list.into_iter() {
                 // If with event or explicitly a measurement object
-                if m.is_measurement_object() && m.address.event_id() == Some(e.id) {
+                if m.is_measurement_object() && m.address.get_event_id() == Some(e.id) {
                     m.write_measurement(self)?;
                 }
             }
@@ -984,7 +987,7 @@ ASAP2_VERSION 1 71
         writeln!(self, "\n/* Measurements without fixed event */")?;
         for m in self.registry.instance_list.into_iter() {
             // If without event and not explicitly a measurement object
-            if m.is_measurement_object() && m.address.event_id().is_none() {
+            if m.is_measurement_object() && m.address.get_event_id().is_none() {
                 m.write_measurement(self)?;
             }
         }
@@ -1010,7 +1013,7 @@ ASAP2_VERSION 1 71
             let event_name = &event.name;
             write!(self, "/begin GROUP {} \"\" /begin REF_MEASUREMENT", event_name)?;
             for instance in self.registry.instance_list.into_iter().filter(|i| i.is_measurement_object()) {
-                if let Some(instance_event_id) = instance.address.event_id() {
+                if let Some(instance_event_id) = instance.address.get_event_id() {
                     if let Some(instance_event) = self.registry.event_list.find_event_id(instance_event_id) {
                         if *event_name == instance_event.name {
                             let name = instance.get_unique_name(self.registry);
@@ -1043,7 +1046,7 @@ ASAP2_VERSION 1 71
             // If not an axis, to be sure to catch all instances and assert on inconsistencies
             if !c.is_axis() {
                 // This is the inverse condition of the one in write_a2l_measurements
-                if !(c.is_measurement_object() || c.address.event_id().is_some()) {
+                if !(c.is_measurement_object() || c.address.get_event_id().is_some()) {
                     c.write_characteristic(self)?;
                 }
             }
@@ -1070,7 +1073,7 @@ ASAP2_VERSION 1 71
         for s in &self.registry.cal_seg_list {
             let mut n = 0;
             for c in self.registry.instance_list.into_iter() {
-                if c.get_address().is_segment_relative() && s.name == c.get_address().calseg_name().unwrap() {
+                if c.get_address().is_segment_relative() && s.name == c.get_address().get_calseg_name().unwrap() {
                     n += 1;
                     if n == 1 {
                         write!(self, "/begin GROUP {} \"\" /begin REF_CHARACTERISTIC ", s.name)?;

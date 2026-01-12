@@ -46,7 +46,7 @@ fn main() {
             .allowlist_function("XcpLockCalSeg")
             .allowlist_function("XcpUnlockCalSeg")
             // DAQ
-            .allowlist_function("XcpEventExt2")
+            .allowlist_function("XcpEventExt")
             // Misc
             .allowlist_function("XcpSetLogLevel")
             .allowlist_function("XcpPrint")

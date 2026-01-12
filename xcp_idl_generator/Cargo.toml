@@ -1,13 +1,13 @@
 [package]
 name = "xcp_idl_generator"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2024"
 
 [dependencies]
-ctor = "0.2.8"
+ctor = "0.2.9"
 #ctor = "0.4"
-lazy_static = "1.4"
-regex = "1.10.6"
+lazy_static = "1.5"
+regex = "1.12.2"
 xcp_idl_generator_derive = { path = "./xcp_idl_generator_derive/" }
 
 [lib]

@@ -5,6 +5,7 @@
 use anyhow::Result;
 use log::{debug, error, info, trace, warn};
 use std::net::Ipv4Addr;
+use std::thread::sleep;
 use std::{
     f64::consts::PI,
     fmt::Debug,
@@ -116,20 +117,23 @@ fn task(id: u32) {
     let mut counter: u32 = 0;
     let mut sine: f64;
 
+    let mut sleep_time: u64;
     loop {
-        let calseg1 = calseg1.read_lock();
+        {
+            let calseg1 = calseg1.read_lock();
 
-        thread::sleep(Duration::from_micros(calseg1.delay as u64));
+            // A counter wrapping at a value specified by a calibration parameter
+            counter += 1;
+            if counter > calseg1.counter_max {
+                counter = 0
+            }
 
-        // A counter wrapping at a value specified by a calibration parameter
-        counter += 1;
-        if counter > calseg1.counter_max {
-            counter = 0
+            // A sine signal with amplitude and period from calibration parameters and an offset from thread id
+            let time = START_TIME.elapsed().as_micros() as f64 * 0.000001; // s
+            sine = (id as f64) * 10.0 + calseg1.ampl * ((PI * time) / calseg1.period).sin();
+
+            sleep_time = calseg1.delay as u64;
         }
-
-        // A sine signal with amplitude and period from calibration parameters and an offset from thread id
-        let time = START_TIME.elapsed().as_micros() as f64 * 0.000001; // s
-        sine = (id as f64) * 10.0 + calseg1.ampl * ((PI * time) / calseg1.period).sin();
 
         // Register them once for each task instance and associate to the task instance event
         // Copy the value to the event capture buffer
@@ -139,6 +143,8 @@ fn task(id: u32) {
         // Trigger the measurement event
         // Take a event timestamp send the captured data
         event.trigger();
+
+        thread::sleep(Duration::from_micros(sleep_time));
     }
 }
 

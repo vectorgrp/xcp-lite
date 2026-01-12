@@ -101,7 +101,7 @@ impl<const N: usize> DaqEvent<N> {
     /// Associate a variable to this DaqEvent, register in rel addr mode, allocate space in the capture buffer and register it
     #[allow(clippy::too_many_arguments)]
     pub fn add_capture(&mut self, name: &'static str, size: usize, value_type: McValueType, x_dim: u16, y_dim: u16, mc_support_data: McSupportData) -> i16 {
-        let event_offset: i16 = self.allocate(size); // Address offset (signed) relative to event memory context (XCP_ADDR_EXT_DYN or XCP_ADDR_EXT_REL)
+        let event_offset: i16 = self.allocate(size); // Address offset (signed) relative to event memory context (XCP_ADDR_EXT_DYN)
         trace!("Allocate DAQ buffer for {}, TLS OFFSET = {} {:?} and register measurement", name, event_offset, &value_type);
         let event = self.get_xcp_event();
         if let Some(reg) = registry::get_lock().as_mut() {
@@ -109,7 +109,7 @@ impl<const N: usize> DaqEvent<N> {
                 name,
                 McDimType::new(value_type, x_dim, y_dim),
                 mc_support_data,
-                McAddress::new_event_rel(event.get_id(), event_offset as i32),
+                McAddress::new_event_dyn(0, event.get_id(), event_offset),
             ) {
                 error!("add_instance failed: {}", e);
             }
@@ -126,13 +126,13 @@ impl<const N: usize> DaqEvent<N> {
         let p = ptr as usize; // variable address
         let b = &self.buffer as *const _ as usize; // base address
         let o: i64 = p as i64 - b as i64; // variable - base address
-        let event_offset: i32 = o.try_into().expect("memory offset out of range");
+        let event_offset: i16 = o.try_into().expect("memory offset out of range");
         if let Some(reg) = registry::get_lock().as_mut() {
             if let Err(e) = reg.instance_list.add_instance(
                 name,
                 McDimType::new(value_type, x_dim, y_dim),
                 mc_support_data,
-                McAddress::new_event_rel(self.event.get_id(), event_offset),
+                McAddress::new_event_dyn(0, self.event.get_id(), event_offset),
             ) {
                 error!("add_instance failed: {}", e);
             }

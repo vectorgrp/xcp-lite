@@ -101,6 +101,9 @@ pub const ERROR_ODT_SIZE: u8 = 0xF4;
 pub const ERROR_TASK_TERMINATED: u8 = 0xF5;
 pub const ERROR_SESSION_TERMINATION: u8 = 0xF6;
 pub const ERROR_TYPE_MISMATCH: u8 = 0xF7;
+pub const ERROR_REGISTRY_EXISTS: u8 = 0xF8;
+pub const ERROR_GENERIC: u8 = 0xF9;
+pub const ERROR_NOT_FOUND: u8 = 0xFA;
 
 #[derive(Default)]
 pub struct XcpError {
@@ -133,11 +136,20 @@ impl std::fmt::Display for XcpError {
             ERROR_TL_HEADER => {
                 write!(f, "Transport layer header error")
             }
+            ERROR_GENERIC => {
+                write!(f, "Generic error")
+            }
             ERROR_A2L => {
                 write!(f, "A2L file error")
             }
+            ERROR_REGISTRY_EXISTS => {
+                write!(f, "Registry already exists")
+            }
             ERROR_LIMIT => {
                 write!(f, "Calibration value limit exceeded")
+            }
+            ERROR_NOT_FOUND => {
+                write!(f, "Measurement or calibration variable not found")
             }
             ERROR_ODT_SIZE => {
                 write!(f, "ODT max size exceeded")

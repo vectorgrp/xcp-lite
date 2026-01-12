@@ -261,24 +261,25 @@ fn main() -> Result<()> {
         if first || mandelbrot.sync() {
             {
                 let start_time = std::time::Instant::now();
-                let mandelbrot = mandelbrot.read_lock();
+                {
+                    let mandelbrot = mandelbrot.read_lock();
 
-                // Calculate image lines in parallel
-                let lower_right = Complex {
-                    re: mandelbrot.x + mandelbrot.width / 2.0,
-                    im: mandelbrot.y - mandelbrot.width / 2.0 * Y_RES as f64 / X_RES as f64,
-                };
-                let upper_left = Complex {
-                    re: mandelbrot.x - mandelbrot.width / 2.0,
-                    im: mandelbrot.y + mandelbrot.width / 2.0 * Y_RES as f64 / X_RES as f64,
-                };
-                let lines: Vec<(usize, &mut [u8])> = pixels.chunks_mut(X_RES).enumerate().collect();
-                lines.into_par_iter().for_each(|(y, band)| {
-                    let band_upper_left = pixel_to_point((0, y), upper_left, lower_right);
-                    let band_lower_right = pixel_to_point((X_RES, y + 1), upper_left, lower_right);
-                    render(band, y, band_upper_left, band_lower_right);
-                });
-
+                    // Calculate image lines in parallel
+                    let lower_right = Complex {
+                        re: mandelbrot.x + mandelbrot.width / 2.0,
+                        im: mandelbrot.y - mandelbrot.width / 2.0 * Y_RES as f64 / X_RES as f64,
+                    };
+                    let upper_left = Complex {
+                        re: mandelbrot.x - mandelbrot.width / 2.0,
+                        im: mandelbrot.y + mandelbrot.width / 2.0 * Y_RES as f64 / X_RES as f64,
+                    };
+                    let lines: Vec<(usize, &mut [u8])> = pixels.chunks_mut(X_RES).enumerate().collect();
+                    lines.into_par_iter().for_each(|(y, band)| {
+                        let band_upper_left = pixel_to_point((0, y), upper_left, lower_right);
+                        let band_lower_right = pixel_to_point((X_RES, y + 1), upper_left, lower_right);
+                        render(band, y, band_upper_left, band_lower_right);
+                    });
+                }
                 elapsed_time = start_time.elapsed().as_secs_f64();
 
                 // Measure the pixel array from heap, with an individual event

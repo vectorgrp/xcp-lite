@@ -1,6 +1,6 @@
 [package]
 name = "xcp_client"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2024"
 resolver = "2"
 authors = ["RainerZ"]
@@ -15,29 +15,30 @@ categories = ["measurement and calibration"]
  # more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-log = "0.4.21"
-env_logger = "0.11.3"
-clap = { version = "4.5.9", features = ["derive"] }
+log = "0.4.28"
+env_logger = "0.11.8"
+clap = { version = "4.5.52", features = ["derive"] }
 anyhow = "1.0"
-lazy_static = "1.4"
+thiserror = "1.0"
+lazy_static = "1.5"
 byteorder = "1.5.0"
-bytes = "1.6.0"
-ihex = "3.0.0"
-regex = "1.11.1"
+bytes = "1.11.0"
+regex = "1.12.2"
 chrono = "0.4.42"
-parking_lot = "0.12.3"
-tokio = { version = "1.37.0", features = ["full"] }
+parking_lot = "0.12.5"
+tokio = { version = "1.48", features = ["full"] }
+ihex = "3.0"
 
 # Debug info parsing dependencies
 gimli = "0.28"
 object = "0.36"
 pdb2 = "0.10"
 memmap2 = "0.9"
-indexmap = "2.2"
+indexmap = "2.12"
 cpp_demangle = "0.4"
 
 # A2l registry and A2L reader/writer
-a2lfile = { version="3.3.0" }
+a2lfile = "3.3.0"
 xcp_lite = { path = "../../", features = ["a2l_reader"] }
 
 [lints.rust]

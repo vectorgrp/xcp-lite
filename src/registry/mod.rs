@@ -177,10 +177,10 @@ where
             }
 
             // Register the instance only if an instance name is provided
-            // McAddress offset is 0 in this case, other wise the caller is responsible to create the instance with desired offset,
+            // McAddress offset is 0 in this case, otherwise the caller is responsible to create the instance with desired offset,
             // McSupportData must contain a valid object type
             let base_addr = if let Some(event_id) = event_id {
-                McAddress::new_event_rel(event_id, 0)
+                McAddress::new_event_dyn(0, event_id, 0)
             } else {
                 McAddress::new_calseg_rel(calseg_name.unwrap(), 0)
             };
@@ -235,7 +235,7 @@ where
                         field_name,
                         McDimType::new(value_type, field.x_dim(), field.y_dim()),
                         mc_support_data,
-                        McAddress::new_event_rel(event_id, field.addr_offset() as i32),
+                        McAddress::new_event_dyn(0, event_id, field.addr_offset() as i16),
                     );
                 }
                 // Calibration segment relative addressing
@@ -530,7 +530,7 @@ pub mod registry_test {
             let mut l = registry::get_lock();
             l.replace(Registry::new());
             l.as_mut().unwrap().application.set_info("test", "created by test", 0);
-            l.as_mut().unwrap().application.set_version("EPK_V1.0.0", crate::EPK_SEG_ADDR);
+            l.as_mut().unwrap().application.set_version("EPK_V1.1.0", crate::EPK_SEG_ADDR);
         }
         // Drop the closed registry singleton (unsafe)
         #[allow(invalid_reference_casting)]
@@ -582,7 +582,7 @@ pub mod registry_test {
         // Registry
         let mut reg = Registry::new();
         reg.application.set_info("test_registry_1", "created by test_registry_1", 0);
-        reg.application.set_version("EPK_V1.0.0", crate::EPK_SEG_ADDR);
+        reg.application.set_version("EPK_V1.1.0", crate::EPK_SEG_ADDR);
         reg.set_xcp_params("UDP", Ipv4Addr::new(127, 0, 0, 1), 5555);
 
         reg.cal_seg_list.add_cal_seg("test_cal_seg_1", 0, 4).unwrap();
@@ -624,12 +624,12 @@ pub mod registry_test {
                 "test_measurement",
                 McDimType::new(McValueType::Ubyte, 1, 1),
                 mc_support_data,
-                McAddress::new_event_rel(event1.get_id(), 8),
+                McAddress::new_event_dyn(0, event1.get_id(), 8),
             )
             .unwrap();
 
         // Write A2L file and check syntax
-        reg.write_a2l(&"test_registry_1.a2l", "xcp-lite test", "project_name", "", "module_name", "XCPLITE__C_DR", true)
+        reg.write_a2l(&"test_registry_1.a2l", "xcp-lite test", "project_name", "", "module_name", "XCPLITE__CASDD", true)
             .unwrap();
     }
 
@@ -685,7 +685,7 @@ pub mod registry_test {
                 "test_measurement_1",
                 McDimType::new(McValueType::Ubyte, 1, 1),
                 mc_support_data,
-                McAddress::new_event_rel(event1_1.get_id(), 0),
+                McAddress::new_event_dyn(0, event1_1.get_id(), 0),
             )
             .unwrap();
 
@@ -698,7 +698,7 @@ pub mod registry_test {
                 "test_measurement_1",
                 McDimType::new(McValueType::Ubyte, 1, 1),
                 mc_support_data,
-                McAddress::new_event_rel(event1_2.get_id(), 0), // Event instance 2
+                McAddress::new_event_dyn(0, event1_2.get_id(), 0), // Event instance 2
             )
             .unwrap();
 
@@ -711,7 +711,7 @@ pub mod registry_test {
                 "test_measurement_2",
                 McDimType::new(McValueType::Ubyte, 1, 1),
                 mc_support_data,
-                McAddress::new_event_rel(event2.get_id(), 0),
+                McAddress::new_event_dyn(0, event2.get_id(), 0),
             )
             .unwrap();
 
@@ -775,7 +775,7 @@ pub mod registry_test {
         xcp.finalize_registry().unwrap();
 
         let reg = registry::get();
-        let c = reg.instance_list.find_instance("calseg.a", McObjectType::Characteristic, None).unwrap();
+        let c = reg.instance_list.get_instance("calseg.a", McObjectType::Characteristic, None).unwrap();
         assert_eq!(c.get_mc_support_data().get_comment(), "Comment");
         assert_eq!(c.get_mc_support_data().get_unit(), "Unit");
         assert_eq!(c.get_mc_support_data().get_min(c.dim_type.value_type), Some(0.0));
@@ -785,19 +785,19 @@ pub mod registry_test {
         assert_eq!(c.address.get_addr_offset(), 328);
         assert_eq!(c.dim_type.value_type, McValueType::Ulong);
 
-        let c = reg.instance_list.find_instance("calseg.b", McObjectType::Characteristic, None).unwrap();
+        let c = reg.instance_list.get_instance("calseg.b", McObjectType::Characteristic, None).unwrap();
         assert_eq!(c.address.get_addr_offset(), 332);
 
-        let c = reg.instance_list.find_instance("calseg.axis", McObjectType::Axis, None).unwrap();
+        let c = reg.instance_list.get_instance("calseg.axis", McObjectType::Axis, None).unwrap();
         assert_eq!(c.address.get_addr_offset(), 0);
         assert_eq!(c.dim_type.get_dim()[0], 16);
 
-        let c = reg.instance_list.find_instance("calseg.curve", McObjectType::Characteristic, None).unwrap();
+        let c = reg.instance_list.get_instance("calseg.curve", McObjectType::Characteristic, None).unwrap();
         assert_eq!(c.address.get_addr_offset(), 128);
         assert_eq!(c.dim_type.get_dim()[0], 16);
         assert!(c.dim_type.get_dim()[1] <= 1);
 
-        let c = reg.instance_list.find_instance("calseg.map", McObjectType::Characteristic, None).unwrap();
+        let c = reg.instance_list.get_instance("calseg.map", McObjectType::Characteristic, None).unwrap();
         assert_eq!(c.address.get_addr_offset(), 256);
         assert_eq!(c.dim_type.get_dim()[0], 9);
         assert_eq!(c.dim_type.get_dim()[1], 8);
@@ -813,7 +813,7 @@ pub mod registry_test {
 
         // Application name and version
         reg.application.set_info("test_registry_api", "created by test_registry_api", 0);
-        reg.application.set_version("V1.0.0", 0);
+        reg.application.set_version("V1.1.0", 0);
 
         // Calibration segment
         reg.cal_seg_list.add_cal_seg("calseg_1", 0, 4).unwrap();
@@ -836,7 +836,7 @@ pub mod registry_test {
                 "mea_u8",
                 McDimType::new(McValueType::Ubyte, 1, 1),
                 mc_support_data,
-                McAddress::new_event_rel(xcp_event_1.get_id(), 0),
+                McAddress::new_event_dyn(0, xcp_event_1.get_id(), 0),
             )
             .unwrap();
         let mc_support_data = McSupportData::new(McObjectType::Measurement).set_comment("Measurement value f64");
@@ -845,7 +845,7 @@ pub mod registry_test {
                 "mea_f64",
                 McDimType::new(McValueType::Float32Ieee, 1, 1),
                 mc_support_data,
-                McAddress::new_event_rel(xcp_event_2.get_id(), 0),
+                McAddress::new_event_dyn(0, xcp_event_2.get_id(), 0),
             )
             .unwrap();
 
@@ -918,7 +918,7 @@ pub mod registry_test {
 
         // Write A2L file and check syntax
         {
-            reg.write_a2l(&"test_registry_api.a2l", "xcp-lite test", "project_name", "", "module_name", "XCPLITE__C_DR", false)
+            reg.write_a2l(&"test_registry_api.a2l", "xcp-lite test", "project_name", "", "module_name", "XCPLITE__CASDD", false)
                 .unwrap();
 
             // Load the A2L file into another registry
@@ -967,7 +967,7 @@ pub mod registry_test {
 
         // Write A2L file and check syntax
         log::info!("Write A2L file test_registry_load_a2l.a2l");
-        reg.write_a2l(&"test_registry_load_a2l.a2l", "xcp-lite test", "project_name", "", "module_name", "XCPLITE__C_DR", true)
+        reg.write_a2l(&"test_registry_load_a2l.a2l", "xcp-lite test", "project_name", "", "module_name", "XCPLITE__CASDD", true)
             .unwrap();
 
         // Compare xcp_lite.a2l and xcp_lite2.a2l

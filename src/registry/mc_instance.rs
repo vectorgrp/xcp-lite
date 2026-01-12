@@ -69,7 +69,7 @@ impl McInstance {
     /// Get the unique instance name with optional application name prefix and postfixed by instance index
     /// If there is an event event index > 0, which means there are multiple instances of the same name
     pub fn get_unique_name(&self, registry: &Registry) -> Cow<'static, str> {
-        if let Some(event_id) = self.address.event_id() {
+        if let Some(event_id) = self.address.get_event_id() {
             if let Some(event) = registry.event_list.find_event_id(event_id) {
                 if event.index > 0 {
                     if registry.get_prefix_names_mode() {
@@ -90,7 +90,7 @@ impl McInstance {
     /// Get the instance event index
     /// If there is an event event index > 0, which means there are multiple instances of the same name
     pub fn get_index(&self, registry: &Registry) -> u16 {
-        if let Some(event_id) = self.address.event_id() {
+        if let Some(event_id) = self.address.get_event_id() {
             if let Some(event) = registry.event_list.find_event_id(event_id) {
                 if event.index > 0 {
                     return event.index;
@@ -168,13 +168,13 @@ impl McInstance {
 
     // Shortcuts to address
     pub fn event_id(&self) -> Option<u16> {
-        self.address.event_id()
+        self.address.get_event_id()
     }
     pub fn addr_offset(&self) -> i32 {
         self.address.get_addr_offset()
     }
     pub fn calseg_name(&self) -> Option<McIdentifier> {
-        self.address.calseg_name()
+        self.address.get_calseg_name()
     }
 }
 
@@ -244,8 +244,8 @@ impl McInstanceList {
         assert!(mc_support_data.get_object_type() != McObjectType::Unspecified, "Object type must be specified");
 
         // Error if duplicate in instance namespace (A2l characteristics, measurements, axis and instances)
-        // Note that multiple instances of the same name are allowed if they have same event_id and different event_index
-        if self.into_iter().any(|i| (i.name == name) && (i.event_id() == address.event_id())) {
+        // Note that multiple instances of the same name are allowed if they have different event_id
+        if self.into_iter().any(|i| (i.name == name) && (i.event_id() == address.get_event_id())) {
             log::error!("Duplicate instance named '{}'!", name);
             return Err(RegistryError::Duplicate(name.to_string()));
         }
@@ -255,31 +255,36 @@ impl McInstanceList {
         Ok(())
     }
 
-    /// Get an instance by name
+    /// Get an instance by exact name, type (set to Unspecified if any) and event_id (set to None if any)
     /// Returns the instance or None
-    pub fn get_instance(&self, name: &str) -> Option<&McInstance> {
-        self.into_iter().find(|i| name == i.name.as_str())
+    pub fn get_instance(&self, name: &str, object_type: McObjectType, event_id: Option<u16>) -> Option<&McInstance> {
+        self.into_iter().find(|i| {
+            ((i.get_address().get_event_id() == event_id) || event_id.is_none())
+                && ((object_type == McObjectType::Unspecified) || (i.object_type() == object_type))
+                && (name == i.name.as_str())
+        })
     }
 
     /// Find an instance by regular expression, optional by object type (set to Unspecified if any) or by event_id (set to None if any)
     /// Returns the first instance that matches the criteria or None
-    pub fn find_instance(&self, regex: &str, object_type: McObjectType, event_id: Option<u16>) -> Option<&McInstance> {
+    pub fn find_instance_regex(&self, regex: &str, object_type: McObjectType, event_id: Option<u16>) -> Option<&McInstance> {
         if let Ok(regex) = Regex::new(regex) {
             self.into_iter().find(|i| {
-                (i.get_address().event_id() == event_id || event_id.is_none())
+                (i.get_address().get_event_id() == event_id || event_id.is_none())
                     && ((object_type == McObjectType::Unspecified || i.object_type() == object_type) && regex.is_match(i.name.as_str()))
             })
         } else {
             None
         }
     }
+
     /// Find all instances by regular expression, optional by object type (set to Unspecified if any) or by event_id (set to None if any)
     /// Return all instances that match the criteria
-    pub fn find_instances(&self, regex: &str, object_type: McObjectType, event_id: Option<u16>) -> Vec<String> {
+    pub fn find_instances_regex(&self, regex: &str, object_type: McObjectType, event_id: Option<u16>) -> Vec<String> {
         if let Ok(regex) = Regex::new(regex) {
             self.into_iter()
                 .filter(|i| {
-                    (i.get_address().event_id() == event_id || event_id.is_none())
+                    (i.get_address().get_event_id() == event_id || event_id.is_none())
                         && ((object_type == McObjectType::Unspecified || i.object_type() == object_type) && regex.is_match(i.name.as_str()))
                 })
                 .map(|i| i.name.to_string())

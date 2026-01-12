@@ -113,13 +113,15 @@ fn task(params: CalSeg<Params>) {
 
     loop {
         // Lock the calibration segment for read access
-        let params = params.read_lock();
+        {
+            let params = params.read_lock();
 
-        // A sine signal with amplitude and period from calibration parameters
-        // The value here is the internal value in mV as i16, CANape will convert it to Volt
-        let time = START_TIME.elapsed().as_micros() as f64 * 0.000001; // s
-        sine = ((params.ampl as f64) * ((PI * time) / params.period).sin()) as i16;
-        let _ = sine;
+            // A sine signal with amplitude and period from calibration parameters
+            // The value here is the internal value in mV as i16, CANape will convert it to Volt
+            let time = START_TIME.elapsed().as_micros() as f64 * 0.000001; // s
+            sine = ((params.ampl as f64) * ((PI * time) / params.period).sin()) as i16;
+            let _ = sine;
+        }
 
         // Trigger the measurement event
         event.trigger();

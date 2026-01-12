@@ -365,11 +365,9 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
 
         thread::sleep(Duration::from_micros(TASK1_CYCLE_TIME_US as u64));
 
-        let calseg1 = calseg1.read_lock();
-
         // Basic types and array variables on stack
         counter += 1;
-        if counter > calseg1.counter_max {
+        if counter > calseg1.read_lock().counter_max {
             counter = 0
         }
         counter_u8 += 1;

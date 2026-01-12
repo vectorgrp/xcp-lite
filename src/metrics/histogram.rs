@@ -105,7 +105,7 @@ impl<const N: usize> Histogram<N> {
             format!("{}.{}", self.name, field_name),
             McDimType::new(mc_value_type, 1, 1),
             mc_support_data,
-            McAddress::new_event_dyn(self.event.get_id(), offset.try_into().unwrap()),
+            McAddress::new_event_dyn(0, self.event.get_id(), offset.try_into().unwrap()),
         );
     }
 
@@ -122,7 +122,7 @@ impl<const N: usize> Histogram<N> {
             format!("{}.histogram", self.name),
             McDimType::new(McValueType::Ulong, N as u16, 1),
             mc_support_data,
-            McAddress::new_event_dyn(self.event.get_id(), offset.try_into().unwrap()),
+            McAddress::new_event_dyn(0, self.event.get_id(), offset.try_into().unwrap()),
         );
 
         self.register_field(

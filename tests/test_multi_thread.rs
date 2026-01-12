@@ -296,7 +296,7 @@ async fn test_multi_thread() {
         .init();
 
     // Initialize XCP server
-    let xcp = match Xcp::init("test_multi_thread", "EPK1.0.0", OPTION_XCP_LOG_LEVEL).start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555, TEST_QUEUE_SIZE) {
+    let xcp = match Xcp::init("test_multi_thread", "EPK1.1.0", OPTION_XCP_LOG_LEVEL).start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555, TEST_QUEUE_SIZE) {
         Err(res) => {
             error!("XCP initialization failed: {:?}", res);
             return;

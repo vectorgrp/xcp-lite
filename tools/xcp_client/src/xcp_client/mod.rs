@@ -26,6 +26,11 @@ pub mod xcp;
 use xcp::*;
 use xcp_lite::registry::*;
 
+use crate::bin_reader::bin_format::CalSegDescriptor;
+use crate::bin_reader::bin_format::EventDescriptor;
+use crate::bin_reader::write_bin_file;
+use crate::bin_reader::write_hex_file;
+
 //--------------------------------------------------------------------------------------------------------------------------------------------------
 // XCP Parameters
 
@@ -413,6 +418,10 @@ impl XcpClient {
             calibration_object_list: Vec::new(),
             measurement_object_list: Vec::new(),
         }
+    }
+
+    pub fn set_registry(&mut self, registry: xcp_lite::registry::Registry) {
+        self.registry = Some(registry);
     }
 
     //------------------------------------------------------------------------
@@ -1292,59 +1301,22 @@ impl XcpClient {
     //-------------------------------------------------------------------------------------------------
     // A2L upload
 
-    pub async fn upload_a2l<P: AsRef<std::path::Path>>(&mut self, a2l_path: &P) -> Result<(), Box<dyn Error>> {
+    pub async fn upload_a2l_file<P: AsRef<std::path::Path>>(&mut self, a2l_path: &P) -> Result<(), Box<dyn Error>> {
         // Send XCP GET_ID 4 command to set MTA
         let (file_size, _) = self.get_id(XCP_IDT_ASAM_UPLOAD).await?;
         if file_size == 0 {
             error!("A2L file not available, GET_ID 4 returned size 0");
-            return Err(Box::new(XcpError::new(ERROR_A2L, CC_GET_ID)) as Box<dyn Error>);
+            return Err(Box::new(XcpError::new(ERROR_GENERIC, CC_GET_ID)) as Box<dyn Error>);
         }
 
         // Check if the A2L file already exists and warn about overwriting
         if a2l_path.as_ref().exists() {
             warn!("A2L file {} already exists, overwriting", a2l_path.as_ref().display());
         }
+
         // Upload the A2L file
-        let a2l_name = a2l_path.as_ref().file_name().unwrap().to_string_lossy();
-        info!("Upload A2L to {}", a2l_name);
-        let file = std::fs::File::create(&a2l_path)?;
-        let mut writer = std::io::BufWriter::new(file);
-        let mut size = file_size;
-        while size > 0 {
-            let n = if size >= self.max_cto_size as u32 { self.max_cto_size - 1 } else { size as u8 };
-            size -= n as u32;
-            let data = self.upload(n).await?;
-            trace!("xcp_client.upload: {} bytes = {:?}", data.len(), data);
-            writer.write_all(&data[1..=n as usize])?;
-        }
-        writer.flush()?;
-        debug!("A2L upload to {} completed, {} bytes loaded", a2l_name, file_size);
-
-        Ok(())
-    }
-
-    // Get the A2L via XCP upload and GET_ID4 (XCP_IDT_ASAM_UPLOAD)
-    pub async fn a2l_upload(&mut self, a2l_name: &str) -> Result<(), Box<dyn Error>> {
-        // Use the same filename for the uploaded file as CANape does <name>_autodetect.a2l
-        let a2l_filename = format!("{}_autodetect", a2l_name);
-        let mut a2l_path = std::path::PathBuf::new();
-        a2l_path.set_file_name(a2l_filename);
-        a2l_path.set_extension("a2l");
-
-        // Send XCP GET_ID 4 command to set MTA
-        let (file_size, _) = self.get_id(XCP_IDT_ASAM_UPLOAD).await?;
-        if file_size == 0 {
-            error!("A2L file not available, GET_ID 4 returned size 0");
-            return Err(Box::new(XcpError::new(ERROR_A2L, CC_GET_ID)) as Box<dyn Error>);
-        }
-
-        // Warn if the A2L file already exists
-        if a2l_path.exists() {
-            warn!("A2L file {} already exists, overwriting", a2l_path.display());
-        }
-        // Upload the A2L file
-        info!("Upload A2L to {}.a2l", a2l_path.display());
-        let file = std::fs::File::create(&a2l_path)?;
+        info!("Upload A2L to {}.a2l", a2l_path.as_ref().display());
+        let file = std::fs::File::create(a2l_path)?;
         let mut writer = std::io::BufWriter::new(file);
         let mut size = file_size;
         while size > 0 {
@@ -1357,16 +1329,41 @@ impl XcpClient {
         writer.flush()?;
         debug!("A2L upload completed, {} bytes loaded", file_size);
 
-        // Read the A2L file into a registry
-        let mut registry = xcp_lite::registry::Registry::new();
-        // @@@@ TODO xcp_client does not support arrays, instances and typedefs yet, flatten the registry and mangle the names
-        registry.load_a2l(&a2l_path, true, true, true, true)?;
-        self.registry = Some(registry);
-
         Ok(())
     }
 
-    pub fn a2l_epk(&self) -> Option<&str> {
+    // Get the A2L via XCP upload and GET_ID4 (XCP_IDT_ASAM_UPLOAD) and load it into the registry
+    pub async fn upload_a2l_into_registry<P: AsRef<std::path::Path>>(&mut self, a2l_path: &P, reg: &mut xcp_lite::registry::Registry) -> Result<(), Box<dyn Error>> {
+        // Upload the A2L file
+        self.upload_a2l_file(&a2l_path).await?;
+
+        // Load the A2L file into the registry
+        // @@@@ TODO xcp_client does not support arrays, instances and typedefs yet, flatten the registry and mangle the names
+        reg.load_a2l(&a2l_path, true, true, true, true)?;
+        info!(
+            " A2L file contains {} instances, {} events and {} calibration segments",
+            reg.instance_list.len(),
+            reg.event_list.len(),
+            reg.cal_seg_list.len()
+        );
+        Ok(())
+    }
+
+    // Get the A2L via XCP upload and GET_ID4 (XCP_IDT_ASAM_UPLOAD) and load it into the registry
+    pub fn load_a2l_file_into_registry<P: AsRef<std::path::Path>>(&mut self, a2l_path: &P, reg: &mut xcp_lite::registry::Registry) -> Result<(), Box<dyn Error>> {
+        // Load the A2L file into the registry
+        // @@@@ TODO xcp_client does not support arrays, instances and typedefs yet, flatten the registry and mangle the names
+        reg.load_a2l(&a2l_path, true, true, true, true)?;
+        info!(
+            " A2L file contains {} instances, {} events and {} calibration segments",
+            reg.instance_list.len(),
+            reg.event_list.len(),
+            reg.cal_seg_list.len()
+        );
+        Ok(())
+    }
+
+    pub fn get_epk(&self) -> Option<&str> {
         self.registry.as_ref().map(|r| r.application.get_version())
     }
 
@@ -1410,12 +1407,12 @@ impl XcpClient {
 
     pub fn find_characteristics(&self, expr: &str) -> Vec<String> {
         let registry = self.registry.as_ref().unwrap();
-        registry.instance_list.find_instances(expr, xcp_lite::registry::McObjectType::Characteristic, None)
+        registry.instance_list.find_instances_regex(expr, xcp_lite::registry::McObjectType::Characteristic, None)
     }
 
     pub fn find_measurements(&self, expr: &str) -> Vec<String> {
         let registry = self.registry.as_ref().unwrap();
-        registry.instance_list.find_instances(expr, xcp_lite::registry::McObjectType::Measurement, None)
+        registry.instance_list.find_instances_regex(expr, xcp_lite::registry::McObjectType::Measurement, None)
     }
 
     //------------------------------------------------------------------------
@@ -1426,14 +1423,14 @@ impl XcpClient {
         &self.calibration_object_list[handle.0]
     }
 
+    /// Create a calibration object by name from the registry and upload its current value from the XCP server
+    /// name may be a regular expression matching exactly one characteristic
     pub async fn create_calibration_object(&mut self, name: &str) -> Result<XcpCalibrationObjectHandle, Box<dyn Error>> {
-        //let res = a2l_find_characteristic(self.a2l_file.as_ref().unwrap(), name);
-        //let (a2l_addr, a2l_type, a2l_limits) = res.unwrap();
         let registry = self.registry.as_ref().unwrap();
-        match registry.instance_list.get_instance(name) {
+        match registry.instance_list.get_instance(name, xcp_lite::registry::McObjectType::Characteristic, None) {
             None => {
                 error!("Characteristic {} not found", name);
-                Err(Box::new(XcpError::new(ERROR_A2L, 0)) as Box<dyn Error>)
+                Err(Box::new(XcpError::new(ERROR_NOT_FOUND, 0)) as Box<dyn Error>)
             }
             Some(instance) => {
                 let (ext, addr) = instance.get_address().get_a2l_addr(registry);
@@ -1570,9 +1567,11 @@ impl XcpClient {
     // XcpMeasurementObject, XcpMeasurementObjectHandle (index pointer to XcpCMeasurementObject),
     //
 
+    /// Create a measurement object by name from the registry
+    /// name may be a regular expression matching exactly one measurement
     pub fn create_measurement_object(&mut self, name: &str) -> Option<XcpMeasurementObjectHandle> {
         let registry = self.registry.as_ref().unwrap();
-        match registry.instance_list.get_instance(name) {
+        match registry.instance_list.get_instance(name, xcp_lite::registry::McObjectType::Measurement, None) {
             None => {
                 debug!("Measurement {} not found", name);
                 None
@@ -1867,58 +1866,58 @@ impl XcpClient {
     pub async fn save_calibration_segments_to_file<P: AsRef<std::path::Path>>(&mut self, bin_path: &P) -> Result<(), Box<dyn Error>> {
         info!("Save calibration segments to file {}", bin_path.as_ref().display());
 
-        // Extract all segment information we need from registry before any mutable borrows
-        let cal_seg_data: Vec<_> = (&self.registry.as_ref().unwrap().cal_seg_list)
+        assert!(bin_path.as_ref().extension().is_some());
+
+        // First, collect all segment information from registry (immutable borrow)
+        let cal_seg_info: Vec<_> = self
+            .registry
+            .as_ref()
+            .unwrap()
+            .cal_seg_list
             .into_iter()
-            .map(|cal_seg| (cal_seg.get_index(), cal_seg.get_name(), cal_seg.size, cal_seg.addr_ext, cal_seg.addr))
+            .map(|cal_seg| (cal_seg.get_index(), cal_seg.size, cal_seg.addr, cal_seg.addr_ext, cal_seg.get_name().to_string()))
             .collect();
 
-        let num_segments = cal_seg_data.len();
-
-        // Vector to store all IHEX records
-        let mut ihex_records: Vec<ihex::Record> = Vec::new();
-
-        // Track the current extended linear address to avoid redundant records
-        let mut current_extended_addr: Option<u16> = None;
-
-        // Upload each segment from the XCP server and create IHEX records
-        // Each segment is < 64KB, but segments are at different 32-bit addresses
-        for (seg_index, seg_name, seg_length, addr_ext, addr) in cal_seg_data {
-            info!(" Upload segment {} (index={} addr={}:0x{:08X} length={})", seg_name, seg_index, addr_ext, addr, seg_length);
-
+        // Now upload data for each segment (mutable borrows of self)
+        let mut cal_seg_desc: Vec<(CalSegDescriptor, Vec<u8>)> = Vec::new();
+        for (index, size, addr, addr_ext, name) in cal_seg_info {
             // Upload the data from the XCP server
-            self.set_mta(addr_ext, addr).await?;
-            let data: Vec<u8> = self.upload_memory_block(seg_length).await?;
-            debug!("  Uploaded {} bytes from segment {}", data.len(), seg_name);
-
-            // Split the 32-bit address into upper 16 bits and lower 16 bits
-            let upper_addr = (addr >> 16) as u16; // Upper 16 bits for ExtendedLinearAddress
-            let lower_addr = (addr & 0xFFFF) as u16; // Lower 16 bits for Data offset
-
-            // Add ExtendedLinearAddress record if the upper address changed
-            if current_extended_addr != Some(upper_addr) {
-                ihex_records.push(ihex::Record::ExtendedLinearAddress(upper_addr));
-                current_extended_addr = Some(upper_addr);
-                debug!("  Added ExtendedLinearAddress record: 0x{:04X} (base=0x{:08X})", upper_addr, (upper_addr as u32) << 16);
-            }
-
-            // Create an IHEX data record for this segment (segments are always < 64KB)
-            ihex_records.push(ihex::Record::Data { offset: lower_addr, value: data });
-            debug!("  Added Data record: offset=0x{:04X}, length={}", lower_addr, seg_length);
+            self.set_mta(addr_ext, addr).await.unwrap();
+            let data: Vec<u8> = self.upload_memory_block(size).await.unwrap();
+            debug!("  Uploaded {} bytes from segment {}", data.len(), name);
+            cal_seg_desc.push((
+                CalSegDescriptor {
+                    index,
+                    size: size as u16,
+                    addr,
+                    name,
+                },
+                data,
+            ));
         }
 
-        // Add End-Of-File record
-        ihex_records.push(ihex::Record::EndOfFile);
+        // If file extension is .hex
+        if bin_path.as_ref().extension().unwrap() == "hex" {
+            write_hex_file(&bin_path.as_ref().to_path_buf(), &cal_seg_desc)?;
+        } else {
+            let event_desc = self
+                .registry
+                .as_ref()
+                .unwrap()
+                .event_list
+                .into_iter()
+                .map(|event| EventDescriptor {
+                    index: event.index,
+                    id: event.id,
+                    cycle_time_ns: event.target_cycle_time_ns,
+                    priority: 0,
+                    name: event.get_name().to_string(),
+                })
+                .collect::<Vec<_>>();
+            write_bin_file(&bin_path.as_ref().to_path_buf(), self.get_epk().unwrap(), &event_desc, &cal_seg_desc)?;
+        }
 
-        // Create the Intel-Hex file content
-        let ihex_object = ihex::create_object_file_representation(&ihex_records)?;
-        debug!("Generated IHEX file content ({} bytes)", ihex_object.len());
-
-        // Write the Intel-Hex file
-        let mut file = std::fs::File::create(bin_path)?;
-        file.write_all(ihex_object.as_bytes())?;
-
-        info!("Successfully saved {} segment(s) to {}", num_segments, bin_path.as_ref().display());
+        info!("Successfully saved {} segment(s) to {}", cal_seg_desc.len(), bin_path.as_ref().display());
 
         Ok(())
     }

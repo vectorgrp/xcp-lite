@@ -1,10 +1,10 @@
 [package]
 name = "xcp_type_description"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2024"
 
 [dependencies]
-lazy_static = "1.4"
+lazy_static = "1.5"
 xcp_type_description_derive = { path = "./xcp_type_description_derive/" }
 
 [lib]

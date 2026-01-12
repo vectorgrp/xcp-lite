@@ -258,45 +258,47 @@ fn main() -> Result<()> {
     // Mainloop
     let start_time = Instant::now();
     loop {
-        let params = params.read_lock();
+        {
+            let params = params.read_lock();
 
-        // Modify some demo data
-        counter1 += 1;
-        counter2 += 1;
-        if counter1 > params.counter_max as u64 {
-            counter1 = 0;
-            counter2 = 1;
-        }
-
-        /* #region Modify some more demo data */
-        // Different basic data types
-        counters.a = counter1 as i16; // 16 bit signed integer
-        counters.b = counter1 * 2; // 64 bit unsigned integer
-        counters.c = (counter1 * 3) as f64; // 8 byte floating point number
-
-        // Temperature value coded as byte and 0 = -50deg
-        data.cpu_temperature = 70 + counter1 as u8 / 100; // 50 = 20deg 
-
-        // 3D point and array[8] of points
-        let time_s = start_time.elapsed().as_secs() as f64;
-        data.vector.x = (0.001 * (PI * time_s / 3.0).sin()) as f32;
-        data.vector.y = (0.001 * (PI * time_s / 3.0).cos()) as f32;
-        data.vector.z = 0.0;
-        for i in 0..8 {
-            data.point_array[i] = data.point_array[i].rotate(data.vector.x, data.vector.y, data.vector.z); // Rotate the point around the x, y, and z axes
-        }
-
-        // 32*32 matrix
-        for i in 0..32 {
-            for j in 0..32 {
-                let x = (i as f64) - 16.0;
-                let y = (j as f64) - 16.0;
-                let phase = (x * x + y * y).sqrt();
-                let ampl = params.ampl - phase;
-                data.float_matrix[i][j] = (ampl * (PI * time_s / params.period + phase).sin()) as f32;
+            // Modify some demo data
+            counter1 += 1;
+            counter2 += 1;
+            if counter1 > params.counter_max as u64 {
+                counter1 = 0;
+                counter2 = 1;
             }
+
+            /* #region Modify some more demo data */
+            // Different basic data types
+            counters.a = counter1 as i16; // 16 bit signed integer
+            counters.b = counter1 * 2; // 64 bit unsigned integer
+            counters.c = (counter1 * 3) as f64; // 8 byte floating point number
+
+            // Temperature value coded as byte and 0 = -50deg
+            data.cpu_temperature = 70 + counter1 as u8 / 100; // 50 = 20deg 
+
+            // 3D point and array[8] of points
+            let time_s = start_time.elapsed().as_secs() as f64;
+            data.vector.x = (0.001 * (PI * time_s / 3.0).sin()) as f32;
+            data.vector.y = (0.001 * (PI * time_s / 3.0).cos()) as f32;
+            data.vector.z = 0.0;
+            for i in 0..8 {
+                data.point_array[i] = data.point_array[i].rotate(data.vector.x, data.vector.y, data.vector.z); // Rotate the point around the x, y, and z axes
+            }
+
+            // 32*32 matrix
+            for i in 0..32 {
+                for j in 0..32 {
+                    let x = (i as f64) - 16.0;
+                    let y = (j as f64) - 16.0;
+                    let phase = (x * x + y * y).sqrt();
+                    let ampl = params.ampl - phase;
+                    data.float_matrix[i][j] = (ampl * (PI * time_s / params.period + phase).sin()) as f32;
+                }
+            }
+            /* #endregion */
         }
-        /* #endregion */
 
         /* #region CODE_INSTRUMENTATION */
         //-----------------------------------------------------------------------------

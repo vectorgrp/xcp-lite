@@ -29,7 +29,7 @@ pub fn register(name: &'static str) -> XcpEvent {
         name,
         McDimType::new(McValueType::Ulonglong, 1, 1),
         McSupportData::new(McObjectType::Measurement),
-        McAddress::new_event_dyn(event.get_id(), 0),
+        McAddress::new_event_dyn(0, event.get_id(), 0),
     );
     event
 }

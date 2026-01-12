@@ -204,7 +204,7 @@ async fn test_single_thread() {
     let _ = std::fs::remove_file("test_single_thread.a2h");
 
     // Initialize XCP server
-    let xcp = match Xcp::init("test_single_thread", "EPK1.0.0", OPTION_XCP_LOG_LEVEL).start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555, 1024 * 256) {
+    let xcp = match Xcp::init("test_single_thread", "EPK1.1.0", OPTION_XCP_LOG_LEVEL).start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555, 1024 * 256) {
         Err(res) => {
             error!("XCP initialization failed: {:?}", res);
             return;

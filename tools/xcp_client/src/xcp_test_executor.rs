@@ -497,12 +497,15 @@ pub async fn test_setup(
     }
 
     //-------------------------------------------------------------------------------------------------------------------------------------
-    // Upload/Load  A2L file and check EPK
-
+    // Upload A2L file and check EPK
     if load_a2l {
-        // Upload A2L file from XCP server
+        // Upload A2L file from XCP server and create the xcp_client registry
         if upload_a2l {
-            xcp_client.a2l_upload("test").await.unwrap();
+            let mut reg = Registry::new();
+            let a2l_path = std::path::Path::new("test").with_extension("a2l");
+            xcp_client.upload_a2l_into_registry(&a2l_path, &mut reg).await.unwrap();
+            xcp_client.set_registry(reg);
+            info!("A2L file uploaded from XCP server into registry from {:?}", a2l_path);
         }
         // Load the A2L file from file
         else {
@@ -542,7 +545,7 @@ pub async fn test_setup(
         let epk = resp[1..=8].to_vec();
         let epk_string = String::from_utf8(epk.clone()).unwrap();
         info!("Upload EPK = {} {:?}", epk_string, epk);
-        debug!("A2l EPK = {}", xcp_client.a2l_epk().unwrap());
+        debug!("A2l EPK = {}", xcp_client.get_epk().unwrap());
         //assert_eq!(epk_string.as_str(), xcp_client.a2l_epk().unwrap(), "EPK mismatch"); // @@@@ TODO
     }
 
