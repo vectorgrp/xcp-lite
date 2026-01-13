@@ -150,6 +150,17 @@ fn write_axis_descr(_name: &str, dim_type: &McDimType, mc_support_data: &McSuppo
     let x_dim = dim_type.get_dim()[0];
     let y_dim = dim_type.get_dim()[1];
 
+    let x_axis_input_quantity = if let Some(v) = &mc_support_data.x_axis_input_quantity {
+        v.as_str()
+    } else {
+        "NO_INPUT_QUANTITY"
+    };
+    let y_axis_input_quantity = if let Some(v) = &mc_support_data.y_axis_input_quantity {
+        v.as_str()
+    } else {
+        "NO_INPUT_QUANTITY"
+    };
+
     // MAP
     if x_dim > 1 || y_dim > 1 {
         if x_dim > 1 && y_dim > 1 {
@@ -157,7 +168,8 @@ fn write_axis_descr(_name: &str, dim_type: &McDimType, mc_support_data: &McSuppo
             if let Some(x_axis_conv) = &mc_support_data.x_axis_conv {
                 write!(
                     writer,
-                    r#" /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY {} {} 0 {} FIX_AXIS_PAR_DIST 0 1 {} /end AXIS_DESCR"#,
+                    r#" /begin AXIS_DESCR FIX_AXIS {} {} {} 0 {} FIX_AXIS_PAR_DIST 0 1 {} /end AXIS_DESCR"#,
+                    x_axis_input_quantity,
                     x_axis_conv,
                     x_dim,     // MaxAxisPoints
                     x_dim - 1, // 0-UpperLimit
@@ -166,13 +178,14 @@ fn write_axis_descr(_name: &str, dim_type: &McDimType, mc_support_data: &McSuppo
             } else if let Some(x_axis_ref) = &mc_support_data.x_axis_ref {
                 write!(
                     writer,
-                    r#" /begin AXIS_DESCR COM_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD {} 0.0 0.0 AXIS_PTS_REF {} /end AXIS_DESCR"#,
-                    x_dim, x_axis_ref
+                    r#" /begin AXIS_DESCR COM_AXIS {} NO_COMPU_METHOD {} 0.0 0.0 AXIS_PTS_REF {} /end AXIS_DESCR"#,
+                    x_axis_input_quantity, x_dim, x_axis_ref
                 )?;
             } else {
                 write!(
                     writer,
-                    r#" /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD {} 0 {} FIX_AXIS_PAR_DIST 0 1 {} /end AXIS_DESCR"#,
+                    r#" /begin AXIS_DESCR FIX_AXIS {} NO_COMPU_METHOD {} 0 {} FIX_AXIS_PAR_DIST 0 1 {} /end AXIS_DESCR"#,
+                    x_axis_input_quantity,
                     x_dim,
                     x_dim - 1,
                     x_dim
@@ -182,7 +195,8 @@ fn write_axis_descr(_name: &str, dim_type: &McDimType, mc_support_data: &McSuppo
             if let Some(y_axis_conv) = &mc_support_data.y_axis_conv {
                 write!(
                     writer,
-                    r#" /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY {} {} 0 {} FIX_AXIS_PAR_DIST 0 1 {} /end AXIS_DESCR"#,
+                    r#" /begin AXIS_DESCR FIX_AXIS {} {} {} 0 {} FIX_AXIS_PAR_DIST 0 1 {} /end AXIS_DESCR"#,
+                    y_axis_input_quantity,
                     y_axis_conv,
                     y_dim,
                     y_dim - 1,
@@ -191,13 +205,14 @@ fn write_axis_descr(_name: &str, dim_type: &McDimType, mc_support_data: &McSuppo
             } else if let Some(y_axis_ref) = &mc_support_data.y_axis_ref {
                 write!(
                     writer,
-                    r#" /begin AXIS_DESCR COM_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD {} 0.0 0.0 AXIS_PTS_REF {} /end AXIS_DESCR"#,
-                    y_dim, y_axis_ref
+                    r#" /begin AXIS_DESCR COM_AXIS {} NO_COMPU_METHOD {} 0.0 0.0 AXIS_PTS_REF {} /end AXIS_DESCR"#,
+                    y_axis_input_quantity, y_dim, y_axis_ref
                 )?;
             } else {
                 write!(
                     writer,
-                    r#" /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD {} 0 {} FIX_AXIS_PAR_DIST 0 1 {} /end AXIS_DESCR"#,
+                    r#" /begin AXIS_DESCR FIX_AXIS {} NO_COMPU_METHOD {} 0 {} FIX_AXIS_PAR_DIST 0 1 {} /end AXIS_DESCR"#,
+                    y_axis_input_quantity,
                     y_dim,
                     y_dim - 1,
                     y_dim
@@ -209,7 +224,8 @@ fn write_axis_descr(_name: &str, dim_type: &McDimType, mc_support_data: &McSuppo
             if let Some(x_axis_conv) = &mc_support_data.x_axis_conv {
                 write!(
                     writer,
-                    r#" /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY {} {} 0 {} FIX_AXIS_PAR_DIST 0 1 {} /end AXIS_DESCR"#,
+                    r#" /begin AXIS_DESCR FIX_AXIS {} {} {} 0 {} FIX_AXIS_PAR_DIST 0 1 {} /end AXIS_DESCR"#,
+                    x_axis_input_quantity,
                     x_axis_conv,
                     x_dim,
                     x_dim - 1,
@@ -218,13 +234,14 @@ fn write_axis_descr(_name: &str, dim_type: &McDimType, mc_support_data: &McSuppo
             } else if let Some(x_axis_ref) = &mc_support_data.x_axis_ref {
                 write!(
                     writer,
-                    r#" /begin AXIS_DESCR COM_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD {} 0.0 0.0 AXIS_PTS_REF {} /end AXIS_DESCR"#,
-                    x_dim, x_axis_ref
+                    r#" /begin AXIS_DESCR COM_AXIS {} NO_COMPU_METHOD {} 0.0 0.0 AXIS_PTS_REF {} /end AXIS_DESCR"#,
+                    x_axis_input_quantity, x_dim, x_axis_ref
                 )?;
             } else {
                 write!(
                     writer,
-                    r#" /begin AXIS_DESCR FIX_AXIS NO_INPUT_QUANTITY NO_COMPU_METHOD {} 0 {} FIX_AXIS_PAR_DIST 0 1 {} /end AXIS_DESCR"#,
+                    r#" /begin AXIS_DESCR FIX_AXIS {} NO_COMPU_METHOD {} 0 {} FIX_AXIS_PAR_DIST 0 1 {} /end AXIS_DESCR"#,
+                    x_axis_input_quantity,
                     x_dim,
                     x_dim - 1,
                     x_dim

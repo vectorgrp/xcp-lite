@@ -23,7 +23,21 @@ impl FieldAttribute {
 pub fn parse_field_attributes(
     attributes: &Vec<Attribute>,
     _field_type: &Type,
-) -> (FieldAttribute, String, String, Option<f64>, Option<f64>, Option<f64>, f64, f64, String, String, String) {
+) -> (
+    FieldAttribute,
+    String,
+    String,
+    Option<f64>,
+    Option<f64>,
+    Option<f64>,
+    f64,
+    f64,
+    String,
+    String,
+    String,
+    String,
+    String,
+) {
     // attribute
     let mut field_attribute: FieldAttribute = FieldAttribute::Undefined; // characteristic, axis, measurement
 
@@ -38,6 +52,8 @@ pub fn parse_field_attributes(
     let mut unit = String::new();
     let mut x_axis = String::new();
     let mut y_axis = String::new();
+    let mut x_axis_input_quantity = String::new();
+    let mut y_axis_input_quantity = String::new();
 
     for attribute in attributes {
         //
@@ -91,12 +107,36 @@ pub fn parse_field_attributes(
                         parse_str(&value, &mut y_axis)
                     }
                 }
+                "x_axis_inputQty" | "axis_inputQty" => {
+                    if field_attribute != FieldAttribute::Axis {
+                        parse_str(&value, &mut x_axis_input_quantity)
+                    }
+                }
+                "y_axis_inputQty" => {
+                    if field_attribute != FieldAttribute::Axis {
+                        parse_str(&value, &mut y_axis_input_quantity)
+                    }
+                }
                 _ => panic!("Unsupported type description attribute item: {}", key),
             }
         }
     }
 
-    (field_attribute, qualifier, comment, min, max, step, factor.unwrap(), offset.unwrap(), unit, x_axis, y_axis)
+    (
+        field_attribute,
+        qualifier,
+        comment,
+        min,
+        max,
+        step,
+        factor.unwrap(),
+        offset.unwrap(),
+        unit,
+        x_axis,
+        y_axis,
+        x_axis_input_quantity,
+        y_axis_input_quantity,
+    )
 }
 
 pub fn normalize_tokens(ts: proc_macro2::TokenStream) -> proc_macro2::TokenStream {

@@ -165,7 +165,9 @@ where
                     // .set_unit(field.unit()) // not needed if set_linear is used
                     .set_linear(field.factor(), field.offset(), field.unit())
                     .set_x_axis_ref(field.x_axis_ref())
-                    .set_y_axis_ref(field.y_axis_ref());
+                    .set_y_axis_ref(field.y_axis_ref())
+                    .set_x_axis_input_quantity(field.x_axis_input_quantity())
+                    .set_y_axis_input_quantity(field.y_axis_input_quantity());
                 if field.is_volatile() {
                     mc_support_data = mc_support_data.set_qualifier(McObjectQualifier::Volatile);
                 }
@@ -220,7 +222,9 @@ where
                     // .set_unit(field.unit()) // not needed if set_linear is used
                     .set_linear(field.factor(), field.offset(), field.unit())
                     .set_x_axis_ref(field.x_axis_ref())
-                    .set_y_axis_ref(field.y_axis_ref());
+                    .set_y_axis_ref(field.y_axis_ref())
+                    .set_x_axis_input_quantity(field.x_axis_input_quantity())
+                    .set_y_axis_input_quantity(field.y_axis_input_quantity());
                 if field.is_volatile() {
                     mc_support_data = mc_support_data.set_qualifier(McObjectQualifier::Volatile);
                 }

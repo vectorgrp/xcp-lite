@@ -33,7 +33,8 @@ fn generate_type_description_impl(data_struct: syn::DataStruct, value_type: &syn
         // Field attributes
         // #[axis/characteristic/measurement(...)]  attr = access_type, comment, min, max, step, factor, offset, unit, x_axis, y_axis
         let field_attributes = &field.attrs;
-        let (classifier, qualifier, comment, min, max, step, factor, offset, unit, x_axis_ref, y_axis_ref) = parse_field_attributes(field_attributes, field_data_type);
+        let (classifier, qualifier, comment, min, max, step, factor, offset, unit, x_axis_ref, y_axis_ref, x_axis_input_quantity, y_axis_input_quantity) =
+            parse_field_attributes(field_attributes, field_data_type);
         let classifier_str = classifier.to_str(); // "characteristic" or "axis" or "undefined" from field attribute
         let min_token = syn::parse_str::<Expr>(format!("{:?}", min).as_str()).unwrap();
         let max_token = syn::parse_str::<Expr>(format!("{:?}", max).as_str()).unwrap();
@@ -74,6 +75,8 @@ fn generate_type_description_impl(data_struct: syn::DataStruct, value_type: &syn
                         #y_dim,
                         #x_axis_ref,
                         #y_axis_ref,
+                        #x_axis_input_quantity,
+                        #y_axis_input_quantity,
                         addr_offset,
                     ));
                 }
@@ -99,6 +102,8 @@ fn generate_type_description_impl(data_struct: syn::DataStruct, value_type: &syn
                     #y_dim,
                     #x_axis_ref,
                     #y_axis_ref,
+                    #x_axis_input_quantity,
+                    #y_axis_input_quantity,
                     addr_offset,
                 ));
             }

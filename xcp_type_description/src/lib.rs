@@ -31,6 +31,8 @@ pub struct FieldDescriptor {
     y_dim: u16,
     x_axis_ref: &'static str,
     y_axis_ref: &'static str,
+    x_axis_input_quantity: &'static str,
+    y_axis_input_quantity: &'static str,
     addr_offset: u16,
 }
 
@@ -53,6 +55,8 @@ impl FieldDescriptor {
         y_dim: u16,
         x_axis_ref: &'static str,
         y_axis_ref: &'static str,
+        x_axis_input_quantity: &'static str,
+        y_axis_input_quantity: &'static str,
         addr_offset: u16,
     ) -> Self {
         FieldDescriptor {
@@ -72,6 +76,8 @@ impl FieldDescriptor {
             y_dim,
             x_axis_ref,
             y_axis_ref,
+            x_axis_input_quantity,
+            y_axis_input_quantity,
             addr_offset,
         }
     }
@@ -122,6 +128,20 @@ impl FieldDescriptor {
     }
     pub fn y_axis_ref(&self) -> Option<&'static str> {
         if self.is_axis() || self.y_axis_ref.is_empty() { None } else { Some(self.y_axis_ref) }
+    }
+    pub fn x_axis_input_quantity(&self) -> Option<&'static str> {
+        if self.is_axis() || self.x_axis_input_quantity.is_empty() {
+            None
+        } else {
+            Some(self.x_axis_input_quantity)
+        }
+    }
+    pub fn y_axis_input_quantity(&self) -> Option<&'static str> {
+        if self.is_axis() || self.y_axis_input_quantity.is_empty() {
+            None
+        } else {
+            Some(self.y_axis_input_quantity)
+        }
     }
 
     pub fn is_measurement(&self) -> bool {

@@ -145,6 +145,12 @@ pub struct McSupportData {
     pub y_axis_ref: Option<McIdentifier>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub x_axis_input_quantity: Option<McIdentifier>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub y_axis_input_quantity: Option<McIdentifier>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub x_axis_conv: Option<McIdentifier>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -165,6 +171,8 @@ impl Default for McSupportData {
             step: None,
             x_axis_ref: None,
             y_axis_ref: None,
+            x_axis_input_quantity: None,
+            y_axis_input_quantity: None,
             x_axis_conv: None,
             y_axis_conv: None,
         }
@@ -186,6 +194,8 @@ impl Clone for McSupportData {
             step: self.step,
             x_axis_ref: self.x_axis_ref,
             y_axis_ref: self.y_axis_ref,
+            x_axis_input_quantity: self.x_axis_input_quantity,
+            y_axis_input_quantity: self.y_axis_input_quantity,
             x_axis_conv: self.x_axis_conv,
             y_axis_conv: self.y_axis_conv,
         }
@@ -223,6 +233,12 @@ impl std::fmt::Display for McSupportData {
         if self.y_axis_ref.is_some() {
             write!(f, " y_axis_ref={}", self.y_axis_ref.as_ref().unwrap())?;
         }
+        if self.x_axis_input_quantity.is_some() {
+            write!(f, " x_axis_input_quantity={}", self.x_axis_input_quantity.as_ref().unwrap())?;
+        }
+        if self.y_axis_input_quantity.is_some() {
+            write!(f, " y_axis_input_quantity={}", self.y_axis_input_quantity.as_ref().unwrap())?;
+        }
         if self.x_axis_conv.is_some() {
             write!(f, " x_axis_conv={}", self.x_axis_conv.as_ref().unwrap())?;
         }
@@ -251,6 +267,8 @@ impl McSupportData {
             step: None,
             x_axis_ref: None,
             y_axis_ref: None,
+            x_axis_input_quantity: None,
+            y_axis_input_quantity: None,
             x_axis_conv: None,
             y_axis_conv: None,
         }
@@ -347,6 +365,14 @@ impl McSupportData {
         self.y_axis_ref = y_axis_ref.map(|s| s.into());
         self
     }
+    pub fn set_x_axis_input_quantity<T: Into<McIdentifier>>(mut self, x_axis_input_quantity: Option<T>) -> Self {
+        self.x_axis_input_quantity = x_axis_input_quantity.map(|s| s.into());
+        self
+    }
+    pub fn set_y_axis_input_quantity<T: Into<McIdentifier>>(mut self, y_axis_input_quantity: Option<T>) -> Self {
+        self.y_axis_input_quantity = y_axis_input_quantity.map(|s| s.into());
+        self
+    }
     pub fn set_x_axis_conv<T: Into<McIdentifier>>(mut self, x_axis_conv: Option<T>) -> Self {
         self.x_axis_conv = x_axis_conv.map(|s| s.into());
         self
@@ -396,6 +422,16 @@ impl McSupportData {
     /// Get the y-axis reference as McIdentifier
     pub fn get_y_axis_ref(&self) -> Option<McIdentifier> {
         self.y_axis_ref
+    }
+
+    /// Get the x-axis reference as McIdentifier
+    pub fn get_x_axis_input_quantity(&self) -> Option<McIdentifier> {
+        self.x_axis_input_quantity
+    }
+
+    /// Get the y-axis reference as McIdentifier
+    pub fn get_y_axis_input_quantity(&self) -> Option<McIdentifier> {
+        self.y_axis_input_quantity
     }
 
     /// Get the x-axis conversion as McIdentifier
