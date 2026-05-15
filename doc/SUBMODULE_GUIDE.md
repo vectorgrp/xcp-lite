@@ -128,6 +128,9 @@ git submodule update --init --recursive
 # Navigate to the submodule directory
 cd xcplib
 
+git fetch
+
+
 # Checkout the desired branch
 git checkout V2.0.0
 

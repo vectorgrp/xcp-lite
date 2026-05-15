@@ -466,13 +466,17 @@ impl Xcp {
         assert!(!registry::is_closed());
 
         // Register all calibration segments
-
+        // @@@@ TODO: Check if calibration segment index is not equal calibration segment number !!
         let calseg_count: u16 = unsafe { xcplib::XcpGetCalSegCount() };
         for i in 0..calseg_count {
+            let number = unsafe { xcplib::XcpGetCalSegNumber(i) };
+            if number == u8::MAX {
+                continue;
+            }
             let name = unsafe { std::ffi::CStr::from_ptr(xcplib::XcpGetCalSegName(i)).to_str().unwrap() };
             let size = unsafe { xcplib::XcpGetCalSegSize(i) };
             log::info!("Register CalSeg {}, size={}", name, size);
-            let _ = registry::get_lock().as_mut().unwrap().cal_seg_list.add_cal_seg(name, i, size as u32);
+            let _ = registry::get_lock().as_mut().unwrap().cal_seg_list.add_cal_seg(name, Some(number), size as u32);
         }
 
         // Register all events

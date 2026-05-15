@@ -14,25 +14,30 @@ unsafe extern "C" {
 }
 #[doc = " Calibration segment handle"]
 pub type tXcpCalSegIndex = u16;
+pub type tXcpCalSegNumber = u8;
 unsafe extern "C" {
     #[doc = " Create a calibration segment and add it to the list of calibration segments.\n This calibration segment has a working page (RAM) and a reference page (FLASH), it creates a MEMORY_SEGMENT in the A2L file\n It provides safe (thread safe against XCP modifications), lock-free and consistent atomic access to calibration parameters\n It supports XCP/ECU independent page switching, checksum calculation, copy and reinitialization (copy reference page to working page)\n @param name Name of the calibration segment.\n @param default_page Pointer to the default page.\n @param size Size of the calibration page in bytes.\n @return a handle or XCP_UNDEFINED_CALSEG when out of memory or the name already exists."]
     pub fn XcpCreateCalSeg(name: *const ::std::os::raw::c_char, default_page: *const ::std::os::raw::c_void, size: u16) -> tXcpCalSegIndex;
 }
 unsafe extern "C" {
-    #[doc = " Get the number of calibration segments\n @return the number of calibration segments"]
+    #[doc = " Get the number of calibration segments\n @return the number of calibration segments and blocks"]
     pub fn XcpGetCalSegCount() -> u16;
 }
 unsafe extern "C" {
-    #[doc = " Find a calibration segment by name\n @param name Name of the calibration segment\n @return the Handle of the calibration segment or XCP_UNDEFINED_CALSEG if not found"]
+    #[doc = " Find a calibration segment by name\n @param name Name of the calibration segment or block\n @return the Handle of the calibration segment or XCP_UNDEFINED_CALSEG if not found"]
     pub fn XcpFindCalSeg(name: *const ::std::os::raw::c_char) -> tXcpCalSegIndex;
 }
 unsafe extern "C" {
-    #[doc = " Get the name of the calibration segment\n @param index Handle of the calibration segment\n @return the name of the calibration segment or NULL if the index is invalid."]
+    #[doc = " Get the name of the calibration segment\n @param index Handle of the calibration segment or block\n @return the name of the calibration segment or NULL if the index is invalid."]
     pub fn XcpGetCalSegName(index: tXcpCalSegIndex) -> *const ::std::os::raw::c_char;
 }
 unsafe extern "C" {
-    #[doc = " Get the size of the calibration segment\n @param calseg Handle of the calibration segment\n @return the size of the calibration segment in bytes"]
+    #[doc = " Get the size of the calibration segment\n @param calseg Handle of the calibration segment or block\n @return the size of the calibration segment in bytes"]
     pub fn XcpGetCalSegSize(calseg: tXcpCalSegIndex) -> u16;
+}
+unsafe extern "C" {
+    #[doc = " Get the number of the calibration segment\n @param calseg Handle of the calibration segment\n @return the number of the calibration segment, calibration blocks don't have a number and return XCP_UNDEFINED_CALSEG_NUM"]
+    pub fn XcpGetCalSegNumber(calseg: tXcpCalSegIndex) -> tXcpCalSegNumber;
 }
 unsafe extern "C" {
     #[doc = " Lock a calibration segment.\n @param index Calibration segment index.\n @return Pointer to the active page of the calibration segment (working page or reference page, controlled by the XCP client tool).\n The pointer is valid until the calibration segment is unlocked.\n The data can be safely accessed while the lock is held.\n There is no contention with the XCP client tool and with other threads acquiring the lock.\n Acquiring the lock is wait-free, locks may be recursive"]

@@ -384,8 +384,7 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
 
         // Memory segments
         // @@@@ TODO: IF_DATA XCP not taken into accounts
-        // We assume here, that calibration segments are implicitly numbered, which is true for XCPlite and xcp-lite, but not general
-        let mut index = 0;
+        // We assume here, that calibration segments are implicitly numbered
         let mut number: u8 = 0;
         for m in mod_par.memory_segment.iter() {
             let name = m.get_name().to_string();
@@ -393,14 +392,15 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
             let addr = m.address;
             let size = m.size;
 
-            // Get index from addr, in relative addressing mode the high word of the segment address is the segment number
+            // Get index from addr, in relative addressing mode the high word of the segment address is the segment index
             // @@@@ TODO: Improve checking and maybe automatically set the mode
+          let mut index = number as u16; // Default index is the same as number
             if relative_segment_addressing {
                 let i = ((addr >> 16) & 0x7FFF) as u16; // @@@@ TODO: Abstract address encoding
-                assert!(number as u16 == i);
+                index =  i;
             }
 
-            let res = registry.cal_seg_list.add_a2l_cal_seg(name, index, addr_ext, addr, size);
+            let res = registry.cal_seg_list.add_a2l_cal_seg(name, index, Some(number), addr_ext, addr, size);
             match res {
                 Ok(_) => {}
                 Err(e) => {
@@ -408,7 +408,6 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
                 }
             }
 
-            index += 1;
             number += 1;
         }
     }

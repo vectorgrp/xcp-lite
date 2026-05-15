@@ -27,10 +27,11 @@ pub struct McCalibrationSegment {
     pub addr_ext: u8,       // A2L address extension
     pub mem_addr: u64,      // Memory address
     pub size: u32,          // Size in bytes
+    pub number: Option<u8>, // Number used for XCP protocol and A2L MEMORY_SEGMENT definition
 }
 
 impl McCalibrationSegment {
-    pub fn new<T: Into<McIdentifier>>(name: T, index: u16, addr: u32, addr_ext: u8, size: u32) -> McCalibrationSegment {
+    pub fn new<T: Into<McIdentifier>>(name: T, index: u16, addr: u32, addr_ext: u8, size: u32, number: Option<u8>) -> McCalibrationSegment {
         let name: McIdentifier = name.into();
         McCalibrationSegment {
             name,
@@ -39,6 +40,7 @@ impl McCalibrationSegment {
             addr_ext,
             mem_addr: 0,
             size,
+            number,
         }
     }
 
@@ -48,15 +50,25 @@ impl McCalibrationSegment {
     }
 
     /// Get the calibration segment index
-    // @@@@ TODO clarify the difference between and index: 16 and number: u8 which will be used for the XCP protocol
     pub fn get_index(&self) -> u16 {
         self.index
+    }
+
+    /// Get the calibration segment number
+    pub fn get_number(&self) -> Option<u8> {
+        self.number
     }
 
     // Set the calibration segment index
     // For internal use only
     pub fn set_index(&mut self, index: u16) {
         self.index = index;
+    }
+
+    // Set the calibration segment number
+    // For internal use only
+    pub fn set_number(&mut self, number: Option<u8>) {
+        self.number = number;
     }
 
     /// Set calibration segment memory address
@@ -81,7 +93,7 @@ impl McCalibrationSegment {
 // McCalibrationSegmentList
 
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct McCalibrationSegmentList(Vec<McCalibrationSegment>);
+pub struct McCalibrationSegmentList(pub Vec<McCalibrationSegment>);
 
 impl McCalibrationSegmentList {
     pub fn new() -> Self {
@@ -98,28 +110,36 @@ impl McCalibrationSegmentList {
         self.0.push(object);
     }
 
+    pub fn get(&self, index: usize) -> Option<&McCalibrationSegment> {
+        self.0.get(index)
+    }
+
     pub fn sort_by_name(&mut self) {
         self.0.sort_by(|a, b| a.name.cmp(&b.name));
     }
 
-    /// Add a calibration segment by index using segment relative addressing
-    pub fn add_cal_seg<T: Into<McIdentifier>>(&mut self, name: T, index: u16, size: u32) -> Result<&McCalibrationSegment, RegistryError> {
-        if self.find_cal_seg_by_index(index).is_some() {
-            let error_msg = format!("Duplicate calibration segment index {}!", index);
-            log::error!("{}", error_msg);
-            return Err(RegistryError::Duplicate(error_msg));
-        }
+    /// Add a calibration segment with segment relative addressing mode
+    pub fn add_cal_seg<T: Into<McIdentifier>>(&mut self, name: T, number: Option<u8>, size: u32) -> Result<&McCalibrationSegment, RegistryError> {
+        let index = self.len() as u16;
         let (addr_ext, addr) = McAddress::get_calseg_ext_addr_base(index);
-        self.add_a2l_cal_seg(name, index, addr_ext, addr, size)
+        self.add_a2l_cal_seg(name, index, number, addr_ext, addr, size)
     }
 
-    /// Add a calibration segment by address using absolute addressing mode
-    pub fn add_cal_seg_by_addr<T: Into<McIdentifier>>(&mut self, name: T, index: u16, addr_ext: u8, addr: u32, size: u32) -> Result<&McCalibrationSegment, RegistryError> {
-        self.add_a2l_cal_seg(name, index, addr_ext, addr, size)
+    /// Add a calibration segment with absolute addressing mode
+    pub fn add_cal_seg_by_addr<T: Into<McIdentifier>>(&mut self, name: T, number: Option<u8>, addr_ext: u8, addr: u32, size: u32) -> Result<&McCalibrationSegment, RegistryError> {
+        self.add_a2l_cal_seg(name, self.len() as u16, number, addr_ext, addr, size)
     }
 
     /// Add a calibration segment by name, index, address extension and address
-    pub fn add_a2l_cal_seg<T: Into<McIdentifier>>(&mut self, name: T, index: u16, addr_ext: u8, addr: u32, size: u32) -> Result<&McCalibrationSegment, RegistryError> {
+    pub fn add_a2l_cal_seg<T: Into<McIdentifier>>(
+        &mut self,
+        name: T,
+        index: u16,
+        number: Option<u8>,
+        addr_ext: u8,
+        addr: u32,
+        size: u32,
+    ) -> Result<&McCalibrationSegment, RegistryError> {
         let name: McIdentifier = name.into();
 
         // Check if name already exists and panic
@@ -130,8 +150,17 @@ impl McCalibrationSegmentList {
             }
         }
 
+        // Check if number already exists
+        if let Some(number) = number {
+            if self.find_cal_seg_by_number(number).is_some() {
+                let error_msg = format!("Duplicate calibration segment number {}!", number);
+                log::error!("{}", error_msg);
+                return Err(RegistryError::Duplicate(error_msg));
+            }
+        }
+
         log::debug!("Registry add_cal_seg: {} {} {}:0x{:08X}-{} ", name, index, addr_ext, addr, size);
-        let seg = McCalibrationSegment::new(name, index, addr, addr_ext, size);
+        let seg = McCalibrationSegment::new(name, index, addr, addr_ext, size, number);
         self.push(seg);
         Ok(self.0.last().unwrap())
     }
@@ -157,6 +186,12 @@ impl McCalibrationSegmentList {
     /// Returns the name of the calibration segment
     pub fn find_cal_seg_by_index(&self, index: u16) -> Option<McIdentifier> {
         self.into_iter().find(|i| i.index == index).map(|s| s.name)
+    }
+
+    /// Find a calibration segment name by number
+    /// Returns the name of the calibration segment
+    pub fn find_cal_seg_by_number(&self, number: u8) -> Option<McIdentifier> {
+        self.into_iter().find(|i| i.number == Some(number)).map(|s| s.name)
     }
 
     /// Get calibration segment index by name

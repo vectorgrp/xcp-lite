@@ -43,6 +43,7 @@ fn main() {
             .allowlist_function("XcpGetCalSegCount")
             .allowlist_function("XcpGetCalSegName")
             .allowlist_function("XcpGetCalSegSize")
+            .allowlist_function("XcpGetCalSegNumber")
             .allowlist_function("XcpLockCalSeg")
             .allowlist_function("XcpUnlockCalSeg")
             // DAQ

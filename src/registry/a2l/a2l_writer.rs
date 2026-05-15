@@ -363,7 +363,7 @@ impl GenerateA2l for McCalibrationSegment {
         writeln!(
             writer,
             r#"/begin IF_DATA XCP
-    /begin SEGMENT {} 2 {} 0 0
+    /begin SEGMENT {} /*number*/ 2 /*pages*/ {} /* addr_ext*/ 0 0
     /begin CHECKSUM XCP_ADD_44 MAX_BLOCK_SIZE 0xFFFF EXTERNAL_FUNCTION "" /end CHECKSUM
     /begin PAGE 0x0 ECU_ACCESS_DONT_CARE XCP_READ_ACCESS_DONT_CARE XCP_WRITE_ACCESS_DONT_CARE /end PAGE
     /begin PAGE 0x1 ECU_ACCESS_DONT_CARE XCP_READ_ACCESS_DONT_CARE XCP_WRITE_ACCESS_NOT_ALLOWED /end PAGE
@@ -905,7 +905,10 @@ ASAP2_VERSION 1 71
 
         // Calibration segments
         for s in &self.registry.cal_seg_list {
-            s.write_a2l(self)?;
+            if s.number.is_some() {
+                // Skip calibration block (number is None)
+                s.write_a2l(self)?;
+            }
         }
         writeln!(self, "/end MOD_PAR\n")
     }
