@@ -1078,8 +1078,8 @@ ASAP2_VERSION 1 71
     fn write_a2l_groups(&mut self) -> std::io::Result<()> {
         // Write ROOT GROUP "Characteristics" with subgroups for all calibration segments
         writeln!(self, "\n/* Characteristic and Axis Groups */")?;
-        if !self.registry.cal_seg_list.len() > 0 {
-            write!(self, "\n/begin GROUP Characteristics \"\" ROOT /begin SUB_GROUP")?;
+        if self.registry.cal_seg_list.len() > 0 {
+            write!(self, "/begin GROUP Characteristics \"\" ROOT /begin SUB_GROUP")?;
             for s in &self.registry.cal_seg_list {
                 if s.name == crate::EPK_SEG_NAME {
                     continue;
@@ -1093,12 +1093,17 @@ ASAP2_VERSION 1 71
         for s in &self.registry.cal_seg_list {
             let mut n = 0;
             for c in self.registry.instance_list.into_iter() {
-                if c.get_address().is_segment_relative() && s.name == c.get_address().get_calseg_name().unwrap() {
-                    n += 1;
-                    if n == 1 {
-                        write!(self, "/begin GROUP {} \"\" /begin REF_CHARACTERISTIC ", s.name)?;
+                if c.is_calibration_object() {
+                    // Check if the calibration object (characteristics or axis) belongs to the calibration segment by comparing the a2l address of the characteristic with the address range of the calibration segment
+                    // @@@@ TODO: Improve this hack
+                    let a2l_addr = c.address.get_a2l_addr(self.registry);
+                    if a2l_addr.0 == 0u8 && a2l_addr.1 >= s.addr && a2l_addr.1 < s.addr + s.size {
+                        n += 1;
+                        if n == 1 {
+                            write!(self, "/begin GROUP {} \"\" /begin REF_CHARACTERISTIC ", s.name)?;
+                        }
+                        write!(self, " {} ", c.name)?;
                     }
-                    write!(self, " {} ", c.name)?;
                 }
             }
             if n > 0 {
