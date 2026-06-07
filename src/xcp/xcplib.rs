@@ -14,6 +14,7 @@ unsafe extern "C" {
 }
 #[doc = " Calibration segment handle"]
 pub type tXcpCalSegIndex = u16;
+#[doc = " Calibration segment number (for XCP and A2L)"]
 pub type tXcpCalSegNumber = u8;
 unsafe extern "C" {
     #[doc = " Create a calibration segment and add it to the list of calibration segments.\n This calibration segment has a working page (RAM) and a reference page (FLASH), it creates a MEMORY_SEGMENT in the A2L file\n It provides safe (thread safe against XCP modifications), lock-free and consistent atomic access to calibration parameters\n It supports XCP/ECU independent page switching, checksum calculation, copy and reinitialization (copy reference page to working page)\n @param name Name of the calibration segment.\n @param default_page Pointer to the default page.\n @param size Size of the calibration page in bytes.\n @return a handle or XCP_UNDEFINED_CALSEG when out of memory or the name already exists."]

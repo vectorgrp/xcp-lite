@@ -39,7 +39,7 @@ cpp_demangle = "0.4"
 
 # A2l registry and A2L reader/writer
 a2lfile = "3.3.0"
-xcp_lite = { path = "../../", features = ["a2l_reader"] }
+xcp_registry = { path = "../../xcp_registry", features = ["a2l_reader"] }
 
 [lints.rust]
 dead_code = "allow"

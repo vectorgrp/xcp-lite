@@ -46,7 +46,7 @@ pub use xcp::XcpEvent;
 pub use xcp::XcpTransportLayer;
 pub use xcp::daq::daq_event::DaqEvent;
 
-// Public submodule registry
+// Public submodule registry (re-exports xcp_registry)
 pub mod registry;
 pub use registry::McValueTypeTrait;
 

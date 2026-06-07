@@ -23,7 +23,7 @@ use xcp_client::*;
 
 mod xcp_test_executor;
 
-use xcp_lite::registry::McEvent;
+use xcp_registry::McEvent;
 use xcp_test_executor::test_executor;
 
 pub mod elf_reader;
@@ -566,7 +566,7 @@ async fn xcp_client(
 
         //----------------------------------------------------------------
         // Create a new empty A2L registry
-        let mut reg = xcp_lite::registry::Registry::new();
+        let mut reg = xcp_registry::Registry::new();
         if !ecu_name.is_empty() {
             reg.application.set_info(ecu_name.clone(), "-", 0);
         }
@@ -743,7 +743,7 @@ async fn xcp_client(
             let mut missing_event_ids = 0;
 
             // Load the event and calibration segment information from target into a temporary registry and check if the given A2L file needs to be corrected
-            let mut tmp_reg = xcp_lite::registry::Registry::new();
+            let mut tmp_reg = xcp_registry::Registry::new();
             xcp_client.get_event_segment_info(&mut tmp_reg).await?;
 
             // Check events

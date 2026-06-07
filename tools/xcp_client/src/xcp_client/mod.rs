@@ -24,7 +24,7 @@ use tokio::time::{Duration, timeout};
 
 pub mod xcp;
 use xcp::*;
-use xcp_lite::registry::*;
+use xcp_registry::*;
 
 use crate::bin_reader::bin_format::CalSegDescriptor;
 use crate::bin_reader::bin_format::EventDescriptor;
@@ -364,7 +364,7 @@ pub struct XcpClient {
     pub freeze_supported: bool,
     pub max_events: u16,
 
-    pub registry: Option<xcp_lite::registry::Registry>,
+    pub registry: Option<xcp_registry::Registry>,
 
     timestamp_resolution_ns: u64,
     daq_header_size: u8,
@@ -420,7 +420,7 @@ impl XcpClient {
         }
     }
 
-    pub fn set_registry(&mut self, registry: xcp_lite::registry::Registry) {
+    pub fn set_registry(&mut self, registry: xcp_registry::Registry) {
         self.registry = Some(registry);
     }
 
@@ -837,7 +837,7 @@ impl XcpClient {
     // Get server identification
     // Returns (size, name) where name is only set if the server returned the name in the response, otherwise the caller must do an upload to get the data
     pub async fn get_id(&mut self, id_type: u8) -> Result<(u32, Option<String>), Box<dyn Error>> {
-        assert!( id_type == IDT_VECTOR_ELF_UPLOAD || id_type == IDT_ASAM_UPLOAD || id_type == IDT_ASAM_NAME || id_type == IDT_ASCII || id_type == IDT_ASAM_EPK); // others not supported yet
+        assert!(id_type == IDT_VECTOR_ELF_UPLOAD || id_type == IDT_ASAM_UPLOAD || id_type == IDT_ASAM_NAME || id_type == IDT_ASCII || id_type == IDT_ASAM_EPK); // others not supported yet
 
         let data = self.send_command(XcpCommandBuilder::new(CC_GET_ID).add_u8(id_type).build()).await?;
         assert_eq!(data[0], 0xFF);
@@ -1298,7 +1298,6 @@ impl XcpClient {
         Ok(timestamp_ns)
     }
 
-
     //-------------------------------------------------------------------------------------------------
     // ELF upload
 
@@ -1332,8 +1331,6 @@ impl XcpClient {
 
         Ok(())
     }
-
-
 
     //-------------------------------------------------------------------------------------------------
     // A2L upload
@@ -1370,7 +1367,7 @@ impl XcpClient {
     }
 
     // Get the A2L via XCP upload and GET_ID4 (IDT_ASAM_UPLOAD) and load it into the registry
-    pub async fn upload_a2l_into_registry<P: AsRef<std::path::Path>>(&mut self, a2l_path: &P, reg: &mut xcp_lite::registry::Registry) -> Result<(), Box<dyn Error>> {
+    pub async fn upload_a2l_into_registry<P: AsRef<std::path::Path>>(&mut self, a2l_path: &P, reg: &mut xcp_registry::Registry) -> Result<(), Box<dyn Error>> {
         // Upload the A2L file
         self.upload_a2l_file(&a2l_path).await?;
 
@@ -1387,7 +1384,7 @@ impl XcpClient {
     }
 
     // Get the A2L via XCP upload and GET_ID4 (IDT_ASAM_UPLOAD) and load it into the registry
-    pub fn load_a2l_file_into_registry<P: AsRef<std::path::Path>>(&mut self, a2l_path: &P, reg: &mut xcp_lite::registry::Registry) -> Result<(), Box<dyn Error>> {
+    pub fn load_a2l_file_into_registry<P: AsRef<std::path::Path>>(&mut self, a2l_path: &P, reg: &mut xcp_registry::Registry) -> Result<(), Box<dyn Error>> {
         // Load the A2L file into the registry
         // @@@@ TODO xcp_client does not support arrays, instances and typedefs yet, flatten the registry and mangle the names
         reg.load_a2l(&a2l_path, true, true, true, true)?;
@@ -1407,7 +1404,7 @@ impl XcpClient {
     //------------------------------------------------------------------------
     // Get event and segment information from XCP server and add to registry
 
-    pub async fn get_event_segment_info(&mut self, reg: &mut xcp_lite::registry::Registry) -> Result<(), Box<dyn Error>> {
+    pub async fn get_event_segment_info(&mut self, reg: &mut xcp_registry::Registry) -> Result<(), Box<dyn Error>> {
         info!("Reading event and segment information from connected XCP server:");
 
         // Get event information
@@ -1426,7 +1423,7 @@ impl XcpClient {
             // Otherwise the EPK segment would be handled like a normal calibration segment with 2 pages
             // Segment relative addressing is ignored, all addresses are treated as raw A2L addr_ext/addr
             // Segment relative addressing would be reg.cal_seg_list.add_cal_seg(name, i as u16, length as u32).unwrap();
-            reg.cal_seg_list.add_cal_seg_by_addr(name, n, addr_ext, addr, length as u32).unwrap();
+            reg.cal_seg_list.add_cal_seg_by_addr(name, Some(n as u8), addr_ext, addr, length as u32).unwrap();
 
             n += 1;
         }
@@ -1438,18 +1435,18 @@ impl XcpClient {
     // Registry
     // Get a list available measurement and calibration object names from registry matching a regular expression
 
-    pub fn get_registry(&self) -> &xcp_lite::registry::Registry {
+    pub fn get_registry(&self) -> &xcp_registry::Registry {
         self.registry.as_ref().unwrap()
     }
 
     pub fn find_characteristics(&self, expr: &str) -> Vec<String> {
         let registry = self.registry.as_ref().unwrap();
-        registry.instance_list.find_instances_regex(expr, xcp_lite::registry::McObjectType::Characteristic, None)
+        registry.instance_list.find_instances_regex(expr, xcp_registry::McObjectType::Characteristic, None)
     }
 
     pub fn find_measurements(&self, expr: &str) -> Vec<String> {
         let registry = self.registry.as_ref().unwrap();
-        registry.instance_list.find_instances_regex(expr, xcp_lite::registry::McObjectType::Measurement, None)
+        registry.instance_list.find_instances_regex(expr, xcp_registry::McObjectType::Measurement, None)
     }
 
     //------------------------------------------------------------------------
@@ -1464,7 +1461,7 @@ impl XcpClient {
     /// name may be a regular expression matching exactly one characteristic
     pub async fn create_calibration_object(&mut self, name: &str) -> Result<XcpCalibrationObjectHandle, Box<dyn Error>> {
         let registry = self.registry.as_ref().unwrap();
-        match registry.instance_list.get_instance(name, xcp_lite::registry::McObjectType::Characteristic, None) {
+        match registry.instance_list.get_instance(name, xcp_registry::McObjectType::Characteristic, None) {
             None => {
                 error!("Characteristic {} not found", name);
                 Err(Box::new(XcpError::new(ERROR_NOT_FOUND, 0)) as Box<dyn Error>)
@@ -1608,7 +1605,7 @@ impl XcpClient {
     /// name may be a regular expression matching exactly one measurement
     pub fn create_measurement_object(&mut self, name: &str) -> Option<XcpMeasurementObjectHandle> {
         let registry = self.registry.as_ref().unwrap();
-        match registry.instance_list.get_instance(name, xcp_lite::registry::McObjectType::Measurement, None) {
+        match registry.instance_list.get_instance(name, xcp_registry::McObjectType::Measurement, None) {
             None => {
                 debug!("Measurement {} not found", name);
                 None

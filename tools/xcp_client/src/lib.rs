@@ -4,7 +4,7 @@
 
 // This crate is a library
 #![crate_type = "lib"]
-// The library crate is named "xcpclient"
+// The library crate is named "xcp_client"
 #![crate_name = "xcp_client"]
 
 pub mod bin_reader;

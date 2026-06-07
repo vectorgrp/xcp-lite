@@ -12,13 +12,10 @@ use std::num::Wrapping;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64};
 use tokio::time::{Duration, Instant};
-use xcp_lite::metrics::counter;
+use xcp_registry::*;
 
-use xcp_lite::registry::*;
-use xcp_lite::*;
-
-use xcpclient::xcp_client::xcp::*;
-use xcpclient::xcp_client::*;
+use xcp_client::xcp_client::xcp::*;
+use xcp_client::xcp_client::*;
 
 //-----------------------------------------------------------------------------
 

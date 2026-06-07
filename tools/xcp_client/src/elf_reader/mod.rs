@@ -11,7 +11,7 @@ use std::ffi::OsStr;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use xcp_lite::registry::{McAddress, McDimType, McEvent, McObjectType, McSupportData, McValueType, Registry};
+use xcp_registry::{McAddress, McDimType, McEvent, McObjectType, McSupportData, McValueType, Registry};
 
 /*
 Which information can be detected from ELF/DWARF:
@@ -333,7 +333,7 @@ impl ElfReader {
 
                         if segment_relative {
                             // Add in segment relative addressing mode
-                            let res = reg.cal_seg_list.add_cal_seg(seg_name.to_string(), next_segment_number, length as u32);
+                            let res = reg.cal_seg_list.add_cal_seg(seg_name.to_string(), Some(next_segment_number as u8), length as u32);
                             if let Err(e) = res {
                                 error!("Failed to add calibration segment '{}': {}", seg_name, e);
                                 continue;
@@ -358,7 +358,7 @@ impl ElfReader {
                             }
                             let res = reg
                                 .cal_seg_list
-                                .add_cal_seg_by_addr(seg_name.to_string(), next_segment_number, addr_ext, addr as u32, length as u32);
+                                .add_cal_seg_by_addr(seg_name.to_string(), Some(next_segment_number as u8), addr_ext, addr as u32, length as u32);
                             if let Err(e) = res {
                                 error!("Failed to add calibration segment '{}': {}", seg_name, e);
                                 continue;
