@@ -15,6 +15,7 @@ categories = ["MC"]
 
 [workspace]
 members = [
+    "xcp_registry",
     "tools/xcp_client",  
     "xcp_type_description",   
     "xcp_idl_generator",      
@@ -46,7 +47,7 @@ c_cal = []
 
 # Feature a2l_reader using a2lfile
 # Automatic check of the generated A2L file
-a2l_reader = ["dep:a2lfile"]
+a2l_reader = ["xcp_registry/a2l_reader"]
 
 
 #--------------------------------------------------------------------------------------
@@ -99,8 +100,8 @@ xcp_type_description_derive = { path = "./xcp_type_description/xcp_type_descript
 xcp_idl_generator  = { path = "./xcp_idl_generator/"}
 xcp_idl_generator_derive  = { path = "./xcp_idl_generator/xcp_idl_generator_derive/"}
 
-# A2L checker (optional)
-a2lfile = { version="3.3.0", optional = true}
+# Registry (pure Rust, no C/xcplib dependency)
+xcp_registry = { path = "./xcp_registry" }
 
 anyhow = "1.0"
 
