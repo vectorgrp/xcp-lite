@@ -342,9 +342,13 @@ impl Default for McXcpTransportLayer {
 /// Registry is closed when None
 static REGISTRY: Mutex<Option<Registry>> = Mutex::new(None);
 
-/// Closed registry OnceLock singleton
+
+// @@@@ TODO: Check if this AI induced change from OnceLock to Mutex is what we desired ??????
+/// Closed registry singleton
 /// (Finalized and read only after call to Registry::close())
-static CLOSED_REGISTRY: std::sync::OnceLock<Registry> = std::sync::OnceLock::new();
+static CLOSED_REGISTRY: Mutex<Option<&'static Registry>> = Mutex::new(None);
+//static CLOSED_REGISTRY: std::sync::OnceLock<Registry> = std::sync::OnceLock::new();
+
 
 //---------------------------------------------------------------------------------------------------------
 // Associated function for the registry singleton
@@ -368,7 +372,7 @@ pub fn init() {
 pub fn get_lock() -> parking_lot::lock_api::MutexGuard<'static, parking_lot::RawMutex, Option<Registry>> {
     // Check if registry is closed, it should be None then
     #[cfg(not(test))]
-    if CLOSED_REGISTRY.get().is_some() {
+    if CLOSED_REGISTRY.lock().is_some() {
         let l = REGISTRY.lock();
         assert!(l.is_none());
         return l;
@@ -382,18 +386,18 @@ pub fn get_lock() -> parking_lot::lock_api::MutexGuard<'static, parking_lot::Raw
 /// Get a reference to the closed registry singleton
 /// Close and flatten if not already closed
 pub fn get() -> &'static Registry {
-    if CLOSED_REGISTRY.get().is_none() {
+    if CLOSED_REGISTRY.lock().is_none() {
         // Close the mutable registry singleton
         // Flatten typedefs
         log::warn!("Automatically close registry - call to Registry::get() without explictic close!");
         close();
     }
-    CLOSED_REGISTRY.get().unwrap()
+    CLOSED_REGISTRY.lock().unwrap()
 }
 
 /// Get closed status   
 pub fn is_closed() -> bool {
-    CLOSED_REGISTRY.get().is_some()
+    CLOSED_REGISTRY.lock().is_some()
 }
 
 /// Close registry
@@ -416,7 +420,8 @@ pub fn close() {
     }
 
     // Move mutable registry singleton to closed singleton
-    CLOSED_REGISTRY.get_or_init(|| reg);
+    *CLOSED_REGISTRY.lock() = Some(Box::leak(Box::new(reg)));
+    // CLOSED_REGISTRY.get().unwrap()
 
     // log::info!("Registry instance list:");
     // for i in &get().instance_list {
@@ -518,3 +523,13 @@ pub fn flatten_registry(reg: &mut Registry) {
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 // Test module
+
+#[doc(hidden)]
+pub mod registry_test {
+    use super::*;
+
+    pub fn test_reinit() {
+        *REGISTRY.lock() = Some(Registry::new());
+        *CLOSED_REGISTRY.lock() = None;
+    }
+}

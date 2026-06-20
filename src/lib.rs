@@ -46,12 +46,12 @@ pub use xcp::XcpEvent;
 pub use xcp::XcpTransportLayer;
 pub use xcp::daq::daq_event::DaqEvent;
 
-// Public submodule registry (re-exports xcp_registry)
-pub mod registry;
-pub use registry::McValueTypeTrait;
-
 // Public submodule metrics
 pub mod metrics;
+
+// Re-export the standalone registry crate under the old module path.
+pub use xcp_registry as registry;
+pub use registry::McValueTypeTrait;
 
 // Used by macros
 #[doc(hidden)]
