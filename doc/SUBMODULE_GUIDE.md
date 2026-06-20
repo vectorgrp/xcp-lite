@@ -84,7 +84,7 @@ To update the submodule to the latest commit on its tracked branch (V2.0.0):
 cd xcplib
 
 # Fetch and merge the latest changes from the tracked branch
-git pull origin V2.0.0
+git pull origin V2.1.5
 
 # Go back to the parent repository
 cd ..
@@ -93,7 +93,7 @@ cd ..
 git add xcplib
 
 # Commit the update
-git commit -m "Update xcplib submodule to latest V2.0.0"
+git commit -m "Update xcplib submodule to latest V2.1.5"
 ```
 
 ### Update All Submodules at Once

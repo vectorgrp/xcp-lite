@@ -253,10 +253,17 @@ fn write_axis_descr(_name: &str, dim_type: &McDimType, mc_support_data: &McSuppo
     Ok(())
 }
 
-// Write instance IF_DATA with event
+// Write instance IF_DATA with a fixed event
 fn write_ifdata_event(event_id: u16, writer: &mut A2lWriter) -> std::io::Result<()> {
-    // Fixed event
-    write!(writer, " /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT {event_id} /end DAQ_EVENT /end IF_DATA")?;
+
+    if id == 0 {
+        // Default event 
+        // @@@@ TODO Event id 0 is a default event - make configurable
+        write!(writer, " /begin IF_DATA XCP /begin DAQ_EVENT VARIABLE /begin DEFAULT_EVENT_LIST EVENT {event_id} /end DEFAULT_EVENT_LIST /end DAQ_EVENT /end IF_DATA")?;
+    } else {
+        // Fixed event
+        write!(writer, " /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT {event_id} /end DAQ_EVENT /end IF_DATA")?;
+    }
     Ok(())
 }
 

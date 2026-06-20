@@ -81,7 +81,7 @@ unsafe extern "C" {
     pub fn XcpPrint(str_: *const ::std::os::raw::c_char);
 }
 unsafe extern "C" {
-    #[doc = " Get the current DAQ clock value\n @return time in CLOCK_TICKS_PER_S units\n Resolution and epoch is defined in xcplib_cfg.h\n Epoch may be PTP or arbitrary\n Resolution is 1ns or 1us"]
+    #[doc = " Get the current DAQ clock value\n @return time in 1/CLOCK_TICKS_PER_S ticks\n Resolution and epoch is defined in xcplib_cfg.h\n Epoch may be PTP or arbitrary\n Resolution is 1ns or 1us"]
     pub fn ApplXcpGetClock64() -> u64;
 }
 unsafe extern "C" {
