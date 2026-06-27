@@ -6,8 +6,9 @@ New proc macro.
 Goal:
 
 Create a new optimized proc_macro called McRegisterType.
-The new macro should generate code to register the types directly in the mc_registry.
+The new macro should generate code to register the types directly in the registry.
 The old macro in xcp_type_description generated intermediate data structures to register the types later in the mc_registry. The type was 
+
 ```rust
 struct StructDescriptor {
     name: &'static str,
@@ -15,29 +16,29 @@ struct StructDescriptor {
     fields: Vec<FieldDescriptor>,
 }
 ```
-The new macro should generate code that directly registers the types in the mc_registry if possible.
-It should support also support more types than the old version. The new macro should support the following types:
+
+The new macro should generate code that directly registers the types in the registry.
+It could support more types than the old version. The new macro should at least support the following types:
 - bool
 - u8, u16, u32, u64
 - i8, i16, i32, i64
 - f32, f64
 - arrays of the above types (up to 2 dimensions)
-- user defined types (structs) that are also registered in the mc_registry
+- user defined types (structs) that struct are also registered in the registry recursivly or flattened as an option
 - arrays of the user defined types (up to 2 dimensions)
-- Integer enum types - these are registered as u8, u16, u32, u64 depending on the size of the enum and a conversion rule which describes the value names.
+- Integer enum types - these are registered as u8, u16, u32, u64 depending on the size of the enum and a conversion rule which describes the value names. Postponed to a later step, the macro should be designed so that enums can be added later without breaking the public API.
 
 
-The attribute parser should be more robust.
-The new macro is intentionally **not** syntax-compatible with the old macro; a cleaner, more
-user-friendly syntax is preferred over backward compatibility. The new macro should support
-the following attributes:
+The attribute parser should be more robust than before.
+The new macro is intentionally **not** syntax-compatible with the old macro; a cleaner, more user-friendly syntax is preferred over backward compatibility. The new macro should support the following attributes:
+
 - `#[characteristic(comment = "Demo comment")]` - optional comment for the characteristic
 - `#[characteristic(min = 0, max = 100)]` - optional min and max values for the characteristic
 - `#[characteristic(unit = "s")]` - optional physical unit for the characteristic
-- `#[characteristic(axis = "path.to.axis")]` - optional axis for the characteristic, used for curves and maps
+- `#[characteristic(axis = "path.to.axis")]` - optional axis for the characteristic, used for curves
 - `#[characteristic(x_axis = "path.to.x_axis")]` - optional x axis for the characteristic, used for maps
 - `#[characteristic(y_axis = "path.to.y_axis")]` - optional y axis for the characteristic, used for maps
-- `#[characteristic(step = 10)]` - optional step size for the characteristic, used for curves and maps
+- `#[characteristic(step = 10)]` - optional step size for the characteristic, used for curves and maps with fixed axis min..max
 
 - `#[axis(comment = "Demo comment")]` - optional comment for the axis
 - `#[axis(min = 0, max = 100)]` - optional min and max values for the axis
@@ -165,8 +166,13 @@ typedef, an event-relative (measurement) typedef, or a flattened set of instance
 flatten decision is a **runtime argument** (matching the old `flat: bool`), not an attribute,
 because the README requires that the decision be made at the call site.
 
+Both the trait method and the context struct are **internal** (`#[doc(hidden)]`). End users
+never construct a context or call `register` directly; they call ergonomic wrappers that build
+the context internally (see §2.1).
+
 ```rust
-/// Implemented by #[derive(McRegisterType)]
+/// Implemented by #[derive(McRegisterType)]. Internal: called only by the wrappers.
+#[doc(hidden)]
 pub trait McRegisterType {
     /// Register this type into the open registry singleton.
     ///
@@ -176,8 +182,8 @@ pub trait McRegisterType {
     fn register(ctx: &McRegisterContext);
 }
 
-/// Where and how to register. Construction helpers mirror the existing
-/// CalSeg::register_typedef() / register_fields() entry points.
+/// Where and how to register. Internal type, not part of the public API.
+#[doc(hidden)]
 pub struct McRegisterContext {
     pub target: McRegisterTarget,   // CalSeg(name) | Event(id)
     pub instance_name: Option<&'static str>, // top-level instance name, None for nested
@@ -193,6 +199,22 @@ The blanket impls in `xcp_registry` (`register_calseg_typedef`, `register_calseg
 an `McRegisterContext` and call `T::register(ctx)`. Backward compatibility with the old
 `CalSeg` / registration entry-point signatures is **not** required, so these wrappers and the
 `CalSeg` helper names may be redesigned freely for clarity.
+
+### 2.1 User-facing wrappers
+
+Users interact only with these wrappers; the context is hidden behind them. The wrappers keep
+the familiar names so the call sites read the same as today:
+
+- Calibration segment (in `CalSeg`):
+  - `register_typedef(&self)` — build a context with `target = CalSeg(name)`, `flatten = false`,
+    `instance_name = Some(type/seg name)`; registers one typedef plus one instance.
+  - `register_fields(&self)` — same target but `flatten = true`; registers flattened,
+    dot-mangled instances and no typedef.
+- Measurement struct (DAQ): the existing `daq_register_struct!` macro calls a typedef wrapper
+  with `target = Event(id)` internally and then registers the stack instance.
+
+Each wrapper constructs the `McRegisterContext`, then calls the generated
+`McRegisterType::register(&ctx)`. No other entry points are exposed.
 
 > Note: scalar primitives (`u8`..`f64`, `bool`) and arrays do **not** implement
 > `McRegisterType`. The macro decides statically (from the field's syntactic type) whether a
@@ -235,7 +257,7 @@ The size of a typedef is `std::mem::size_of::<T>()`; field offsets are
 
 ## 5. Attribute syntax
 
-The canonical syntax is a single combined attribute per classifier with native literals.
+The syntax is a single attribute per field with all keys combined and native literals.
 Numeric keys take **numeric literals** (not strings), and text keys take string literals:
 
 ```rust
@@ -244,14 +266,8 @@ float: f32,
 ```
 
 This is a deliberate break from the old macro, where every value (including numbers) had to
-be a quoted string. As a convenience, repeating the same classifier attribute is allowed and
-the key sets are merged, but it is not the recommended style:
-
-```rust
-#[characteristic(comment = "Demo float")]
-#[characteristic(min = -10.0, max = 10.0)]
-float: f32,
-```
+be a quoted string. Each field carries **at most one** classifier attribute; repeating a
+classifier attribute on the same field is a `compile_error!` (this keeps the parser simple).
 
 Recognized attribute paths: `characteristic`, `axis`, `measurement`. Any other attribute on a
 field is ignored (it may belong to another derive macro). Keys map to `McSupportData` setters:
@@ -263,9 +279,21 @@ field is ignored (it may belong to another derive macro). Keys map to `McSupport
 | `step` | number | characteristic | `set_step` |
 | `unit` | string | all | `set_linear(factor, offset, unit)` |
 | `factor`, `offset` | number | all | `set_linear` |
-| `qualifier = "volatile"` | string | all | `set_qualifier(Volatile)` |
+| `qualifier` | string: `"volatile"` \| `"readonly"` | all | `set_qualifier(Volatile \| ReadOnly)` |
 | `axis` | string | characteristic (curve) | `set_x_axis_ref` |
 | `x_axis`, `y_axis` | string | characteristic (map) | `set_x_axis_ref`, `set_y_axis_ref` |
+| `input_quantity` (alias `x_input_quantity`) | string | characteristic (curve/map) | `set_x_axis_input_quantity` |
+| `y_input_quantity` | string | characteristic (map) | `set_y_axis_input_quantity` |
+
+Notes:
+- **`qualifier`** maps to `McObjectQualifier`: `"volatile"` → `Volatile` (continuously modified
+  by the target), `"readonly"` → `ReadOnly` (no async write, assumed volatile). Unspecified
+  otherwise. The old macro also recognized `readonly`; it is kept here.
+- **Input quantity** (`input_quantity` / `y_input_quantity`) names the measurement signal that
+  addresses the axis of a curve or map. These correspond to the old macro's `x_axis_inputQty`
+  / `axis_inputQty` / `y_axis_inputQty` keys, renamed to clean snake_case (the new macro is not
+  backward-compatible, see §1). On an `#[axis(...)]` field they are ignored, exactly like the
+  axis-ref keys.
 
 Parser robustness requirements (improvements over the old parser, which `panic!`s freely):
 - Emit `compile_error!` with a clear message and the offending span instead of `panic!`.
@@ -314,10 +342,88 @@ No public-API change to `McRegisterType::register` is required to add this later
   entry-point signatures; the API may be redesigned for clarity.
 - **Maximum 2 array dimensions**; 3+ dimensions are a `compile_error!` and there is no
   dimension folding.
+- **Context is internal.** `McRegisterContext` and `McRegisterType::register` are
+  `#[doc(hidden)]`; users call ergonomic wrappers (`register_typedef` / `register_fields` on
+  `CalSeg`, and the `daq_register_struct!` macro) that build the context internally.
 
 ## 10. Open questions
 
-- Final naming of the public entry points (the redesigned `CalSeg` / context helpers).
-- Confirm the desired A2L representation for a 1D array of a user-defined struct vs. a 2D
-  array of a struct (instance dims on a `TypeDef` value type).
+### 10.1 A2L representation for arrays of a user-defined struct
+
+A field whose type is a user struct becomes `McValueType::TypeDef("S")`. An **array** of such a
+struct (e.g. `[UserDefinedType; 8]` or `[[UserDefinedType; 2]; 3]`) is represented by the same
+`TypeDef` value type plus the array dimensions in `McDimType` (`x_dim` / `y_dim`).
+
+The A2L writer already emits these as a single `INSTANCE ... <TypeName> ... MATRIX_DIM x [y]`
+(see `McInstance::write_measurement` and `write_matrix_dim` in
+`xcp_registry/src/a2l/a2l_writer.rs`). The open item is only to **confirm** the desired
+`x_dim`/`y_dim` convention for struct arrays matches what the calibration tool (CANape) expects
+— i.e. that `[S; X]` → `x_dim = X, y_dim = 1` and `[[S; X]; Y]` → `x_dim = X, y_dim = Y`, the
+same convention as for scalar arrays. No new registry code is expected; this is a verification
+against tooling.
+
+## 11. Packaging / crate layout
+
+### 11.1 Why a separate proc-macro crate
+
+A crate with `proc-macro = true` (like `xcp_type_description_derive` and
+`xcp_idl_generator_derive`) can export **only** proc-macros — no traits, structs, or
+functions. So the derive itself must live in its own crate. This follows the existing
+`<lib>` + `<lib>_derive` convention in the workspace.
+
+### 11.2 Where each piece lives
+
+The new design removes all intermediate runtime types (no `StructDescriptor` /
+`FieldDescriptor`), so the only runtime artifact is the (doc-hidden) trait plus its context.
+Its natural home is **`xcp_registry`**, which already hosts the analogous `RegisterFieldsTrait`
+and all the `Mc*` support types. This means **no new runtime library crate** is needed — only
+the mandatory proc-macro crate.
+
+```
+xcp_registry/              # add McRegisterType trait + McRegisterContext (#[doc(hidden)]);
+                           # depend on the derive crate and re-export it (serde-style)
+xcp_register_type_derive/  # proc-macro = true; ONLY the derive
+                           # deps: syn, quote, proc-macro2 (NOT xcp_registry)
+```
+
+Key point: the **proc-macro crate does not depend on `xcp_registry`**. The generated code only
+emits absolute paths like `::xcp_registry::McValueType` / `::xcp_registry::add_typedef(...)` as
+tokens; the dependency is satisfied in the **consuming** crate, which already pulls in
+`xcp_registry`. There is therefore no dependency cycle, even though `xcp_registry` re-exports
+the derive.
+
+### 11.3 User import
+
+By re-exporting the derive from `xcp_registry` (the serde model: `serde::Serialize` is both a
+trait and, via re-export, the derive), users get both from one path:
+
+```rust
+use xcp_registry::McRegisterType;   // brings the trait AND the derive macro
+```
+
+Alternative (more decoupled): do not re-export from `xcp_registry`; instead aggregate in the
+root `xcp_lite` prelude (`src/lib.rs` already does `pub use xcp_type_description::prelude::*`).
+Slightly less ergonomic for standalone `xcp_registry` users.
+
+### 11.4 Naming
+
+- Keep **snake_case** crate names (`xcp_registry`, `xcp_register_type_derive`) — consistent
+  with the rest of the workspace. Note crates.io treats `-` and `_` as colliding for
+  uniqueness; do not mix styles.
+- The `Mc*` type prefix with `xcp_*` crate prefix is the established pattern (`xcp_registry`
+  exports `McValueType`, `McSupportData`, …), so `McRegisterType` fits.
+
+### 11.5 Publishing the monorepo on crates.io
+
+- Each workspace member is published **independently** (`cargo publish` per crate) with its
+  own version.
+- **Path dependencies need a version** as well, e.g.
+  `xcp_register_type_derive = { path = "...", version = "1.1.0" }`; crates.io ignores `path`
+  and uses `version`.
+- Publish **leaf-first**: `xcp_register_type_derive` → `xcp_registry` → `xcp_lite`.
+- Mark non-published members with `publish = false` (the `examples/*`, `tools/xcp_client`).
+- Every published crate needs `description` / `license` / `repository`. `xcp_registry` already
+  has them; the existing `*_derive` `Cargo.toml`s do **not** and would need those fields added
+  before publishing — apply the same to the new derive crate.
+
 
