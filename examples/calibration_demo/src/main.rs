@@ -66,17 +66,16 @@ fn cubic_hermite(p0: f32, p1: f32, m0: f32, m1: f32, t: f32) -> f32 {
 
 //--------------------------------------------------------------------------------------------------
 // Calibration parameters
-// Define calibration parameters as structs with semantic annotations provided by XcpTypeDescription
+// Define calibration parameters as structs with semantic annotations provided by McRegisterType
 
 //------------------------------------
 // Demo of a simple struct with scalar parameters
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
 struct CounterControl {
     #[characteristic(comment = "Start/stop counter")]
     counter_on: bool, // VALUE type
 
-    #[characteristic(comment = "Max counter value")]
-    #[characteristic(min = "0", max = "10000")]
+    #[characteristic(comment = "Max counter value", min = 0, max = 10000)]
     counter_max: u32, // VALUE type
 }
 
@@ -89,27 +88,25 @@ const COUNTER_CONTROL: CounterControl = CounterControl {
 //--------------------------------------------------------
 // Demo of various multi dimensional calibration parameter types in a struct
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
 struct Params {
-    #[characteristic(comment = "Demo array", min = "0", max = "100")]
+    #[characteristic(comment = "Demo array", min = 0, max = 100)]
     array: [u8; 4], // VAL_BLK type (1 dimensions)
 
-    #[characteristic(comment = "Demo matrix", min = "0", max = "100")]
+    #[characteristic(comment = "Demo matrix", min = 0, max = 100)]
     matrix: [[u8; 9]; 5], // VAL_BLK type (2 dimensions)
 
-    #[axis(comment = "Demo shared axis", min = "0", max = "10000")]
+    #[axis(comment = "Demo shared axis", min = 0, max = 10000)]
     shared_axis_16: [f32; 16], // AXIS_PTS type
-    #[axis(comment = "Demo shared axis", min = "0", max = "10000")]
+    #[axis(comment = "Demo shared axis", min = 0, max = 10000)]
     shared_axis_9: [f32; 9], // AXIS_PTS type
 
-    #[characteristic(comment = "Demo curve with shared axis", axis = "cal_demo_2.params.shared_axis_16", min = "-10", max = "10")]
+    #[characteristic(comment = "Demo curve with shared axis", axis = "cal_demo_2.params.shared_axis_16", min = -10, max = 10)]
     curve1: [f64; 16], // CURVE type (1 dimension), shared axis 'shared_axis_16'
-    #[characteristic(comment = "Demo curve with shared axis", axis = "cal_demo_2.params.shared_axis_16", min = "-10", max = "10")]
+    #[characteristic(comment = "Demo curve with shared axis", axis = "cal_demo_2.params.shared_axis_16", min = -10, max = 10)]
     curve2: [f64; 16], // CURVE type (1 dimension)
 
-    #[characteristic(comment = "Demo map with shared axis", min = "0", max = "100")]
-    #[characteristic(x_axis = "cal_demo_2.params.shared_axis_9")]
-    #[characteristic(y_axis = "cal_demo_2.params.shared_axis_16")]
+    #[characteristic(comment = "Demo map with shared axis", min = 0, max = 100, x_axis = "cal_demo_2.params.shared_axis_9", y_axis = "cal_demo_2.params.shared_axis_16")]
     map: [[u8; 9]; 16], // MAP type (2 dimensions), shared axis 'shared_axis_9' and 'shared_axis_16'
 }
 
@@ -153,11 +150,11 @@ const PARAMS: Params = Params {
 // Lookup table parameter demo
 // For project CANape_typedef this struct is registered as TYPEDEF_STRUCTURE + INSTANCE
 // For project CANape_fields this struct is registered as CHARACTERISTIC + AXIS_PTS
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
 struct LookUpTable {
-    #[axis(comment = "LookUpTable axis", min = "0", max = "10000")]
+    #[axis(comment = "LookUpTable axis", min = 0, max = 10000)]
     lookup_axis: [f32; 16],
-    #[characteristic(comment = "LookUpTable values", axis = "cal_demo_2.lookup_table.lookup_axis", min = "0", max = "10000")]
+    #[characteristic(comment = "LookUpTable values", axis = "cal_demo_2.lookup_table.lookup_axis", min = 0, max = 10000)]
     lookup_values: [f32; 16],
 }
 
@@ -233,11 +230,10 @@ impl LookUpTable {
 
 //-----------------------------------------------
 // Calibration data segment2 (A2L MEMORY_SEGMENT)
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
 struct CalPage1 {
     // Mainloop delay time
-    #[characteristic(comment = "Task delay time in us")]
-    #[characteristic(min = "0", max = "2000000", step = "100", unit = "us")]
+    #[characteristic(comment = "Task delay time in us", min = 0, max = 2000000, step = 100, unit = "us")]
     delay: u32,
 
     // Mainloop counter control parameters
@@ -250,7 +246,7 @@ const CALPAGE1: CalPage1 = CalPage1 {
     counter_control: COUNTER_CONTROL,
 };
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
 struct CalPage2 {
     // Demo of a calibratable lookup table (A2l CURVE with AXIS_PTS)
     // Lookup table output = lookup_table(input)
@@ -319,7 +315,7 @@ fn main() -> Result<()> {
     let mut counter: u32 = 0;
 
     // Struct measurement variable lookup on stack
-    #[derive(Clone, Copy, XcpTypeDescription)]
+    #[derive(Clone, Copy, McRegisterType)]
     struct Lookup {
         input: f32,
         output_linear: f32,

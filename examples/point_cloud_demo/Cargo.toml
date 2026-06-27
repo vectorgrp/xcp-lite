@@ -1,6 +1,6 @@
 [package]
 name = "point_cloud_demo"
-version = "1.1.0"
+version = "3.0.0"
 edition = "2024"
 
 [dependencies]
@@ -19,6 +19,7 @@ clap = { version = "4.5.52", features = ["derive"] }
 build-info = "0.0.40"
 
 xcp_lite = { path = "../../", features = [] }
+xcp_registry = { path = "../../xcp_registry" }
 
 [build-dependencies]
 build-info-build = "0.0.40"

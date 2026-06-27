@@ -73,7 +73,7 @@ struct Args {
 // Calibration example
 // This approach uses the segment oriented calibration approach with a calibration segment wrapper type
 // It provides defined behavior, thread safety and data consistency
-// Fields may be automatically added to the A2L registry by the XcpTypeDescription derive macro
+// Fields may be automatically added to the A2L registry by the McRegisterType derive macro
 // Each page defines a MEMORY_SEGMENT in A2L and in CANape
 // A2l addresses are relative to the segment struct start address, the segment number is coded in the address
 // Use Serialize, Deserialize (feature=json) for json file persistency
@@ -81,7 +81,7 @@ struct Args {
 //---------------------------------------------------
 // CalPage
 
-#[derive(serde::Serialize, serde::Deserialize, XcpTypeDescription, Debug, Clone, Copy)]
+#[derive(serde::Serialize, serde::Deserialize, McRegisterType, Debug, Clone, Copy)]
 struct CalPage {
     run: bool,          // Stop all tasks
     run1: bool,         // Stop demo task1
@@ -99,7 +99,7 @@ const CAL_PAGE: CalPage = CalPage {
 //---------------------------------------------------
 // CalPage1
 
-#[derive(serde::Serialize, serde::Deserialize, XcpTypeDescription, Debug, Clone, Copy)]
+#[derive(serde::Serialize, serde::Deserialize, McRegisterType, Debug, Clone, Copy)]
 struct TestStruct2 {
     test_bool: bool,
     test_u8: u8,
@@ -114,7 +114,7 @@ struct TestStruct2 {
     test_f64: f64,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, XcpTypeDescription, Debug, Clone, Copy)]
+#[derive(serde::Serialize, serde::Deserialize, McRegisterType, Debug, Clone, Copy)]
 struct TestStruct1 {
     test_bool: bool,
     test_u8: u8,
@@ -131,7 +131,7 @@ struct TestStruct1 {
     test_struct: TestStruct2,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, XcpTypeDescription, Debug, Clone, Copy)]
+#[derive(serde::Serialize, serde::Deserialize, McRegisterType, Debug, Clone, Copy)]
 struct CalPage1 {
     counter_max: u32,
 
@@ -207,36 +207,28 @@ const CAL_PAGE1: CalPage1 = CalPage1 {
 
 //---------------------------------------------------
 // CalPage2
-#[derive(serde::Serialize, serde::Deserialize, XcpTypeDescription, Debug, Clone, Copy)]
+#[derive(serde::Serialize, serde::Deserialize, McRegisterType, Debug, Clone, Copy)]
 struct CalPage2 {
-    #[characteristic(comment = "Amplitude")]
-    #[characteristic(unit = "Volt")]
-    #[characteristic(min = "0")]
-    #[characteristic(max = "400")]
-    #[characteristic(step = "10")]
+    #[characteristic(comment = "Amplitude", unit = "Volt", min = 0, max = 400, step = 10)]
     ampl: f64, // VALUE type
 
-    #[characteristic(comment = "Period")]
-    #[characteristic(unit = "s")]
-    #[characteristic(min = "0")]
-    #[characteristic(max = "1000")]
-    #[characteristic(step = "20")]
+    #[characteristic(comment = "Period", unit = "s", min = 0, max = 1000, step = 20)]
     period: f64, // VALUE type
 
-    #[characteristic(qualifier = "volatile", comment = "Demo array", unit = "ms", min = "0", max = "100")]
+    #[characteristic(qualifier = "volatile", comment = "Demo array", unit = "ms", min = 0, max = 100)]
     array: [f64; 16], // CURVE type (1 dimension)
 
-    #[axis(comment = "Demo shared axis for curve1/2", min = "0", max = "100")]
+    #[axis(comment = "Demo shared axis for curve1/2", min = 0, max = 100)]
     curve_axis: [f32; 16], // AXIS_PTS type
 
-    #[characteristic(comment = "Demo curve", axis = "calseg2.curve_axis", min = "-100", max = "100")]
+    #[characteristic(comment = "Demo curve", axis = "calseg2.curve_axis", min = -100, max = 100)]
     curve1: [f64; 16], // CURVE type (1 dimension), shared axis 'shared_axis_16'
-    #[characteristic(comment = "Demo curve", axis = "calseg2.curve_axis", min = "-100", max = "100")]
+    #[characteristic(comment = "Demo curve", axis = "calseg2.curve_axis", min = -100, max = 100)]
     curve2: [f64; 16], // CURVE type (1 dimension)
 
-    #[axis(comment = "Demo shared axis for map2", min = "0", max = "1000")]
+    #[axis(comment = "Demo shared axis for map2", min = 0, max = 1000)]
     map_x_axis: [u16; 9], // AXIS_PTS type
-    #[characteristic(comment = "Demo map", x_axis = "calseg2.map_x_axis", unit = "ms", min = "0", max = "100")]
+    #[characteristic(comment = "Demo map", x_axis = "calseg2.map_x_axis", unit = "ms", min = 0, max = 100)]
     map: [[u8; 9]; 8], // This will be a MAP type (2 dimensions)
 }
 
@@ -397,13 +389,13 @@ fn task1(calseg: CalSeg<CalPage>, calseg1: CalSeg<CalPage1>) {
 //-----------------------------------------------------------------------------
 // Demo application main
 
-#[derive(XcpTypeDescription, Debug, Clone, Copy)]
+#[derive(McRegisterType, Debug, Clone, Copy)]
 struct TestStruct {
     a: u8,
     b: u64,
     c: f64,
 }
-#[derive(XcpTypeDescription, Debug, Clone, Copy)]
+#[derive(McRegisterType, Debug, Clone, Copy)]
 struct TestNestedStruct {
     s1: TestStruct,
     s2: TestStruct,

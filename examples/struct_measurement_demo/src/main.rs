@@ -73,15 +73,15 @@ struct Args {
 // * Add attributes to describe the parameters
 // * Parameter structs must be Copy
 
-#[derive(XcpTypeDescription, Copy, Clone, Serialize, Deserialize, Debug)]
+#[derive(McRegisterType, Copy, Clone, Serialize, Deserialize, Debug)]
 struct Parameters {
-    #[characteristic(comment = "Cycle time of the mainloop", min = "100", max = "10000", unit = "us")]
+    #[characteristic(comment = "Cycle time of the mainloop", min = 100, max = 10000, unit = "us")]
     mainloop_cycle_time: u32,
-    #[characteristic(comment = "Counter wraparound", min = "0", max = "10000")]
+    #[characteristic(comment = "Counter wraparound", min = 0, max = 10000)]
     counter_max: u16,
-    #[characteristic(comment = "Amplitude of the sine signal", min = "0.0", max = "500.0", unit = "Volt")]
+    #[characteristic(comment = "Amplitude of the sine signal", min = 0.0, max = 500.0, unit = "Volt")]
     ampl: f64,
-    #[characteristic(comment = "Period of the sine signal", min = "0.001", max = "10.0", unit = "s")]
+    #[characteristic(comment = "Period of the sine signal", min = 0.001, max = 10.0, unit = "s")]
     period: f64,
 }
 
@@ -105,30 +105,30 @@ static PARAMETERS: std::sync::OnceLock<CalCell<Parameters>> = std::sync::OnceLoc
 // * Add the XcpTypeDescription derive macro to enable measurement support
 // * Add attributes to describe the measurement variables
 
-#[derive(XcpTypeDescription, Debug, Clone, Copy)]
+#[derive(McRegisterType, Debug, Clone, Copy)]
 struct Counters {
-    #[measurement(comment = "counter", min = "0.0", max = "1000.0")]
+    #[measurement(comment = "counter", min = 0.0, max = 1000.0)]
     a: i16,
-    #[measurement(comment = "counter*2", min = "0.0", max = "2000.0")]
+    #[measurement(comment = "counter*2", min = 0.0, max = 2000.0)]
     b: u64,
-    #[measurement(comment = "counter*3", min = "0.0", max = "3000.0")]
+    #[measurement(comment = "counter*3", min = 0.0, max = 3000.0)]
     c: f64,
 }
 
-#[derive(XcpTypeDescription, Debug, Clone, Copy)]
+#[derive(McRegisterType, Debug, Clone, Copy)]
 struct Point {
-    #[measurement(comment = "x-coordinate", min = "-10.0", max = "10.0", unit = "m")]
+    #[measurement(comment = "x-coordinate", min = -10.0, max = 10.0, unit = "m")]
     x: f32,
-    #[measurement(comment = "y-coordinate", min = "-10.0", max = "10.0", unit = "m")]
+    #[measurement(comment = "y-coordinate", min = -10.0, max = 10.0, unit = "m")]
     y: f32,
-    #[measurement(comment = "z-coordinate", min = "-10.0", max = "10.0", unit = "m")]
+    #[measurement(comment = "z-coordinate", min = -10.0, max = 10.0, unit = "m")]
     z: f32,
 }
 
-#[derive(XcpTypeDescription, Debug, Clone, Copy)]
+#[derive(McRegisterType, Debug, Clone, Copy)]
 struct Data {
     // Scalar value with annotations for min, max, conversion rule, physical unit, ...
-    #[measurement(comment = "cpu temperature in grad celcius", min = "-50", max = "150", offset = "-50.0", unit = "deg/celcius")]
+    #[measurement(comment = "cpu temperature in grad celcius", min = -50, max = 150, offset = -50.0, unit = "deg/celcius")]
     cpu_temperature: u8,
 
     #[measurement(comment = "A 3D vector")]
@@ -317,6 +317,7 @@ fn main() -> Result<()> {
         /* #endregion */
 
         // Sleep some time and loop endlessly
-        std::thread::sleep(Duration::from_micros(params.mainloop_cycle_time as u64)); // us
+        let mainloop_cycle_time = params.read_lock().mainloop_cycle_time; // release the lock before sleeping
+        std::thread::sleep(Duration::from_micros(mainloop_cycle_time as u64)); // us
     }
 }

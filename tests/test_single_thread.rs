@@ -32,7 +32,7 @@ const TEST_REINIT: bool = false; // Execute reinitialization test
 //-----------------------------------------------------------------------------
 // Calibration Segment
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
 struct TestInts {
     test_bool: bool,
     test_u8: u8,
@@ -47,7 +47,7 @@ struct TestInts {
     test_f64: f64,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
 struct CalPage1 {
     run: bool,
     counter_max: u32,

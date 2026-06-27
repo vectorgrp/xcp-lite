@@ -13,7 +13,6 @@ use std::{
         atomic::{AtomicBool, AtomicU8, Ordering},
     },
 };
-use xcp_type_description::XcpTypeDescription;
 
 use crate::registry::{self, McAddress, McEvent};
 

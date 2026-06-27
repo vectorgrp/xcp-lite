@@ -319,20 +319,22 @@ macro_rules! daq_register_struct {
     ( $id:ident, $daq_event:expr ) => {{
         static ONCE: std::sync::Once = std::sync::Once::new();
         ONCE.call_once(|| {
-            if let Some(type_description) = $id.type_description(true) {
-                // Register via RegisterFieldsTrait, don't register instance
-                $id.register_struct_typedef(None, $daq_event.get_event_id());
-                // Create an instance of the typedef with event relative addressing on stack
-                let mc_support_data = McSupportData::new(McObjectType::Measurement);
-                $daq_event.add_stack(
-                    stringify!($id),
-                    &$id as *const _ as *const u8,
-                    McValueType::new_typedef(type_description.name()),
-                    1,
-                    1,
-                    mc_support_data,
-                );
-            }
+            // Register the typedef for the struct (no instance), event-relative addressing
+            $crate::registry::McRegisterType::mc_register_typedef(
+                &$id,
+                $crate::registry::McRegisterTarget::Event($daq_event.get_event_id()),
+                None,
+            );
+            // Create an instance of the typedef with event relative addressing on stack
+            let mc_support_data = $crate::registry::McSupportData::new($crate::registry::McObjectType::Measurement);
+            $daq_event.add_stack(
+                stringify!($id),
+                &$id as *const _ as *const u8,
+                $crate::registry::McValueType::new_typedef($crate::registry::McRegisterType::mc_type_name_value(&$id)),
+                1,
+                1,
+                mc_support_data,
+            );
         });
     }};
 }
@@ -563,8 +565,6 @@ mod daq_tests {
     use crate::registry::*;
     //use crate::xcp;
     use crate::xcp::*;
-
-    use xcp_type_description::prelude::*;
 
     //-----------------------------------------------------------------------------
     // Test local variable register

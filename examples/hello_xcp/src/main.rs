@@ -61,23 +61,21 @@ struct Args {
 // Demo calibration parameters
 
 // Define calibration parameters in a struct with semantic annotations to create the A2L file
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
 struct Params {
     #[characteristic(comment = "Start/stop counter")]
     counter_on: bool,
 
-    #[characteristic(comment = "Max counter value")]
-    #[characteristic(min = "0", max = "1023")]
+    #[characteristic(comment = "Max counter value", min = 0, max = 1023)]
     counter_max: u32,
 
-    #[characteristic(comment = "Task delay time in s, ecu internal value as u32 in us")]
-    #[characteristic(min = "0.00001", max = "2", unit = "s", factor = "0.000001")]
+    #[characteristic(comment = "Task delay time in s, ecu internal value as u32 in us", min = 0.00001, max = 2, unit = "s", factor = 0.000001)]
     delay: u32,
 
-    #[characteristic(comment = "Demo array", min = "0", max = "100")]
+    #[characteristic(comment = "Demo array", min = 0, max = 100)]
     array: [u8; 4],
 
-    #[characteristic(comment = "Demo matrix", min = "0", max = "100")]
+    #[characteristic(comment = "Demo matrix", min = 0, max = 100)]
     matrix: [[u8; 8]; 4],
 }
 

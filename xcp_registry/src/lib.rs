@@ -72,223 +72,19 @@ mod mc_text;
 pub use mc_text::McIdentifier;
 pub use mc_text::McText;
 
+// McRegisterType (runtime support for the #[derive(McRegisterType)] proc-macro)
+mod mc_register_type;
+pub use mc_register_type::McRegisterContext;
+pub use mc_register_type::McRegisterTarget;
+pub use mc_register_type::McRegisterType;
+
+// Re-export the derive macro (serde-style: one import brings the trait and the derive)
+pub use xcp_register_type_derive::McRegisterType;
+
 //-----------------------------------------------------------------------------
-// Register an instance of a measurement struct or a calibration segment
-
-#[doc(hidden)]
-pub trait RegisterFieldsTrait
-where
-    Self: Sized + Send + Sync + Copy + Clone + 'static + xcp_type_description::XcpTypeDescription,
-{
-    fn register_calseg_fields(&self, calseg_name: &'static str);
-    fn register_calseg_typedef(&self, calseg_name: &'static str);
-    fn register_struct_fields(&self, instance_name: Option<&'static str>, event_id: u16);
-    fn register_struct_typedef(&self, instance_name: Option<&'static str>, event_id: u16);
-    fn register_as(
-        struct_descriptor: &xcp_type_description::StructDescriptor,
-        instance_name: Option<&'static str>,
-        calseg_name: Option<&'static str>,
-        event_id: Option<u16>,
-        as_typedef: bool,
-        level: usize,
-    );
-}
-
-// Implement RegisterFieldsTrait for all types that implement xcp_type_description::XcpTypeDescription
-// Note: 2 calibration segment instances from the same struct are not supported, this will create a name conflict in the registry, because type name is used as instance name to inhibit this
-
-impl<T> RegisterFieldsTrait for T
-where
-    T: Sized + Send + Sync + Copy + Clone + 'static + xcp_type_description::XcpTypeDescription,
-{
-    // Register StructDescriptors
-    // When flatten==false, fields may have inner StructDescriptors
-
-    fn register_calseg_fields(&self, calseg_name: &'static str) {
-        let type_description = self.type_description(true).unwrap();
-        Self::register_as(&type_description, Some(calseg_name), Some(calseg_name), None, false, 0);
-    }
-
-    fn register_calseg_typedef(&self, calseg_name: &'static str) {
-        let type_description = self.type_description(false).unwrap();
-        Self::register_as(&type_description, Some(calseg_name), Some(calseg_name), None, true, 0);
-    }
-
-    fn register_struct_fields(&self, instance_name: Option<&'static str>, event_id: u16) {
-        let type_description = self.type_description(true).unwrap();
-        Self::register_as(&type_description, instance_name, None, Some(event_id), false, 0);
-    }
-
-    fn register_struct_typedef(&self, instance_name: Option<&'static str>, event_id: u16) {
-        let type_description: xcp_type_description::StructDescriptor = self.type_description(false).unwrap();
-        Self::register_as(&type_description, instance_name, None, Some(event_id), true, 0);
-    }
-
-    // @@@@ TODO Error handling
-    fn register_as(
-        type_description: &xcp_type_description::StructDescriptor,
-        instance_name: Option<&'static str>,
-        calseg_name: Option<&'static str>,
-        event_id: Option<u16>,
-        as_typedef: bool,
-        level: usize,
-    ) {
-        assert!(calseg_name.is_some() || event_id.is_some(), "No calseg_name or event_id given to register_as");
-
-        let type_name = type_description.name(); // name of the struct
-        let default_object_type = if event_id.is_some() { McObjectType::Measurement } else { McObjectType::Characteristic };
-
-        log::debug!(
-            "{}: Register all fields for instance_name={:?} type_name={} calseg={:?} event={:?}, as_typedef={}",
-            level,
-            instance_name,
-            type_description.name(),
-            calseg_name,
-            event_id,
-            as_typedef
-        );
-
-        //--------------------------------------------------------------------------------
-        // Register an instance with a typedef
-        if as_typedef {
-            //
-            // Create a typedef struct
-            let _ = get_lock().as_mut().unwrap().add_typedef(type_name, type_description.size());
-
-            // Add all fields to the typedef
-            for field in type_description.iter() {
-                // Recursion, if there are nested struct_descriptors
-                if let Some(struct_descriptor) = field.struct_descriptor() {
-                    Self::register_as(struct_descriptor, instance_name, calseg_name, event_id, true, level + 1);
-                }
-
-                // Register a typedef component
-                let value_type = McValueType::from_rust_type(field.value_type()); // In case of a nested StructDescriptor in the field, this is a Instance(type_name)
-                let mut mc_support_data = McSupportData::new(get_object_type(field, default_object_type))
-                    .set_comment(field.comment())
-                    .set_min(field.min())
-                    .set_max(field.max())
-                    .set_step(field.step())
-                    // .set_unit(field.unit()) // not needed if set_linear is used
-                    .set_linear(field.factor(), field.offset(), field.unit())
-                    .set_x_axis_ref(field.x_axis_ref())
-                    .set_y_axis_ref(field.y_axis_ref())
-                    .set_x_axis_input_quantity(field.x_axis_input_quantity())
-                    .set_y_axis_input_quantity(field.y_axis_input_quantity());
-                if field.is_volatile() {
-                    mc_support_data = mc_support_data.set_qualifier(McObjectQualifier::Volatile);
-                }
-                let dim_type = McDimType::new(value_type, field.x_dim(), field.y_dim());
-                let _ = get_lock()
-                    .as_mut()
-                    .unwrap()
-                    .add_typedef_field(type_name, field.name(), dim_type, mc_support_data, field.addr_offset());
-            }
-
-            // Register the instance only if an instance name is provided
-            // McAddress offset is 0 in this case, otherwise the caller is responsible to create the instance with desired offset,
-            // McSupportData must contain a valid object type
-            let base_addr = if let Some(event_id) = event_id {
-                McAddress::new_event_dyn(0, event_id, 0)
-            } else {
-                McAddress::new_calseg_rel(calseg_name.unwrap(), 0)
-            };
-            if level == 0 {
-                if let Some(instance_name) = instance_name {
-                    let mc_support_data = McSupportData::new(default_object_type);
-                    let _ = get_lock().as_mut().unwrap().instance_list.add_instance(
-                        instance_name,
-                        McDimType::new(McValueType::new_typedef(type_name), 1, 1),
-                        mc_support_data,
-                        base_addr,
-                    );
-                }
-            }
-        }
-        //--------------------------------------------------------------------------------
-        // Register instances of all fields
-        else {
-            // Register all fields as instances
-            for field in type_description.iter() {
-                assert!(field.struct_descriptor().is_none()); // This should already be flat
-
-                // Create a field instance name
-                // Prefix the field name with instance name, if there is one
-                let field_name = if let Some(instance_name) = instance_name {
-                    format!("{}.{}", instance_name, field.name())
-                } else {
-                    field.name().to_string()
-                };
-
-                // Create a McSupportData for the field
-                let mut mc_support_data = McSupportData::new(McObjectType::Unspecified)
-                    .set_comment(field.comment())
-                    .set_min(field.min())
-                    .set_max(field.max())
-                    .set_step(field.step())
-                    // .set_unit(field.unit()) // not needed if set_linear is used
-                    .set_linear(field.factor(), field.offset(), field.unit())
-                    .set_x_axis_ref(field.x_axis_ref())
-                    .set_y_axis_ref(field.y_axis_ref())
-                    .set_x_axis_input_quantity(field.x_axis_input_quantity())
-                    .set_y_axis_input_quantity(field.y_axis_input_quantity());
-                if field.is_volatile() {
-                    mc_support_data = mc_support_data.set_qualifier(McObjectQualifier::Volatile);
-                }
-                // Get value type, may not be a type name
-                let value_type = McValueType::from_rust_type(field.value_type());
-                assert!(value_type != McValueType::Unknown);
-
-                // Measurement event relative addressing
-                if let Some(event_id) = event_id {
-                    mc_support_data = mc_support_data.set_object_type(McObjectType::Measurement);
-                    let _ = get_lock().as_mut().unwrap().instance_list.add_instance(
-                        field_name,
-                        McDimType::new(value_type, field.x_dim(), field.y_dim()),
-                        mc_support_data,
-                        McAddress::new_event_dyn(0, event_id, field.addr_offset() as i32), // @@@@ TODO: offset as i32
-                    );
-                }
-                // Calibration segment relative addressing
-                else if let Some(calseg_name) = calseg_name {
-                    // Axis annotation classifier
-                    if field.is_axis() {
-                        mc_support_data = mc_support_data.set_object_type(McObjectType::Axis);
-                        let _ = get_lock().as_mut().unwrap().instance_list.add_instance(
-                            field_name,
-                            McDimType::new(value_type, field.x_dim(), 0),
-                            mc_support_data,
-                            McAddress::new_calseg_rel(calseg_name, field.addr_offset() as i32),
-                        );
-                    }
-                    // otherwise it is always a characteristic, don't care about other classifiers yet
-                    else {
-                        mc_support_data = mc_support_data.set_object_type(McObjectType::Characteristic);
-                        let _ = get_lock().as_mut().unwrap().instance_list.add_instance(
-                            field_name,
-                            McDimType::new(value_type, field.x_dim(), field.y_dim()),
-                            mc_support_data,
-                            McAddress::new_calseg_rel(calseg_name, field.addr_offset() as i32),
-                        );
-                    }
-                }
-            }
-        }
-    }
-}
-
-// helper to create McObjectType if field attribute is set
-fn get_object_type(field: &xcp_type_description::FieldDescriptor, default_object_type: McObjectType) -> McObjectType {
-    if field.is_axis() {
-        McObjectType::Axis
-    } else if field.is_characteristic() {
-        McObjectType::Characteristic
-    } else if field.is_measurement() {
-        McObjectType::Measurement
-    } else {
-        default_object_type
-    }
-}
+// Removed: the old RegisterFieldsTrait blanket impl that walked StructDescriptor /
+// FieldDescriptor trees. Registration is now generated directly by #[derive(McRegisterType)]
+// (see mc_register_type.rs and the xcp_register_type_derive crate).
 
 //----------------------------------------------------------------------------------------------
 // Error
@@ -342,13 +138,11 @@ impl Default for McXcpTransportLayer {
 /// Registry is closed when None
 static REGISTRY: Mutex<Option<Registry>> = Mutex::new(None);
 
-
 // @@@@ TODO: Check if this AI induced change from OnceLock to Mutex is what we desired ??????
 /// Closed registry singleton
 /// (Finalized and read only after call to Registry::close())
 static CLOSED_REGISTRY: Mutex<Option<&'static Registry>> = Mutex::new(None);
 //static CLOSED_REGISTRY: std::sync::OnceLock<Registry> = std::sync::OnceLock::new();
-
 
 //---------------------------------------------------------------------------------------------------------
 // Associated function for the registry singleton

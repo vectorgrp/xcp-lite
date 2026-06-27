@@ -63,40 +63,27 @@ const MAX_POINT_COUNT: usize = 20;
 const AMPL: f64 = 10.0;
 const PERIOD: f64 = 10.0;
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
 struct Params {
-    #[characteristic(unit = "s")]
-    #[characteristic(min = "0.001")]
-    #[characteristic(max = "10")]
+    #[characteristic(unit = "s", min = 0.001, max = 10)]
     period_x: f64,
 
-    #[characteristic(unit = "m")]
-    #[characteristic(min = "0.001")]
-    #[characteristic(max = "100")]
+    #[characteristic(unit = "m", min = 0.001, max = 100)]
     ampl_x: f64,
 
-    #[characteristic(unit = "PI")]
-    #[characteristic(min = "0.0")]
-    #[characteristic(max = "1.0")]
+    #[characteristic(unit = "PI", min = 0.0, max = 1.0)]
     phi_x: f64,
 
-    #[characteristic(unit = "s")]
-    #[characteristic(min = "0.001")]
-    #[characteristic(max = "10")]
+    #[characteristic(unit = "s", min = 0.001, max = 10)]
     period_y: f64,
 
-    #[characteristic(unit = "m")]
-    #[characteristic(min = "0.001")]
-    #[characteristic(max = "100")]
+    #[characteristic(unit = "m", min = 0.001, max = 100)]
     ampl_y: f64,
 
-    #[characteristic(unit = "PI")]
-    #[characteristic(min = "0.0")]
-    #[characteristic(max = "2.0")]
+    #[characteristic(unit = "PI", min = 0.0, max = 2.0)]
     phi_y: f64,
 
-    #[characteristic(min = "1")]
-    #[characteristic(max = "500")]
+    #[characteristic(min = 1, max = 500)]
     point_count: u32,
 }
 

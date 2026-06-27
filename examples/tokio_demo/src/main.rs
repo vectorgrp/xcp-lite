@@ -58,23 +58,15 @@ struct Args {
 //-----------------------------------------------------------------------------
 // Demo calibration parameters
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
 struct CalPage1 {
-    #[characteristic(comment = "Amplitude of the sine signal")]
-    #[characteristic(unit = "Volt")]
-    #[characteristic(min = "0")]
-    #[characteristic(max = "500")]
+    #[characteristic(comment = "Amplitude of the sine signal", unit = "Volt", min = 0, max = 500)]
     ampl: f64,
 
-    #[characteristic(comment = "Period of the sine signal")]
-    #[characteristic(unit = "s")]
-    #[characteristic(min = "0.001")]
-    #[characteristic(max = "10")]
+    #[characteristic(comment = "Period of the sine signal", unit = "s", min = 0.001, max = 10)]
     period: f64,
 
-    #[characteristic(comment = "Counter maximum value")]
-    #[characteristic(min = "0")]
-    #[characteristic(max = "255")]
+    #[characteristic(comment = "Counter maximum value", min = 0, max = 255)]
     counter_max: u32,
 }
 
@@ -122,7 +114,11 @@ async fn task(task_index: u32, calseg1: CalSeg<CalPage1>) {
     loop {
         // A sine signal with amplitude and period from calibration parameters
         let time = start_time_instant.elapsed().as_micros() as f64 * 0.000001; // s
-        sine = calseg1.read_lock().ampl * (PI * time / calseg1.read_lock().period).sin();
+        let (ampl, period) = {
+            let params = calseg1.read_lock();
+            (params.ampl, params.period)
+        };
+        sine = ampl * (PI * time / period).sin();
         let _ = sine;
 
         event.trigger();

@@ -399,7 +399,7 @@ mod mc_address_tests {
     #[ignore = "temporary disabled"]
     fn test_mc_address() {
         let mut reg = Registry::new();
-        reg.cal_seg_list.add_a2l_cal_seg("calseg", 0, 0, 0x80000000, 0x1000).unwrap();
+        reg.cal_seg_list.add_a2l_cal_seg("calseg", 0, None, 0, 0x80000000, 0x1000).unwrap();
 
         let addr = McAddress::new_calseg_rel("calseg", 11);
         assert_eq!(addr.get_calseg_name(), Some(McIdentifier::new("calseg")));

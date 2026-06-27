@@ -1,6 +1,6 @@
 [package]
 name = "xcp_lite"
-version = "1.1.0"
+version = "3.0.0"
 edition = "2024"
 resolver = "2"
 rust-version = "1.90.0"
@@ -16,8 +16,8 @@ categories = ["MC"]
 [workspace]
 members = [
     "xcp_registry",
+    "xcp_register_type_derive",
     "tools/xcp_client",  
-    "xcp_type_description",   
     "xcp_idl_generator",      
     "examples/hello_xcp",
     "examples/calibration_demo",      
@@ -30,7 +30,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.1.0"
+version = "3.0.0"
 
 
 
@@ -92,16 +92,13 @@ regex = "1.12.2"
 serde = "1.0"
 serde_json =  "1.0"  
 
-# proc-macro A2L serializer for structs
-xcp_type_description  = { path = "./xcp_type_description/"}
-xcp_type_description_derive = { path = "./xcp_type_description/xcp_type_description_derive/" }
-
 # proc-macro CDR IDL generator for structs
 xcp_idl_generator  = { path = "./xcp_idl_generator/"}
 xcp_idl_generator_derive  = { path = "./xcp_idl_generator/xcp_idl_generator_derive/"}
 
-# Registry (pure Rust, no C/xcplib dependency)
+# Registry (pure Rust, no C/xcplib dependency) and the McRegisterType derive macro
 xcp_registry = { path = "./xcp_registry" }
+xcp_register_type_derive = { path = "./xcp_register_type_derive" }
 
 anyhow = "1.0"
 

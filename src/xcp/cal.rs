@@ -18,7 +18,7 @@ use xcp::Xcp;
 
 use std::{marker::PhantomData, ops::Deref, ops::DerefMut};
 
-use registry::RegisterFieldsTrait;
+use registry::{McRegisterTarget, McRegisterType};
 
 //-----------------------------------------------------------------------------
 // CalPageTrait
@@ -57,23 +57,25 @@ where
 //----------------------------------------------------------------------------------------------
 // CalSeg Register
 
-// Impl register_fields for types which implement RegisterFieldsTrait
+// Impl register_fields for types which implement McRegisterType
 impl<T> CalSeg<T>
 where
-    T: CalPageTrait + RegisterFieldsTrait,
+    T: CalPageTrait + McRegisterType,
 {
     /// Register all nested fields of a calibration segment as seperate instances with mangled names in the registry
-    /// Requires the calibration page to implement XcpTypeDescription
+    /// Requires the calibration page to implement McRegisterType
     pub fn register_fields(&self) -> &Self {
-        self.default_page.register_calseg_fields(self.get_name());
+        self.default_page
+            .mc_register_flattened(McRegisterTarget::CalSeg(self.get_name()), self.get_name());
         self
     }
     /// Register all fields of a calibration segment in the registry using a typedef
     /// Register an instance of this typedef with instance name = type name
-    /// Requires the calibration page to implement XcpTypeDescription
+    /// Requires the calibration page to implement McRegisterType
     /// Instancename is the typename of T
     pub fn register_typedef(&self) -> &Self {
-        self.default_page.register_calseg_typedef(self.get_name());
+        self.default_page
+            .mc_register_typedef(McRegisterTarget::CalSeg(self.get_name()), Some(self.get_name()));
         self
     }
 }
@@ -342,7 +344,7 @@ mod cal_tests {
 
     use super::*;
     use crate::xcp::*;
-    use xcp_type_description::prelude::*;
+    use registry::McRegisterType;
 
     //-----------------------------------------------------------------------------
     // Test helpers
@@ -368,7 +370,7 @@ mod cal_tests {
         Ok(())
     }
 
-    #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+    #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
     struct CalPageTest1 {
         byte1: u8,
         byte2: u8,
@@ -376,7 +378,7 @@ mod cal_tests {
         byte4: u8,
     }
 
-    #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+    #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
     struct CalPageTest2 {
         byte1: u8,
         byte2: u8,
@@ -502,7 +504,7 @@ mod cal_tests {
     fn test_calibration_segment_persistence() {
         let _xcp = xcp_test::test_setup();
 
-        #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+        #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
         struct CalPage {
             test_byte: u8,
             test_short: u16,
@@ -558,21 +560,21 @@ mod cal_tests {
     //-----------------------------------------------------------------------------
     // Test cal page switching
 
-    #[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, XcpTypeDescription)]
+    #[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, McRegisterType)]
     struct CalPage1 {
         a: u32,
         b: u32,
         c: u32,
     }
 
-    #[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, XcpTypeDescription)]
+    #[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, McRegisterType)]
     struct CalPage2 {
         a: u32,
         b: u32,
         c: u32,
     }
 
-    #[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, XcpTypeDescription)]
+    #[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, McRegisterType)]
     struct CalPage3 {
         a: u32,
         b: u32,
@@ -678,7 +680,7 @@ mod cal_tests {
 
     //-----------------------------------------------------------------------------
     // Test cal page write and CalCell
-    #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+    #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
     struct StaticCalPage {
         test1: u8,
         test2: i64,

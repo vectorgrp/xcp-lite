@@ -53,11 +53,12 @@ pub mod metrics;
 pub use xcp_registry as registry;
 pub use registry::McValueTypeTrait;
 
+// Re-export the McRegisterType trait and its derive macro (one import brings both).
+pub use registry::McRegisterType;
+
 // Used by macros
 #[doc(hidden)]
 pub use xcp_idl_generator::prelude::*;
-#[doc(hidden)]
-pub use xcp_type_description::prelude::*;
 
 // EPK calibration segment
 pub(crate) const EPK_SEG_NAME: &str = "epk";

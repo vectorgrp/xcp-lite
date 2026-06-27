@@ -66,27 +66,18 @@ struct Args {
 // Demo calibration parameters
 
 // Define a struct with calibration parameters
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
 struct Params {
-    #[characteristic(comment = "Amplitude of the sine signal in mV")]
-    #[characteristic(unit = "mV")]
-    #[characteristic(min = "0")]
-    #[characteristic(max = "8000")]
+    #[characteristic(comment = "Amplitude of the sine signal in mV", unit = "mV", min = 0, max = 8000)]
     ampl: u16,
 
-    #[characteristic(comment = "Period of the sine signal")]
-    #[characteristic(unit = "s")]
-    #[characteristic(min = "0.001")]
-    #[characteristic(max = "10")]
+    #[characteristic(comment = "Period of the sine signal", unit = "s", min = 0.001, max = 10)]
     period: f64,
 
-    #[characteristic(comment = "Counter maximum value")]
-    #[characteristic(min = "0")]
-    #[characteristic(max = "255")]
+    #[characteristic(comment = "Counter maximum value", min = 0, max = 255)]
     counter_max: u32,
 
-    #[characteristic(comment = "Task delay time in s, ecu internal value as u32 in us")]
-    #[characteristic(min = "0.00001", max = "2", unit = "s", factor = "0.000001")]
+    #[characteristic(comment = "Task delay time in s, ecu internal value as u32 in us", min = 0.00001, max = 2, unit = "s", factor = 0.000001)]
     delay: u32,
 }
 
@@ -126,7 +117,8 @@ fn task(params: CalSeg<Params>) {
         // Trigger the measurement event
         event.trigger();
 
-        thread::sleep(Duration::from_micros(params.delay as u64));
+        let delay = params.read_lock().delay; // release the lock before sleeping
+        thread::sleep(Duration::from_micros(delay as u64));
     }
 }
 

@@ -66,7 +66,7 @@ const IMAGE_SIZE: usize = 8;
 const X_RES: usize = 1024 * IMAGE_SIZE;
 const Y_RES: usize = 768 * IMAGE_SIZE;
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, PartialEq, McRegisterType)]
 struct Mandelbrot {
     x: f64, // Center of the set area to render
     y: f64,
@@ -252,13 +252,17 @@ fn main() -> Result<()> {
 
     // Recalculate image in a loop with 10 ms pause
     let mut first = true;
+    let mut last_params = *mandelbrot.read_lock();
     loop {
         thread::sleep(Duration::from_micros(MAINLOOP_CYCLE_TIME as u64));
         mainloop_counter += 1;
         event_mainloop.trigger();
 
         // On first iteration or after parameter changes: render image and write to file
-        if first || mandelbrot.sync() {
+        let current_params = *mandelbrot.read_lock();
+        let params_changed = current_params != last_params;
+        last_params = current_params;
+        if first || params_changed {
             {
                 let start_time = std::time::Instant::now();
                 {
