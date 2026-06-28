@@ -1,6 +1,6 @@
 [package]
 name = "xcp_lite"
-version = "3.0.0"
+version = "3.0.1"
 edition = "2024"
 resolver = "2"
 rust-version = "1.90.0"
@@ -32,7 +32,7 @@ members = [
 ]
 
 [workspace.package]
-version = "3.0.0"
+version = "3.0.1"
 
 
 
