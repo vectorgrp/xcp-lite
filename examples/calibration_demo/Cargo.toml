@@ -16,6 +16,10 @@ build-info = "0.0.40"
 xcp_lite = { path = "../../", features = [] }
 xcp_registry = { path = "../../xcp_registry" }
 
+# Required by the cal_seg! macro: linkme's generated element code references the linkme crate,
+# so any crate that creates calibration segments via cal_seg! must depend on linkme directly.
+linkme = "0.3"
+
 [build-dependencies]
 build-info-build = "0.0.40"
 

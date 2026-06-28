@@ -258,9 +258,11 @@ fn main() -> Result<()> {
     )?;
 
     // XCP: Create calibration segments with default values and register the calibration parameters
-    let calseg1 = CalSeg::new("cal_demo_1", &CALPAGE1); // delay, counter_control
+    // cal_seg! registers the segment descriptor at link time; segment indices are assigned
+    // deterministically (sorted by name) on first use, independent of creation order or threads.
+    let calseg1 = cal_seg!("cal_demo_1", &CALPAGE1); // delay, counter_control
     calseg1.register();
-    let calseg2 = CalSeg::new("cal_demo_2", &CALPAGE2); // Lookup_table, params
+    let calseg2 = cal_seg!("cal_demo_2", &CALPAGE2); // Lookup_table, params
     calseg2.register();
 
     // XCP: Load calibration parameter page from a file if it exists, otherwise initially save the defaults

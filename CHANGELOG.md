@@ -3,6 +3,25 @@
 All notable changes to Rust xcp-lite are documented in this file.
 
 
+## [Unreleased]
+
+- Deterministic calibration segment registration via the new `linkme` feature (enabled by default).
+  The new `cal_seg!("name", &DEFAULT)` macro registers each segment descriptor in a distributed slice
+  at link time. On first use all segments are created sorted by name, so the segment index (the A2L
+  `MEMORY_SEGMENT` number) is stable across runs regardless of creation order or threads, and is
+  race-free. Previously, `CalSeg::new` created segments eagerly in call order, making the index
+  non-deterministic.
+  - Disabling the feature (`default-features = false`) makes `cal_seg!` fall back to eager creation in
+    call order (equivalent to `CalSeg::new`); use this when all segments are created in a single,
+    deterministic, race-free order.
+  - Note: every crate that uses `cal_seg!` with the feature enabled must add `linkme` as a direct
+    dependency (e.g. `linkme = "0.3"`).
+  - Public API: new `cal_seg!` macro (re-exported at the crate root); `CalSeg::new` remains available
+    for dynamic/`CalCell` use.
+  - `calibration_demo` updated to use `cal_seg!`; documentation added to the root README and the
+    calibration_demo README.
+
+
 ## [V3.0.0]
 
 - New McRegisterType derive macro

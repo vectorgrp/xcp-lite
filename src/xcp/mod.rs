@@ -26,6 +26,9 @@ pub mod daq;
 mod cal;
 pub use cal::CalCell;
 pub use cal::CalSeg;
+// Re-exports used by the cal_seg! macro (not part of the public API)
+#[cfg(feature = "linkme")]
+pub use cal::{CAL_SEG_REGISTRY, CalSegDescriptor};
 
 // Submodule xcplib ffi c bindings
 pub mod xcplib;

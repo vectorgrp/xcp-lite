@@ -60,6 +60,14 @@ pub use registry::McRegisterType;
 #[doc(hidden)]
 pub use xcp_idl_generator::prelude::*;
 
+// Internal re-exports used by the cal_seg! macro. Not part of the public API.
+#[cfg(feature = "linkme")]
+#[doc(hidden)]
+pub mod _private {
+    pub use crate::xcp::{CAL_SEG_REGISTRY, CalSegDescriptor};
+    pub use linkme::distributed_slice;
+}
+
 // EPK calibration segment
 pub(crate) const EPK_SEG_NAME: &str = "epk";
 pub(crate) const EPK_SEG_SIZE: usize = 31;

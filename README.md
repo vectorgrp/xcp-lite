@@ -39,6 +39,19 @@ command line options common to all of them.
 
 ### Features
 
+- `linkme` *(enabled by default)* — deterministic, link-time registration of calibration segments.
+  The [`cal_seg!`](examples/calibration_demo/README.md) macro collects each segment descriptor into a
+  distributed slice (using the [`linkme`](https://crates.io/crates/linkme) crate). On first use all
+  segments are created **sorted by name**, so their index (the A2L `MEMORY_SEGMENT` number) is stable
+  across runs regardless of creation order or threads. This is race-free and avoids unnecessary A2L
+  churn. With the feature **disabled** (`default-features = false`), `cal_seg!` falls back to eager
+  creation in call order (identical to `CalSeg::new`); use this only when all calibration segments are
+  created in a single, deterministic, race-free order.
+
+  > **Note:** because of how `linkme` generates code, every crate that calls `cal_seg!` with this
+  > feature enabled must add `linkme` as a **direct dependency** (e.g. `linkme = "0.3"` in its
+  > `Cargo.toml`). Crates that disable the feature do not need it.
+
 - `a2l_reader` — parse and check the generated A2L file before upload.
 
 ### Build
@@ -47,6 +60,7 @@ command line options common to all of them.
 cargo build
 cargo build --release
 cargo build --features a2l_reader
+cargo build --no-default-features   # disable the linkme calibration segment registry
 ```
 
 ### Test
