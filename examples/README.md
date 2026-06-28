@@ -17,10 +17,11 @@ Then connect with an XCP tool. A simple built-in test client is available:
 ```
 cargo run -p xcp_client -- --tcp
 # or
-cargo run -p xcp_client -- --tcp
+cargo run -p xcp_client -- --udp
 ```
 
 Alternatively, open the CANape project located in the example's `CANape/` folder.
+
 
 ## Common command line options
 

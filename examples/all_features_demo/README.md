@@ -15,6 +15,14 @@ cargo run -p all_features_demo
 See [the examples overview](../README.md) for common build, run and command line options
 (including `--flatten`).
 
+
+
 ## CANape
 
+To use one of the CANape projects included, use 'Project/Open" and select the file CANape.ini in the CANape folder.  
+
+The examples are build with CANape 23.
+Older versions were not tested.
+
 ![CANape](CANape.png)
+
