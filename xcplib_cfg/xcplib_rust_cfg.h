@@ -21,7 +21,7 @@
 // Use level 4 to print all XCP commands
 #define OPTION_DEFAULT_DBG_LEVEL 3
 // Optimize code size, higher levels optimized out
-#define OPTION_MAX_DBG_LEVEL 5
+#define OPTION_MAX_DBG_LEVEL 4
 // Optimize code size, fixed log level, not changeable at runtime
 // #define OPTION_FIXED_DBG_LEVEL 3
 
@@ -35,22 +35,6 @@
 // Resolution 1ns or 1us, granularity depends on platform (only one must be defined)
 #define OPTION_CLOCK_TICKS_1NS
 // #define OPTION_CLOCK_TICKS_1US
-
-//-------------------------------------------------------------------------------
-// Socket options
-
-// #define OPTION_SOCKET_HW_TIMESTAMPS // Enable hardware timestamps on UDP sockets if available (needed only for ptptool on Linux)
-
-//-------------------------------------------------------------------------------
-// XCP multi process server options
-
-// @@@@ Experimental
-
-// Enable POSIX shared memory (SHM) mode:
-// All user application thread shared XCP state and the transmit queue is placed in an a named shared memory region
-// Multiple processes can participate in the same XCP session, driven by a single XCP server process
-// Requires a POSIX-compliant platform (Linux / macOS / QNX).  Not supported on Windows.
-// #define OPTION_SHM_MODE // OPTION_SHM_MODE enabled shared memory mode for multi process server
 
 //-------------------------------------------------------------------------------
 // XCP server options
@@ -68,7 +52,7 @@
 #define OPTION_CAL_SEGMENTS
 
 // Maximum number of calibration segments
-#define OPTION_CAL_SEGMENT_COUNT 32
+#define OPTION_CAL_SEGMENT_COUNT 16
 
 // Total memory pool size for all calibration segments (header + 4 pages each)
 // Must be large enough for all XcpCreateCalSeg() calls combined
@@ -101,7 +85,7 @@
 // DAQ settings
 
 #define OPTION_DAQ_MEM_SIZE (1024 * 8) // Memory bytes used for XCP DAQ tables - 6 bytes per measurement signal/block needed
-#define OPTION_DAQ_EVENT_COUNT 128     // Maximum number of DAQ events (integer value, must be even)
+#define OPTION_DAQ_EVENT_COUNT 32      // Maximum number of DAQ events (integer value, must be even)
 // #define OPTION_DAQ_ASYNC_EVENT         // Create an asynchronous, cyclic DAQ event for asynchronous data acquisition
 
 // Default: Use the new vectored IO variable entry size lockless queue
@@ -110,38 +94,16 @@
 // Default for maximum memory efficiency
 #define OPTION_QUEUE_64_VAR_SIZE
 
-// Transport layer queue, vectored IO lockless with fixed queue entry size
-// For maximum performance with large DTO size, but less efficient memory usage with partially filled queue entries
-// Entry size is XCPTL_MAX_DTO_SIZE  + XCPTL_TRANSPORT_LAYER_HEADER_SIZE (4) + 4
-// Optimal overall queue size is required to be a multiple of the cache line size (so XCPTL_MAX_DTO_SIZE in xcptl_cfg.h currently set to 244)
-// Tune XCPTL_MAX_DTO_SIZE for best compromise between memory efficiency and performance
-// Larger DTO size may not payoff, rely on transport layer message accumulation
-// #define OPTION_QUEUE_64_FIX_SIZE
-
-// Transport layer queue, with variable queue entry size, 32 bit not lockless with mutex synchronization
-// #define OPTION_QUEUE_32
-
 //-------------------------------------------------------------------------------
 // A2L generation settings
 
-// #define OPTION_ENABLE_A2L_GENERATOR // Enable A2L generator
-#define OPTION_ENABLE_A2L_UPLOAD // Enable A2L upload via XCP
+#undef OPTION_ENABLE_A2L_GENERATOR // Disable A2L generator
+#define OPTION_ENABLE_A2L_UPLOAD   // Enable A2L upload via XCP
+#define OPTION_ENABLE_ELF_UPLOAD   // Enable ELF upload via XCP
 
 // Enable socketGetLocalAddr for A2L file generation
 // Used for convenience to get an existing ip address in A2L, when bound to ANY 0.0.0.0
 // #define OPTION_ENABLE_GET_LOCAL_ADDR
-
-//-------------------------------------------------------------------------------
-// Miscellaneous options
-
-// Enable atomic emulation for Windows without stdatomic.h for C
-// Switches to 32 bit transmit queue implementation
-// Not designed for non x86 platforms, needs strong memory ordering
-// Used for testing on Windows
-
-#if defined(_WIN32) || defined(_WIN64)
-#define OPTION_ATOMIC_EMULATION
-#endif
 
 //-------------------------------------------------------------------------------
 // Tests
@@ -149,10 +111,12 @@
 #if !defined(NDEBUG)
 
 // #define TEST_CLOCK_GET_STATISTIC // Count number of calls to clockGet and clockGetLast, print results with clockPrintStatistic()
+// #define TEST_ACQUIRE_SPIN_COUNT // Get max spin count of the queue acquire operations
 // #define TEST_ACQUIRE_LOCK_TIMING // Create a queue acquire time histogram, prints results on queue deinit, significant performance impact, for testing only !!!!!!!!!!
-// #define TEST_ENABLE_DBG_METRICS // Enable debug metrics for XCP events and transport layer packets
+// #define TEST_ENABLE_DBG_METRICS  // Enable debug metrics for XCP events and transport layer packets
 // #define TEST_ENABLE_BUFFERCOUNT_HISTOGRAM // Enable histogram of the used buffer counts in the transport layer vectored io
-// #define TEST_MUTABLE_ACCESS_OWNERSHIP // Enable tracking of mutable access thread ownership
-// #define TEST_ENABLE_DBG_CHECKS // Enable additional sanity checks in the XCP server
+// #define TEST_MUTABLE_ACCESS_OWNERSHIP // Enable tracking of mutable access thread ownership to detect overseen potential memory safety problems
+// #define TEST_ENABLE_DBG_CHECKS // Enable timing checks in the XCP server
+// #define TEST_STACK_SIZE // Enable stack size measurement for the transmit and receive thread
 
 #endif // !defined(NDEBUG)
