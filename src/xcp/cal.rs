@@ -57,31 +57,20 @@ where
 //----------------------------------------------------------------------------------------------
 // CalSeg Register
 
-// Impl register_fields for types which implement McRegisterType
+// Impl register for types which implement McRegisterType
 impl<T> CalSeg<T>
 where
     T: CalPageTrait + McRegisterType,
 {
-    /// Register all nested fields of a calibration segment as seperate instances with mangled names in the registry
-    /// Requires the calibration page to implement McRegisterType
-    /// Arrays of nested structs are registered as a single typedef instance with a dimension.
-    pub fn register_fields(&self) -> &Self {
-        self.default_page.mc_register_flattened(McRegisterTarget::CalSeg(self.get_name()), self.get_name(), false);
-        self
-    }
-    /// Like `register_fields`, but also flattens arrays of nested structs element-by-element into
-    /// indexed leaf instances (`field._i.leaf`) so that no typedef is used at all.
-    /// Requires the calibration page to implement McRegisterType
-    pub fn register_fields_deep(&self) -> &Self {
-        self.default_page.mc_register_flattened(McRegisterTarget::CalSeg(self.get_name()), self.get_name(), true);
-        self
-    }
-    /// Register all fields of a calibration segment in the registry using a typedef
-    /// Register an instance of this typedef with instance name = type name
-    /// Requires the calibration page to implement McRegisterType
-    /// Instancename is the typename of T
-    pub fn register_typedef(&self) -> &Self {
-        self.default_page.mc_register_typedef(McRegisterTarget::CalSeg(self.get_name()), Some(self.get_name()));
+    /// Register the calibration segment in the registry as a typedef plus one top-level instance.
+    /// Nested structs become nested typedefs; arrays of nested structs become dimensioned typedef
+    /// instances. The instance name is the calibration segment name.
+    /// Requires the calibration page to implement McRegisterType.
+    ///
+    /// Flattening for legacy tools that do not support typedefs is a separate, export-time
+    /// transform on the registry (not a registration mode).
+    pub fn register(&self) -> &Self {
+        self.default_page.mc_register(McRegisterTarget::CalSeg(self.get_name()), Some(self.get_name()));
         self
     }
 }
@@ -444,7 +433,7 @@ mod cal_tests {
 
         // Interior mutability, page switch and unwanted compiler optimizations
         let cal_page_test1 = CalSeg::new("CalPageTest1", &CAL_PAGE_TEST1);
-        cal_page_test1.register_fields();
+        cal_page_test1.register();
         let p = cal_page_test1.read_lock();
         let mut test = p.byte1;
         drop(p);
@@ -467,7 +456,7 @@ mod cal_tests {
 
         // Move to threads
         let cal_page_test2 = CalSeg::new("CalPageTest2", &CAL_PAGE_TEST2);
-        cal_page_test2.register_fields();
+        cal_page_test2.register();
         let index = cal_page_test2.get_index();
         assert_eq!(index, 2); // Segment index
 
@@ -715,7 +704,7 @@ mod cal_tests {
     #[test]
     fn test_calpage_write() {
         let static_calseg = STATIC_CAL_SEG.get_or_init(|| CalCell::new("static_calseg", &STATIC_CAL_PAGE)).clone_calseg();
-        static_calseg.register_fields();
+        static_calseg.register();
 
         let value = STATIC_CAL_SEG.get().unwrap().clone_calseg();
         {

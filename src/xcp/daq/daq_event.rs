@@ -320,7 +320,7 @@ macro_rules! daq_register_struct {
         static ONCE: std::sync::Once = std::sync::Once::new();
         ONCE.call_once(|| {
             // Register the typedef for the struct (no instance), event-relative addressing
-            $crate::registry::McRegisterType::mc_register_typedef(
+            $crate::registry::McRegisterType::mc_register(
                 &$id,
                 $crate::registry::McRegisterTarget::Event($daq_event.get_event_id()),
                 None,

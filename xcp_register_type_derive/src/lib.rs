@@ -47,7 +47,6 @@ fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {
 
     let mut nested_typedef_creation: Vec<TokenStream2> = Vec::new();
     let mut typedef_field_adds: Vec<TokenStream2> = Vec::new();
-    let mut flatten_handling: Vec<TokenStream2> = Vec::new();
 
     for field in fields {
         let field_ident = field.ident.as_ref().expect("named field");
@@ -62,7 +61,7 @@ fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {
         let obj = object_type_tokens(attrs.classifier);
         let support = build_support(&obj, &attrs);
 
-        // Nested typedef creation (typedef mode): ensure the nested struct typedef exists first.
+        // Nested typedef creation: ensure the nested struct typedef exists first.
         if let BaseType::User(base_ty) = &ft.base {
             nested_typedef_creation.push(quote! {
                 {
@@ -72,7 +71,8 @@ fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {
             });
         }
 
-        // Typedef field add.
+        // Typedef field add. Arrays of nested structs are represented by the `TypeDef` value
+        // type plus the array dimensions (`x_dim` / `y_dim`).
         typedef_field_adds.push(quote! {
             {
                 let __support = #support;
@@ -86,71 +86,6 @@ fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {
                 );
             }
         });
-
-        // Flatten handling.
-        match (&ft.base, ft.is_array()) {
-            // Nested struct, scalar (no array dims): recurse and flatten its leaves.
-            (BaseType::User(base_ty), false) => {
-                flatten_handling.push(quote! {
-                    {
-                        let __child = ctx.child_flatten(
-                            #field_name,
-                            ::core::mem::offset_of!(#struct_ident, #field_ident) as u16,
-                        );
-                        <#base_ty as ::xcp_registry::McRegisterType>::register(&__child);
-                    }
-                });
-            }
-            // Array of nested struct. Two behaviors selected at runtime by
-            // `ctx.flatten_struct_arrays`:
-            //  - false: create the element typedef, then register one dimensioned typedef instance.
-            //  - true:  flatten every element into indexed leaf instances (`field._i.leaf`), no typedef.
-            (BaseType::User(base_ty), true) => {
-                flatten_handling.push(quote! {
-                    {
-                        if ctx.flatten_struct_arrays {
-                            let __field_off = ::core::mem::offset_of!(#struct_ident, #field_ident) as u16;
-                            let __elem_size = ::core::mem::size_of::<#base_ty>() as u16;
-                            let __count = (#x_dim as usize) * (#y_dim as usize);
-                            for __i in 0..__count {
-                                let __child = ctx.child_flatten_indexed(
-                                    #field_name,
-                                    __i,
-                                    __field_off + (__i as u16) * __elem_size,
-                                );
-                                <#base_ty as ::xcp_registry::McRegisterType>::register(&__child);
-                            }
-                        } else {
-                            {
-                                let __child = ctx.child_typedef();
-                                <#base_ty as ::xcp_registry::McRegisterType>::register(&__child);
-                            }
-                            let __name = format!("{}{}", ctx.name_prefix, #field_name);
-                            let __support = #support;
-                            let __dim = ::xcp_registry::McDimType::new(#value_type, #x_dim, #y_dim);
-                            let __off = (ctx.addr_offset + ::core::mem::offset_of!(#struct_ident, #field_ident) as u16) as i32;
-                            let _ = ::xcp_registry::get_lock().as_mut().unwrap().instance_list.add_instance(
-                                __name, __dim, __support, ctx.target.address(__off),
-                            );
-                        }
-                    }
-                });
-            }
-            // Scalar or array of scalar: register as a leaf instance.
-            (BaseType::Scalar(_), _) => {
-                flatten_handling.push(quote! {
-                    {
-                        let __name = format!("{}{}", ctx.name_prefix, #field_name);
-                        let __support = #support;
-                        let __dim = ::xcp_registry::McDimType::new(#value_type, #x_dim, #y_dim);
-                        let __off = (ctx.addr_offset + ::core::mem::offset_of!(#struct_ident, #field_ident) as u16) as i32;
-                        let _ = ::xcp_registry::get_lock().as_mut().unwrap().instance_list.add_instance(
-                            __name, __dim, __support, ctx.target.address(__off),
-                        );
-                    }
-                });
-            }
-        }
     }
 
     let expanded = quote! {
@@ -161,34 +96,30 @@ fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {
 
             fn register(ctx: &::xcp_registry::McRegisterContext) {
                 const __TYPE_NAME: &str = #type_name;
-                if !ctx.flatten {
-                    // Create nested typedefs first so field references resolve.
-                    #( #nested_typedef_creation )*
-                    // Create this typedef.
-                    let _ = ::xcp_registry::get_lock()
-                        .as_mut()
-                        .unwrap()
-                        .add_typedef(__TYPE_NAME, ::core::mem::size_of::<#struct_ident>());
-                    // Add all fields.
-                    #( #typedef_field_adds )*
-                    // Register one top-level instance referencing the typedef.
-                    if ctx.level == 0 {
-                        if let Some(__instance_name) = ctx.instance_name {
-                            let __support = ::xcp_registry::McSupportData::new(ctx.target.default_object_type());
-                            let _ = ::xcp_registry::get_lock().as_mut().unwrap().instance_list.add_instance(
-                                __instance_name,
-                                ::xcp_registry::McDimType::new(
-                                    ::xcp_registry::McValueType::new_typedef(__TYPE_NAME),
-                                    1,
-                                    1,
-                                ),
-                                __support,
-                                ctx.target.address(ctx.addr_offset as i32),
-                            );
-                        }
+                // Create nested typedefs first so field references resolve.
+                #( #nested_typedef_creation )*
+                // Create this typedef.
+                let _ = ::xcp_registry::get_lock()
+                    .as_mut()
+                    .unwrap()
+                    .add_typedef(__TYPE_NAME, ::core::mem::size_of::<#struct_ident>());
+                // Add all fields.
+                #( #typedef_field_adds )*
+                // Register one top-level instance referencing the typedef.
+                if ctx.level == 0 {
+                    if let Some(__instance_name) = ctx.instance_name {
+                        let __support = ::xcp_registry::McSupportData::new(ctx.target.default_object_type());
+                        let _ = ::xcp_registry::get_lock().as_mut().unwrap().instance_list.add_instance(
+                            __instance_name,
+                            ::xcp_registry::McDimType::new(
+                                ::xcp_registry::McValueType::new_typedef(__TYPE_NAME),
+                                1,
+                                1,
+                            ),
+                            __support,
+                            ctx.target.address(ctx.addr_offset as i32),
+                        );
                     }
-                } else {
-                    #( #flatten_handling )*
                 }
             }
         }

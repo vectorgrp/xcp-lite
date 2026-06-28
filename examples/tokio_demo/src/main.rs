@@ -181,7 +181,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // FLASH or RAM can be switched during runtime (XCP set_cal_page), saved to json (XCP freeze) freeze, reinitialized from FLASH (XCP copy_cal_page)
     // If A2L is enabled (enable_a2l), the A2L description will be generated and provided for upload by CANape
     let params = CalSeg::new("params", &CALPAGE1);
-    params.register_fields();
+    params.register();
 
     // Mainloop
     info!("Start mainloop");

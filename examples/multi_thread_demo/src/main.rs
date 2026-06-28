@@ -180,7 +180,7 @@ fn main() -> Result<()> {
     // Calibration segments have 2 pages, a constant default "FLASH" page and a mutable "RAM" page
     // FLASH or RAM can be switched at runtime (XCP set_cal_page), saved to json (XCP freeze) freeze and reinitialized from FLASH (XCP copy_cal_page)
     let params = CALSEG1.get_or_init(|| CalCell::new("multi_thread_params", &CALPAGE1)).clone_calseg();
-    params.register_fields(); // Register all struct fields (with meta data from annotations) in the A2L registry
+    params.register(); // Register all struct fields (with meta data from annotations) in the A2L registry
 
     // Start multiple instances of the demo task
     // Each instance will create its own measurement variable and event instances

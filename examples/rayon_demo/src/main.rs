@@ -235,7 +235,7 @@ fn main() -> Result<()> {
     )?;
 
     let mandelbrot = CalSeg::new("mandelbrot", &MANDELBROT);
-    mandelbrot.register_fields();
+    mandelbrot.register();
 
     // The pixel array on heap
     let mut pixels = vec![0; X_RES * Y_RES];

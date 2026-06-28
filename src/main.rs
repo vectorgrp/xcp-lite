@@ -499,12 +499,12 @@ fn main() {
 
     // Example 1:
     // Create a calibration segment wrapper for CalPage/CAL_PAGE
-    // Register all fields, not using typedefs, with flattened, mangled instance names
+    // Register the page as a typedef plus one top-level instance
     let calseg: CalSeg<CalPage> = CalSeg::new(
         "calseg",  // name of the calibration segment and the .json file
         &CAL_PAGE, // default calibration values with static lifetime
     );
-    calseg.register_fields();
+    calseg.register();
     if calseg.load("xcp-lite_calseg.json").is_err() {
         calseg.save("xcp-lite_calseg.json").expect("could not write json");
     }
@@ -513,20 +513,15 @@ fn main() {
     // Create a calibration segment wrapper for CalPage1/CAL_PAGE1
     // CalPage1 contains nested typedef fields and nested array of typedef elements
     let calseg1 = CalSeg::new("calseg1", &CAL_PAGE1);
-    // Alternative 1:
-    calseg1.register_typedef(); // Use typedefs for nested structs, register one instance of the top level struct
-    // Alternative 2:
-    // calseg1.register_fields(); // Array of nested structs will be flattened into indexed leaf instances, no typedefs exept for the nested struct type
-    // Alternative 3:
-    calseg1.register_fields_deep(); // Array of nested structs will be flattened into indexed leaf instances
+    calseg1.register(); // Nested structs become nested typedefs; arrays of nested structs become dimensioned typedef instances
     if calseg1.load("xcp-lite_calseg1.json").is_err() {
         calseg1.save("xcp-lite_calseg1.json").expect("could not write json");
     }
 
-    // Create a calibration segment wrapper, register all fields with flattened, mangled instance names, no typedefs
+    // Create a calibration segment wrapper, register the page as a typedef plus one top-level instance
     // Basic types and arrays with attributes
     let calseg2 = CalSeg::new("calseg2", &CAL_PAGE2);
-    calseg2.register_fields();
+    calseg2.register();
     if calseg2.load("xcp-lite_calseg2.json").is_err() {
         calseg2.save("xcp-lite_calseg2.json").expect("could not write json");
     }

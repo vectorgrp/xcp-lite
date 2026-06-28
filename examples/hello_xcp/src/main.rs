@@ -129,7 +129,7 @@ fn main() -> anyhow::Result<()> {
 
     // XCP: Create a calibration segment wrapper with default values and register the calibration parameters
     let params = CalSeg::new("my_params", &PARAMS);
-    params.register_fields();
+    params.register();
 
     // Demo measurement variable on stack
     let mut counter: u32 = 0;

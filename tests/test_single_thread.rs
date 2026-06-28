@@ -214,7 +214,7 @@ async fn test_single_thread() {
 
     // Create a calibration segment
     let cal_seg = CalSeg::new("cal_seg", &CAL_PAR1);
-    cal_seg.register_fields();
+    cal_seg.register();
 
     // Create a test task
     let t1 = thread::spawn({

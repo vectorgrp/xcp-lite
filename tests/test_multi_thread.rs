@@ -306,7 +306,7 @@ async fn test_multi_thread() {
 
     // Create a static calibration segment shared between the threads
     let cal_seg = CAL_SEG1.get_or_init(|| CalCell::new("cal_seg", &CAL_PAR1)).clone_calseg();
-    cal_seg.register_fields(); // Register all struct fields (with meta data from annotations) in the A2L registry
+    cal_seg.register(); // Register all struct fields (with meta data from annotations) in the A2L registry
 
     // Create TEST_TASK_COUNT test tasks
     let mut v = Vec::new();

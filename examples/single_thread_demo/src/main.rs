@@ -165,7 +165,7 @@ fn main() -> Result<()> {
         "calseg", // name of the calibration segment and the .json file
         &PARAMS,  // default calibration values
     );
-    params.register_fields();
+    params.register();
 
     // Load calseg from json file
     if params.load(JSON_FILE).is_err() {

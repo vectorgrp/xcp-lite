@@ -183,7 +183,7 @@ fn main() -> Result<()> {
 
     // XCP: Get the calibration parameter set and register all struct fields (with meta data from annotations) in the A2L registry
     let params = PARAMS.get_or_init(|| CalCell::new("point_cloud_params", &PARAMS_DEFAULT)).clone_calseg();
-    params.register_fields();
+    params.register();
 
     let mut point_cloud = create_point_cloud();
     let mut counter: u64 = 0;

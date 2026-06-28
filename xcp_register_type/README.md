@@ -45,7 +45,16 @@ The new macro is intentionally **not** syntax-compatible with the old macro; a c
 - `#[axis(unit = "s")]` - optional physical unit for the axis
 
 
-Unclear how to deal with the option to flatten the type hierarchy. The old macro had an option to register the type with flat the type hierarchy, which means that the fields of the user defined types are registered as characteristics in the mc_registry and the offset was recalculated. The new macro should support this option as well, but it is unclear how to implement it. Maybe a new attribute `#[flatten]` can be used to indicate that the type should be flattened, but there must still be a way to decide when calling the generated code.
+**Resolved:** the flatten-vs-typedef choice is **not** decidable at runtime (there is no use
+case for selecting it per call, and emitting both paths in every generated `register()` only
+**Resolved:** the generated code always builds **typedefs** — the rich, complete
+representation — and there is no flatten code path in the macro at all. Typedefs are the
+progressive default; flattening is treated as a legacy workaround for tools that cannot consume
+`TYPEDEF_STRUCTURE`. That workaround is implemented as a separate **export-time transform** on
+the populated registry (an option of the A2L writer), **not** as a codegen mode. See §7 (model
+and rationale) and §9 (decision). Both the `#[flatten]` attribute and a compile-time Cargo
+feature are therefore unnecessary: the macro stays simple, the in-memory model is the single
+source of truth, and the same build can emit either a typedef A2L or a flattened A2L.
 
 
 
@@ -151,7 +160,9 @@ Goals:
   syntax-compatible with the old `XcpTypeDescription` macro**; backward compatibility is
   explicitly dropped in favor of a cleaner, less error-prone syntax (see §5).
 - Keep the classifiers `characteristic`, `axis`, and `measurement`.
-- Preserve the runtime choice between **typedef** registration and **flattened** registration.
+- Always generate **typedefs** (the complete representation). Flattening for legacy tools that
+  do not support typedefs is a separate, export-time transform on the registry — not a codegen
+  mode (the transform itself is deferred; see §7).
 
 Non-goals (for the first implementation, deferred to a later step):
 - **Integer enum types.** These require a new *verbal* conversion rule (A2L `COMPU_VTAB` /
@@ -161,10 +172,10 @@ Non-goals (for the first implementation, deferred to a later step):
 ## 2. Generated trait and method
 
 The macro emits an implementation of a single trait. The trait method receives a small
-context struct so the *same* generated code can register either a calibration-segment-relative
-typedef, an event-relative (measurement) typedef, or a flattened set of instances. The
-flatten decision is a **runtime argument** (matching the old `flat: bool`), not an attribute,
-because the README requires that the decision be made at the call site.
+context struct so the *same* generated code can register a calibration-segment-relative
+typedef or an event-relative (measurement) typedef. The generated code always builds typedefs;
+there is no flatten code path and no runtime mode argument. Flattening for legacy tools is a
+separate, export-time transform on the registry (see §7).
 
 Both the trait method and the context struct are **internal** (`#[doc(hidden)]`). End users
 never construct a context or call `register` directly; they call ergonomic wrappers that build
@@ -177,8 +188,9 @@ pub trait McRegisterType {
     /// Register this type into the open registry singleton.
     ///
     /// * `ctx` carries the registration target (calseg name or event id), the
-    ///   accumulated name prefix and address offset (used during recursion and
-    ///   flattening), the nesting level, and the `flatten` flag.
+    ///   accumulated name prefix and address offset (used during recursion into
+    ///   nested typedefs), and the nesting level. There is **no** mode flag: the
+    ///   generated code always builds typedefs (see §7/§9).
     fn register(ctx: &McRegisterContext);
 }
 
@@ -187,10 +199,11 @@ pub trait McRegisterType {
 pub struct McRegisterContext {
     pub target: McRegisterTarget,   // CalSeg(name) | Event(id)
     pub instance_name: Option<&'static str>, // top-level instance name, None for nested
-    pub name_prefix: String,        // accumulated "a.b." prefix when flattening
-    pub addr_offset: u16,           // accumulated offset when flattening / nesting
+    pub name_prefix: String,        // accumulated "a.b." prefix when nesting
+    pub addr_offset: u16,           // accumulated offset when nesting
     pub level: usize,               // recursion depth, 0 at top level
-    pub flatten: bool,              // true => emit instances, false => emit typedef
+    // No `flatten` field: the macro always builds typedefs; flattening is an
+    // export-time transform on the registry, not a codegen mode.
 }
 ```
 
@@ -202,19 +215,20 @@ an `McRegisterContext` and call `T::register(ctx)`. Backward compatibility with 
 
 ### 2.1 User-facing wrappers
 
-Users interact only with these wrappers; the context is hidden behind them. The wrappers keep
-the familiar names so the call sites read the same as today:
+Users interact only with these wrappers; the context is hidden behind them. The macro always
+registers typedefs (see §7/§9), so there is exactly one registration entry point per target —
+no mode selection and no `*_typedef` / `*_deep` / `*_fields` variants:
 
 - Calibration segment (in `CalSeg`):
-  - `register_typedef(&self)` — build a context with `target = CalSeg(name)`, `flatten = false`,
-    `instance_name = Some(type/seg name)`; registers one typedef plus one instance.
-  - `register_fields(&self)` — same target but `flatten = true`; registers flattened,
-    dot-mangled instances and no typedef.
-- Measurement struct (DAQ): the existing `daq_register_struct!` macro calls a typedef wrapper
-  with `target = Event(id)` internally and then registers the stack instance.
+  - `register(&self)` — builds a context with `target = CalSeg(name)` and registers the page
+    as a typedef (nested structs become nested typedefs, arrays of structs become dimensioned
+    typedef instances) plus one top-level instance named after the segment.
+- Measurement struct (DAQ): the existing `daq_register_struct!` macro registers the stack
+  instance with `target = Event(id)`, building the same typedef.
 
 Each wrapper constructs the `McRegisterContext`, then calls the generated
-`McRegisterType::register(&ctx)`. No other entry points are exposed.
+`McRegisterType::register(&ctx)`. No other entry points are exposed. Flattened output for legacy
+tools is produced later by the A2L writer transform, not by these wrappers.
 
 > Note: scalar primitives (`u8`..`f64`, `bool`) and arrays do **not** implement
 > `McRegisterType`. The macro decides statically (from the field's syntactic type) whether a
@@ -309,20 +323,52 @@ Parser robustness requirements (improvements over the old parser, which `panic!`
 - No attribute → default depends on target: `Characteristic` for calseg, `Measurement` for
   event (same defaulting rule as the current `register_as`).
 
-## 7. Flatten algorithm (runtime `flatten == true`)
+## 7. Generation model: typedefs only; flattening as an export-time transform
 
-When `flatten` is true, no typedef is created. Instead every (possibly nested) leaf field is
-registered as its own instance, mirroring the current `register_as` flatten path:
+The macro has a **single** code path: it always builds typedefs. This is the progressive,
+complete representation and keeps the generated code minimal.
 
-- The instance name is `name_prefix + field_name` (dot-separated), e.g.
-  `calseg.test_struct.test_u8`.
-- The address offset is `ctx.addr_offset + offset_of!(T, field)`.
-- For a nested user-defined struct field, recurse with an extended prefix and accumulated
-  offset; leaf scalars/arrays are emitted as instances.
-- Address mode is calseg-relative or event-relative according to `ctx.target`.
+### Typedef generation (the only codegen behavior)
 
-When `flatten` is false, a typedef is created and one top-level instance referencing the
-typedef is registered (only at `level == 0` and only if `instance_name` is `Some`).
+For each `#[derive(McRegisterType)]` struct the generated `register()`:
+
+- ensures the typedef of every nested user struct exists first (recurse with `child_typedef()`,
+  deeper `level`),
+- creates this struct's typedef (`add_typedef`) and adds every field (`add_typedef_field`); a
+  field whose type is a user struct uses the `TypeDef` value type, and an **array of structs**
+  (`[S; N]` / `[[S; X]; Y]`) is the same `TypeDef` value type plus the array dimensions
+  (`x_dim` / `y_dim`),
+- at `level == 0`, if `instance_name` is `Some`, registers one top-level instance referencing
+  the typedef.
+
+The address mode (calseg-relative or event-relative) follows `ctx.target`.
+
+### Flattening: a separate export-time transform (deferred)
+
+Legacy tools that do not support `TYPEDEF_STRUCTURE` are served by a **lossy transform applied
+to the populated registry at A2L-generation time**, not by the macro. The transform walks each
+instance whose value type is a `TypeDef`, recursively expands its fields into dot-mangled leaf
+instances (`calseg.test_struct.test_u8`; arrays of structs become `field._i.leaf`, where the
+`._i.` dotted form is used because the A2L writer sanitizes `[`/`]` to `_`), recomputes
+offsets, and drops the typedef definitions. The information it needs (typedef definitions and
+field offsets) already lives in the registry, so the transform is a pure data pass.
+
+Benefits of putting flattening here instead of in the macro or a Cargo feature:
+
+- the derive macro and the in-memory model only ever speak the modern language (typedefs);
+- the choice moves to **export time** (a writer option / builder setting), so no rebuild is
+  needed to switch, and a single build can emit **both** a typedef A2L and a flattened A2L;
+- the flatten logic lives once, operating on data, and is uniform across the whole type graph
+  by construction.
+
+> Status: the transform is **not yet implemented** in the A2L writer. Until it lands, only the
+> typedef representation is produced. This section specifies the intended behavior.
+
+### Removed: mixed mode
+
+The earlier "flatten but keep a typedef instance for arrays of structs" behavior is dropped. A
+tool that cannot consume typedefs cannot consume a typedef instance for a struct array either,
+so when the flatten transform runs it deep-flattens struct arrays element-by-element.
 
 ## 8. Deferred: integer enums (planned, not in first implementation)
 
@@ -343,8 +389,14 @@ No public-API change to `McRegisterType::register` is required to add this later
 - **Maximum 2 array dimensions**; 3+ dimensions are a `compile_error!` and there is no
   dimension folding.
 - **Context is internal.** `McRegisterContext` and `McRegisterType::register` are
-  `#[doc(hidden)]`; users call ergonomic wrappers (`register_typedef` / `register_fields` on
-  `CalSeg`, and the `daq_register_struct!` macro) that build the context internally.
+  `#[doc(hidden)]`; users call the ergonomic `register()` wrapper on `CalSeg` and the
+  `daq_register_struct!` macro, which build the context internally.
+- **Generation always builds typedefs.** The macro has a single code path; there is no
+  `flatten` flag in the context, no Cargo feature, and no `#[flatten]` attribute. `CalSeg`
+  exposes a single `register()` wrapper (no `register_typedef` / `register_fields` /
+  `register_fields_deep`). Flattening for legacy tools is a separate, export-time transform on
+  the registry performed by the A2L writer (deferred; see §7), which deep-flattens struct
+  arrays. Mixed mode is removed.
 
 ## 10. Open questions
 
@@ -352,7 +404,9 @@ No public-API change to `McRegisterType::register` is required to add this later
 
 A field whose type is a user struct becomes `McValueType::TypeDef("S")`. An **array** of such a
 struct (e.g. `[UserDefinedType; 8]` or `[[UserDefinedType; 2]; 3]`) is represented by the same
-`TypeDef` value type plus the array dimensions in `McDimType` (`x_dim` / `y_dim`).
+`TypeDef` value type plus the array dimensions in `McDimType` (`x_dim` / `y_dim`). This is the
+only representation the macro produces; the deferred export-time flatten transform (§7) would
+later expand such arrays element-by-element (`field._i.leaf`) for legacy tools.
 
 The A2L writer already emits these as a single `INSTANCE ... <TypeName> ... MATRIX_DIM x [y]`
 (see `McInstance::write_measurement` and `write_matrix_dim` in

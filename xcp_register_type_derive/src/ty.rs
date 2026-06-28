@@ -20,11 +20,6 @@ pub(crate) struct FieldType {
 }
 
 impl FieldType {
-    /// True if the field has at least one array dimension.
-    pub fn is_array(&self) -> bool {
-        self.x_dim > 1 || self.y_dim > 1
-    }
-
     /// Tokens for the `McValueType` of this field's base type.
     pub fn value_type_tokens(&self) -> TokenStream2 {
         match &self.base {

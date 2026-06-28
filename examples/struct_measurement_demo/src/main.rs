@@ -241,7 +241,7 @@ fn main() -> Result<()> {
     // To make a struct of parameters adjustable by CANape, create a calibration segment wrapper for them
     // The parameters can be accessed through deref, which is almost zero cost and lock-free
     let params = PARAMETERS.get_or_init(|| CalCell::new("struct_params", &PARAMETERS_DEFAULTS)).clone_calseg();
-    params.register_typedef(); // Register all struct fields as a typedef (with meta data from annotations)
+    params.register(); // Register all struct fields as a typedef (with meta data from annotations)
 
     // Measurement
     // Register measurement values and create an event for the main loop
