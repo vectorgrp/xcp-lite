@@ -51,55 +51,15 @@ Currently xcp-lite for Rust uses a C library build from XCPlite sources, which c
 
 The code should work on Linux, Windows and Mac, Intel and ARM.  
   
-The project creates a library crate xcp and a main application to demonstrate all use cases. An entry level example is hello_xcp in the example folder. There are other, more specific examples in the examples folder.  
+The project creates a library crate xcp and a set of examples to demonstrate all use cases. An entry level example is hello_xcp in the example folder. There are other, more specific examples in the examples folder.  
 
 There is an integration test, where the crate a2lfile is used to verify the generated A2L file and a quick and dirty, tokio based XCP client with hardcoded DAQ decoding for black box testing.
 
 ## Examples  
 
-### xcp-lite (xcp-lite/src/main.rs)
-
-Main application of the crate
-Does not serve demonstration purposes, better refer to the examples below
-Manually check various measurement and calibration features with the CANape project in ./CANape  
-
-### hello_xcp
-
-A very basic example  
-Measure a local variable and calibrate a parameter of basic scalar type
-
-### struct_measurement_demo
-
-Demonstrates measurement data collection of more complex types, such as struct, arrays of struct and multi-dimensional array slices
-Also has some basic calibratable scalar parameters
-This demo generates A2L objects TYPEDEF and INSTANCES  
-
-### calibration_demo
-
-Demonstrate various calibratable basic types, nested structs and multi dimensional types with shared axis and associated lookup functions with interpolation  
-This demo generate A2L objects CURVE and MAP with shared AXIS_PTS  
-
-### single_thread_demo
-
-Shows how to measure and calibrate in a single instance task thread  
-Shows how to clone a calibration parameter set, move it to a thread and sync its calibration changes  
-
-### multi_thread_demo
-
-Shows how to measure and calibrate in a task instantiated in multiple threads with multiple instances of measurement events and local variables
-
-### rayon_demo
-
-Use CANape to observe rayon workers calculating a mandelbrot set line by line
-
-### tokio_demo
-
-Demonstrates using XCP in an async tokio based application
-
-### point_cloud_demo
-
-Measure a lidar point cloud and visualize it in CANapes 3D scene window  
-Use CDR serialization over XCP and the CDR/IDL schema generator proc-macro
+The crate ships with a set of runnable examples under [examples/](examples/README.md), each paired
+with a CANape project. See the [examples overview](examples/README.md) for the full list and the
+build, run and command line instructions common to all of them.
 
 ## Code instrumentation for measurement and calibration
   

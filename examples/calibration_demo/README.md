@@ -1,5 +1,7 @@
 # xcp-lite - calibration_demo
 
+> See [the examples overview](../README.md) for common build, run and command line instructions.
+
 Demonstrate various adjustable basic types, nested structs and multi dimensional User types such as a map based lookup table with shared axis and associated lookup functions with interpolation.
 This generates A2L objects like CURVE and MAP with AXIS_PTS.
 

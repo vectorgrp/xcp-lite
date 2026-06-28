@@ -1,5 +1,7 @@
 # xcp_lite - struct_measurement_demo
 
+> See [the examples overview](../README.md) for common build, run and command line instructions.
+
 Demonstrate measurement of nested struct instances  
 Make use of A2L objects INSTANCE, TYPEDEF_MEASUREMENT TYPEDEF_STRUCTURE and STRUCTURE_COMPONENT  
 

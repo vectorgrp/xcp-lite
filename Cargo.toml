@@ -20,6 +20,7 @@ members = [
     "tests/support/xcp_test_client",  
     "xcp_idl_generator",      
     "examples/common",
+    "examples/all_features_demo",
     "examples/hello_xcp",
     "examples/calibration_demo",      
     "examples/struct_measurement_demo",    
@@ -58,9 +59,6 @@ a2l_reader = ["xcp_registry/a2l_reader"]
 # Error handling
 thiserror = "1.0.69"
 #thiserror = "2.0"
-
-# Command line parser
-clap = { version = "4.5.52", features = ["derive"] }
 
 # A macro to generate structures which behave like bitflags
 bitflags = "2.10.0"

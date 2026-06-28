@@ -1,5 +1,7 @@
 # xcp_lite - hello_xcp
 
+> See [the examples overview](../README.md) for common build, run and command line instructions.
+
 Basic demo
 
 Run:

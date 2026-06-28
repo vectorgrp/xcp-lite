@@ -1,8 +1,12 @@
-// main
-// xcp-lite test application
+// all_features_demo
 //
-// Demonstrates the usage of various xcp-lite for Rust features together with a CANape project
-// For comprehensive examples better look at the ./examples/ folder
+// Comprehensive xcp-lite for Rust reference application
+// Demonstrates the full feature surface (basic types, nested structs, arrays, matrices,
+// arrays of structs, curves/maps with shared axes, multi-threaded measurement) together
+// with the CANape project in ./CANape.
+//
+// cargo run -p all_features_demo
+// cargo run -p all_features_demo -- --flatten
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
@@ -10,7 +14,6 @@ use log::{debug, error, info, trace, warn};
 use std::{
     f64::consts::PI,
     fmt::Debug,
-    net::Ipv4Addr,
     num::Wrapping,
     sync::atomic::{AtomicBool, Ordering},
     thread,
@@ -23,6 +26,9 @@ use std::{
 use xcp_lite::registry::*;
 use xcp_lite::*;
 
+// Shared command line parser used by all examples
+use example_common::ExampleArgs;
+
 //-----------------------------------------------------------------------------
 // Parameters
 
@@ -34,40 +40,6 @@ const TASK2_INSTANCE_COUNT: usize = 10;
 const MAINLOOP_CYCLE_TIME: u32 = 100; // 100ms
 
 const XCP_QUEUE_SIZE: u32 = 1024 * 64; // 64kB
-
-//-----------------------------------------------------------------------------
-// Command line arguments
-
-const DEFAULT_LOG_LEVEL: u8 = 3; // (Off=0, Error=1, Warn=2, Info=3, Debug=4, Trace=5)
-const DEFAULT_BIND_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
-const DEFAULT_PORT: u16 = 5555;
-const DEFAULT_TCP: bool = false; // UDP
-
-use clap::Parser;
-
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    /// Log level (Off=0, Error=1, Warn=2, Info=3, Debug=4, Trace=5)
-    #[arg(short, long, default_value_t = DEFAULT_LOG_LEVEL)]
-    log_level: u8,
-
-    /// Bind address, default is ANY
-    #[arg(short, long, default_value_t = DEFAULT_BIND_ADDR)]
-    bind: Ipv4Addr,
-
-    /// Use TCP as transport layer, default is UDP
-    #[arg(short, long, default_value_t = DEFAULT_TCP)]
-    tcp: bool,
-
-    /// Port number
-    #[arg(short, long, default_value_t = DEFAULT_PORT)]
-    port: u16,
-
-    /// Application name
-    #[arg(short, long, default_value_t = String::from(APP_NAME))]
-    name: String,
-}
 
 //-----------------------------------------------------------------------------
 // Calibration example
@@ -458,29 +430,16 @@ struct TestNestedStruct {
 
 #[allow(unused_assignments)]
 fn main() {
-    println!("XCP for Rust demo - main- CANape project in ./CANape");
+    println!("XCP for Rust demo - all_features_demo - CANape project in ./CANape");
 
     // Args
-    let args = Args::parse();
-    let log_level = match args.log_level {
-        2 => log::LevelFilter::Warn,
-        3 => log::LevelFilter::Info,
-        4 => log::LevelFilter::Debug,
-        5 => log::LevelFilter::Trace,
-        _ => log::LevelFilter::Error,
-    };
+    let args = ExampleArgs::parse();
 
     // Logging
-    env_logger::Builder::new()
-        .target(env_logger::Target::Stdout)
-        .filter_level(log_level)
-        .format_timestamp(None)
-        .format_module_path(false)
-        .format_target(false)
-        .init();
+    args.init_logging();
 
     // Initialize XCP and start the XCP on ETH server
-    let app_name = args.name.as_str();
+    let app_name = args.app_name(APP_NAME);
     let app_revision = build_info::format!("{}", $.timestamp);
     let xcp = Xcp::init(app_name, app_revision, args.log_level)
         .start_server(
@@ -490,6 +449,9 @@ fn main() {
             XCP_QUEUE_SIZE,
         )
         .expect("could not start server");
+
+    // XCP: Select flattened or typedef A2L representation (--flatten)
+    xcp.set_registry_mode(args.flatten, false);
 
     // Create and register calibration parameter segments (with memory segments in A2L)
     // Calibration segments have "static" lifetime, the Xcp singleton holds a smart pointer clone to each
