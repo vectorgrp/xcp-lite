@@ -61,6 +61,9 @@ pub struct McRegisterContext {
     pub addr_offset: u16,
     pub level: usize,
     pub flatten: bool,
+    /// When flattening, also flatten arrays of nested structs element-by-element (indexed leaf
+    /// instances, no typedef) instead of emitting a single typedef instance with a dimension.
+    pub flatten_struct_arrays: bool,
 }
 
 impl McRegisterContext {
@@ -74,6 +77,7 @@ impl McRegisterContext {
             addr_offset: 0,
             level: self.level + 1,
             flatten: false,
+            flatten_struct_arrays: self.flatten_struct_arrays,
         }
     }
 
@@ -88,6 +92,22 @@ impl McRegisterContext {
             addr_offset: self.addr_offset + field_offset,
             level: self.level + 1,
             flatten: true,
+            flatten_struct_arrays: self.flatten_struct_arrays,
+        }
+    }
+
+    /// Child context used to flatten one element of an array-of-struct field: extends the name
+    /// prefix with an array index (`field._i.`) and accumulates the element offset.
+    #[doc(hidden)]
+    pub fn child_flatten_indexed(&self, field_name: &str, index: usize, field_offset: u16) -> McRegisterContext {
+        McRegisterContext {
+            target: self.target,
+            instance_name: None,
+            name_prefix: format!("{}{}._{}.", self.name_prefix, field_name, index),
+            addr_offset: self.addr_offset + field_offset,
+            level: self.level + 1,
+            flatten: true,
+            flatten_struct_arrays: self.flatten_struct_arrays,
         }
     }
 }
@@ -118,13 +138,19 @@ pub trait McRegisterType {
             addr_offset: 0,
             level: 0,
             flatten: false,
+            flatten_struct_arrays: false,
         };
         Self::register(&ctx);
     }
 
     /// Register flattened: every leaf field becomes its own dot-mangled instance, no typedef.
+    ///
+    /// `flatten_struct_arrays` controls how arrays of nested structs are handled: when `false`,
+    /// the element struct is emitted as a typedef and the array becomes a single dimensioned
+    /// typedef instance; when `true`, every element is flattened into indexed leaf instances
+    /// (`field._i.leaf`) and no typedef is produced.
     #[doc(hidden)]
-    fn mc_register_flattened(&self, target: McRegisterTarget, prefix: &str)
+    fn mc_register_flattened(&self, target: McRegisterTarget, prefix: &str, flatten_struct_arrays: bool)
     where
         Self: Sized,
     {
@@ -135,6 +161,7 @@ pub trait McRegisterType {
             addr_offset: 0,
             level: 0,
             flatten: true,
+            flatten_struct_arrays,
         };
         Self::register(&ctx);
     }

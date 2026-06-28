@@ -152,8 +152,11 @@ struct CalPage1 {
     test_struct: TestStruct1,
 
     // Arrays
-    test_struct_array: [u8; 8],
-    test_struct_matrix: [[u8; 8]; 16],
+    test_array: [u8; 8],
+    test_matrix: [[u8; 8]; 16],
+
+    // Array of nested structs
+    test_struct_array: [TestStruct2; 4],
 }
 
 const CAL_PAGE1: CalPage1 = CalPage1 {
@@ -166,8 +169,7 @@ const CAL_PAGE1: CalPage1 = CalPage1 {
     test_i8: -8,
     test_i16: -16,
     test_i32: -32,
-    // @@@@ ISSUE CANape does not support negative i64 values
-    test_i64: 64, //-1i64,
+    test_i64: 64, //-1i64, @@@@ ISSUE CANape does not support negative i64 values
     test_f32: 0.32,
     test_f64: 0.64,
 
@@ -181,7 +183,6 @@ const CAL_PAGE1: CalPage1 = CalPage1 {
         test_i8_array: [-1i8, 2i8, -3i8, 4i8],
         test_i16: -116,
         test_i32: -132,
-        // @@@@ ISSUE CANape does not support negative i64 values
         test_i64: 164,
         test_f32: 1.32,
         test_f64: 1.64,
@@ -195,14 +196,68 @@ const CAL_PAGE1: CalPage1 = CalPage1 {
             test_i8: -28,
             test_i16: -216,
             test_i32: -232,
-            // @@@@ ISSUE CANape does not support negative i64 values
             test_i64: 264,
             test_f32: 2.32,
             test_f64: 2.64,
         },
     },
-    test_struct_array: [0, 1, 2, 3, 4, 5, 6, 7],
-    test_struct_matrix: [[0, 1, 2, 3, 4, 5, 6, 7]; 16],
+    test_array: [0, 1, 2, 3, 4, 5, 6, 7],
+    test_matrix: [[0, 1, 2, 3, 4, 5, 6, 7]; 16],
+
+    test_struct_array: [
+        TestStruct2 {
+            test_bool: true,
+            test_u8: 38,
+            test_u16: 316,
+            test_u32: 332,
+            test_u64: 364,
+            test_i8: -38,
+            test_i16: -316,
+            test_i32: -332,
+            test_i64: 364,
+            test_f32: 3.32,
+            test_f64: 3.64,
+        },
+        TestStruct2 {
+            test_bool: false,
+            test_u8: 48,
+            test_u16: 416,
+            test_u32: 432,
+            test_u64: 464,
+            test_i8: -48,
+            test_i16: -416,
+            test_i32: -432,
+            test_i64: 464,
+            test_f32: 4.32,
+            test_f64: 4.64,
+        },
+        TestStruct2 {
+            test_bool: false,
+            test_u8: 48,
+            test_u16: 416,
+            test_u32: 432,
+            test_u64: 464,
+            test_i8: -48,
+            test_i16: -416,
+            test_i32: -432,
+            test_i64: 464,
+            test_f32: 4.32,
+            test_f64: 4.64,
+        },
+        TestStruct2 {
+            test_bool: false,
+            test_u8: 48,
+            test_u16: 416,
+            test_u32: 432,
+            test_u64: 464,
+            test_i8: -48,
+            test_i16: -416,
+            test_i32: -432,
+            test_i64: 464,
+            test_f32: 4.32,
+            test_f64: 4.64,
+        },
+    ],
 };
 
 //---------------------------------------------------
@@ -442,21 +497,28 @@ fn main() {
     // Calibration segments have 2 pages, a constant default "FLASH" page and a mutable "RAM" page
     // FLASH or RAM can be switched during runtime (XCP set_cal_page), saved to json (feature freeze), reinitialized from default FLASH page (XCP copy_cal_page)
 
-    // Create a calibration segment wrapper for CAL_PAGE
-    // runx, cycle_time_ms
-    let calseg = CalSeg::new(
+    // Example 1:
+    // Create a calibration segment wrapper for CalPage/CAL_PAGE
+    // Register all fields, not using typedefs, with flattened, mangled instance names
+    let calseg: CalSeg<CalPage> = CalSeg::new(
         "calseg",  // name of the calibration segment and the .json file
         &CAL_PAGE, // default calibration values with static lifetime
     );
     calseg.register_fields();
-
     if calseg.load("xcp-lite_calseg.json").is_err() {
         calseg.save("xcp-lite_calseg.json").expect("could not write json");
     }
 
-    // Option3: Create a calibration segment wrapper, register with typedef and instance
+    // Example 2:
+    // Create a calibration segment wrapper for CalPage1/CAL_PAGE1
+    // CalPage1 contains nested typedef fields and nested array of typedef elements
     let calseg1 = CalSeg::new("calseg1", &CAL_PAGE1);
-    calseg1.register_typedef();
+    // Alternative 1:
+    calseg1.register_typedef(); // Use typedefs for nested structs, register one instance of the top level struct
+    // Alternative 2:
+    // calseg1.register_fields(); // Array of nested structs will be flattened into indexed leaf instances, no typedefs exept for the nested struct type
+    // Alternative 3:
+    calseg1.register_fields_deep(); // Array of nested structs will be flattened into indexed leaf instances
     if calseg1.load("xcp-lite_calseg1.json").is_err() {
         calseg1.save("xcp-lite_calseg1.json").expect("could not write json");
     }

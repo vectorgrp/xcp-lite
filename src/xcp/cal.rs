@@ -64,9 +64,16 @@ where
 {
     /// Register all nested fields of a calibration segment as seperate instances with mangled names in the registry
     /// Requires the calibration page to implement McRegisterType
+    /// Arrays of nested structs are registered as a single typedef instance with a dimension.
     pub fn register_fields(&self) -> &Self {
-        self.default_page
-            .mc_register_flattened(McRegisterTarget::CalSeg(self.get_name()), self.get_name());
+        self.default_page.mc_register_flattened(McRegisterTarget::CalSeg(self.get_name()), self.get_name(), false);
+        self
+    }
+    /// Like `register_fields`, but also flattens arrays of nested structs element-by-element into
+    /// indexed leaf instances (`field._i.leaf`) so that no typedef is used at all.
+    /// Requires the calibration page to implement McRegisterType
+    pub fn register_fields_deep(&self) -> &Self {
+        self.default_page.mc_register_flattened(McRegisterTarget::CalSeg(self.get_name()), self.get_name(), true);
         self
     }
     /// Register all fields of a calibration segment in the registry using a typedef
@@ -74,8 +81,7 @@ where
     /// Requires the calibration page to implement McRegisterType
     /// Instancename is the typename of T
     pub fn register_typedef(&self) -> &Self {
-        self.default_page
-            .mc_register_typedef(McRegisterTarget::CalSeg(self.get_name()), Some(self.get_name()));
+        self.default_page.mc_register_typedef(McRegisterTarget::CalSeg(self.get_name()), Some(self.get_name()));
         self
     }
 }

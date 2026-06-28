@@ -101,21 +101,38 @@ fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {
                     }
                 });
             }
-            // Array of nested struct: create the typedef, then register one instance referencing it.
+            // Array of nested struct. Two behaviors selected at runtime by
+            // `ctx.flatten_struct_arrays`:
+            //  - false: create the element typedef, then register one dimensioned typedef instance.
+            //  - true:  flatten every element into indexed leaf instances (`field._i.leaf`), no typedef.
             (BaseType::User(base_ty), true) => {
                 flatten_handling.push(quote! {
                     {
-                        {
-                            let __child = ctx.child_typedef();
-                            <#base_ty as ::xcp_registry::McRegisterType>::register(&__child);
+                        if ctx.flatten_struct_arrays {
+                            let __field_off = ::core::mem::offset_of!(#struct_ident, #field_ident) as u16;
+                            let __elem_size = ::core::mem::size_of::<#base_ty>() as u16;
+                            let __count = (#x_dim as usize) * (#y_dim as usize);
+                            for __i in 0..__count {
+                                let __child = ctx.child_flatten_indexed(
+                                    #field_name,
+                                    __i,
+                                    __field_off + (__i as u16) * __elem_size,
+                                );
+                                <#base_ty as ::xcp_registry::McRegisterType>::register(&__child);
+                            }
+                        } else {
+                            {
+                                let __child = ctx.child_typedef();
+                                <#base_ty as ::xcp_registry::McRegisterType>::register(&__child);
+                            }
+                            let __name = format!("{}{}", ctx.name_prefix, #field_name);
+                            let __support = #support;
+                            let __dim = ::xcp_registry::McDimType::new(#value_type, #x_dim, #y_dim);
+                            let __off = (ctx.addr_offset + ::core::mem::offset_of!(#struct_ident, #field_ident) as u16) as i32;
+                            let _ = ::xcp_registry::get_lock().as_mut().unwrap().instance_list.add_instance(
+                                __name, __dim, __support, ctx.target.address(__off),
+                            );
                         }
-                        let __name = format!("{}{}", ctx.name_prefix, #field_name);
-                        let __support = #support;
-                        let __dim = ::xcp_registry::McDimType::new(#value_type, #x_dim, #y_dim);
-                        let __off = (ctx.addr_offset + ::core::mem::offset_of!(#struct_ident, #field_ident) as u16) as i32;
-                        let _ = ::xcp_registry::get_lock().as_mut().unwrap().instance_list.add_instance(
-                            __name, __dim, __support, ctx.target.address(__off),
-                        );
                     }
                 });
             }
