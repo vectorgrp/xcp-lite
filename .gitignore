@@ -1,7 +1,6 @@
 
 target
 build
-/Cargo.lock
 
 # Misc
 .DS_Store
