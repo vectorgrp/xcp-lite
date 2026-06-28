@@ -12,11 +12,11 @@ anyhow = "1.0"
 lazy_static = "1.5"
 serde = "1.0"
 serde_json = "1.0"
-clap = { version = "4.5.52", features = ["derive"] }
 build-info = "0.0.40"
 
 xcp_lite = { path = "../../", features = [] }
 xcp_registry = { path = "../../xcp_registry" }
+example_common = { path = "../common" }
 
 [build-dependencies]
 build-info-build = "0.0.40"

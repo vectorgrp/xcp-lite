@@ -361,8 +361,13 @@ Benefits of putting flattening here instead of in the macro or a Cargo feature:
 - the flatten logic lives once, operating on data, and is uniform across the whole type graph
   by construction.
 
-> Status: the transform is **not yet implemented** in the A2L writer. Until it lands, only the
-> typedef representation is produced. This section specifies the intended behavior.
+> Status: the flatten transform lives in `xcp_registry` (`flatten_registry`) and is applied to
+> the populated registry (triggered on `close()` in flatten mode, or by the A2L reader's
+> `load_a2l(..., flatten_typedefs)`). It now deep-flattens **arrays of structs** element by
+> element — both top-level instances and nested typedef fields — unrolling `[S; N]` /
+> `[[S; X]; Y]` into `name._i.leaf` (`name._iy_ix.leaf` for a 2D matrix) with per-element
+> offsets. A dedicated writer-side option to choose flattened vs. typedef output at export time
+> is still pending.
 
 ### Removed: mixed mode
 

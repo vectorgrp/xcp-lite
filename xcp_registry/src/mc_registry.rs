@@ -209,8 +209,22 @@ impl Registry {
         log::debug!("Registry add_typedef_field: {}.{} dim_type={} offset={}", type_name, field_name, dim_type, offset);
 
         if let Some(typedef) = self.typedef_list.find_typedef_mut(type_name) {
-            // Duplicate field name
-            if typedef.find_field(&field_name).is_some() {
+            // Field already exists. This happens when the same struct type is registered
+            // again (e.g. reused by multiple fields or instances). Verify the redefinition
+            // is structurally identical (same offset and dimensional type); warn only on a
+            // genuine ABI/layout conflict.
+            if let Some(existing) = typedef.find_field(&field_name) {
+                if existing.offset != offset || existing.dim_type != dim_type {
+                    log::warn!(
+                        "Conflicting redefinition of field {}.{}: existing offset={} dim_type={}, new offset={} dim_type={}",
+                        type_name,
+                        field_name,
+                        existing.offset,
+                        existing.dim_type,
+                        offset,
+                        dim_type
+                    );
+                }
                 return Err(RegistryError::Duplicate(field_name.to_string()));
             }
             typedef.add_field(field_name, dim_type, mc_support_data, offset)
@@ -229,11 +243,19 @@ impl Registry {
         // A2L after the singleton has been closed). The "no mutation after close" rule
         // is enforced at the singleton-access layer (`get_lock`), not on the instance.
 
-        // Ignore if type name name already exists
+        // Ignore if type name already exists
         // No separate name spaces for measurement and characteristic
         for t1 in &self.typedef_list {
             if *t1.name == *type_name {
-                log::warn!("Duplicate typedef name {}, equality not checked!", type_name);
+                // Same struct type registered again (e.g. reused by multiple fields or
+                // instances). Keep the existing definition. The per-field re-adds in
+                // `add_typedef_field` validate structural equality; here we only flag a
+                // mismatching overall size.
+                if t1.size != size {
+                    log::warn!("Conflicting redefinition of typedef {}: existing size={}, new size={}", type_name, t1.size, size);
+                } else {
+                    log::debug!("Duplicate typedef name {}, keeping existing definition", type_name);
+                }
                 return Err(RegistryError::Duplicate(type_name.to_string()));
             }
         }

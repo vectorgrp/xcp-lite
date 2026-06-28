@@ -17,7 +17,7 @@ use super::McText;
 /// May have meta data for Measurement and Characteristic objects
 /// May refer to axis objects
 /// May have a conversion rule
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct McDimType {
     pub value_type: McValueType,
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -223,6 +223,48 @@ pub fn close() {
     // }
 }
 
+// Expand a typedef-typed slot (a single struct, or an array/matrix of structs) into flattened
+// leaf instances. A scalar struct is expanded in place; an array of structs is unrolled element
+// by element, each element getting a dotted index suffix (`name._i`, or `name._iy_ix` for a 2D
+// matrix) and an address offset of `element_index * typedef.size`. The dotted `._i` form is used
+// because the A2L writer sanitizes `[` / `]` to `_`.
+#[allow(clippy::too_many_arguments)]
+fn expand_typedef_slot(
+    reg: &Registry,
+    new_instances: &mut McInstanceList,
+    typedef_index: &HashMap<&'static str, usize>,
+    base_name: &str,
+    root_instance_address: &McAddress,
+    base_offset: i32,
+    dim_type: &McDimType,
+    typedef: &McTypeDef,
+) {
+    let [x_dim, y_dim] = dim_type.get_dim();
+
+    // Scalar struct (no array dimensions): expand in place.
+    if x_dim <= 1 && y_dim <= 1 {
+        collect_flattened_instances(reg, new_instances, typedef_index, base_name.to_string(), root_instance_address, base_offset, typedef);
+        return;
+    }
+
+    // Array or matrix of structs: unroll element by element.
+    let columns = x_dim.max(1);
+    let rows = y_dim.max(1);
+    let stride = typedef.size as i32;
+    for iy in 0..rows {
+        for ix in 0..columns {
+            let element_index = iy as i32 * columns as i32 + ix as i32;
+            let element_offset = base_offset + element_index * stride;
+            let element_name = if y_dim > 1 {
+                format!("{}._{}_{}", base_name, iy, ix)
+            } else {
+                format!("{}._{}", base_name, ix)
+            };
+            collect_flattened_instances(reg, new_instances, typedef_index, element_name, root_instance_address, element_offset, typedef);
+        }
+    }
+}
+
 // Recursive helper function to build additional flattened instances from typedefs
 // Collect all typedef tree leafs and mangle the instance name
 fn collect_flattened_instances(
@@ -238,15 +280,17 @@ fn collect_flattened_instances(
         let mangled_name = format!("{}.{}", name, field.name);
         if let Some(typedef_name) = field.get_typedef_name() {
             let i = *typedef_index.get(typedef_name).unwrap();
-            let typedef = reg.typedef_list.get(i).unwrap();
-            collect_flattened_instances(
+            let field_typedef = reg.typedef_list.get(i).unwrap();
+            // A field may be a single struct or an array/matrix of structs; unroll arrays.
+            expand_typedef_slot(
                 reg,
                 new_instances,
                 typedef_index,
-                mangled_name,
+                &mangled_name,
                 root_instance_address,
                 root_address_offset + field.offset as i32,
-                typedef,
+                &field.dim_type,
+                field_typedef,
             );
         } else {
             let mut address = *root_instance_address;
@@ -262,25 +306,16 @@ fn create_flattened_instance_list(reg: &mut Registry, typedef_index: &HashMap<&'
     for instance in &reg.instance_list {
         let name: String = instance.get_name().to_string();
         if let Some(typedef_name) = instance.get_typedef_name() {
-            if instance.dim_type.get_dim()[0] > 1 {
-                // Multidimensional typedef field, not supported
-                log::error!(
-                    "Instance {}: Multidimensional field of type {} can not be flattened, dimension {} ignored",
-                    name,
-                    typedef_name,
-                    instance.dim_type.get_dim()[0]
-                );
-                // This is not possible, we don't unroll arrays, just ignore the dimension
-            }
-
             if let Some(i) = typedef_index.get(typedef_name) {
-                collect_flattened_instances(
+                // A top-level instance may be a single struct or an array/matrix of structs.
+                expand_typedef_slot(
                     reg,
                     &mut flat_instance_list,
                     typedef_index,
-                    name,
+                    &name,
                     instance.get_address(),
                     0,
+                    instance.get_dim_type(),
                     reg.typedef_list.get(*i).unwrap(),
                 );
             } else {
@@ -325,5 +360,80 @@ pub mod registry_test {
     pub fn test_reinit() {
         *REGISTRY.lock() = Some(Registry::new());
         *CLOSED_REGISTRY.lock() = None;
+    }
+}
+
+#[cfg(test)]
+mod flatten_tests {
+    use super::*;
+
+    fn offset_of(reg: &Registry, name: &str) -> i32 {
+        reg.instance_list
+            .get_instance(name, McObjectType::Characteristic, None)
+            .unwrap_or_else(|| panic!("flattened instance '{}' not found", name))
+            .get_address()
+            .get_addr_offset()
+    }
+
+    // Flattening must unroll arrays of structs element by element, both as a nested
+    // typedef field and as a top-level instance, accumulating per-element offsets.
+    #[test]
+    fn flatten_array_of_structs() {
+        let mut reg = Registry::new();
+        let cal = McSupportData::new(McObjectType::Characteristic);
+
+        // typedef Inner { a: u8 @0, b: u16 @2 }  size 4
+        reg.add_typedef("Inner", 4).unwrap();
+        reg.add_typedef_field("Inner", "a", McDimType::new(McValueType::Ubyte, 1, 1), cal.clone(), 0).unwrap();
+        reg.add_typedef_field("Inner", "b", McDimType::new(McValueType::Uword, 1, 1), cal.clone(), 2).unwrap();
+
+        // typedef Outer { items: [Inner; 3] @0, count: u32 @12 }  size 16
+        reg.add_typedef("Outer", 16).unwrap();
+        reg.add_typedef_field("Outer", "items", McDimType::new(McValueType::new_typedef("Inner"), 3, 1), cal.clone(), 0)
+            .unwrap();
+        reg.add_typedef_field("Outer", "count", McDimType::new(McValueType::Ulong, 1, 1), cal.clone(), 12).unwrap();
+
+        // instance outer: Outer @ calseg offset 0x10
+        reg.instance_list
+            .add_instance(
+                "outer",
+                McDimType::new(McValueType::new_typedef("Outer"), 1, 1),
+                cal.clone(),
+                McAddress::new_calseg_rel("seg", 0x10),
+            )
+            .unwrap();
+
+        // instance arr: [Inner; 2] @ calseg offset 0x40
+        reg.instance_list
+            .add_instance(
+                "arr",
+                McDimType::new(McValueType::new_typedef("Inner"), 2, 1),
+                cal.clone(),
+                McAddress::new_calseg_rel("seg", 0x40),
+            )
+            .unwrap();
+
+        flatten_registry(&mut reg);
+
+        // Typedefs are dropped after flattening
+        assert!(reg.typedef_list.is_empty(), "typedef list should be empty after flattening");
+
+        // Nested array-of-structs field is unrolled with dotted indices and accumulated offsets
+        assert_eq!(offset_of(&reg, "outer.items._0.a"), 0x10);
+        assert_eq!(offset_of(&reg, "outer.items._0.b"), 0x12);
+        assert_eq!(offset_of(&reg, "outer.items._1.a"), 0x14);
+        assert_eq!(offset_of(&reg, "outer.items._1.b"), 0x16);
+        assert_eq!(offset_of(&reg, "outer.items._2.a"), 0x18);
+        assert_eq!(offset_of(&reg, "outer.items._2.b"), 0x1A);
+        assert_eq!(offset_of(&reg, "outer.count"), 0x1C);
+
+        // Top-level array-of-structs instance is unrolled too
+        assert_eq!(offset_of(&reg, "arr._0.a"), 0x40);
+        assert_eq!(offset_of(&reg, "arr._0.b"), 0x42);
+        assert_eq!(offset_of(&reg, "arr._1.a"), 0x44);
+        assert_eq!(offset_of(&reg, "arr._1.b"), 0x46);
+
+        // 7 leaves from outer (3 * 2 + 1) plus 4 from arr (2 * 2)
+        assert_eq!(reg.instance_list.len(), 11);
     }
 }

@@ -19,6 +19,7 @@ members = [
     "xcp_register_type_derive",
     "tests/support/xcp_test_client",  
     "xcp_idl_generator",      
+    "examples/common",
     "examples/hello_xcp",
     "examples/calibration_demo",      
     "examples/struct_measurement_demo",    

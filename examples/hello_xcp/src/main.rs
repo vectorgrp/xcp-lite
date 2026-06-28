@@ -6,6 +6,9 @@
 // Run the demo
 // cargo run -p hello_xcp
 //
+// Write a flattened A2L (typedefs expanded into mangled instance names)
+// cargo run -p hello_xcp -- --flatten
+//
 // Run the test XCP client in another terminal or start CANape with the project in folder examples/hello_xcp/CANape
 // xcp_client --udp --mea "counter" --verbose 2
 // xcp_client --udp  --upload-a2l --a2l tmp.a2l --list-cal '.*' --cal my_params.counter_max 10 --list-mea ".*"  --mea 'counter'  --verbose 2
@@ -24,52 +27,38 @@ const XCP_QUEUE_SIZE: u32 = 1024 * 64; // 64kB
 const MAINLOOP_CYCLE_TIME: u32 = 10000; // 10ms
 
 //-----------------------------------------------------------------------------
-// Command line arguments
+// Command line arguments (shared parser, see examples/common)
 
-const DEFAULT_LOG_LEVEL: u8 = 3; // Info
-const DEFAULT_BIND_ADDR: std::net::Ipv4Addr = std::net::Ipv4Addr::new(0, 0, 0, 0); // ANY
-const DEFAULT_PORT: u16 = 5555;
-const DEFAULT_TCP: bool = false; // UDP
-
-use clap::Parser;
-
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    /// Log level (Off=0, Error=1, Warn=2, Info=3, Debug=4, Trace=5)
-    #[arg(short, long, default_value_t = DEFAULT_LOG_LEVEL)]
-    log_level: u8,
-
-    /// Bind address, default is ANY
-    #[arg(short, long, default_value_t = DEFAULT_BIND_ADDR)]
-    bind: std::net::Ipv4Addr,
-
-    /// Use TCP as transport layer, default is UDP
-    #[arg(short, long, default_value_t = DEFAULT_TCP)]
-    tcp: bool,
-
-    /// Port number
-    #[arg(short, long, default_value_t = DEFAULT_PORT)]
-    port: u16,
-
-    /// Application name
-    #[arg(short, long, default_value_t = String::from(APP_NAME))]
-    name: String,
-}
+use example_common::ExampleArgs;
 
 //-----------------------------------------------------------------------------
 // Demo calibration parameters
 
+// Define a struct with semantic annotations used as nested calibration parameter type
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
+struct Point {
+    #[characteristic(comment = "x coordinate", min = -100.0, max = 100.0)]
+    x: f32,
+    #[characteristic(comment = "y coordinate", min = -100.0, max = 100.0)]
+    y: f32,
+}
+
 // Define calibration parameters in a struct with semantic annotations to create the A2L file
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
 struct Params {
-    #[characteristic(comment = "Start/stop counter")]
+    #[characteristic(comment = "Demo bool, Start/stop counter")]
     counter_on: bool,
 
-    #[characteristic(comment = "Max counter value", min = 0, max = 1023)]
+    #[characteristic(comment = "Demo u32, Max counter value", min = 0, max = 1023)]
     counter_max: u32,
 
-    #[characteristic(comment = "Task delay time in s, ecu internal value as u32 in us", min = 0.00001, max = 2, unit = "s", factor = 0.000001)]
+    #[characteristic(
+        comment = "Demo u32, Task delay time in s, ecu internal value as u32 in us",
+        min = 0.00001,
+        max = 2,
+        unit = "s",
+        factor = 0.000001
+    )]
     delay: u32,
 
     #[characteristic(comment = "Demo array", min = 0, max = 100)]
@@ -77,6 +66,12 @@ struct Params {
 
     #[characteristic(comment = "Demo matrix", min = 0, max = 100)]
     matrix: [[u8; 8]; 4],
+
+    #[characteristic(comment = "Demo struct")]
+    struct_field: Point,
+
+    #[characteristic(comment = "Demo array of structs")]
+    struct_array_field: [Point; 2],
 }
 
 // Default values for the calibration parameters
@@ -91,6 +86,8 @@ const PARAMS: Params = Params {
         [0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27],
         [0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37],
     ],
+    struct_field: Point { x: 1.0, y: 2.0 },
+    struct_array_field: [Point { x: 1.0, y: 2.0 }, Point { x: 3.0, y: 4.0 }],
 };
 
 //-----------------------------------------------------------------------------
@@ -99,26 +96,11 @@ fn main() -> anyhow::Result<()> {
     println!("XCP for Rust demo - hello_xcp - CANape project in ./examples/hello_xcp/CANape");
 
     // Args
-    let args = Args::parse();
-    let log_level = match args.log_level {
-        2 => log::LevelFilter::Warn,
-        3 => log::LevelFilter::Info,
-        4 => log::LevelFilter::Debug,
-        5 => log::LevelFilter::Trace,
-        _ => log::LevelFilter::Error,
-    };
-
-    // Logging
-    env_logger::Builder::new()
-        .target(env_logger::Target::Stdout)
-        .filter_level(log_level)
-        .format_timestamp(None)
-        .format_module_path(false)
-        .format_target(false)
-        .init();
+    let args = ExampleArgs::parse();
+    args.init_logging();
 
     // XCP: Initialize the XCP server
-    let app_name = args.name.as_str();
+    let app_name = args.app_name(APP_NAME);
     let app_revision = build_info::format!("Version_{}", $.timestamp);
     let _xcp = Xcp::init(app_name, app_revision, args.log_level).start_server(
         if args.tcp { XcpTransportLayer::Tcp } else { XcpTransportLayer::Udp },
@@ -138,7 +120,17 @@ fn main() -> anyhow::Result<()> {
     let event = daq_create_event!("my_event", 16);
     daq_register!(counter, event);
 
-    // @@@@ Test
+    // XCP: Choose the A2L representation for structs and arrays of structs.
+    // Default (false) keeps TYPEDEF_STRUCTUREs; --flatten expands them into dot-mangled
+    // leaf instances (e.g. struct_array_field._0.x) for tools without typedef support.
+    _xcp.set_registry_mode(args.flatten, false);
+    if args.flatten {
+        info!("A2L will be written flattened (typedefs expanded into mangled instance names)");
+    } else {
+        info!("A2L will be written with typedef structures");
+    }
+
+    // @@@@ Test: create A2L file now, otherwise it will be created on first client connection
     _xcp.finalize_registry()?;
 
     let mut sleep_time: u64;

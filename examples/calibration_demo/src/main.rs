@@ -24,38 +24,9 @@ const XCP_QUEUE_SIZE: u32 = 1024 * 64; // 64kB
 const MAINLOOP_CYCLE_TIME: u32 = 1000; // 1ms
 
 //-----------------------------------------------------------------------------
-// Command line arguments
+// Command line arguments (shared parser, see examples/common)
 
-const DEFAULT_LOG_LEVEL: u8 = 3; // Info
-const DEFAULT_BIND_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
-const DEFAULT_PORT: u16 = 5555;
-const DEFAULT_TCP: bool = false; // UDP
-
-use clap::Parser;
-
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    /// Log level (Off=0, Error=1, Warn=2, Info=3, Debug=4, Trace=5)
-    #[arg(short, long, default_value_t = DEFAULT_LOG_LEVEL)]
-    log_level: u8,
-
-    /// Bind address, default is ANY
-    #[arg(short, long, default_value_t = DEFAULT_BIND_ADDR)]
-    bind: Ipv4Addr,
-
-    /// Use TCP as transport layer, default is UDP
-    #[arg(short, long, default_value_t = DEFAULT_TCP)]
-    tcp: bool,
-
-    /// Port number
-    #[arg(short, long, default_value_t = DEFAULT_PORT)]
-    port: u16,
-
-    /// Application name
-    #[arg(short, long, default_value_t = String::from(APP_NAME))]
-    name: String,
-}
+use example_common::ExampleArgs;
 
 //-----------------------------------------------------------------------------
 fn cubic_hermite(p0: f32, p1: f32, m0: f32, m1: f32, t: f32) -> f32 {
@@ -106,7 +77,13 @@ struct Params {
     #[characteristic(comment = "Demo curve with shared axis", axis = "cal_demo_2.params.shared_axis_16", min = -10, max = 10)]
     curve2: [f64; 16], // CURVE type (1 dimension)
 
-    #[characteristic(comment = "Demo map with shared axis", min = 0, max = 100, x_axis = "cal_demo_2.params.shared_axis_9", y_axis = "cal_demo_2.params.shared_axis_16")]
+    #[characteristic(
+        comment = "Demo map with shared axis",
+        min = 0,
+        max = 100,
+        x_axis = "cal_demo_2.params.shared_axis_9",
+        y_axis = "cal_demo_2.params.shared_axis_16"
+    )]
     map: [[u8; 9]; 16], // MAP type (2 dimensions), shared axis 'shared_axis_9' and 'shared_axis_16'
 }
 
@@ -267,28 +244,11 @@ const CALPAGE2: CalPage2 = CalPage2 {
 #[allow(unused_assignments)]
 fn main() -> Result<()> {
     // Args
-    let args = Args::parse();
-    let log_level = match args.log_level {
-        2 => log::LevelFilter::Warn,
-        3 => log::LevelFilter::Info,
-        4 => log::LevelFilter::Debug,
-        5 => log::LevelFilter::Trace,
-        _ => log::LevelFilter::Error,
-    };
-
-    /* #region INIT_LOGGING */
-    // Logging
-    env_logger::Builder::new()
-        .target(env_logger::Target::Stdout)
-        .filter_level(log_level)
-        .format_timestamp(None)
-        .format_module_path(false)
-        .format_target(false)
-        .init();
-    /* #endregion */
+    let args = ExampleArgs::parse();
+    args.init_logging();
 
     // XCP: Initialize the XCP server
-    let app_name = args.name.as_str();
+    let app_name = args.app_name(APP_NAME);
     let app_revision = build_info::format!("{}", $.timestamp);
     let xcp = Xcp::init(app_name, app_revision, args.log_level).start_server(
         if args.tcp { XcpTransportLayer::Tcp } else { XcpTransportLayer::Udp },
@@ -331,6 +291,9 @@ fn main() -> Result<()> {
     let event = daq_create_event!("cal_demo", 16);
     daq_register!(counter, event);
     daq_register_struct!(lookup, event); // Register as nested typedefs and one instance
+
+    // XCP: Select flattened or typedef A2L representation (--flatten)
+    Xcp::get().set_registry_mode(args.flatten, false);
 
     let _ = xcp.finalize_registry(); // Force writing of A2L file, otherwise it is written on connect
 
