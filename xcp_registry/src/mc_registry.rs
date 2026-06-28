@@ -8,8 +8,6 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
 
-use super::is_closed;
-
 //use super::McAddress;
 use super::McCalibrationSegmentList;
 use super::McDimType;
@@ -226,8 +224,10 @@ impl Registry {
         let type_name = type_name.into();
         log::debug!("Registry add_typedef: {} size={}", type_name, size);
 
-        // Panic if registry is closed
-        assert!(!is_closed(), "Registry is closed");
+        // Note: no `is_closed()` guard here. `add_typedef` operates on `&mut self`,
+        // which may be a standalone registry (e.g. the test client loading an uploaded
+        // A2L after the singleton has been closed). The "no mutation after close" rule
+        // is enforced at the singleton-access layer (`get_lock`), not on the instance.
 
         // Ignore if type name name already exists
         // No separate name spaces for measurement and characteristic

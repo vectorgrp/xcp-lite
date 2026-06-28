@@ -13,7 +13,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64};
 use tokio::time::{Duration, Instant};
 
-use xcp_client::xcp_client::*;
+use xcp_test_client::*;
 use xcp_lite::registry::*;
 use xcp_lite::*;
 

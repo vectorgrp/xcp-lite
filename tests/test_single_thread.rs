@@ -1,6 +1,6 @@
 // single_thread
 // Integration test for XCP in a single thread application
-// Uses the test XCP client in module xcp_client
+// Uses the test XCP client crate xcp_test_client
 
 // cargo test --features=a2l_reader -- --test-threads=1 --nocapture  --test test_single_thread
 
@@ -13,6 +13,7 @@ use tokio::time::Duration;
 use xcp_lite::registry::*;
 use xcp_lite::*;
 
+#[path = "support/xcp_test_executor.rs"]
 mod xcp_test_executor;
 use xcp_test_executor::OPTION_LOG_LEVEL;
 use xcp_test_executor::OPTION_XCP_LOG_LEVEL;
