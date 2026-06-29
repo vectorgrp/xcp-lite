@@ -202,7 +202,6 @@ async fn test_single_thread() {
     // Test calibration and measurement in a single thread
 
     info!("XCP server initialization 1");
-    let _ = std::fs::remove_file("test_single_thread.a2h");
 
     // Initialize XCP server
     let xcp = match Xcp::init("test_single_thread", "EPK1.1.0", OPTION_XCP_LOG_LEVEL).start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555, 1024 * 256) {
@@ -228,7 +227,7 @@ async fn test_single_thread() {
     thread::sleep(Duration::from_micros(500000));
     xcp.finalize_registry().unwrap(); // Write the A2L file
 
-    test_executor(TEST_CAL, TEST_DAQ, TEST_DURATION_MS, 1, TEST_SIGNAL_COUNT, TEST_CYCLE_TIME_US as u64).await; // Start the test executor XCP client
+    test_executor("test_single_thread", TEST_CAL, TEST_DAQ, TEST_DURATION_MS, 1, TEST_SIGNAL_COUNT, TEST_CYCLE_TIME_US as u64).await; // Start the test executor XCP client
 
     t1.join().unwrap();
 
@@ -250,6 +249,7 @@ async fn test_single_thread() {
         };
 
         test_executor(
+            "test_single_thread",
             xcp_test_executor::TestModeCal::None,
             xcp_test_executor::TestModeDaq::None,
             TEST_DURATION_MS,
@@ -261,6 +261,6 @@ async fn test_single_thread() {
 
         xcp.stop_server();
 
-        let _ = std::fs::remove_file("test_single_thread.a2l");
+        // let _ = std::fs::remove_file("upload_test_single_thread.a2l");
     }
 }

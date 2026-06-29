@@ -348,7 +348,16 @@ async fn test_multi_thread() {
     xcp.finalize_registry().unwrap(); // Write the A2L file
 
     thread::sleep(Duration::from_millis(250)); // Wait to give all threads a chance to initialize and enter their loop
-    test_executor(TEST_CAL, TEST_DAQ, TEST_DURATION_MS, TEST_TASK_COUNT, TEST_SIGNAL_COUNT, TEST_CYCLE_TIME_US as u64).await; // Start the test executor XCP client
+    test_executor(
+        "test_multi_thread",
+        TEST_CAL,
+        TEST_DAQ,
+        TEST_DURATION_MS,
+        TEST_TASK_COUNT,
+        TEST_SIGNAL_COUNT,
+        TEST_CYCLE_TIME_US as u64,
+    )
+    .await; // Start the test executor XCP client
 
     debug!("Test done. Waiting for tasks to terminate");
     for (i, t) in v {
@@ -362,5 +371,5 @@ async fn test_multi_thread() {
     xcp.stop_server();
     info!("Server stopped");
 
-    let _ = std::fs::remove_file("test_multi_thread.a2l");
+    // let _ = std::fs::remove_file("upload_test_multi_thread.a2l");
 }

@@ -13,9 +13,9 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64};
 use tokio::time::{Duration, Instant};
 
-use xcp_test_client::*;
 use xcp_lite::registry::*;
 use xcp_lite::*;
+use xcp_test_client::*;
 
 //-----------------------------------------------------------------------------
 
@@ -620,9 +620,10 @@ async fn test_calibration(xcp_client: &mut XcpClient, _task_cycle_us: u64) -> bo
 //-------------------------------------------------------------------------------------------------------------------------------------
 // Setup test
 // Connect, upload A2l, check EPK, check id, ...
-pub async fn test_setup(task_count: usize, load_a2l: bool, upload_a2l: bool) -> (XcpClient, Arc<parking_lot::lock_api::Mutex<parking_lot::RawMutex, DaqDecoder>>) {
+pub async fn test_setup(test_name: &str, task_count: usize, load_a2l: bool, upload_a2l: bool) -> (XcpClient, Arc<parking_lot::lock_api::Mutex<parking_lot::RawMutex, DaqDecoder>>) {
     tokio::time::sleep(Duration::from_millis(500)).await;
-    debug!("Test setup");
+
+    info!("Test setup for {} with {} tasks, load_a2l={}, upload_a2l={}", test_name, task_count, load_a2l, upload_a2l);
 
     //-------------------------------------------------------------------------------------------------------------------------------------
     // Create xcp_client and connect the XCP server
@@ -677,13 +678,37 @@ pub async fn test_setup(task_count: usize, load_a2l: bool, upload_a2l: bool) -> 
     // Upload/Load  A2L file and check EPK
 
     if load_a2l {
-        // Upload A2L file from XCP server
+        // Upload A2L file from XCP server into test.a2l file an load it into the registry
         if upload_a2l {
+            // Rename the old .a2l file to .a2l.bak
+            // A2l name is upload_<test_name>.a2l
+            let a2l_path = std::path::Path::new(&format!("upload_{}", test_name)).with_extension("a2l");
+            let a2l_bak_path = std::path::Path::new(&format!("upload_{}", test_name)).with_extension("a2l.bak");
+            if a2l_path.exists() {
+                std::fs::rename(&a2l_path, &a2l_bak_path).unwrap();
+                info!("Renamed old {}.a2l file to {}.a2l.bak", test_name, test_name);
+            }
+
+            // Upload A2L file from XCP server into test.a2l file and into a new registry
             let mut reg = Registry::new();
-            let a2l_path = std::path::Path::new("test").with_extension("a2l");
             xcp_client.upload_a2l_into_registry(&a2l_path, &mut reg).await.unwrap();
             xcp_client.set_registry(reg);
             info!("A2L file uploaded from XCP server into registry from {:?}", a2l_path);
+
+            // Compare the uploaded A2L file with the backup test.a2l.bak file
+            if a2l_bak_path.exists() {
+                let a2l_bak = std::fs::read(&a2l_bak_path).unwrap();
+                let a2l_uploaded = std::fs::read(&a2l_path).unwrap();
+                if a2l_bak != a2l_uploaded {
+                    error!("Uploaded A2L file {:?} differs from backup {:?} file", a2l_path, a2l_bak_path);
+                    // @@@@ TODO: A2l determinism not implemented yet, so do not panic for now
+                    // panic!("Uploaded A2L file differs from backup test.a2l.bak file");
+                } else {
+                    info!("Uploaded A2L file is identical to backup {:?} file", a2l_bak_path);
+                }
+            } else {
+                warn!("Backup {:?} file does not exist, cannot compare with uploaded A2L file", a2l_bak_path);
+            }
         }
         // Load the A2L file from file
         else {
@@ -766,11 +791,19 @@ pub async fn test_disconnect(xcp_client: &mut XcpClient) {
 
 //-------------------------------------------------------------------------------------------------------------------------------------
 
-pub async fn test_executor(test_mode_cal: TestModeCal, test_mode_daq: TestModeDaq, daq_test_duration_ms: u64, task_count: usize, signal_count: usize, task_cycle_us: u64) {
+pub async fn test_executor(
+    test_name: &str,
+    test_mode_cal: TestModeCal,
+    test_mode_daq: TestModeDaq,
+    daq_test_duration_ms: u64,
+    task_count: usize,
+    signal_count: usize,
+    task_cycle_us: u64,
+) {
     let mut error_state = false;
 
     let load_a2l = test_mode_cal != TestModeCal::None || test_mode_daq != TestModeDaq::None;
-    let (mut xcp_client, daq_decoder) = test_setup(task_count, load_a2l, true).await;
+    let (mut xcp_client, daq_decoder) = test_setup(test_name, task_count, load_a2l, true).await;
 
     // Cal or Daq test enabled
     if test_mode_cal != TestModeCal::None || test_mode_daq != TestModeDaq::None {
