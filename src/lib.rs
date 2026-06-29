@@ -50,8 +50,8 @@ pub use xcp::daq::daq_event::DaqEvent;
 pub mod metrics;
 
 // Re-export the standalone registry crate under the old module path.
-pub use xcp_registry as registry;
 pub use registry::McValueTypeTrait;
+pub use xcp_registry as registry;
 
 // Re-export the McRegisterType trait and its derive macro (one import brings both).
 pub use registry::McRegisterType;
@@ -68,13 +68,14 @@ pub mod _private {
     pub use linkme::distributed_slice;
 }
 
-// EPK calibration segment
+// EPK calibration segment definitions, must match libxcplite definitions
 pub(crate) const EPK_SEG_NAME: &str = "epk";
 pub(crate) const EPK_SEG_SIZE: usize = 31;
 pub(crate) const EPK_SEG_ADDR: u32 = 0x80000000;
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy)]
-struct EpkSeg {
-    epk: [u8; EPK_SEG_SIZE],
-}
-const EPK: EpkSeg = EpkSeg { epk: [0; EPK_SEG_SIZE] };
+// @@@@ TODO: Remove
+// #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy)]
+// struct EpkSeg {
+//     epk: [u8; EPK_SEG_SIZE],
+// }
+// const EPK: EpkSeg = EpkSeg { epk: [0; EPK_SEG_SIZE] };

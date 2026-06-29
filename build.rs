@@ -24,7 +24,8 @@ fn main() {
             .clang_arg("-Ixcplib_cfg")
             .clang_arg("-Ixcplib/src")
             .clang_arg("-Ixcplib")
-            .clang_arg("-DXCPLIB_FOR_RUST")
+            // XCPlite configuration override for Rust xcp-lite
+            .clang_arg("-DXCPLIB_CFG_OVERRIDE=\"xcplib_rust_cfg.h\"")
             .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
             //
             .blocklist_type("T_CLOCK_INFO")
@@ -77,7 +78,8 @@ fn main() {
         .file("xcplib/src/xcpethtl.c")
         .file("xcplib/src/xcpethserver.c");
 
-    builder.define("XCPLIB_FOR_RUST", None);
+    // XCPlite configuration override for Rust xcp-lite
+    builder.define("XCPLIB_CFG_OVERRIDE", "\"xcplib_rust_cfg.h\"");
 
     if is_posix {
         //builder.define("_POSIX_C_SOURCE", "200112L");

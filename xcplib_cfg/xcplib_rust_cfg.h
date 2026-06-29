@@ -6,7 +6,7 @@
 |   xcplib_rust_cfg.h
 |
 | Description:
-|   General configuration and build options for XCPlite / libxcplite
+|   Build configuration override for XCPlite / libxcplite
 |
  ----------------------------------------------------------------------------*/
 
@@ -30,11 +30,11 @@
 
 // Epoch options (only one must be defined)
 #define OPTION_CLOCK_EPOCH_ARB // Arbitrary epoch -> uses CLOCK_MONOTONIC_RAW on Linux, CLOCK_MONOTONIC on QNX
-// #define OPTION_CLOCK_EPOCH_PTP // Precision Time Protocol epoch (since 1.1.1970) -> uses CLOCK_REALTIME, which may be disciplined by NTP, PTP, ...
+#undef OPTION_CLOCK_EPOCH_PTP  // Precision Time Protocol epoch (since 1.1.1970) -> uses CLOCK_REALTIME, which may be disciplined by NTP, PTP, ...
 
 // Resolution 1ns or 1us, granularity depends on platform (only one must be defined)
 #define OPTION_CLOCK_TICKS_1NS
-// #define OPTION_CLOCK_TICKS_1US
+#undef OPTION_CLOCK_TICKS_1US
 
 //-------------------------------------------------------------------------------
 // XCP server options
@@ -52,58 +52,71 @@
 #define OPTION_CAL_SEGMENTS
 
 // Maximum number of calibration segments
+#undef OPTION_CAL_SEGMENT_COUNT
 #define OPTION_CAL_SEGMENT_COUNT 16
 
 // Total memory pool size for all calibration segments (header + 4 pages each)
 // Must be large enough for all XcpCreateCalSeg() calls combined
+#undef OPTION_CAL_MEM_SIZE
 #define OPTION_CAL_MEM_SIZE (1024 * 16) // 16 KB default
 
 // Single page mode
-// #define OPTION_CAL_SEGMENTS_SINGLE_PAGE
+#undef OPTION_CAL_SEGMENTS_SINGLE_PAGE
 
 // Enable persistence, a binary (.BIN) file is used to store events and calibration segments
 // This allows to safely build the A2L file only once per build, even if the creation order of events and segments changes
-// #define OPTION_ENABLE_PERSISTENCE
+#undef OPTION_ENABLE_PERSISTENCE
 
 // Enable EPK calibration segment to check HEX/BIN file compatibility
 // If the EPK is included in the HEX/BIN file, the version of the data structure can be checked using the EPK address specified in the A2L file
+#undef OPTION_CAL_SEGMENT_EPK
 #define OPTION_CAL_SEGMENT_EPK
 
 // Enable absolute addressing for calibration segments
 // Default is segment relative addressing, uses address extension 0 for segment relative and 1 for absolute and encodes the segment number in the address high word
 // As this is not compatible to most well known tools to update, modify and create A2L files, this option switches to absolute addressing on address extension 0
 // Requirement is, that the address of all reference pages must be stable and in address range of 0x0000_0000 to 0xFFFF_FFFF
-// #define OPTION_CAL_SEGMENTS_ABS
+#undef OPTION_CAL_SEGMENTS_ABS
 
 // Start on reference/default page instead of on working page
-// #define OPTION_CAL_SEGMENTS_START_ON_REFERENCE_PAGE
+#undef OPTION_CAL_SEGMENTS_START_ON_REFERENCE_PAGE
 
 // Automatically persist the working page on XCP disconnect
-// #define OPTION_CAL_PERSIST_ON_DISCONNECT
+#undef OPTION_CAL_PERSIST_ON_DISCONNECT
 
 //-------------------------------------------------------------------------------
 // DAQ settings
 
+// Rust xcp-lite does not use the XCPlite event management, it has its own event management
+
+#undef OPTION_DAQ_EVENT_LIST // Disable DAQ event management
+
+#undef OPTION_DAQ_MEM_SIZE
 #define OPTION_DAQ_MEM_SIZE (1024 * 8) // Memory bytes used for XCP DAQ tables - 6 bytes per measurement signal/block needed
-#define OPTION_DAQ_EVENT_COUNT 32      // Maximum number of DAQ events (integer value, must be even)
-// #define OPTION_DAQ_ASYNC_EVENT         // Create an asynchronous, cyclic DAQ event for asynchronous data acquisition
 
-// Default: Use the new vectored IO variable entry size lockless queue
+#undef OPTION_DAQ_EVENT_COUNT     // Rust xcp-lite has its own event management, do not use the XCPlite event management
+#define OPTION_DAQ_EVENT_COUNT 64 // Maximum number of DAQ events (integer value, must be even)
 
-// Transport layer queue, vectored IO lockless with variable queue entry size
-// Default for maximum memory efficiency
+#undef OPTION_DAQ_ASYNC_EVENT // Create an asynchronous, cyclic DAQ event for asynchronous data acquisition
+
+// Transport layer queue is vectored IO and lockless with variable queue entry size
+#undef OPTION_QUEUE_64_FIX_SIZE
 #define OPTION_QUEUE_64_VAR_SIZE
 
 //-------------------------------------------------------------------------------
 // A2L generation settings
 
 #undef OPTION_ENABLE_A2L_GENERATOR // Disable A2L generator
-#define OPTION_ENABLE_A2L_UPLOAD   // Enable A2L upload via XCP
-#define OPTION_ENABLE_ELF_UPLOAD   // Enable ELF upload via XCP
+
+#undef OPTION_ENABLE_A2L_UPLOAD
+#define OPTION_ENABLE_A2L_UPLOAD // Enable A2L upload via XCP
+
+#undef OPTION_ENABLE_ELF_UPLOAD
+#define OPTION_ENABLE_ELF_UPLOAD // Enable ELF upload via XCP
 
 // Enable socketGetLocalAddr for A2L file generation
 // Used for convenience to get an existing ip address in A2L, when bound to ANY 0.0.0.0
-// #define OPTION_ENABLE_GET_LOCAL_ADDR
+#undef OPTION_ENABLE_GET_LOCAL_ADDR
 
 //-------------------------------------------------------------------------------
 // Tests
