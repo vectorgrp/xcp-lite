@@ -294,7 +294,7 @@ impl Registry {
         }
     }
 
-    // Update the event id from a mapping table
+    // Update the event id from a map (used by xcpclient to update the event id after connecting to the ECU)
     pub fn update_event_mapping(&mut self, mapping: &HashMap<u16, u16>) {
         for event in &mut self.event_list {
             if let Some(new_id) = mapping.get(&event.get_id()) {

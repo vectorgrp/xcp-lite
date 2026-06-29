@@ -179,20 +179,9 @@ impl EventList {
 
     // Register all events in the list and create the event id transformation map
     fn register(&mut self) {
-        // @@@@ TODO: Why sort ? The mapping is removed
         // Sort the event list by name and then instance index
+        // This gives a deterministic order of instance event numbers, not deterministic for normal events
         self.sort_by_name_and_index();
-
-        // @@@@ TODO: Remove
-        // Remap the event numbers
-        // Problem is, that the event numbers are not deterministic, they depend on order of creation
-        // This is not a problem for the XCP client, but the A2L file might change unnecessarily on every start of the application
-        // let mut event_map: [u16; XcpEvent::XCP_MAX_EVENTS] = [0; XcpEvent::XCP_MAX_EVENTS];
-        // for (i, e) in self.0.iter().enumerate() {
-        //     event_map[e.event.id as usize] = i.try_into().unwrap();
-        // }
-        // XCP_EVENT_MAP.set(event_map).ok();
-        // log::trace!("Event map: {:?}", XCP_EVENT_MAP.get().unwrap());
 
         // Register all events
         {

@@ -356,12 +356,12 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
                 if let Some(daq) = xcp.daq {
                     for e in daq.event {
                         // Process each event
-                        info!("Event found: {} - {}", e.event_channel_name, e.event_channel_number);
+                        info!("Event found in IF_DATA XCP: {} - {}", e.event_channel_name, e.event_channel_number);
                         registry.event_list.add_event(McEvent::new(e.event_channel_name, 0, e.event_channel_number, 0)).unwrap();
                     }
                 }
             } else {
-                warn!("Could not decode XCP IF_DATA");
+                warn!("Could not decode XCP IF_DATA XCP");
             }
         }
     }
