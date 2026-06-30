@@ -37,7 +37,7 @@ use example_common::ExampleArgs;
 // Define a struct with semantic annotations used as nested calibration parameter type
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
 struct Point {
-    #[characteristic(comment = "x coordinate", min = -100.0, max = 100.0)]
+    #[characteristic(comment = "x coordinate", min = -100, max = 100)]
     x: f32,
     #[characteristic(comment = "y coordinate", min = -100.0, max = 100.0)]
     y: f32,
@@ -61,15 +61,22 @@ struct Params {
     )]
     delay: u32,
 
-    #[characteristic(comment = "Demo array", min = 0, max = 100)]
+    // Arrays
+    // More than 2 array dimensions is not supported by the derive macro
+    #[characteristic(comment = "Demo array", min = 0, max = 100, axis = "array_axis")]
     array: [u8; 4],
+    #[axis(comment = "Demo axis", min = 0, max = 100)]
+    array_axis: [u8; 4],
 
     #[characteristic(comment = "Demo matrix", min = 0, max = 100)]
     matrix: [[u8; 8]; 4],
 
+    // Nested structs
     #[characteristic(comment = "Demo struct")]
     struct_field: Point,
 
+    // Array of structs
+    // More than 2 array dimensions is not supported by the derive macro
     #[characteristic(comment = "Demo array of structs")]
     struct_array_field: [Point; 2],
 }
@@ -79,7 +86,8 @@ const PARAMS: Params = Params {
     counter_on: true,
     counter_max: 100,
     delay: MAINLOOP_CYCLE_TIME,
-    array: [0, 1, 2, 3],
+    array: [10, 11, 12, 13],
+    array_axis: [0, 1, 2, 3],
     matrix: [
         [0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7],
         [0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17],
