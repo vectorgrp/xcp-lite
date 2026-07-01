@@ -116,16 +116,18 @@ pub enum RegistryError {
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct McXcpTransportLayer {
     pub protocol_name: &'static str,
-    pub addr: Ipv4Addr,
-    pub port: u16,
+    pub addr: Option<Ipv4Addr>,
+    pub port: Option<u16>,
+    pub baud_rate: Option<u32>,
 }
 
 impl Default for McXcpTransportLayer {
     fn default() -> Self {
         McXcpTransportLayer {
             protocol_name: "UDP",
-            addr: Ipv4Addr::new(127, 0, 0, 1),
-            port: 5555,
+            addr: Some(Ipv4Addr::new(127, 0, 0, 1)),
+            port: Some(5555),
+            baud_rate: None,
         }
     }
 }

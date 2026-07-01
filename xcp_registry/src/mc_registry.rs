@@ -163,10 +163,30 @@ impl Registry {
     //---------------------------------------------------------------------------------------------------------
     // XCP parameters (ID_DATA XCP)
 
-    /// Set XCP transport layer parameters and enable XCP IF_DATA in A2L
-    pub fn set_xcp_params(&mut self, protocol_name: &'static str, addr: Ipv4Addr, port: u16) {
-        log::debug!("Registry set_xcp_tl_params: {} {} {}", protocol_name, addr, port);
-        self.xcp_tl_params = Some(McXcpTransportLayer { protocol_name, addr, port });
+    /// Set XCP transport layer parameters for Ethernet and enable XCP IF_DATA in A2L
+    /// @param protocol_name: Name of the protocol (e.g. "UDP", "TCP")
+    /// @param addr: IP address of the Ethernet interface
+    /// @param port: Port number of the Ethernet interface
+    pub fn set_xcp_eth_params(&mut self, protocol_name: &'static str, addr: Ipv4Addr, port: u16) {
+        log::debug!("Registry set_xcp_eth_params: {} {} {}", protocol_name, addr, port);
+        self.xcp_tl_params = Some(McXcpTransportLayer {
+            protocol_name,
+            addr: Some(addr),
+            port: Some(port),
+            baud_rate: None,
+        });
+    }
+
+    /// Set XCP transport layer parameters for SxI and enable XCP IF_DATA in A2L
+    /// @param baud_rate: Baud rate of the SxI interface
+    pub fn set_xcp_sxi_params(&mut self, baud_rate: u32) {
+        log::debug!("Registry set_xcp_sxi_params: SxI {}", baud_rate);
+        self.xcp_tl_params = Some(McXcpTransportLayer {
+            protocol_name: "SxI",
+            addr: None,
+            port: None,
+            baud_rate: Some(baud_rate),
+        });
     }
 
     /// Check XCP transport layer information is available

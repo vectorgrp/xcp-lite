@@ -273,13 +273,86 @@ fn write_ifdata_event(event_id: u16, writer: &mut A2lWriter) -> std::io::Result<
 
 impl GenerateA2l for McXcpTransportLayer {
     fn write_a2l(&self, writer: &mut A2lWriter) -> std::io::Result<()> {
-        let protocol = self.protocol_name.to_uppercase();
-        let port = self.port;
-        let addr = self.addr;
+        let protocol = self.protocol_name;
 
-        log::debug!("A2L writer: transport layer: {protocol} {addr}:{port}");
+        // Ethernet
+        // Example: /begin XCP_ON_UDP_IP 0x0104 5555 ADDRESS "127.0.0.1" /end XCP_ON_UDP_IP
+        if protocol == "TCP" || protocol == "UDP" {
+            let port = self.port.unwrap();
+            let addr = self.addr.unwrap();
+            log::info!("A2L writer: transport layer: {protocol} {addr}:{port}");
+            writeln!(writer, "\n\t\t/begin XCP_ON_{protocol}_IP 0x0104 {port} ADDRESS \"{addr}\" /end XCP_ON_{protocol}_IP")
+        }
+        // CAN
+        // Example: /begin XCP_ON_CAN 0x0100 CAN_ID_MASTER 0x0301 CAN_ID_SLAVE 0x01 BAUDRATE 0x0F4240 SAMPLE_POINT 0x4B SAMPLE_RATE SINGLE BTL_CYCLES 0x08 SJW 0x02 SYNC_EDGE SINGLE end XCP_ON_CAN
+        else if protocol == "CAN" {
+            // @@@@ TODO: Implement (CAN and CANFD)
+            log::info!("A2L writer: transport layer: {protocol} ");
+            unimplemented!("A2L writer: transport layer: CAN not implemented yet");
+            // writeln!(
+            //     writer,
+            //     "\n\t\t/begin XCP_ON_CAN 0x0100 CAN_ID_MASTER 0x0301 CAN_ID_SLAVE 0x01 BAUDRATE 0x0F4240 SAMPLE_POINT 0x4B SAMPLE_RATE SINGLE BTL_CYCLES 0x08 SJW 0x02 SYNC_EDGE SINGLE /end XCP_ON_CAN"
+            // )
+        }
+        // SxI
+        // Example: /begin XCP_ON_SxI 0x0100 0x9600 ASYNCH_FULL_DUPLEX_MODE PARITY_NONE ONE_STOP_BIT HEADER_LEN_BYTE CHECKSUM_BYTE /end XCP_ON_SxI
+        else if protocol == "SxI" {
+            /*
 
-        writeln!(writer, "\n\t\t/begin XCP_ON_{protocol}_IP 0x0104 {port} ADDRESS \"{addr}\" /end XCP_ON_{protocol}_IP")
+                      struct SxI_Parameters { /* At MODULE */
+            uint;                 /* XCP on SxI version */
+                                  /* "1.4" = 0x0104 */
+            ulong;                /* BAUDRATE [Hz] */
+            taggedstruct {        /* exclusive tags */
+              "ASYNCH_FULL_DUPLEX_MODE" struct {
+                enum {
+                  "PARITY_NONE" = 0,
+                  "PARITY_ODD" = 1,
+                  "PARITY_EVEN" = 2
+                };
+                enum {
+                  "ONE_STOP_BIT" = 1,
+                  "TWO_STOP_BITS" = 2
+                };
+                taggedstruct {
+                  block "FRAMING" struct {
+                    uchar;        /* SYNC */
+                    uchar;        /* ESC */
+                  };
+                };
+              };
+              "SYNCH_FULL_DUPLEX_MODE_BYTE";
+              "SYNCH_FULL_DUPLEX_MODE_WORD";
+              "SYNCH_FULL_DUPLEX_MODE_DWORD";
+              "SYNCH_MASTER_SLAVE_MODE_BYTE";
+              "SYNCH_MASTER_SLAVE_MODE_WORD";
+              "SYNCH_MASTER_SLAVE_MODE_DWORD";
+            };
+            enum {
+              "HEADER_LEN_BYTE" = 0,
+              "HEADER_LEN_CTR_BYTE" = 1,
+              "HEADER_LEN_FILL_BYTE" = 2,
+              "HEADER_LEN_WORD" = 3,
+              "HEADER_LEN_CTR_WORD" = 4,
+              "HEADER_LEN_FILL_WORD" = 5
+            };
+            enum {
+              "NO_CHECKSUM" = 0,
+              "CHECKSUM_BYTE" = 1,
+              "CHECKSUM_WORD" = 2
+            };
+                      */
+            // @@@@ TODO: Implement (SxI)
+            let baud_rate = self.baud_rate.unwrap();
+            log::info!("A2L writer: transport layer: SxI baud_rate={baud_rate}");
+            writeln!(
+                writer,
+                "\n\t\t/begin XCP_ON_SxI 0x0100 {baud_rate} ASYNCH_FULL_DUPLEX_MODE PARITY_NONE ONE_STOP_BIT HEADER_LEN_BYTE CHECKSUM_BYTE /end XCP_ON_SxI",
+            )
+        } else {
+            log::warn!("A2L writer: transport layer: {} not supported", protocol);
+            Ok(())
+        }
     }
 }
 

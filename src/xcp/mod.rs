@@ -355,7 +355,7 @@ impl Xcp {
             // }
             let mut reg = registry::get_lock();
             if let Some(reg) = reg.as_mut() {
-                reg.set_xcp_params(tl.protocol_name(), addr.into(), port); // Transport layer parameters
+                reg.set_xcp_eth_params(tl.protocol_name(), addr.into(), port); // Transport layer parameters
             }
             Ok(&XCP)
         }
