@@ -210,6 +210,11 @@ impl McAddress {
         self.a2l_addr_ext
     }
 
+    /// Check address mode is absolute
+    pub fn is_absolute(&self) -> bool {
+        self.addr_mode == McAddrMode::Abs || self.addr_mode == McAddrMode::A2l || self.addr_mode == McAddrMode::A2lEvent
+    }
+
     /// Check address mode is segment relative
     pub fn is_segment_relative(&self) -> bool {
         if self.addr_mode.is_segment_relative() {

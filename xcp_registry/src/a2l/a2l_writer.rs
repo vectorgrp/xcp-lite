@@ -715,9 +715,8 @@ impl McInstance {
                 if ext != 0 {
                     write!(writer, " ECU_ADDRESS_EXTENSION {ext}")?;
                 }
-                // XCP_ADDR_EXT_DYN makes it possible to write a measurement object
-                // @@@@ EXPERIMENTAL - not thread safe
-                if self.address.is_event_relative() {
+                // Dynamic addressing mode makes it possible to write a measurement object
+                if self.address.is_event_relative() || self.address.is_absolute() {
                     write!(writer, " READ_WRITE")?;
                 }
                 if !unit.is_empty() {

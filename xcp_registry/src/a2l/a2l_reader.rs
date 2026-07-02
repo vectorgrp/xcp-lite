@@ -488,6 +488,8 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
     // Add measurements
     for measurement in &module.measurement {
         let name = measurement.get_name().to_string();
+
+        // @@@@ TODO: implement explicit READ/WRITE access
         let _read_write = measurement.read_write.is_some();
 
         let datatype = measurement.datatype;
