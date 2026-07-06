@@ -303,7 +303,9 @@ impl McSupportData {
         result
     }
 
-    // Setters for builder syntax
+    //-----------------------------------------
+    // Setters for builder syntax (consume self, return Self — for use at construction time)
+
     pub fn set_object_type(mut self, object_type: McObjectType) -> Self {
         assert!(object_type != McObjectType::Unspecified);
         self.object_type = object_type;
@@ -379,6 +381,48 @@ impl McSupportData {
     }
     pub fn set_y_axis_conv<T: Into<McIdentifier>>(mut self, y_axis_conv: Option<T>) -> Self {
         self.y_axis_conv = y_axis_conv.map(|s| s.into());
+        self
+    }
+
+    //-----------------------------------------
+    // Mutation setters (&mut self — for updating an already-registered instance)
+
+    /// Set the physical unit string (mutable, for post-registration updates)
+    pub fn update_unit<T: Into<McText>>(&mut self, unit: T) -> &mut Self {
+        self.unit = unit.into();
+        self
+    }
+
+    /// Set a linear conversion rule and unit string (mutable, for post-registration updates)
+    /// physical_value = raw_value * factor + offset
+    pub fn update_linear<T: Into<McText>>(&mut self, factor: f64, offset: f64, unit: T) -> &mut Self {
+        self.unit = unit.into();
+        self.factor = if (factor - 1.0).abs() > f64::EPSILON { Some(factor) } else { None };
+        self.offset = if offset.abs() > f64::EPSILON { Some(offset) } else { None };
+        self
+    }
+
+    /// Set the lower display/calibration limit (mutable, for post-registration updates)
+    pub fn update_min(&mut self, min: Option<f64>) -> &mut Self {
+        self.min = min;
+        self
+    }
+
+    /// Set the upper display/calibration limit (mutable, for post-registration updates)
+    pub fn update_max(&mut self, max: Option<f64>) -> &mut Self {
+        self.max = max;
+        self
+    }
+
+    /// Set the calibration step width (mutable, for post-registration updates)
+    pub fn update_step(&mut self, step: Option<f64>) -> &mut Self {
+        self.step = step;
+        self
+    }
+
+    /// Set the comment string (mutable, for post-registration updates)
+    pub fn update_comment<T: Into<McText>>(&mut self, comment: T) -> &mut Self {
+        self.comment = comment.into();
         self
     }
 

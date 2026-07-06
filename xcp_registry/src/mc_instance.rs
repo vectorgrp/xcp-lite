@@ -265,6 +265,14 @@ impl McInstanceList {
         })
     }
 
+    /// Get a mutable reference to an instance by exact name and optional event_id
+    /// Returns the instance or None
+    pub fn get_instance_mut(&mut self, name: &str, event_id: Option<u16>) -> Option<&mut McInstance> {
+        self.0
+            .iter_mut()
+            .find(|i| ((i.address.get_event_id() == event_id) || event_id.is_none()) && (name == i.name.as_str()))
+    }
+
     /// Find an instance by regular expression, optional by object type (set to Unspecified if any) or by event_id (set to None if any)
     /// Returns the first instance that matches the criteria or None
     pub fn find_instance_regex(&self, regex: &str, object_type: McObjectType, event_id: Option<u16>) -> Option<&McInstance> {
