@@ -12,12 +12,12 @@ Run any example from the workspace root:
 cargo run -p <example_name>
 ```
 
-Then connect with an XCP tool. A simple built-in test client is available:
+Then connect with an XCP tool. A simple built-in test client is available in the XCPlite repo:
 
 ```
-cargo run -p xcp_client -- --tcp
+cargo run -p xcpclient -- --tcp
 # or
-cargo run -p xcp_client -- --udp
+cargo run -p xcpclient -- --udp
 ```
 
 Alternatively, open the CANape project located in the example's `CANape/` folder.

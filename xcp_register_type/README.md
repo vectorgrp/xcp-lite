@@ -480,7 +480,7 @@ Slightly less ergonomic for standalone `xcp_registry` users.
   `xcp_register_type_derive = { path = "...", version = "1.1.0" }`; crates.io ignores `path`
   and uses `version`.
 - Publish **leaf-first**: `xcp_register_type_derive` → `xcp_registry` → `xcp_lite`.
-- Mark non-published members with `publish = false` (the `examples/*`, `tools/xcp_client`).
+- Mark non-published members with `publish = false` (the `examples/*`).
 - Every published crate needs `description` / `license` / `repository`. `xcp_registry` already
   has them; the existing `*_derive` `Cargo.toml`s do **not** and would need those fields added
   before publishing — apply the same to the new derive crate.

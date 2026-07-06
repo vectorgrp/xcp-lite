@@ -40,7 +40,7 @@ Migrated all call sites (XcpTypeDescription → McRegisterType, merged repeated 
 All 8 examples (hello_xcp, calibration_demo, struct_measurement_demo, single/multi_thread_demo, rayon_demo, tokio_demo, point_cloud_demo) + added xcp_registry dependency to each
 Removed the old xcp_type_description and xcp_type_description_derive crates completely.
 
-Bumped all workspace versions 1.1.0 → 3.0.0 (root package + [workspace.package], xcp_registry, xcp_client, xcp_idl_generator + derive, all examples). tools left untouched.
+Bumped all workspace versions 1.1.0 → 3.0.0 (root package + [workspace.package], xcp_registry, xcp_idl_generator + derive, all examples). tools left untouched.
 
 Bug-Fixes:
 

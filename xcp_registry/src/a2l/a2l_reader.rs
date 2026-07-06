@@ -331,7 +331,7 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
                     );
                 }
             } else {
-                warn!("A2L file has not been written by xcp-lite, XCPlite (ACSDD or CASDD),or xcp_client, this is not a generic A2L reader, use at your own risk");
+                warn!("A2L file has not been written by xcp-lite, XCPlite (ACSDD or CASDD),or xcpclient, this is not a generic A2L reader, use at your own risk");
             }
         }
     };

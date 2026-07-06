@@ -9,9 +9,9 @@
 // Write a flattened A2L (typedefs expanded into mangled instance names)
 // cargo run -p hello_xcp -- --flatten
 //
-// Run the test XCP client in another terminal or start CANape with the project in folder examples/hello_xcp/CANape
-// xcp_client --udp --mea "counter" --verbose 2
-// xcp_client --udp  --upload-a2l --a2l tmp.a2l --list-cal '.*' --cal my_params.counter_max 10 --list-mea ".*"  --mea 'counter'  --verbose 2
+// Run the test XCP client (from C/C++ XCPlite) in another terminal or start CANape with the project in folder examples/hello_xcp/CANape
+// xcpclient --udp --mea "counter" --verbose 2
+// xcpclient --udp  --upload-a2l --a2l tmp.a2l --list-cal '.*' --cal my_params.counter_max 10 --list-mea ".*"  --mea 'counter'
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
