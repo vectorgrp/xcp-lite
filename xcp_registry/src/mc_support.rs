@@ -277,13 +277,38 @@ impl McSupportData {
     /// Returns true if any descriptive metadata field (unit, min, max, factor, offset, step, comment)
     /// has been explicitly set. Does not consider object_type or qualifier.
     pub fn has_metadata(&self) -> bool {
-        !self.unit.is_empty()
-            || self.min.is_some()
-            || self.max.is_some()
-            || self.factor.is_some()
-            || self.offset.is_some()
-            || self.step.is_some()
-            || !self.comment.is_empty()
+        !self.unit.is_empty() || self.min.is_some() || self.max.is_some() || self.factor.is_some() || self.offset.is_some() || self.step.is_some() || !self.comment.is_empty()
+    }
+
+    /// Merge only the fields that are explicitly set in `other` into `self`.
+    /// Fields that are None / empty in `other` are left unchanged in `self`.
+    /// This allows multiple partial annotations (e.g. XCP_LIMITS + XCP_UNIT)
+    /// to each contribute their own slice of metadata without clobbering each other.
+    pub fn merge_metadata(&mut self, other: McSupportData) {
+        if !other.unit.is_empty() {
+            self.unit = other.unit;
+        }
+        if !other.comment.is_empty() {
+            self.comment = other.comment;
+        }
+        if other.min.is_some() {
+            self.min = other.min;
+        }
+        if other.max.is_some() {
+            self.max = other.max;
+        }
+        if other.factor.is_some() {
+            self.factor = other.factor;
+        }
+        if other.offset.is_some() {
+            self.offset = other.offset;
+        }
+        if other.step.is_some() {
+            self.step = other.step;
+        }
+        if other.object_type != McObjectType::Unspecified {
+            self.object_type = other.object_type;
+        }
     }
 
     // Read and write json string

@@ -313,12 +313,7 @@ impl Registry {
     /// - `RegistryError::NotFound` — instance not found, instance is not a typedef, or a path
     ///   component does not exist
     /// - `RegistryError::MetadataAlreadySet` — the target field already has descriptive metadata
-    pub fn set_instance_field_support_data(
-        &mut self,
-        instance_name: &str,
-        field_path: &str,
-        mut support_data: McSupportData,
-    ) -> Result<(), RegistryError> {
+    pub fn set_instance_field_support_data(&mut self, instance_name: &str, field_path: &str, mut support_data: McSupportData) -> Result<(), RegistryError> {
         // 1. Resolve the top-level typedef name from the instance
         let top_typedef = self
             .instance_list
@@ -356,7 +351,11 @@ impl Registry {
             .ok_or_else(|| RegistryError::NotFound(field_path.to_string()))?;
 
         if field.mc_support_data.has_metadata() {
-            return Err(RegistryError::MetadataAlreadySet(field_path.to_string()));
+            // Don't replace wholesale — merge field-by-field so that multiple
+            // annotations (e.g. XCP_LIMITS + XCP_UNIT) can each update their
+            // own slice of the metadata without clobbering the others.
+            field.mc_support_data.merge_metadata(support_data);
+            return Ok(());
         }
 
         // Preserve the existing object_type when the caller leaves it Unspecified
