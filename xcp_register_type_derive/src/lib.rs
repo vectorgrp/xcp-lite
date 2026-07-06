@@ -47,6 +47,7 @@ fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {
 
     let mut nested_typedef_creation: Vec<TokenStream2> = Vec::new();
     let mut typedef_field_adds: Vec<TokenStream2> = Vec::new();
+    let mut size_assertions: Vec<TokenStream2> = Vec::new();
 
     for field in fields {
         let field_ident = field.ident.as_ref().expect("named field");
@@ -55,20 +56,50 @@ fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {
         let ft = ty::parse_type(&field.ty)?;
         let attrs = attr::parse_attrs(field)?;
 
-        let value_type = ft.value_type_tokens();
+        // An `enum_type = "<int>"` attribute treats the field (a Rust enum / opaque type) as the
+        // named integer scalar instead of a nested typedef. The enum labels are described by the
+        // `unit` string. The macro cannot see the enum definition, so the underlying integer type
+        // (and a matching `#[repr(..)]`) must be stated by the user.
+        let value_type = if let Some(int) = &attrs.enum_type {
+            let vt = ty::enum_int_value_type_tokens(int).ok_or_else(|| {
+                syn::Error::new_spanned(
+                    &field.ty,
+                    format!("`enum_type` must name an integer type (u8/u16/u32/u64/usize/i8/i16/i32/i64/isize), got `{int}`"),
+                )
+            })?;
+            // Compile-time check that the field's real element size matches the declared width.
+            // Guards against declaring e.g. `u8` for an enum without `#[repr(u8)]` (which may be wider).
+            let elem_ty = ty::innermost_elem(&field.ty);
+            let prim = syn::Ident::new(int, proc_macro2::Span::call_site());
+            size_assertions.push(quote! {
+                const _: () = assert!(
+                    ::core::mem::size_of::<#elem_ty>() == ::core::mem::size_of::<#prim>(),
+                    concat!(
+                        "McRegisterType: enum_type width mismatch for field `", #field_name,
+                        "`; the declared enum_type does not match the field type's size (add a matching #[repr(..)])"
+                    )
+                );
+            });
+            vt
+        } else {
+            ft.value_type_tokens()
+        };
         let x_dim = ft.x_dim;
         let y_dim = ft.y_dim;
         let obj = object_type_tokens(attrs.classifier);
         let support = build_support(&obj, &attrs);
 
         // Nested typedef creation: ensure the nested struct typedef exists first.
-        if let BaseType::User(base_ty) = &ft.base {
-            nested_typedef_creation.push(quote! {
-                {
-                    let __child = ctx.child_typedef();
-                    <#base_ty as ::xcp_registry::McRegisterType>::register(&__child);
-                }
-            });
+        // Skipped for enum-as-integer fields, which are scalars rather than typedefs.
+        if attrs.enum_type.is_none() {
+            if let BaseType::User(base_ty) = &ft.base {
+                nested_typedef_creation.push(quote! {
+                    {
+                        let __child = ctx.child_typedef();
+                        <#base_ty as ::xcp_registry::McRegisterType>::register(&__child);
+                    }
+                });
+            }
         }
 
         // Typedef field add. Arrays of nested structs are represented by the `TypeDef` value
@@ -89,6 +120,7 @@ fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {
     }
 
     let expanded = quote! {
+        #( #size_assertions )*
         impl #impl_generics ::xcp_registry::McRegisterType for #struct_ident #ty_generics #where_clause {
             fn mc_type_name() -> &'static str {
                 #type_name

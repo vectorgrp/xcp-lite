@@ -5,6 +5,7 @@
 // cargo r -p rayon_demo
 // Creates madelbrot.a2l and mandelbrot.png in current directory
 
+#![allow(unused_assignments)]
 #![allow(unused_imports)]
 
 use anyhow::Result;

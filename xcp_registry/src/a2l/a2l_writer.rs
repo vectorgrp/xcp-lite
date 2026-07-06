@@ -82,6 +82,44 @@ fn get_characteristic_subtype_str(dim_type: &McDimType, mc_support_data: &McSupp
 
 //-------------------------------------------------------------------------------------------------
 
+// Check if a unit string has the enum format and return the number of pairs.
+// The unit string must be one or more pairs of <int> "<label>", without a leading count.
+// Returns Some(count) if the format matches, None otherwise.
+// Example: "0 "OFF" 1 "ON" 2 "STANDBY"" -> Some(3)
+fn enum_pair_count(unit: &str) -> Option<usize> {
+    let mut rest = unit.trim();
+    if rest.is_empty() {
+        return None;
+    }
+    let mut pairs = 0usize;
+    while !rest.is_empty() {
+        // expect an integer
+        let sep = rest.find(' ').unwrap_or(rest.len());
+        if rest[..sep].parse::<i64>().is_err() {
+            return None;
+        }
+        rest = rest[sep..].trim_start();
+        // expect a quoted string
+        if !rest.starts_with('"') {
+            return None;
+        }
+        rest = &rest[1..];
+        let end = match rest.find('"') {
+            Some(i) => i,
+            None => return None,
+        };
+        rest = rest[end + 1..].trim_start();
+        pairs += 1;
+    }
+    if pairs > 0 { Some(pairs) } else { None }
+}
+
+// The PHYS_UNIT string to emit for a unit. Enum-format units are encoded as a COMPU_VTAB
+// conversion rule instead, so they must not be written as a (physical) PHYS_UNIT.
+fn phys_unit(unit: &str) -> &str {
+    if enum_pair_count(unit).is_some() { "" } else { unit }
+}
+
 // Write a conversion rule and return its name as string
 fn write_conversion<'a>(writer: &mut A2lWriter, name: &'a str, instance_index: u16, dim_type: &McDimType, mc_support_data: &McSupportData) -> std::io::Result<&'a str> {
     let factor = mc_support_data.get_factor().unwrap_or(1.0);
@@ -92,8 +130,7 @@ fn write_conversion<'a>(writer: &mut A2lWriter, name: &'a str, instance_index: u
     if dim_type.value_type == McValueType::Bool {
         Ok("BOOL")
     }
-    // Conversion
-    // Write a conversion and return its name
+    // Conversion: Write a conversion rule and return its name
     else if (factor - 1.0).abs() > f64::EPSILON || offset.abs() > f64::EPSILON {
         // For measurements with multiple tli instances, the conversion name is created only once on index 1
         if instance_index > 1 {
@@ -126,9 +163,17 @@ fn write_conversion<'a>(writer: &mut A2lWriter, name: &'a str, instance_index: u
         if dim_type.value_type == McValueType::Float32Ieee || dim_type.value_type == McValueType::Float64Ieee {
             Ok("NO_COMPU_METHOD")
         }
-        // Integer: Use predefined conversion rule identit with .0 display format
+        // Integer: Use predefined conversion rule identity with .0 display format
         else {
-            Ok("IDENTITY")
+            // Create an enum conversion if the unit has enum format (pairs of <int> "<label>")
+            // Example: "0 "OFF" 1 "ON" 2 "STANDBY"" -> COMPU_VTAB with count prepended: "3 0 "OFF" 1 "ON" 2 "STANDBY""
+            if let Some(count) = enum_pair_count(unit) {
+                writeln!(writer, r#"/begin COMPU_VTAB {name}.table "" TAB_VERB {count} {unit} /end COMPU_VTAB"#)?;
+                writeln!(writer, r#"/begin COMPU_METHOD {name} "" TAB_VERB "%.0" "" COMPU_TAB_REF {name}.table /end COMPU_METHOD"#)?;
+                Ok(name)
+            } else {
+                Ok("IDENTITY")
+            }
         }
     }
 }
@@ -503,7 +548,7 @@ impl McTypeDef {
                 // @@@@ TODO Avoid the string formating here
                 if !writer.check_duplicate(ext_field_name) {
                     let conversion_name = write_conversion(writer, ext_field_name, 0, field_dim_type, mc_support_data)?;
-                    let unit = mc_support_data.get_unit();
+                    let unit = phys_unit(mc_support_data.get_unit());
                     match mc_support_data.get_object_type() {
                         McObjectType::Measurement => {
                             let type_str = value_type.get_type_str(); // UWORD, SWORD, ULONG, SLONG, FLOAT32_IEEE, FLOAT64_IEEE, ...
@@ -627,7 +672,7 @@ impl McInstance {
         // McSupportData
         let mc_support_data = self.get_mc_support_data();
         let dim_type = &self.dim_type;
-        let unit = mc_support_data.get_unit();
+        let unit = phys_unit(mc_support_data.get_unit());
         let comment = mc_support_data.get_comment();
 
         log::debug!("A2L writer: measurement {} {:?} {}:0x{:08X} event={:?}", name, dim_type.value_type, ext, addr, event_id);
@@ -749,7 +794,7 @@ impl McInstance {
         // McSupportData
         let mc_support_data = self.get_mc_support_data();
         let dim_type = &self.dim_type;
-        let unit = mc_support_data.get_unit();
+        let unit = phys_unit(mc_support_data.get_unit());
         let comment = mc_support_data.get_comment();
         let record_layout = dim_type.value_type.get_record_layout_str();
         let min = mc_support_data.get_min(dim_type.value_type).unwrap();
@@ -789,7 +834,7 @@ impl McInstance {
         // McSupportData
         let mc_support_data = self.get_mc_support_data();
         let dim_type = &self.dim_type;
-        let unit = mc_support_data.get_unit();
+        let unit = phys_unit(mc_support_data.get_unit());
         let comment = mc_support_data.get_comment();
 
         log::debug!("A2L writer: characteristic or instance {} {:?} {}:0x{:08X}", self.name, self.dim_type.value_type, ext, addr);

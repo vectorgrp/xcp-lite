@@ -1,8 +1,7 @@
 // struct_measurement_demo
 // Demonstrates measurement of nested structs
 
-/* #region imports */
-
+#![allow(unused_assignments)]
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
@@ -17,8 +16,6 @@ use std::{
 use xcp_lite::metrics::*;
 use xcp_lite::registry::*;
 use xcp_lite::*;
-
-/* #endregion */
 
 //-----------------------------------------------------------------------------
 // Parameters
@@ -36,7 +33,7 @@ use example_common::ExampleArgs;
 //-----------------------------------------------------------------------------
 // Demo calibration parameters
 
-/* #region calibration parameters: semantic data annotation and parameter wrapping */
+/* calibration parameters: semantic data annotation and parameter wrapping */
 
 // To make the parameters adjustable:
 // * Add the XcpTypeDescription derive macro to enable automatic registration of the struct and its field attributes
@@ -65,12 +62,10 @@ const PARAMETERS_DEFAULTS: Parameters = Parameters {
 // Create a static calibration parameter cell, which can be shared between threads
 static PARAMETERS: std::sync::OnceLock<CalCell<Parameters>> = std::sync::OnceLock::new();
 
-/* #endregion */
-
 //-----------------------------------------------------------------------------
 // Demo measurement variables
 
-/* #region code instrumentation for measurement: semantic data annotation */
+/* code instrumentation for measurement: semantic data annotation */
 // Code instrumentation for measurement and calibration, to make the data structures observable:
 // * Add the XcpTypeDescription derive macro to enable measurement support
 // * Add attributes to describe the measurement variables
@@ -127,9 +122,7 @@ const DATA_DEFAULT: Data = Data {
     float_matrix: [[0.0; 32]; 32],
 };
 
-/* #endregion */
-
-/* #region Rotate a 3D point around (0,0,0) in the cordinate system */
+/* Rotate a 3D point around (0,0,0) in the cordinate system */
 impl Point {
     /// Rotates the point around the x, y, and z axes by the given angles (in radians).
     fn rotate(&self, angle_x: f32, angle_y: f32, angle_z: f32) -> Point {
@@ -161,8 +154,6 @@ impl Point {
     }
 }
 
-/* #endregion */
-
 //-----------------------------------------------------------------------------
 // Main function
 
@@ -177,7 +168,7 @@ fn main() -> Result<()> {
     let mut counters: Counters = Counters { a: 0, b: 0, c: 0.0 }; // Single struct
     let mut data: Data = DATA_DEFAULT; // Nested structs and arrays
 
-    /* #region CODE_INSTRUMENTATION */
+    /* CODE_INSTRUMENTATION */
     //-----------------------------------------------------------------------------
 
     // Initialize an XCP server
@@ -209,7 +200,6 @@ fn main() -> Result<()> {
     daq_register_struct!(data, event);
 
     //-----------------------------------------------------------------------------
-    /* #endregion */
 
     // Mainloop
     let start_time = Instant::now();
@@ -225,7 +215,7 @@ fn main() -> Result<()> {
                 counter2 = 1;
             }
 
-            /* #region Modify some more demo data */
+            /* Modify some more demo data */
             // Different basic data types
             counters.a = counter1 as i16; // 16 bit signed integer
             counters.b = counter1 * 2; // 64 bit unsigned integer
@@ -253,10 +243,9 @@ fn main() -> Result<()> {
                     data.float_matrix[i][j] = (ampl * (PI * time_s / params.period + phase).sin()) as f32;
                 }
             }
-            /* #endregion */
         }
 
-        /* #region CODE_INSTRUMENTATION */
+        /* CODE_INSTRUMENTATION */
         //-----------------------------------------------------------------------------
 
         // Measure the cycle time histogram of the main loop thread
@@ -270,7 +259,6 @@ fn main() -> Result<()> {
         xcp.finalize_registry().unwrap(); // Write the A2L file once here, for testing purposes only
 
         //-----------------------------------------------------------------------------
-        /* #endregion */
 
         // Sleep some time and loop endlessly
         let mainloop_cycle_time = params.read_lock().mainloop_cycle_time; // release the lock before sleeping

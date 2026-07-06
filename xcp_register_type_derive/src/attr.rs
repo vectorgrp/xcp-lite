@@ -42,6 +42,9 @@ pub(crate) struct FieldAttrs {
     pub y_axis: Option<String>,
     pub input_quantity: Option<String>,
     pub y_input_quantity: Option<String>,
+    /// Treat the field (a Rust enum / opaque type) as this integer scalar type instead of a
+    /// nested typedef. The enum labels are described by the `unit` string.
+    pub enum_type: Option<String>,
 }
 
 impl Default for Classifier {
@@ -93,13 +96,7 @@ pub(crate) fn parse_attrs(field: &Field) -> syn::Result<FieldAttrs> {
     Ok(attrs)
 }
 
-fn apply_key(
-    attrs: &mut FieldAttrs,
-    classifier: Classifier,
-    key: &str,
-    expr: &Expr,
-    meta: &syn::meta::ParseNestedMeta<'_>,
-) -> syn::Result<()> {
+fn apply_key(attrs: &mut FieldAttrs, classifier: Classifier, key: &str, expr: &Expr, meta: &syn::meta::ParseNestedMeta<'_>) -> syn::Result<()> {
     // Validate the key is allowed for the classifier.
     if !key_allowed(classifier, key) {
         return Err(meta.error(format!("`{key}` is not a valid key for this classifier")));
@@ -150,6 +147,7 @@ fn apply_key(
         "y_axis" => set_str!(y_axis),
         "input_quantity" | "x_input_quantity" => set_str!(input_quantity),
         "y_input_quantity" => set_str!(y_input_quantity),
+        "enum_type" => set_str!(enum_type),
         _ => {
             return Err(meta.error(format!("unknown attribute key `{key}`")));
         }
@@ -163,10 +161,7 @@ fn apply_key(
 /// `characteristic` allows all keys; `axis` and `measurement` allow only the scalar metadata
 /// keys (no step, no axis references, no input quantities).
 fn key_allowed(classifier: Classifier, key: &str) -> bool {
-    let common = matches!(
-        key,
-        "comment" | "min" | "max" | "unit" | "factor" | "offset" | "qualifier"
-    );
+    let common = matches!(key, "comment" | "min" | "max" | "unit" | "factor" | "offset" | "qualifier" | "enum_type");
     match classifier {
         Classifier::Characteristic | Classifier::None => matches!(
             key,
@@ -184,6 +179,7 @@ fn key_allowed(classifier: Classifier, key: &str) -> bool {
                 | "input_quantity"
                 | "x_input_quantity"
                 | "y_input_quantity"
+                | "enum_type"
         ),
         Classifier::Axis | Classifier::Measurement => common,
     }

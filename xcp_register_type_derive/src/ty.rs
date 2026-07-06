@@ -49,10 +49,7 @@ pub(crate) fn parse_type(ty: &Type) -> syn::Result<FieldType> {
     }
 
     if dims.len() > 2 {
-        return Err(syn::Error::new_spanned(
-            ty,
-            "McRegisterType supports at most 2 array dimensions",
-        ));
+        return Err(syn::Error::new_spanned(ty, "McRegisterType supports at most 2 array dimensions"));
     }
 
     let (x_dim, y_dim) = match dims.len() {
@@ -100,6 +97,34 @@ fn scalar_variant(s: &str) -> Option<&'static str> {
         "f64" => "Float64Ieee",
         _ => return None,
     })
+}
+
+/// Map a Rust integer type identifier to `McValueType` tokens for an `enum_type` field.
+///
+/// Only integer types are accepted: a Rust enum is treated as its integer representation.
+pub(crate) fn enum_int_value_type_tokens(rust_int: &str) -> Option<TokenStream2> {
+    let variant = match rust_int {
+        "u8" => "Ubyte",
+        "u16" => "Uword",
+        "u32" => "Ulong",
+        "u64" | "usize" => "Ulonglong",
+        "i8" => "Sbyte",
+        "i16" => "Sword",
+        "i32" => "Slong",
+        "i64" | "isize" => "Slonglong",
+        _ => return None,
+    };
+    let ident = syn::Ident::new(variant, proc_macro2::Span::call_site());
+    Some(quote! { ::xcp_registry::McValueType::#ident })
+}
+
+/// The innermost (non-array) element type of a field type, e.g. `State` for `[[State; 4]; 2]`.
+pub(crate) fn innermost_elem(ty: &Type) -> &Type {
+    let mut cur = ty;
+    while let Type::Array(arr) = cur {
+        cur = &arr.elem;
+    }
+    cur
 }
 
 /// The registry type name for a user-defined type: the last path segment identifier.

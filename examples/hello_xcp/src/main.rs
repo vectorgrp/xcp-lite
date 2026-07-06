@@ -34,6 +34,16 @@ use example_common::ExampleArgs;
 //-----------------------------------------------------------------------------
 // Demo calibration parameters
 
+// Define an enum
+// Use an explicit `#[repr(..)]` so its integer width matches the `enum_type` attribute below.
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy)]
+#[repr(u8)]
+pub enum State {
+    Off = 0,
+    On = 1,
+    STANDBY = 2,
+}
+
 // Define a struct with semantic annotations used as nested calibration parameter type
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
 struct Point {
@@ -46,12 +56,15 @@ struct Point {
 // Define calibration parameters in a struct with semantic annotations to create the A2L file
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
 struct Params {
+    // Bool
     #[characteristic(comment = "Demo bool, Start/stop counter")]
     counter_on: bool,
 
+    // Integer
     #[characteristic(comment = "Demo u32, Max counter value", min = 0, max = 1023)]
     counter_max: u32,
 
+    // Integer with physical conversion factor and offset
     #[characteristic(
         comment = "Demo u32, Task delay time in s, ecu internal value as u32 in us",
         min = 0.00001,
@@ -60,6 +73,12 @@ struct Params {
         factor = 0.000001
     )]
     delay: u32,
+
+    // Enum
+    // The enum is treated as its integer representation (`enum_type`); the labels are described
+    // by the `unit` string.
+    #[characteristic(comment = "Demo enum", enum_type = "u8", unit = r#"0 "OFF" 1 "ON" 2 "STANDBY""#)]
+    enum_field: State,
 
     // Arrays
     // More than 2 array dimensions is not supported by the derive macro
@@ -86,6 +105,7 @@ const PARAMS: Params = Params {
     counter_on: true,
     counter_max: 100,
     delay: MAINLOOP_CYCLE_TIME,
+    enum_field: State::Off,
     array: [10, 11, 12, 13],
     array_axis: [0, 1, 2, 3],
     matrix: [
