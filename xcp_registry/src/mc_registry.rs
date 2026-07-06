@@ -14,6 +14,7 @@ use super::McDimType;
 use super::McEventList;
 use super::McIdentifier;
 use super::McInstanceList;
+use super::McObjectType;
 use super::McSupportData;
 use super::McText;
 use super::McTypeDef;
@@ -291,6 +292,79 @@ impl Registry {
     /// Collapses all typedefs to measurement and calibration objects with mangled names
     pub fn flatten_typedefs(&mut self) {
         flatten_registry(self);
+    }
+
+    //---------------------------------------------------------------------------------------------------------
+    // Set support data on a typedef field reachable from a named instance
+
+    /// Set `McSupportData` on the typedef field identified by `instance_name` and a dot-separated
+    /// `field_path` that navigates through nested typedefs.
+    ///
+    /// # Path syntax
+    /// Each path component is a field name at the current typedef level:
+    /// - `"kp"` — a direct field of the instance typedef
+    /// - `"gains.kp"` — field `kp` inside the nested typedef reached via field `gains`
+    ///
+    /// # Metadata sharing note
+    /// Typedef fields are shared across all instances of the same type.
+    /// Calling this method on a field that appears in multiple instances will affect all of them.
+    ///
+    /// # Errors
+    /// - `RegistryError::NotFound` — instance not found, instance is not a typedef, or a path
+    ///   component does not exist
+    /// - `RegistryError::MetadataAlreadySet` — the target field already has descriptive metadata
+    pub fn set_instance_field_support_data(
+        &mut self,
+        instance_name: &str,
+        field_path: &str,
+        mut support_data: McSupportData,
+    ) -> Result<(), RegistryError> {
+        // 1. Resolve the top-level typedef name from the instance
+        let top_typedef = self
+            .instance_list
+            .get_instance(instance_name, McObjectType::Unspecified, None)
+            .and_then(|inst| inst.get_typedef_name())
+            .ok_or_else(|| RegistryError::NotFound(instance_name.to_string()))?;
+
+        let parts: Vec<&str> = field_path.split('.').collect();
+        if parts.is_empty() {
+            return Err(RegistryError::NotFound(field_path.to_string()));
+        }
+
+        // 2. First pass (shared borrow): walk all intermediate components to reach the
+        //    typedef that directly owns the target field.
+        //    All typedef names are &'static str (McIdentifier is interned), so `current`
+        //    outlives the shared borrow without issue.
+        let mut current_typedef: &'static str = top_typedef;
+        for &component in &parts[..parts.len() - 1] {
+            current_typedef = self
+                .typedef_list
+                .find_typedef(current_typedef)
+                .ok_or_else(|| RegistryError::NotFound(current_typedef.to_string()))?
+                .find_field(component)
+                .and_then(|f| f.get_typedef_name())
+                .ok_or_else(|| RegistryError::NotFound(component.to_string()))?;
+        }
+
+        // 3. Second pass (mutable borrow): reach the target field and set the metadata
+        let target_field_name = parts[parts.len() - 1];
+        let field = self
+            .typedef_list
+            .find_typedef_mut(current_typedef)
+            .ok_or_else(|| RegistryError::NotFound(current_typedef.to_string()))?
+            .find_field_mut(target_field_name)
+            .ok_or_else(|| RegistryError::NotFound(field_path.to_string()))?;
+
+        if field.mc_support_data.has_metadata() {
+            return Err(RegistryError::MetadataAlreadySet(field_path.to_string()));
+        }
+
+        // Preserve the existing object_type when the caller leaves it Unspecified
+        if support_data.object_type == McObjectType::Unspecified {
+            support_data.object_type = field.mc_support_data.object_type;
+        }
+        field.mc_support_data = support_data;
+        Ok(())
     }
 
     // ---------------------------------------------------------------------------------------------------------

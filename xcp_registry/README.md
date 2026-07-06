@@ -234,6 +234,69 @@ if let Some(inst) = registry.instance_list.get_instance_mut("speed", None) {
 The second argument to `get_instance_mut` is an optional `event_id` filter
 (`None` matches any event).
 
+### Updating metadata on a typedef field (simple — when you know the typedef name)
+
+Use `find_typedef_mut` on the typedef list, then `find_field_mut` on the typedef:
+
+```rust
+if let Some(field) = registry.typedef_list
+    .find_typedef_mut("PidParams")
+    .and_then(|td| td.find_field_mut("kp"))
+{
+    field.mc_support_data
+        .update_unit("1")
+        .update_linear(0.001, 0.0, "1")
+        .update_min(Some(0.0))
+        .update_max(Some(100.0))
+        .update_comment("Proportional gain");
+}
+```
+
+### Updating metadata via instance + field path (preferred for complex/nested types)
+
+When an instance has a complex type and the target field may be arbitrarily deep inside
+nested typedefs, use `Registry::set_instance_field_support_data`.  The field is addressed
+by a **dot-separated path** relative to the instance's typedef — field names live in their
+typedef's namespace, not a flat global namespace.
+
+```rust
+// Instance "pid" has typedef "PidController"
+//   PidController::gains  →  typedef "GainStruct"
+//     GainStruct::kp      →  f64
+
+registry.set_instance_field_support_data(
+    "pid",           // instance name
+    "gains.kp",      // dot-separated path through nested typedefs
+    McSupportData::new(McObjectType::Characteristic)
+        .set_unit("1")
+        .set_linear(0.001, 0.0, "1")
+        .set_min(Some(0.0))
+        .set_max(Some(100.0)),
+)?;
+
+// Direct field (no nesting):
+registry.set_instance_field_support_data(
+    "speed_sensor",
+    "raw_value",
+    McSupportData::new(McObjectType::Measurement)
+        .set_unit("km/h"),
+)?;
+```
+
+**Key behaviours:**
+- If the caller sets `object_type` to `Unspecified`, the existing `object_type` of the field
+  is preserved automatically (safe to pass `McSupportData::default()` with only specific
+  fields set via `update_*`).
+- Returns `Err(RegistryError::MetadataAlreadySet)` if the field already has descriptive
+  metadata (unit / min / max / factor / offset / step / comment non-empty).  This enforces
+  the current data-model limitation: typedef fields are **shared** across all instances of
+  the same type, so conflicting assignments are rejected rather than silently overwriting.
+- Returns `Err(RegistryError::NotFound)` if the instance, its typedef, or any path
+  component does not exist.
+
+**Limitation:** because typedef fields are shared, setting metadata here affects every
+instance that uses the same typedef — there is no per-instance override yet.
+
 ---
 
 ## Support data – `McSupportData`

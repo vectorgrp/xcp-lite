@@ -40,6 +40,10 @@ impl McTypeDef {
         self.fields.into_iter().find(|field| field.name == name)
     }
 
+    pub fn find_field_mut(&mut self, name: &str) -> Option<&mut McTypeDefField> {
+        self.fields.0.iter_mut().find(|f| f.name == name)
+    }
+
     pub fn add_field<T: Into<McIdentifier>>(&mut self, name: T, dim_type: McDimType, mc_support_data: McSupportData, offset: u16) -> Result<(), RegistryError> {
         let name: McIdentifier = name.into();
 

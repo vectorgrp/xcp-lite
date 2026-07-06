@@ -104,6 +104,9 @@ pub enum RegistryError {
     #[error("registry error: event id not defined `{0}` ")]
     UnknownEventChannel(u16),
 
+    #[error("registry error: metadata already set for field `{0}`")]
+    MetadataAlreadySet(String),
+
     #[error("unknown error")]
     Unknown,
 }

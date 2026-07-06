@@ -274,6 +274,18 @@ impl McSupportData {
         }
     }
 
+    /// Returns true if any descriptive metadata field (unit, min, max, factor, offset, step, comment)
+    /// has been explicitly set. Does not consider object_type or qualifier.
+    pub fn has_metadata(&self) -> bool {
+        !self.unit.is_empty()
+            || self.min.is_some()
+            || self.max.is_some()
+            || self.factor.is_some()
+            || self.offset.is_some()
+            || self.step.is_some()
+            || !self.comment.is_empty()
+    }
+
     // Read and write json string
 
     pub fn to_json_string(&self) -> String {
