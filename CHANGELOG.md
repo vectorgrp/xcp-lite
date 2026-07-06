@@ -3,14 +3,20 @@
 All notable changes to Rust xcp-lite are documented in this file.
 
 
-## [Unreleased]
+## [V3.0.1]
 
-- Deterministic calibration segment registration via the new `linkme` feature (enabled by default).
-  The new `cal_seg!("name", &DEFAULT)` macro registers each segment descriptor in a distributed slice
-  at link time. On first use all segments are created sorted by name, so the segment index (the A2L
-  `MEMORY_SEGMENT` number) is stable across runs regardless of creation order or threads, and is
-  race-free. Previously, `CalSeg::new` created segments eagerly in call order, making the index
-  non-deterministic.
+  - Support for enum fields of basic types (u8, u16, u32, i8, i16, i32) in the new McRegisterType system.
+    - The `enum_type` attribute on an enum field specifies the underlying integer type for the enum.
+    - The `unit` attribute on an enum field specifies the label mapping for the enum values (e.g. `0 "OFF" 1 "ON" 2 "STANDBY"`).
+    - The `McRegisterType` derive macro generates the necessary code to register the enum field with its underlying type and labels in the registry.
+    - The `xcp_registry` crate has been updated to support enum fields in the registry and A2L generation.
+    - The `hello_xcp` example has been updated to demonstrate enum fields with basic types.
+  - Deterministic calibration segment registration via the new `linkme` feature (enabled by default).
+    The new `cal_seg!("name", &DEFAULT)` macro registers each segment descriptor in a distributed slice
+    at link time. On first use all segments are created sorted by name, so the segment index (the A2L
+    `MEMORY_SEGMENT` number) is stable across runs regardless of creation order or threads, and is
+    race-free. Previously, `CalSeg::new` created segments eagerly in call order, making the index
+    non-deterministic.
   - Disabling the feature (`default-features = false`) makes `cal_seg!` fall back to eager creation in
     call order (equivalent to `CalSeg::new`); use this when all segments are created in a single,
     deterministic, race-free order.
