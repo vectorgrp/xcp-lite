@@ -11,6 +11,7 @@
 
 use super::McAddress;
 use super::McObjectType;
+use super::McValueType;
 
 //----------------------------------------------------------------------------------------------
 // McRegisterTarget
@@ -54,7 +55,7 @@ impl McRegisterTarget {
 ///
 /// There is no runtime mode flag: the generated code always builds typedefs. Flattening for
 /// legacy tools is a separate, export-time transform on the populated registry, not a codegen
-/// mode (see the `xcp_register_type` README).
+/// mode (see `xcp_register_type_derive/DESIGN.md`).
 /// Internal type used by the generated code; not part of the stable public API.
 #[doc(hidden)]
 #[derive(Debug, Clone)]
@@ -117,4 +118,23 @@ pub trait McRegisterType {
     {
         Self::mc_type_name()
     }
+}
+
+//----------------------------------------------------------------------------------------------
+// McEnumType
+
+/// Implemented by `#[derive(McRegisterEnum)]` on an integer enum definition.
+///
+/// Carries the enum's backing integer value type (derived from its `#[repr(..)]`) and the A2L
+/// verbal-conversion unit string built from the variant names and discriminants
+/// (`0 "Off" 1 "On" 2 "Standby"`). A `#[characteristic(enum_type)]` field looks these up instead
+/// of restating them at every use site.
+/// Internal trait: used only by the generated `McRegisterType::register` code.
+#[doc(hidden)]
+pub trait McEnumType {
+    /// The `McValueType` of the enum's backing integer (from `#[repr(..)]`).
+    fn mc_value_type() -> McValueType;
+
+    /// The A2L enum-format unit string: `<int> "<label>"` pairs joined by spaces.
+    fn mc_enum_unit() -> &'static str;
 }

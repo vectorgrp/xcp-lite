@@ -35,18 +35,20 @@ use example_common::ExampleArgs;
 // Demo calibration parameters
 
 // Define an enum
-// Use an explicit `#[repr(..)]` so its integer width matches the `enum_type` attribute below.
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy)]
+// `#[derive(McRegisterEnum)]` reads the `#[repr(..)]` (backing integer type) and the variant
+// names/values to generate the A2L enumeration, so fields of this type only need a bare
+// `#[characteristic(enum_type)]` marker (see `enum_field` below).
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterEnum)]
 #[repr(u8)]
-pub enum State {
+pub enum ParamEnum {
     Off = 0,
     On = 1,
-    STANDBY = 2,
+    Standby = 2,
 }
 
 // Define a struct with semantic annotations used as nested calibration parameter type
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
-struct Point {
+struct ParamStruct {
     #[characteristic(comment = "x coordinate", min = -100, max = 100)]
     x: f32,
     #[characteristic(comment = "y coordinate", min = -100.0, max = 100.0)]
@@ -58,7 +60,7 @@ struct Point {
 struct Params {
     // Bool
     #[characteristic(comment = "Demo bool, Start/stop counter")]
-    counter_on: bool,
+    is_active: bool,
 
     // Integer
     #[characteristic(comment = "Demo u32, Max counter value", min = 0, max = 1023)]
@@ -75,10 +77,10 @@ struct Params {
     delay: u32,
 
     // Enum
-    // The enum is treated as its integer representation (`enum_type`); the labels are described
-    // by the `unit` string.
-    #[characteristic(comment = "Demo enum", enum_type = "u8", unit = r#"0 "OFF" 1 "ON" 2 "STANDBY""#)]
-    enum_field: State,
+    // The bare `enum_type` marker defers to `ParamEnum`'s `#[derive(McRegisterEnum)]` impl for the
+    // backing integer type and the A2L enumeration labels.
+    #[characteristic(enum_type, comment = "Demo enum")]
+    enum_field: ParamEnum,
 
     // Arrays
     // More than 2 array dimensions is not supported by the derive macro
@@ -92,20 +94,20 @@ struct Params {
 
     // Nested structs
     #[characteristic(comment = "Demo struct")]
-    struct_field: Point,
+    struct_field: ParamStruct,
 
     // Array of structs
     // More than 2 array dimensions is not supported by the derive macro
     #[characteristic(comment = "Demo array of structs")]
-    struct_array_field: [Point; 2],
+    struct_array_field: [ParamStruct; 2],
 }
 
 // Default values for the calibration parameters
 const PARAMS: Params = Params {
-    counter_on: true,
+    is_active: true,
     counter_max: 100,
     delay: MAINLOOP_CYCLE_TIME,
-    enum_field: State::Off,
+    enum_field: ParamEnum::Off,
     array: [10, 11, 12, 13],
     array_axis: [0, 1, 2, 3],
     matrix: [
@@ -114,8 +116,8 @@ const PARAMS: Params = Params {
         [0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27],
         [0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37],
     ],
-    struct_field: Point { x: 1.0, y: 2.0 },
-    struct_array_field: [Point { x: 1.0, y: 2.0 }, Point { x: 3.0, y: 4.0 }],
+    struct_field: ParamStruct { x: 1.0, y: 2.0 },
+    struct_array_field: [ParamStruct { x: 1.0, y: 2.0 }, ParamStruct { x: 3.0, y: 4.0 }],
 };
 
 //-----------------------------------------------------------------------------
@@ -141,16 +143,35 @@ fn main() -> anyhow::Result<()> {
     let params = CalSeg::new("my_params", &PARAMS);
     params.register();
 
-    // Demo measurement variable on stack
+    // XCP: Create a measurement event
+    let event = daq_create_event!("my_event", 16);
+
+    // Demo measurement variable
     let mut counter: u32 = 0;
 
-    // XCP: Register a measurement event and bind measurement variables
-    let event = daq_create_event!("my_event", 16);
-    daq_register!(counter, event);
+    // XCP: Register the measurement variable counter with the event
+    daq_register!(counter, event, "Demo measurement variable");
 
-    // XCP: Choose the A2L representation for structs and arrays of structs.
-    // Default (false) keeps TYPEDEF_STRUCTUREs; --flatten expands them into dot-mangled
-    // leaf instances (e.g. struct_array_field._0.x) for tools without typedef support.
+    // Demo measurement struct with two fields, current and voltage. The struct is registered with the event.
+    #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
+    struct SensorData {
+        #[measurement(comment = "Demo struct measurement field", unit = "A")]
+        current: f64,
+        #[measurement(comment = "Demo struct measurement field", unit = "V")]
+        voltage: f64,
+    }
+    impl SensorData {
+        fn get(&mut self) {
+            // Simulate some sensor data
+            self.current += 0.001;
+            self.voltage += 0.01;
+        }
+    }
+    let mut sensor_data = SensorData { current: 2.0, voltage: 12.0 };
+    daq_register_struct!(sensor_data, event, "Demo measurement struct");
+
+    // XCP: Optional: Choose the A2L representation for structs and arrays of structs.
+    // Default (false) keeps TYPEDEF_STRUCTUREs; --flatten expands them into dot-mangled leaf instances (e.g. struct_array_field._0.x) for tools without typedef support.
     _xcp.set_registry_mode(args.flatten, false);
     if args.flatten {
         info!("A2L will be written flattened (typedefs expanded into mangled instance names)");
@@ -158,26 +179,28 @@ fn main() -> anyhow::Result<()> {
         info!("A2L will be written with typedef structures");
     }
 
-    // @@@@ Test: create A2L file now, otherwise it will be created on first client connection
+    // @@@@ Test: Create the A2L file now, otherwise it will be created on first client connection
     _xcp.finalize_registry()?;
 
     let mut sleep_time: u64;
     loop {
-        // XCP: Synchronize calibration parameters in cal_page and lock read access for consistency
+        // XCP: Synchronize calibration parameters in cal_page and lock read access for consistency, this operation is fast and non-blocking
         {
             let params = params.read_lock();
 
-            if params.counter_on {
+            if params.is_active {
                 counter += 1;
                 if counter > params.counter_max {
                     counter = 0;
                 }
+
+                sensor_data.get();
             }
 
             sleep_time = params.delay as u64;
         }
 
-        // XCP: Trigger timestamped measurement data acquisition
+        // XCP: Trigger timestamped measurement data acquisition, this operation is fast and non-blocking.
         event.trigger();
 
         std::thread::sleep(std::time::Duration::from_micros(sleep_time));

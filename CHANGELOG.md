@@ -6,8 +6,8 @@ All notable changes to Rust xcp-lite are documented in this file.
 ## [V3.0.1]
 
   - Support for enum fields of basic types (u8, u16, u32, i8, i16, i32) in the new McRegisterType system.
-    - The `enum_type` attribute on an enum field specifies the underlying integer type for the enum.
-    - The `unit` attribute on an enum field specifies the label mapping for the enum values (e.g. `0 "OFF" 1 "ON" 2 "STANDBY"`).
+    - Preferred: derive `McRegisterEnum` on the enum definition (reads its `#[repr(..)]` and variant names/values) and mark the field with a bare `#[characteristic(enum_type)]`. The backing integer type and the A2L enumeration labels are taken from the enum's derive, so they are not restated at each use site.
+    - Manual fallback: the `enum_type = "<int>"` attribute specifies the underlying integer type, and the `unit` attribute specifies the label mapping (e.g. `0 "OFF" 1 "ON" 2 "STANDBY"`).
     - The `McRegisterType` derive macro generates the necessary code to register the enum field with its underlying type and labels in the registry.
     - The `xcp_registry` crate has been updated to support enum fields in the registry and A2L generation.
     - The `hello_xcp` example has been updated to demonstrate enum fields with basic types.

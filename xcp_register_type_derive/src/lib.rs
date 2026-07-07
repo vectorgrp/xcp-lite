@@ -14,6 +14,7 @@ use quote::quote;
 use syn::{Data, DeriveInput, Expr, Fields, Lit, UnOp, parse_macro_input};
 
 mod attr;
+mod enum_derive;
 mod ty;
 
 use attr::{Classifier, FieldAttrs, Qualifier};
@@ -23,6 +24,18 @@ use ty::BaseType;
 pub fn derive_mc_register_type(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     match expand(&input) {
+        Ok(ts) => ts.into(),
+        Err(err) => err.to_compile_error().into(),
+    }
+}
+
+/// Derive `McEnumType` for an integer enum: reads `#[repr(<int>)]` and the variant
+/// names/discriminants to generate the backing value type and the A2L verbal-conversion unit
+/// string. Use `#[characteristic(enum_type)]` on a field of this enum type to reference it.
+#[proc_macro_derive(McRegisterEnum)]
+pub fn derive_mc_register_enum(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    match enum_derive::expand_enum(&input) {
         Ok(ts) => ts.into(),
         Err(err) => err.to_compile_error().into(),
     }
@@ -60,7 +73,14 @@ fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {
         // named integer scalar instead of a nested typedef. The enum labels are described by the
         // `unit` string. The macro cannot see the enum definition, so the underlying integer type
         // (and a matching `#[repr(..)]`) must be stated by the user.
-        let value_type = if let Some(int) = &attrs.enum_type {
+        //
+        // A bare `enum_type` (no value) instead defers to the enum's own `#[derive(McRegisterEnum)]`
+        // impl: the backing integer value type and the A2L enum unit string are looked up at
+        // runtime via `<EnumType as McEnumType>::...`, so nothing is restated at the use site.
+        let value_type = if attrs.enum_auto {
+            let elem_ty = ty::innermost_elem(&field.ty);
+            quote! { <#elem_ty as ::xcp_registry::McEnumType>::mc_value_type() }
+        } else if let Some(int) = &attrs.enum_type {
             let vt = ty::enum_int_value_type_tokens(int).ok_or_else(|| {
                 syn::Error::new_spanned(
                     &field.ty,
@@ -87,19 +107,25 @@ fn expand(input: &DeriveInput) -> syn::Result<TokenStream2> {
         let x_dim = ft.x_dim;
         let y_dim = ft.y_dim;
         let obj = object_type_tokens(attrs.classifier);
-        let support = build_support(&obj, &attrs);
+        let mut support = build_support(&obj, &attrs);
+        // Auto-enum fields carry the enum unit string from the enum's own McEnumType impl.
+        if attrs.enum_auto {
+            let elem_ty = ty::innermost_elem(&field.ty);
+            support = quote! { #support.set_linear(1.0, 0.0, <#elem_ty as ::xcp_registry::McEnumType>::mc_enum_unit()) };
+        }
 
         // Nested typedef creation: ensure the nested struct typedef exists first.
         // Skipped for enum-as-integer fields, which are scalars rather than typedefs.
-        if attrs.enum_type.is_none() {
-            if let BaseType::User(base_ty) = &ft.base {
-                nested_typedef_creation.push(quote! {
-                    {
-                        let __child = ctx.child_typedef();
-                        <#base_ty as ::xcp_registry::McRegisterType>::register(&__child);
-                    }
-                });
-            }
+        if attrs.enum_type.is_none()
+            && !attrs.enum_auto
+            && let BaseType::User(base_ty) = &ft.base
+        {
+            nested_typedef_creation.push(quote! {
+                {
+                    let __child = ctx.child_typedef();
+                    <#base_ty as ::xcp_registry::McRegisterType>::register(&__child);
+                }
+            });
         }
 
         // Typedef field add. Arrays of nested structs are represented by the `TypeDef` value

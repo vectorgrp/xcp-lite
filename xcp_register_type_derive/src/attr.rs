@@ -45,6 +45,9 @@ pub(crate) struct FieldAttrs {
     /// Treat the field (a Rust enum / opaque type) as this integer scalar type instead of a
     /// nested typedef. The enum labels are described by the `unit` string.
     pub enum_type: Option<String>,
+    /// Bare `enum_type` flag (no value): defer to the field type's `#[derive(McRegisterEnum)]`
+    /// impl for the backing integer type and the A2L enum unit string.
+    pub enum_auto: bool,
 }
 
 impl Default for Classifier {
@@ -85,6 +88,19 @@ pub(crate) fn parse_attrs(field: &Field) -> syn::Result<FieldAttrs> {
                 .get_ident()
                 .map(|i| i.to_string())
                 .ok_or_else(|| meta.error("expected an attribute key identifier"))?;
+
+            // `enum_type` may be a bare flag (defer to the enum's McEnumType impl) or a string
+            // (the explicit integer type). Detect the flag form by the absence of `=`.
+            if key == "enum_type" && !meta.input.peek(syn::Token![=]) {
+                if !key_allowed(classifier, &key) {
+                    return Err(meta.error("`enum_type` is not a valid key for this classifier"));
+                }
+                if attrs.enum_auto || attrs.enum_type.is_some() {
+                    return Err(meta.error("duplicate key `enum_type`"));
+                }
+                attrs.enum_auto = true;
+                return Ok(());
+            }
 
             let value = meta.value()?;
             let expr: Expr = value.parse()?;
@@ -147,7 +163,12 @@ fn apply_key(attrs: &mut FieldAttrs, classifier: Classifier, key: &str, expr: &E
         "y_axis" => set_str!(y_axis),
         "input_quantity" | "x_input_quantity" => set_str!(input_quantity),
         "y_input_quantity" => set_str!(y_input_quantity),
-        "enum_type" => set_str!(enum_type),
+        "enum_type" => {
+            if attrs.enum_auto {
+                return Err(meta.error("duplicate key `enum_type`"));
+            }
+            set_str!(enum_type)
+        }
         _ => {
             return Err(meta.error(format!("unknown attribute key `{key}`")));
         }

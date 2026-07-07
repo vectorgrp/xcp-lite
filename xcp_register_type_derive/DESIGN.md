@@ -1,7 +1,4 @@
-# XCP Register Type proc_macro
-
-
-New proc macro.
+# XCP Register Type proc_macro (AI context and design specification)
 
 Goal:
 
@@ -26,7 +23,7 @@ It could support more types than the old version. The new macro should at least 
 - arrays of the above types (up to 2 dimensions)
 - user defined types (structs) that struct are also registered in the registry recursivly or flattened as an option
 - arrays of the user defined types (up to 2 dimensions)
-- Integer enum types - these are registered as u8, u16, u32, u64 depending on the size of the enum and a conversion rule which describes the value names. Postponed to a later step, the macro should be designed so that enums can be added later without breaking the public API.
+- Integer enum types - these are registered as their backing integer (`u8`, `u16`, `u32`, `u64`, `usize`, or the signed variants) plus an A2L verbal conversion rule that maps the values to their labels. Preferred: derive `McRegisterEnum` on the enum and mark the field with a bare `enum_type`; manual fallback: `enum_type = "<int>"` + `unit`. Implemented (see §8).
 
 
 The attribute parser should be more robust than before.
@@ -39,23 +36,11 @@ The new macro is intentionally **not** syntax-compatible with the old macro; a c
 - `#[characteristic(x_axis = "path.to.x_axis")]` - optional x axis for the characteristic, used for maps
 - `#[characteristic(y_axis = "path.to.y_axis")]` - optional y axis for the characteristic, used for maps
 - `#[characteristic(step = 10)]` - optional step size for the characteristic, used for curves and maps with fixed axis min..max
+- `#[characteristic(enum_type)]` on a field whose enum derives `McRegisterEnum` - the backing integer type and the A2L enumeration are taken from the enum's derive (preferred). Manual fallback: `#[characteristic(enum_type = "u8", unit = "0 \"OFF\" 1 \"ON\"")]` (see §8)
 
 - `#[axis(comment = "Demo comment")]` - optional comment for the axis
 - `#[axis(min = 0, max = 100)]` - optional min and max values for the axis
 - `#[axis(unit = "s")]` - optional physical unit for the axis
-
-
-**Resolved:** the flatten-vs-typedef choice is **not** decidable at runtime (there is no use
-case for selecting it per call, and emitting both paths in every generated `register()` only
-**Resolved:** the generated code always builds **typedefs** — the rich, complete
-representation — and there is no flatten code path in the macro at all. Typedefs are the
-progressive default; flattening is treated as a legacy workaround for tools that cannot consume
-`TYPEDEF_STRUCTURE`. That workaround is implemented as a separate **export-time transform** on
-the populated registry (an option of the A2L writer), **not** as a codegen mode. See §7 (model
-and rationale) and §9 (decision). Both the `#[flatten]` attribute and a compile-time Cargo
-feature are therefore unnecessary: the macro stays simple, the in-memory model is the single
-source of truth, and the same build can emit either a typedef A2L or a flattened A2L.
-
 
 
 
@@ -63,6 +48,17 @@ source of truth, and the same build can emit either a typedef A2L or a flattened
 Example of a proc_macro that registers a type in the xcp_registry:
 
 ```rust
+
+// Define an enum
+// `#[derive(McRegisterEnum)]` reads the `#[repr(..)]` and the variant names/values, so a field
+// of this type only needs a bare `#[characteristic(enum_type)]` marker.
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterEnum)]
+#[repr(u8)]
+pub enum UserDefinedEnumType {
+    Off = 0,
+    On = 1,
+    Standby = 2,
+}
 
 
 #[derive(Debug, Clone, Copy, McRegisterType)]
@@ -81,7 +77,9 @@ struct Params {
     boolean: bool, 
 
     // Characteristics:
-    // Characteristics are tunable parameters that can be read and written via XCP. They are defined using the `#[characteristic]` attribute, which can include optional metadata such as comments, minimum and maximum values, and axis information for curves and maps.
+    // Characteristics are tunable parameters that can be read and written via XCP. 
+    // They are defined using the `#[characteristic]` attribute
+    // This can include optional metadata such as comments, min, max values, and axis information for curves and maps.
 
     // Unsigned 32-bit field with comment and min/max values
     #[characteristic(comment = "Demo integer")]
@@ -92,6 +90,12 @@ struct Params {
     #[characteristic(comment = "Demo float", min = "-10.0", max = "10.0")]
     #[characteristic(unit = "s")]
     float: f32,
+
+    // The bare `enum_type` marker defers to the enum's `#[derive(McRegisterEnum)]` for the
+    // backing integer type and the A2L enumeration labels.
+    #[characteristic(comment = "Demo enum", enum_type)]
+    enum_field: UserDefinedEnumType,
+
 
     // Signed 32-bit array field with dimension 4 and comment and min/max values
     #[characteristic(comment = "Demo array", min = "0", max = "100")]
@@ -165,9 +169,7 @@ Goals:
   mode (the transform itself is deferred; see §7).
 
 Non-goals (for the first implementation, deferred to a later step):
-- **Integer enum types.** These require a new *verbal* conversion rule (A2L `COMPU_VTAB` /
-  `TAB_VERB`) that does not yet exist in `McSupportData` / the A2L writer. The macro will be
-  designed so enums can be added later without breaking the public API (see §8).
+- (none currently — integer enums are now implemented; see §8).
 
 ## 2. Generated trait and method
 
@@ -207,17 +209,11 @@ pub struct McRegisterContext {
 }
 ```
 
-The blanket impls in `xcp_registry` (`register_calseg_typedef`, `register_calseg_fields`,
-`register_struct_typedef`, `register_struct_fields`) are replaced by thin wrappers that build
-an `McRegisterContext` and call `T::register(ctx)`. Backward compatibility with the old
-`CalSeg` / registration entry-point signatures is **not** required, so these wrappers and the
-`CalSeg` helper names may be redesigned freely for clarity.
 
 ### 2.1 User-facing wrappers
 
-Users interact only with these wrappers; the context is hidden behind them. The macro always
-registers typedefs (see §7/§9), so there is exactly one registration entry point per target —
-no mode selection and no `*_typedef` / `*_deep` / `*_fields` variants:
+Users interact only with wrappers; the context is hidden behind them. The macro always
+registers typedefs (see §7/§9), so there is exactly one registration entry point:
 
 - Calibration segment (in `CalSeg`):
   - `register(&self)` — builds a context with `target = CalSeg(name)` and registers the page
@@ -298,6 +294,7 @@ field is ignored (it may belong to another derive macro). Keys map to `McSupport
 | `x_axis`, `y_axis` | string | characteristic (map) | `set_x_axis_ref`, `set_y_axis_ref` |
 | `input_quantity` (alias `x_input_quantity`) | string | characteristic (curve/map) | `set_x_axis_input_quantity` |
 | `y_input_quantity` | string | characteristic (map) | `set_y_axis_input_quantity` |
+| `enum_type` | flag, or string: integer name | characteristic | bare flag: use the field enum's `McRegisterEnum` derive; string: treat field as this integer scalar; see §8 |
 
 Notes:
 - **`qualifier`** maps to `McObjectQualifier`: `"volatile"` → `Volatile` (continuously modified
@@ -353,73 +350,92 @@ instances (`calseg.test_struct.test_u8`; arrays of structs become `field._i.leaf
 offsets, and drops the typedef definitions. The information it needs (typedef definitions and
 field offsets) already lives in the registry, so the transform is a pure data pass.
 
-Benefits of putting flattening here instead of in the macro or a Cargo feature:
 
-- the derive macro and the in-memory model only ever speak the modern language (typedefs);
-- the choice moves to **export time** (a writer option / builder setting), so no rebuild is
-  needed to switch, and a single build can emit **both** a typedef A2L and a flattened A2L;
-- the flatten logic lives once, operating on data, and is uniform across the whole type graph
-  by construction.
 
-> Status: the flatten transform lives in `xcp_registry` (`flatten_registry`) and is applied to
-> the populated registry (triggered on `close()` in flatten mode, or by the A2L reader's
-> `load_a2l(..., flatten_typedefs)`). It now deep-flattens **arrays of structs** element by
-> element — both top-level instances and nested typedef fields — unrolling `[S; N]` /
-> `[[S; X]; Y]` into `name._i.leaf` (`name._iy_ix.leaf` for a 2D matrix) with per-element
-> offsets. A dedicated writer-side option to choose flattened vs. typedef output at export time
-> is still pending.
+## 8. Integer enums
 
-### Removed: mixed mode
+A field whose type is a Rust enum is registered as its underlying integer scalar, with an A2L
+verbal conversion (`COMPU_VTAB` / `TAB_VERB`) that maps the integer values to their labels.
+The derive on the *containing* struct cannot introspect the enum's `#[repr(..)]`, size, or
+signedness — only the field's type name is visible. There are two ways to supply the missing
+information:
 
-The earlier "flatten but keep a typedef instance for arrays of structs" behavior is dropped. A
-tool that cannot consume typedefs cannot consume a typedef instance for a struct array either,
-so when the flatten transform runs it deep-flattens struct arrays element-by-element.
+### 8.1 Preferred: `#[derive(McRegisterEnum)]` on the enum + bare `enum_type`
 
-## 8. Deferred: integer enums (planned, not in first implementation)
+Deriving `McRegisterEnum` on the enum definition captures the knowledge **once**: it reads the
+`#[repr(<int>)]` (backing integer type) and the variant names/discriminants (the labels), and
+generates an `impl McEnumType` carrying the `McValueType` and the A2L enum unit string. A field
+of that enum type then only needs a bare `enum_type` marker (no value):
 
-Planned approach so the API stays forward-compatible:
-1. Add a verbal conversion rule to `McSupportData` (e.g. `set_enum(&[(i64, &'static str)])`)
-   and emit `COMPU_VTAB` / `TAB_VERB` in `a2l_writer.rs`.
-2. The macro detects an `enum` deriving `McRegisterType`, picks the backing
-   `McValueType` from `size_of` (`u8/u16/u32/u64`), and registers the variant
-   value→name pairs as the conversion rule.
-No public-API change to `McRegisterType::register` is required to add this later.
+```rust
+#[derive(McRegisterEnum, Debug, Clone, Copy)]
+#[repr(u8)]
+enum State { Off = 0, On = 1, Standby = 2 }
 
-## 9. Resolved decisions
+#[derive(McRegisterType)]
+struct Params {
+    #[characteristic(comment = "Demo enum", enum_type)]
+    state: State,
+}
+```
 
-- **Numeric literals** are the canonical form for numeric keys (`min`, `max`, `step`,
-  `factor`, `offset`); strings are only for text keys.
-- **No backward compatibility** with the old macro's syntax or with the old registration
-  entry-point signatures; the API may be redesigned for clarity.
-- **Maximum 2 array dimensions**; 3+ dimensions are a `compile_error!` and there is no
-  dimension folding.
-- **Context is internal.** `McRegisterContext` and `McRegisterType::register` are
-  `#[doc(hidden)]`; users call the ergonomic `register()` wrapper on `CalSeg` and the
-  `daq_register_struct!` macro, which build the context internally.
-- **Generation always builds typedefs.** The macro has a single code path; there is no
-  `flatten` flag in the context, no Cargo feature, and no `#[flatten]` attribute. `CalSeg`
-  exposes a single `register()` wrapper (no `register_typedef` / `register_fields` /
-  `register_fields_deep`). Flattening for legacy tools is a separate, export-time transform on
-  the registry performed by the A2L writer (deferred; see §7), which deep-flattens struct
-  arrays. Mixed mode is removed.
+Behavior:
+- `#[derive(McRegisterEnum)]` requires an explicit integer `#[repr(..)]`
+  (`u8`/`u16`/`u32`/`u64`/`usize`/`i8`/`i16`/`i32`/`i64`/`isize`); any other repr (or none) is a
+  `compile_error!`. Only fieldless (unit) variants are supported. Discriminants may be explicit
+  integer literals (`Off = 0`, negatives allowed for signed reprs) or implicit (auto-increment
+  from the previous value, starting at 0).
+- The generated `McEnumType::mc_value_type()` returns the backing `McValueType`; `mc_enum_unit()`
+  returns the label string built from the variant idents (e.g. `0 "Off" 1 "On" 2 "Standby"`).
+- A bare `enum_type` field looks these up at runtime via `<EnumType as McEnumType>::...`, so the
+  integer type and the labels are **not restated** at the use site. No width assertion is needed
+  because the repr defines the width by construction.
+- `McEnumType` lives in `xcp_registry` (`#[doc(hidden)]`) and is derived by `McRegisterEnum`
+  (re-exported alongside `McRegisterType`). This adds **no** impact on generated code for structs
+  that contain no enum fields — the enum path is per-field and gated.
 
-## 10. Open questions
+### 8.2 Manual: `enum_type = "<int>"` + `unit`
 
-### 10.1 A2L representation for arrays of a user-defined struct
+When the enum cannot derive `McRegisterEnum` (e.g. a foreign type), the backing integer type and
+the labels are stated explicitly at the field:
 
-A field whose type is a user struct becomes `McValueType::TypeDef("S")`. An **array** of such a
-struct (e.g. `[UserDefinedType; 8]` or `[[UserDefinedType; 2]; 3]`) is represented by the same
-`TypeDef` value type plus the array dimensions in `McDimType` (`x_dim` / `y_dim`). This is the
-only representation the macro produces; the deferred export-time flatten transform (§7) would
-later expand such arrays element-by-element (`field._i.leaf`) for legacy tools.
+```rust
+#[repr(u8)]
+#[derive(Debug, Clone, Copy)]
+enum State { Off = 0, On = 1, Standby = 2 }
 
-The A2L writer already emits these as a single `INSTANCE ... <TypeName> ... MATRIX_DIM x [y]`
-(see `McInstance::write_measurement` and `write_matrix_dim` in
-`xcp_registry/src/a2l/a2l_writer.rs`). The open item is only to **confirm** the desired
-`x_dim`/`y_dim` convention for struct arrays matches what the calibration tool (CANape) expects
-— i.e. that `[S; X]` → `x_dim = X, y_dim = 1` and `[[S; X]; Y]` → `x_dim = X, y_dim = Y`, the
-same convention as for scalar arrays. No new registry code is expected; this is a verification
-against tooling.
+#[derive(McRegisterType)]
+struct Params {
+    #[characteristic(
+        comment = "Demo enum",
+        enum_type = "u8",
+        unit = "0 \"OFF\" 1 \"ON\" 2 \"STANDBY\"",
+    )]
+    state: State,
+}
+```
+
+Behavior:
+- `enum_type = "<int>"` treats the field as that integer scalar (`McValueType::{Ubyte, Uword,
+  Ulong, Ulonglong, Sbyte, Sword, Slong, Slonglong}`) instead of recursing into a nested
+  typedef. Accepted integer names: `u8`, `u16`, `u32`, `u64`, `usize`, `i8`, `i16`, `i32`,
+  `i64`, `isize`. Any other value (e.g. `bool`, `f32`) is a `compile_error!`.
+- The `unit` string carries the enumeration as `<int> "<label>"` pairs
+  (`0 "OFF" 1 "ON" 2 "STANDBY"`). The A2L writer detects this enum-format unit and emits a
+  `COMPU_VTAB` + `COMPU_METHOD` (`TAB_VERB`); it also suppresses the invalid `PHYS_UNIT` that
+  would otherwise contain unescaped nested quotes.
+- The macro emits a compile-time width check
+  (`assert!(size_of::<FieldType>() == size_of::<enum_type>())`), so declaring `enum_type =
+  "u32"` for a `#[repr(u8)]` enum fails to compile. The enum needs a matching `#[repr(uN)]`.
+  The check validates **width only**, not signedness — declaring `i8` for a `u8`-repr enum
+  still compiles.
+- Works for scalar enum fields and arrays of enum fields (the width check peels array
+  dimensions to the element type).
+
+Both forms are mutually exclusive on a field (`enum_type` as a flag and as a string is a
+`duplicate key` error). No public-API change to `McRegisterType::register` was required.
+
+
 
 ## 11. Packaging / crate layout
 
@@ -471,18 +487,5 @@ Slightly less ergonomic for standalone `xcp_registry` users.
   uniqueness; do not mix styles.
 - The `Mc*` type prefix with `xcp_*` crate prefix is the established pattern (`xcp_registry`
   exports `McValueType`, `McSupportData`, …), so `McRegisterType` fits.
-
-### 11.5 Publishing the monorepo on crates.io
-
-- Each workspace member is published **independently** (`cargo publish` per crate) with its
-  own version.
-- **Path dependencies need a version** as well, e.g.
-  `xcp_register_type_derive = { path = "...", version = "1.1.0" }`; crates.io ignores `path`
-  and uses `version`.
-- Publish **leaf-first**: `xcp_register_type_derive` → `xcp_registry` → `xcp_lite`.
-- Mark non-published members with `publish = false` (the `examples/*`).
-- Every published crate needs `description` / `license` / `repository`. `xcp_registry` already
-  has them; the existing `*_derive` `Cargo.toml`s do **not** and would need those fields added
-  before publishing — apply the same to the new derive crate.
 
 

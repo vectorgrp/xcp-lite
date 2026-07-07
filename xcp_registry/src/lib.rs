@@ -74,11 +74,13 @@ pub use mc_text::McText;
 
 // McRegisterType (runtime support for the #[derive(McRegisterType)] proc-macro)
 mod mc_register_type;
+pub use mc_register_type::McEnumType;
 pub use mc_register_type::McRegisterContext;
 pub use mc_register_type::McRegisterTarget;
 pub use mc_register_type::McRegisterType;
 
-// Re-export the derive macro (serde-style: one import brings the trait and the derive)
+// Re-export the derive macros (serde-style: one import brings the trait and the derive)
+pub use xcp_register_type_derive::McRegisterEnum;
 pub use xcp_register_type_derive::McRegisterType;
 
 //-----------------------------------------------------------------------------

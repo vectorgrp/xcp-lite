@@ -55,6 +55,8 @@ pub use xcp_registry as registry;
 
 // Re-export the McRegisterType trait and its derive macro (one import brings both).
 pub use registry::McRegisterType;
+// Re-export the McRegisterEnum derive (for integer enums used in registered structs).
+pub use registry::McRegisterEnum;
 
 // Used by macros
 #[doc(hidden)]
