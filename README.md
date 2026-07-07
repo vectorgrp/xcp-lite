@@ -25,21 +25,17 @@ Main purpose was to experiment with Rust and to demonstrate some more advanced f
 Requires CANape 22 or later.  
   
 
-## Examples  
+## Examples
 
 The crate ships with a set of runnable examples under [examples/](examples/README.md), each paired
 with a CANape project. See the [examples overview](examples/README.md) for the full list and the
 build, run and command line instructions common to all of them.
 
 
-## Build and Test
-
-See the [examples overview](examples/README.md) for how to build and run the examples and the
-command line options common to all of them.
 
 ### Features
 
-- `linkme` *(enabled by default)* — deterministic, link-time registration of calibration segments.
+- `linkme` *(enabled by default)* — deterministic, link-time registration of calibration segments.  
   The [`cal_seg!`](examples/calibration_demo/README.md) macro collects each segment descriptor into a
   distributed slice (using the [`linkme`](https://crates.io/crates/linkme) crate). On first use all
   segments are created **sorted by name**, so their index (the A2L `MEMORY_SEGMENT` number) is stable
@@ -52,7 +48,7 @@ command line options common to all of them.
   > feature enabled must add `linkme` as a **direct dependency** (e.g. `linkme = "0.3"` in its
   > `Cargo.toml`). Crates that disable the feature do not need it.
 
-- `a2l_reader` — parse and check the generated A2L file before upload.
+- `a2l_reader`  *(disabled by default)* —  parse and check the generated A2L.  
 
 ### Build
 
@@ -66,7 +62,7 @@ cargo build --no-default-features   # disable the linkme calibration segment reg
 ### Test
 
 Tests must not run in parallel (the XCP implementation is a singleton), and the `a2l_reader`
-feature is required for the `xcp_client` based tests:
+feature is required for the XCP test client `xcpclient` based tests:
 
 ```
 cargo test --features a2l_reader -- --test-threads=1 --nocapture
@@ -74,6 +70,7 @@ cargo test --features a2l_reader -- --test-threads=1 --nocapture --test test_mul
 ```
 
 Use `--nocapture` because the debug output from the XCPlite C library is via plain printf.
+
 
 ## Notes
 
@@ -83,8 +80,6 @@ There are no heap allocation during runtime, except for the lazy registrations f
 build.rs automatically builds a minimum static C library from individually pre configured core XCPlite sources.
 
 The generated A2L file is finalized on XCP connect and provided for upload via XCP.
-
-The proc macro for more convenient A2L generation is still in an experimental state.
 
 Measurement of local variables is done with a macro which either copies to a static transfer buffer in the event or directly accesses the value on stack.  
 This involves a lazy initialization of the structures to build the A2l file describing the local variables.  
