@@ -45,12 +45,12 @@ cargo run -p <example_name> -- --help
 
 | Example | Description |
 | ------- | ----------- |
-| [all_features_demo](all_features_demo/README.md) | Comprehensive reference application that exercises the full feature surface in a single program. |
-| [hello_xcp](hello_xcp/README.md) | A very basic example: measure a local variable and calibrate a parameter of basic scalar type. |
+| [hello_xcp](hello_xcp/README.md) | Entry level example, start here to learn the basics: measure a local variables and calibrate a parameter struct with various field types. |
+| [tokio_demo](tokio_demo/README.md) | Using XCP in an async tokio based application. |
 | [struct_measurement_demo](struct_measurement_demo/README.md) | Measurement of more complex types (struct, arrays of struct, multi-dimensional array slices). Generates A2L `TYPEDEF` and `INSTANCE` objects. |
 | [calibration_demo](calibration_demo/README.md) | Various calibratable basic types, nested structs and multi-dimensional types with shared axis and lookup functions with interpolation. Generates A2L `CURVE` and `MAP` with shared `AXIS_PTS`. |
 | [single_thread_demo](single_thread_demo/README.md) | Measure and calibrate in a single instance task thread; clone a calibration parameter set, move it to a thread and sync its calibration changes. |
 | [multi_thread_demo](multi_thread_demo/README.md) | Measure and calibrate in a task instantiated in multiple threads with multiple instances of events and local variables. |
 | [rayon_demo](rayon_demo/README.md) | Observe rayon workers calculating a mandelbrot set line by line. |
-| [tokio_demo](tokio_demo/README.md) | Using XCP in an async tokio based application. |
 | [point_cloud_demo](point_cloud_demo/README.md) | Measure a lidar point cloud and visualize it in CANape's 3D scene window using CDR serialization over XCP and the CDR/IDL schema generator proc-macro. |
+| [all_features_demo](all_features_demo/README.md) | Comprehensive reference application that exercises the full feature surface in a single program. |
