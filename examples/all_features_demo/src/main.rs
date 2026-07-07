@@ -32,7 +32,7 @@ use example_common::ExampleArgs;
 //-----------------------------------------------------------------------------
 // Parameters
 
-const APP_NAME: &str = "xcp-lite";
+const APP_NAME: &str = "all_features_demo";
 
 const TASK1_CYCLE_TIME_US: u32 = 10000; // 10ms
 const TASK2_CYCLE_TIME_US: u32 = 1000; // 1ms
