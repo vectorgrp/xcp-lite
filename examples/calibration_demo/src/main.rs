@@ -18,7 +18,7 @@ use xcp_lite::*;
 //-----------------------------------------------------------------------------
 // Parameters
 
-const APP_NAME: &str = "cal_demo";
+const APP_NAME: &str = "calibration_demo";
 
 const XCP_QUEUE_SIZE: u32 = 1024 * 64; // 64kB
 const MAINLOOP_CYCLE_TIME: u32 = 1000; // 1ms

@@ -16,7 +16,7 @@ use xcp_lite::*;
 //-----------------------------------------------------------------------------
 // Parameters
 
-const APP_NAME: &str = "point_cloud";
+const APP_NAME: &str = "point_cloud_demo";
 
 const XCP_QUEUE_SIZE: u32 = 1024 * 64; // 64kB
 const MAINLOOP_CYCLE_TIME: u32 = 10000; // 10ms

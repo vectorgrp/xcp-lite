@@ -2,16 +2,7 @@
 // xcp-lite basic demo
 //
 // Demonstrates the usage of xcp-lite for Rust together with a CANape project
-//
-// Run the demo
-// cargo run -p hello_xcp
-//
-// Write a flattened A2L (typedefs expanded into mangled instance names)
-// cargo run -p hello_xcp -- --flatten
-//
-// Run the test XCP client (from C/C++ XCPlite) in another terminal or start CANape with the project in folder examples/hello_xcp/CANape
-// xcpclient --udp --mea "counter" --verbose 2
-// xcpclient --udp  --upload-a2l --a2l tmp.a2l --list-cal '.*' --cal my_params.counter_max 10 --list-mea ".*"  --mea 'counter'
+// See README.md for details.
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
@@ -180,7 +171,7 @@ fn main() -> anyhow::Result<()> {
     }
 
     // @@@@ Test: Create the A2L file now, otherwise it will be created on first client connection
-    _xcp.finalize_registry()?;
+    //_xcp.finalize_registry()?;
 
     let mut sleep_time: u64;
     loop {

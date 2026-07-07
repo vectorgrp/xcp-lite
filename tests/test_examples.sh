@@ -24,46 +24,30 @@ for arg in "$@"; do
     esac
 done
 
-# List of "package_name:a2l_base_name" pairs.
-# a2l_base_name matches APP_NAME in each example (the server writes <app_name>.a2l
-# to the process CWD on finalize_registry() or on first XCP client connection).
+# Example package names. The A2L file written by each example is <name>.a2l.
 EXAMPLES=(
-    "all_features_demo:all_features_demo"
-    "calibration_demo:cal_demo"
-    "hello_xcp:hello_xcp"
-    "multi_thread_demo:multi_thread_demo"
-    "single_thread_demo:single_thread_demo"
-    "struct_measurement_demo:struct_measurement_demo"
-    "rayon_demo:rayon_demo"
-    "tokio_demo:tokio_demo"
-    "point_cloud_demo:point_cloud"
+    all_features_demo
+    calibration_demo
+    hello_xcp
+    multi_thread_demo
+    single_thread_demo
+    struct_measurement_demo
+    rayon_demo
+    tokio_demo
+    point_cloud_demo
 )
 
-# Examples that do NOT call finalize_registry() early and therefore need an XCP
-# client connection to trigger A2L writing.
-NEEDS_CLIENT=("single_thread_demo" "rayon_demo" "tokio_demo" "point_cloud_demo")
-
-needs_client() {
-    local pkg="$1"
-    for nc in "${NEEDS_CLIENT[@]}"; do
-        [[ "$nc" == "$pkg" ]] && return 0
-    done
-    return 1
-}
-
 # ──────────────────────────────────────────────────────────────────────────────
-# Helpers
+# Locate xcpclient (required)
 # ──────────────────────────────────────────────────────────────────────────────
-
 XCPCLIENT_BIN="$(command -v xcpclient 2>/dev/null || true)"
 if [[ -z "$XCPCLIENT_BIN" ]]; then
-    # Try the well-known cargo-install path
     XCPCLIENT_BIN="$HOME/.cargo/bin/xcpclient"
 fi
-
-have_xcpclient() {
-    [[ -x "$XCPCLIENT_BIN" ]]
-}
+if [[ ! -x "$XCPCLIENT_BIN" ]]; then
+    echo "ERROR: xcpclient not found. Install it with: cargo install xcpclient" >&2
+    exit 1
+fi
 
 mkdir -p "$FIXTURES_DIR"
 
@@ -91,15 +75,13 @@ fi
 # ──────────────────────────────────────────────────────────────────────────────
 WARNINGS=()
 
-for entry in "${EXAMPLES[@]}"; do
-    PKG="${entry%%:*}"
-    A2L_NAME="${entry##*:}"
-    A2L_FILE="$WORKSPACE_DIR/${A2L_NAME}.a2l"
-    FIXTURE_FILE="$FIXTURES_DIR/${A2L_NAME}.a2l"
+for PKG in "${EXAMPLES[@]}"; do
+    A2L_FILE="$WORKSPACE_DIR/${PKG}.a2l"
+    FIXTURE_FILE="$FIXTURES_DIR/${PKG}.a2l"
     BINARY="$TARGET_DIR/$PKG"
 
     echo "──────────────────────────────────────────────────────────"
-    echo "==> $PKG  (A2L: ${A2L_NAME}.a2l)"
+    echo "==> $PKG"
 
     if [[ ! -x "$BINARY" ]]; then
         echo "    WARNING: binary not found: $BINARY  (skipping)"
@@ -115,48 +97,37 @@ for entry in "${EXAMPLES[@]}"; do
     "$BINARY" --log-level 0 &
     EXAMPLE_PID=$!
 
-    # Give the server time to initialise.
+    # Give the server time to initialise, then connect with xcpclient.
+    # xcpclient triggers A2L writing on first connect and also checks A2L syntax.
     sleep 0.5
-
-    if needs_client "$PKG"; then
-        # These examples only write the A2L upon the first XCP client connection.
-        if have_xcpclient; then
-            echo "    Connecting xcpclient to trigger A2L write..."
-            "$XCPCLIENT_BIN" --udp --log-level 0 &
-            CLIENT_PID=$!
-            sleep 1
-            kill "$CLIENT_PID" 2>/dev/null || true
-            wait "$CLIENT_PID" 2>/dev/null || true
-        else
-            echo "    WARNING: xcpclient not found; cannot trigger A2L write for $PKG"
-            WARNINGS+=("$PKG: xcpclient not available, A2L may not be generated")
-            sleep 1
-        fi
-    else
-        # finalize_registry() is called during init; give it a moment to finish.
-        sleep 1
-    fi
+    "$XCPCLIENT_BIN" --udp --log-level 0
+    CLIENT_EXIT=$?
 
     # Terminate the example process.
     kill "$EXAMPLE_PID" 2>/dev/null || true
     wait "$EXAMPLE_PID" 2>/dev/null || true
     echo "    Stopped $PKG (PID $EXAMPLE_PID)"
 
+    if [[ $CLIENT_EXIT -ne 0 ]]; then
+        echo "    WARNING: xcpclient exited with code $CLIENT_EXIT for $PKG"
+        WARNINGS+=("$PKG: xcpclient failed (exit $CLIENT_EXIT)")
+    fi
+
     # Verify the A2L was actually generated.
     if [[ ! -f "$A2L_FILE" ]]; then
-        echo "    WARNING: A2L file was not generated: ${A2L_NAME}.a2l  (skipping)"
+        echo "    WARNING: A2L file was not generated: ${PKG}.a2l  (skipping)"
         WARNINGS+=("$PKG: A2L file was not generated")
         continue
     fi
 
     # Back up the existing fixture before replacing it.
     if [[ -f "$FIXTURE_FILE" ]]; then
-        echo "    Renaming existing fixture -> ${A2L_NAME}.a2l.bak"
+        echo "    Renaming existing fixture -> ${PKG}.a2l.bak"
         mv "$FIXTURE_FILE" "${FIXTURE_FILE}.bak"
     fi
 
     cp "$A2L_FILE" "$FIXTURE_FILE"
-    echo "    Copied ${A2L_NAME}.a2l -> tests/fixtures/"
+    echo "    Copied ${PKG}.a2l -> tests/fixtures/"
 
     # Compare the new A2L with the backup and warn on any difference.
     if [[ -f "${FIXTURE_FILE}.bak" ]]; then
