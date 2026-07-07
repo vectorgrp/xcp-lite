@@ -1,8 +1,14 @@
 // test_multi_thread
 // Integration test for XCP in a multi threaded application
-// Uses the test XCP client in xcp_client
+// Uses the test XCP client crate xcp_test_client
 
 // cargo test --features=a2l_reader -- --test-threads=1 --nocapture  --test test_multi_thread
+
+// Create multiple threads, each with its own measurement event (tli) and measurement variables (tli) on stack
+// The A2L file should stay identical between test runs
+// Produces non deterministic event creation order during task startup races to test deterministic event numbering in xcp-lite
+// Has a global calibration segment shared between the threads, which is modified by the test executor XCP client
+// The parameters below may be tuned to produce large data volumes and heavy thread event contention
 
 #![allow(unused_assignments)]
 #![allow(unused_imports)]
@@ -14,6 +20,7 @@ use tokio::time::Duration;
 use xcp_lite::registry::*;
 use xcp_lite::*;
 
+#[path = "support/xcp_test_executor.rs"]
 mod xcp_test_executor;
 use xcp_test_executor::OPTION_LOG_LEVEL;
 use xcp_test_executor::OPTION_XCP_LOG_LEVEL;
@@ -34,7 +41,7 @@ const TEST_QUEUE_SIZE: u32 = 2 * 1024 * 1024; // Size of the XCP server transmit
 //-----------------------------------------------------------------------------
 // Calibration Segment
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
 struct TestInts {
     test_bool: bool,
     test_u8: u8,
@@ -49,7 +56,7 @@ struct TestInts {
     test_f64: f64,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
 struct CalPage1 {
     run: bool,
     counter_max: u32,
@@ -93,14 +100,21 @@ static CAL_SEG1: std::sync::OnceLock<CalCell<CalPage1>> = std::sync::OnceLock::n
 
 // Test task will be instantiated multiple times
 fn task(index: usize) {
+    // Sleep for a random amount of time to produce races between task event creation
+    thread::sleep(Duration::from_millis(rand::random::<u64>() % 500));
+
+    // Log task start
+    info!("Task {} started", index);
+    // if index == 0 || index == TEST_TASK_COUNT - 1 {
+    //     info!("Task {} started", index);
+    // } else if index == 1 {
+    //     info!("...");
+    // }
+
+    // Get a clone of the global calibration segment
     let cal_seg = CAL_SEG1.get().unwrap().clone_calseg();
 
-    if index == 0 || index == TEST_TASK_COUNT - 1 {
-        info!("Task {} started", index);
-    } else if index == 1 {
-        info!("...");
-    }
-
+    // Create measurement variables on stack
     let mut cal_test: u64 = 0;
     let mut counter: u32 = 0;
     let mut loop_counter: u64 = 0;
@@ -140,7 +154,10 @@ fn task(index: usize) {
     let mut test30: u64 = 0;
     let mut test31: u64 = 0;
 
+    // Create a measurement event (with capture capacity 16 bytes) for this task instance
     let mut event = daq_create_event_tli!("task", 16);
+
+    // Register the measurement variables for this task instance
     daq_register_tli!(counter, event);
     daq_register_tli!(loop_counter, event);
     daq_register_tli!(counter_max, event);
@@ -181,12 +198,13 @@ fn task(index: usize) {
     daq_register_tli!(test31, event);
 
     loop {
+        // Lock and read the calibration segment to get the cycle time and run flag
         let (cycle_time_us, run) = {
             let cal_seg = cal_seg.read_lock();
             (cal_seg.cycle_time_us as u64, cal_seg.run)
         };
 
-        // Sleep for a calibratable amount of time
+        // Sleep for a tunable amount of time
         thread::sleep(Duration::from_micros(cycle_time_us as u64));
 
         time = Xcp::get().get_clock();
@@ -306,7 +324,7 @@ async fn test_multi_thread() {
 
     // Create a static calibration segment shared between the threads
     let cal_seg = CAL_SEG1.get_or_init(|| CalCell::new("cal_seg", &CAL_PAR1)).clone_calseg();
-    cal_seg.register_fields(); // Register all struct fields (with meta data from annotations) in the A2L registry
+    cal_seg.register(); // Register all struct fields (with meta data from annotations) in the A2L registry
 
     // Create TEST_TASK_COUNT test tasks
     let mut v = Vec::new();
@@ -314,19 +332,38 @@ async fn test_multi_thread() {
         let t = thread::spawn(move || {
             task(i);
         });
-        v.push(t);
+        v.push((i, t));
     }
 
-    // In shm_mode, registry has to be finilized manually
-    thread::sleep(Duration::from_micros(100000));
+    // Sleep some time to produce races between task event creation
+    thread::sleep(Duration::from_millis(250));
+
+    // Create an event (just to disturb the event creating order of the tasks starting)
+    let event = daq_create_event!("join_order");
+    let mut task_index = 0;
+    daq_register!(task_index, event, "task terminated event", "");
+
+    // In shm_mode, registry has to be finalized manually
+    thread::sleep(Duration::from_millis(1000)); // Wait to give all threads a chance to initialize and enter their loop
     xcp.finalize_registry().unwrap(); // Write the A2L file
 
     thread::sleep(Duration::from_millis(250)); // Wait to give all threads a chance to initialize and enter their loop
-    test_executor(TEST_CAL, TEST_DAQ, TEST_DURATION_MS, TEST_TASK_COUNT, TEST_SIGNAL_COUNT, TEST_CYCLE_TIME_US as u64).await; // Start the test executor XCP client
+    test_executor(
+        "test_multi_thread",
+        TEST_CAL,
+        TEST_DAQ,
+        TEST_DURATION_MS,
+        TEST_TASK_COUNT,
+        TEST_SIGNAL_COUNT,
+        TEST_CYCLE_TIME_US as u64,
+    )
+    .await; // Start the test executor XCP client
 
     debug!("Test done. Waiting for tasks to terminate");
-    for t in v {
+    for (i, t) in v {
         t.join().unwrap();
+        task_index = i;
+        event.trigger();
     }
 
     // Stop and shutdown the XCP server
@@ -334,5 +371,5 @@ async fn test_multi_thread() {
     xcp.stop_server();
     info!("Server stopped");
 
-    let _ = std::fs::remove_file("test_multi_thread.a2l");
+    // let _ = std::fs::remove_file("upload_test_multi_thread.a2l");
 }

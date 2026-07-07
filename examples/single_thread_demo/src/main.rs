@@ -29,64 +29,26 @@ lazy_static::lazy_static! {
 }
 
 //-----------------------------------------------------------------------------
-// Command line arguments
+// Command line arguments (shared parser, see examples/common)
 
-const DEFAULT_LOG_LEVEL: u8 = 3; // Info
-const DEFAULT_BIND_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
-const DEFAULT_PORT: u16 = 5555;
-const DEFAULT_TCP: bool = false; // UDP
-
-use clap::Parser;
-
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    /// Log level (Off=0, Error=1, Warn=2, Info=3, Debug=4, Trace=5)
-    #[arg(short, long, default_value_t = DEFAULT_LOG_LEVEL)]
-    log_level: u8,
-
-    /// Bind address, default is ANY
-    #[arg(short, long, default_value_t = DEFAULT_BIND_ADDR)]
-    bind: Ipv4Addr,
-
-    /// Use TCP as transport layer, default is UDP
-    #[arg(short, long, default_value_t = DEFAULT_TCP)]
-    tcp: bool,
-
-    /// Port number
-    #[arg(short, long, default_value_t = DEFAULT_PORT)]
-    port: u16,
-
-    /// Application name
-    #[arg(short, long, default_value_t = String::from(APP_NAME))]
-    name: String,
-}
+use example_common::ExampleArgs;
 
 //-----------------------------------------------------------------------------
 // Demo calibration parameters
 
 // Define a struct with calibration parameters
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
 struct Params {
-    #[characteristic(comment = "Amplitude of the sine signal in mV")]
-    #[characteristic(unit = "mV")]
-    #[characteristic(min = "0")]
-    #[characteristic(max = "8000")]
+    #[characteristic(comment = "Amplitude of the sine signal in mV", unit = "mV", min = 0, max = 8000)]
     ampl: u16,
 
-    #[characteristic(comment = "Period of the sine signal")]
-    #[characteristic(unit = "s")]
-    #[characteristic(min = "0.001")]
-    #[characteristic(max = "10")]
+    #[characteristic(comment = "Period of the sine signal", unit = "s", min = 0.001, max = 10)]
     period: f64,
 
-    #[characteristic(comment = "Counter maximum value")]
-    #[characteristic(min = "0")]
-    #[characteristic(max = "255")]
+    #[characteristic(comment = "Counter maximum value", min = 0, max = 255)]
     counter_max: u32,
 
-    #[characteristic(comment = "Task delay time in s, ecu internal value as u32 in us")]
-    #[characteristic(min = "0.00001", max = "2", unit = "s", factor = "0.000001")]
+    #[characteristic(comment = "Task delay time in s, ecu internal value as u32 in us", min = 0.00001, max = 2, unit = "s", factor = 0.000001)]
     delay: u32,
 }
 
@@ -126,7 +88,8 @@ fn task(params: CalSeg<Params>) {
         // Trigger the measurement event
         event.trigger();
 
-        thread::sleep(Duration::from_micros(params.delay as u64));
+        let delay = params.read_lock().delay; // release the lock before sleeping
+        thread::sleep(Duration::from_micros(delay as u64));
     }
 }
 
@@ -137,26 +100,11 @@ fn main() -> Result<()> {
     println!("XCPlite Single Thread Demo");
 
     // Args
-    let args = Args::parse();
-    let log_level = match args.log_level {
-        2 => log::LevelFilter::Warn,
-        3 => log::LevelFilter::Info,
-        4 => log::LevelFilter::Debug,
-        5 => log::LevelFilter::Trace,
-        _ => log::LevelFilter::Error,
-    };
-
-    // Logging
-    env_logger::Builder::new()
-        .target(env_logger::Target::Stdout)
-        .filter_level(log_level)
-        .format_timestamp(None)
-        .format_module_path(false)
-        .format_target(false)
-        .init();
+    let args = ExampleArgs::parse();
+    args.init_logging();
 
     // XCP: Initialize the XCP server
-    let app_name = args.name.as_str();
+    let app_name = args.app_name(APP_NAME);
     let app_revision = build_info::format!("{}", $.timestamp);
     let _xcp = Xcp::init(app_name, app_revision, args.log_level).start_server(
         if args.tcp { XcpTransportLayer::Tcp } else { XcpTransportLayer::Udp },
@@ -164,6 +112,9 @@ fn main() -> Result<()> {
         args.port,
         XCP_QUEUE_SIZE,
     )?;
+
+    // XCP: Select flattened or typedef A2L representation (--flatten)
+    Xcp::get().set_registry_mode(args.flatten, false);
 
     // Create a calibration parameter set "calseg"
     // This will define a MEMORY_SEGMENT named "calseg" in A2L
@@ -173,7 +124,7 @@ fn main() -> Result<()> {
         "calseg", // name of the calibration segment and the .json file
         &PARAMS,  // default calibration values
     );
-    params.register_fields();
+    params.register();
 
     // Load calseg from json file
     if params.load(JSON_FILE).is_err() {

@@ -1,5 +1,7 @@
 # xcp-lite - calibration_demo
 
+> See [the examples overview](../README.md) for common build, run and command line instructions.
+
 Demonstrate various adjustable basic types, nested structs and multi dimensional User types such as a map based lookup table with shared axis and associated lookup functions with interpolation.
 This generates A2L objects like CURVE and MAP with AXIS_PTS.
 
@@ -13,6 +15,32 @@ cargo run -p calibration_demo
 ```
 
 Start the CANape project in the CANape folder or find some screenshots below
+
+## Creating calibration segments with `cal_seg!`
+
+Calibration segments are created with the `cal_seg!` macro:
+
+```rust
+let calseg1 = cal_seg!("cal_demo_1", &CALPAGE1);
+calseg1.register();
+let calseg2 = cal_seg!("cal_demo_2", &CALPAGE2);
+calseg2.register();
+```
+
+With the default `linkme` feature, `cal_seg!` registers each segment descriptor in a distributed
+slice at link time. On first use all segments are created **sorted by name**, so the segment index
+(the A2L `MEMORY_SEGMENT` number) stays stable across runs no matter the creation order or threads —
+this is race-free and prevents unnecessary A2L churn. See the [Features](../../README.md#features)
+section for details, including the requirement to add `linkme` as a direct dependency:
+
+```toml
+# Cargo.toml of any crate that uses cal_seg! (with the default linkme feature)
+linkme = "0.3"
+```
+
+If you create all calibration segments in a single, deterministic, race-free order, you can disable
+the feature (`default-features = false`); `cal_seg!` then falls back to eager creation in call order
+(equivalent to `CalSeg::new`) and the `linkme` dependency is not needed.
 
 ## CANape
 

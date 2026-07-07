@@ -1,0 +1,135 @@
+#pragma once
+#define __XCPLIB_CFG_H__
+
+/*----------------------------------------------------------------------------
+| File:
+|   xcplib_rust_cfg.h
+|
+| Description:
+|   Build configuration override for XCPlite / libxcplite
+|
+ ----------------------------------------------------------------------------*/
+
+//-------------------------------------------------------------------------------
+// Logging
+
+// Enable debug prints
+#define OPTION_ENABLE_DBG_PRINTS
+// Enable debug print errors and warnings go to stderr
+#define OPTION_ENABLE_DBG_STDERR
+// Default log level: 1 - Error, 2 - Warn, 3 - Info, 4 - Trace, 5 - Debug
+// Use level 4 to print all XCP commands
+#define OPTION_DEFAULT_DBG_LEVEL 3
+// Optimize code size, higher levels optimized out
+#define OPTION_MAX_DBG_LEVEL 4
+// Optimize code size, fixed log level, not changeable at runtime
+// #define OPTION_FIXED_DBG_LEVEL 3
+
+//-------------------------------------------------------------------------------
+// Clock
+
+// Epoch options (only one must be defined)
+#define OPTION_CLOCK_EPOCH_ARB // Arbitrary epoch -> uses CLOCK_MONOTONIC_RAW on Linux, CLOCK_MONOTONIC on QNX
+#undef OPTION_CLOCK_EPOCH_PTP  // Precision Time Protocol epoch (since 1.1.1970) -> uses CLOCK_REALTIME, which may be disciplined by NTP, PTP, ...
+
+// Resolution 1ns or 1us, granularity depends on platform (only one must be defined)
+#define OPTION_CLOCK_TICKS_1NS
+#undef OPTION_CLOCK_TICKS_1US
+
+//-------------------------------------------------------------------------------
+// XCP server options
+
+#define OPTION_ENABLE_TCP
+#define OPTION_ENABLE_UDP
+#define OPTION_MTU 8000                     // Ethernet packet size (MTU), must be %8 - Jumbo frames supported
+#define OPTION_SERVER_FORCEFULL_TERMINATION // Don't wait for the rx and tx thread to finish, just terminate them
+
+//-------------------------------------------------------------------------------
+// CAL setting
+
+// Enable calibration segment management
+// (otherwise the callbacks in xcpappl.c are used for calibration segment commands and memory read/write)
+#define OPTION_CAL_SEGMENTS
+
+// Maximum number of calibration segments
+#undef OPTION_CAL_SEGMENT_COUNT
+#define OPTION_CAL_SEGMENT_COUNT 16
+
+// Total memory pool size for all calibration segments (header + 4 pages each)
+// Must be large enough for all XcpCreateCalSeg() calls combined
+#undef OPTION_CAL_MEM_SIZE
+#define OPTION_CAL_MEM_SIZE (1024 * 16) // 16 KB default
+
+// Single page mode
+#undef OPTION_CAL_SEGMENTS_SINGLE_PAGE
+
+// Enable persistence, a binary (.BIN) file is used to store events and calibration segments
+// This allows to safely build the A2L file only once per build, even if the creation order of events and segments changes
+#undef OPTION_ENABLE_PERSISTENCE
+
+// Enable EPK calibration segment to check HEX/BIN file compatibility
+// If the EPK is included in the HEX/BIN file, the version of the data structure can be checked using the EPK address specified in the A2L file
+#undef OPTION_CAL_SEGMENT_EPK
+#define OPTION_CAL_SEGMENT_EPK
+
+// Enable absolute addressing for calibration segments
+// Default is segment relative addressing, uses address extension 0 for segment relative and 1 for absolute and encodes the segment number in the address high word
+// As this is not compatible to most well known tools to update, modify and create A2L files, this option switches to absolute addressing on address extension 0
+// Requirement is, that the address of all reference pages must be stable and in address range of 0x0000_0000 to 0xFFFF_FFFF
+#undef OPTION_CAL_SEGMENTS_ABS
+
+// Start on reference/default page instead of on working page
+#undef OPTION_CAL_SEGMENTS_START_ON_REFERENCE_PAGE
+
+// Automatically persist the working page on XCP disconnect
+#undef OPTION_CAL_PERSIST_ON_DISCONNECT
+
+//-------------------------------------------------------------------------------
+// DAQ settings
+
+// Rust xcp-lite does not use the XCPlite event management, it has its own event management
+
+#undef OPTION_DAQ_EVENT_LIST // Disable DAQ event management
+
+#undef OPTION_DAQ_MEM_SIZE
+#define OPTION_DAQ_MEM_SIZE (1024 * 8) // Memory bytes used for XCP DAQ tables - 6 bytes per measurement signal/block needed
+
+#undef OPTION_DAQ_EVENT_COUNT     // Rust xcp-lite has its own event management, do not use the XCPlite event management
+#define OPTION_DAQ_EVENT_COUNT 64 // Maximum number of DAQ events (integer value, must be even)
+
+#undef OPTION_DAQ_ASYNC_EVENT // Create an asynchronous, cyclic DAQ event for asynchronous data acquisition
+
+// Transport layer queue is vectored IO and lockless with variable queue entry size
+#undef OPTION_QUEUE_64_FIX_SIZE
+#define OPTION_QUEUE_64_VAR_SIZE
+
+//-------------------------------------------------------------------------------
+// A2L generation settings
+
+#undef OPTION_ENABLE_A2L_GENERATOR // Disable A2L generator
+
+#undef OPTION_ENABLE_A2L_UPLOAD
+#define OPTION_ENABLE_A2L_UPLOAD // Enable A2L upload via XCP
+
+#undef OPTION_ENABLE_ELF_UPLOAD
+#define OPTION_ENABLE_ELF_UPLOAD // Enable ELF upload via XCP
+
+// Enable socketGetLocalAddr for A2L file generation
+// Used for convenience to get an existing ip address in A2L, when bound to ANY 0.0.0.0
+#undef OPTION_ENABLE_GET_LOCAL_ADDR
+
+//-------------------------------------------------------------------------------
+// Tests
+
+#if !defined(NDEBUG)
+
+// #define TEST_CLOCK_GET_STATISTIC // Count number of calls to clockGet and clockGetLast, print results with clockPrintStatistic()
+// #define TEST_ACQUIRE_SPIN_COUNT // Get max spin count of the queue acquire operations
+// #define TEST_ACQUIRE_LOCK_TIMING // Create a queue acquire time histogram, prints results on queue deinit, significant performance impact, for testing only !!!!!!!!!!
+// #define TEST_ENABLE_DBG_METRICS  // Enable debug metrics for XCP events and transport layer packets
+// #define TEST_ENABLE_BUFFERCOUNT_HISTOGRAM // Enable histogram of the used buffer counts in the transport layer vectored io
+// #define TEST_MUTABLE_ACCESS_OWNERSHIP // Enable tracking of mutable access thread ownership to detect overseen potential memory safety problems
+// #define TEST_ENABLE_DBG_CHECKS // Enable timing checks in the XCP server
+// #define TEST_STACK_SIZE // Enable stack size measurement for the transmit and receive thread
+
+#endif // !defined(NDEBUG)

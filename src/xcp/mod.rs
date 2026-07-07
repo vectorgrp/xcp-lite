@@ -13,9 +13,8 @@ use std::{
         atomic::{AtomicBool, AtomicU8, Ordering},
     },
 };
-use xcp_type_description::XcpTypeDescription;
 
-use crate::registry::{self, McEvent};
+use crate::registry::{self, McAddress, McEvent};
 
 //-----------------------------------------------------------------------------
 // Submodules
@@ -27,6 +26,9 @@ pub mod daq;
 mod cal;
 pub use cal::CalCell;
 pub use cal::CalSeg;
+// Re-exports used by the cal_seg! macro (not part of the public API)
+#[cfg(feature = "linkme")]
+pub use cal::{CAL_SEG_REGISTRY, CalSegDescriptor};
 
 // Submodule xcplib ffi c bindings
 pub mod xcplib;
@@ -66,6 +68,7 @@ pub enum XcpClientError {
 //----------------------------------------------------------------------------------------------
 // XcpEvent
 
+// @@@@ TODO: Remove
 // Statically allocate memory for remapping XCP event numbers
 // The mapping of event numbers is used to create deterministic A2L files, regardless of the order of event creation
 // The remapping cell is initialized when the registry is finalized and the A2L is written
@@ -126,7 +129,7 @@ impl XcpEvent {
     /// The buffer must match its registry description, to avoid corrupt data given to the XCP tool
     pub unsafe fn trigger_ext(self, base: *const u8) {
         // @@@@ UNSAFE - C library call and transferring a pointer and its valid memory range to XCPlite FFI
-        unsafe { xcplib::XcpEventExt(self.get_id(), base) }
+        unsafe { xcplib::XcpEventExt(self.get_id(), base.wrapping_sub(McAddress::XCP_ADDR_EXT_DYN_OFFSET_OFFSET as usize)) }
     }
 }
 
@@ -177,17 +180,8 @@ impl EventList {
     // Register all events in the list and create the event id transformation map
     fn register(&mut self) {
         // Sort the event list by name and then instance index
+        // This gives a deterministic order of instance event numbers, not deterministic for normal events
         self.sort_by_name_and_index();
-
-        // Remap the event numbers
-        // Problem is, that the event numbers are not deterministic, they depend on order of creation
-        // This is not a problem for the XCP client, but the A2L file might change unnecessarily on every start of the application
-        // let mut event_map: [u16; XcpEvent::XCP_MAX_EVENTS] = [0; XcpEvent::XCP_MAX_EVENTS];
-        // for (i, e) in self.0.iter().enumerate() {
-        //     event_map[e.event.id as usize] = i.try_into().unwrap();
-        // }
-        // XCP_EVENT_MAP.set(event_map).ok();
-        // log::trace!("Event map: {:?}", XCP_EVENT_MAP.get().unwrap());
 
         // Register all events
         {
@@ -289,7 +283,7 @@ impl Xcp {
             let epk = std::ffi::CString::new(app_revision).unwrap();
             assert!(app_revision.len() < crate::EPK_SEG_SIZE);
             let name = std::ffi::CString::new(app_name).unwrap();
-            xcplib::XcpInit(name.as_ptr(), epk.as_ptr(), true);
+            xcplib::XcpInit(name.as_ptr(), epk.as_ptr(), 1); // @@@@ TODO XCP_MODE_LOCAL
             xcplib::ApplXcpRegisterConnectCallback(Some(cb_connect));
         }
 
@@ -351,16 +345,17 @@ impl Xcp {
 
             // Register transport layer parameters and actual ip addr of the server to create XCP IF_DATA make the A2L plug&play
             // If bound to any, get the actual ip address
-            let mut addr: [u8; 4] = ipv4_addr.octets();
-            if addr == [0, 0, 0, 0] {
-                unsafe {
-                    // @@@@ UNSAFE - C library call
-                    xcplib::XcpEthServerGetInfo(std::ptr::null_mut(), std::ptr::null_mut(), &mut addr[0] as *mut u8, std::ptr::null_mut());
-                }
-            }
+            let addr: [u8; 4] = ipv4_addr.octets();
+            // @@@@ TODO: This is a workaround to get the actual ip address for A2L generation, when bound to ANY
+            // if addr == [0, 0, 0, 0] {
+            //     unsafe {
+            //         // @@@@ UNSAFE - C library call
+            //         xcplib::XcpEthServerGetInfo(std::ptr::null_mut(), std::ptr::null_mut(), &mut addr[0] as *mut u8, std::ptr::null_mut());
+            //     }
+            // }
             let mut reg = registry::get_lock();
             if let Some(reg) = reg.as_mut() {
-                reg.set_xcp_params(tl.protocol_name(), addr.into(), port); // Transport layer parameters
+                reg.set_xcp_eth_params(tl.protocol_name(), addr.into(), port); // Transport layer parameters
             }
             Ok(&XCP)
         }
@@ -465,13 +460,17 @@ impl Xcp {
         assert!(!registry::is_closed());
 
         // Register all calibration segments
-
+        // @@@@ TODO: Check if calibration segment index is not equal calibration segment number !!
         let calseg_count: u16 = unsafe { xcplib::XcpGetCalSegCount() };
         for i in 0..calseg_count {
+            let number = unsafe { xcplib::XcpGetCalSegNumber(i) };
+            if number == u8::MAX {
+                continue;
+            }
             let name = unsafe { std::ffi::CStr::from_ptr(xcplib::XcpGetCalSegName(i)).to_str().unwrap() };
             let size = unsafe { xcplib::XcpGetCalSegSize(i) };
             log::info!("Register CalSeg {}, size={}", name, size);
-            let _ = registry::get_lock().as_mut().unwrap().cal_seg_list.add_cal_seg(name, i, size as u32);
+            let _ = registry::get_lock().as_mut().unwrap().cal_seg_list.add_cal_seg(name, Some(number), size as u32);
         }
 
         // Register all events
@@ -580,7 +579,7 @@ pub mod xcp_test {
 
         // Reinitialize the XCP singleton
         unsafe {
-            xcplib::XcpReset();
+            xcplib::XcpDeinit();
         }
         let xcp = Xcp::init("Test", "EPK_V1.1.0", TEST_XCP_LOG_LEVEL);
         xcp.event_list.lock().clear();

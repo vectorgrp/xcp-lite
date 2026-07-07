@@ -1,6 +1,6 @@
 [package]
 name = "struct_measurement_demo"
-version = "1.1.0"
+version = "3.0.0"
 edition = "2024"
 
 [dependencies]
@@ -10,11 +10,12 @@ anyhow = "1.0"
 rand = "0.8"
 lazy_static = "1.5"
 serde = { version = "1.0", features = ["derive"] }
-clap = { version = "4.5.52", features = ["derive"] }
+example_common = { path = "../common" }
 build-info = "0.0.40"
 parking_lot = "0.12.5"
 
 xcp_lite = { path = "../../", features = [] }
+xcp_registry = { path = "../../xcp_registry" }
 
 [build-dependencies]
 build-info-build = "0.0.40"

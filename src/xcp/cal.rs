@@ -10,6 +10,13 @@ use parking_lot::Mutex;
 use std::default;
 use std::sync::Arc;
 
+#[cfg(feature = "linkme")]
+use linkme::distributed_slice;
+#[cfg(feature = "linkme")]
+use std::sync::Once;
+#[cfg(feature = "linkme")]
+use std::sync::atomic::{AtomicU16, Ordering};
+
 use crate::registry;
 
 use crate::xcp;
@@ -18,7 +25,7 @@ use xcp::Xcp;
 
 use std::{marker::PhantomData, ops::Deref, ops::DerefMut};
 
-use registry::RegisterFieldsTrait;
+use registry::{McRegisterTarget, McRegisterType};
 
 //-----------------------------------------------------------------------------
 // CalPageTrait
@@ -57,23 +64,20 @@ where
 //----------------------------------------------------------------------------------------------
 // CalSeg Register
 
-// Impl register_fields for types which implement RegisterFieldsTrait
+// Impl register for types which implement McRegisterType
 impl<T> CalSeg<T>
 where
-    T: CalPageTrait + RegisterFieldsTrait,
+    T: CalPageTrait + McRegisterType,
 {
-    /// Register all nested fields of a calibration segment as seperate instances with mangled names in the registry
-    /// Requires the calibration page to implement XcpTypeDescription
-    pub fn register_fields(&self) -> &Self {
-        self.default_page.register_calseg_fields(self.get_name());
-        self
-    }
-    /// Register all fields of a calibration segment in the registry using a typedef
-    /// Register an instance of this typedef with instance name = type name
-    /// Requires the calibration page to implement XcpTypeDescription
-    /// Instancename is the typename of T
-    pub fn register_typedef(&self) -> &Self {
-        self.default_page.register_calseg_typedef(self.get_name());
+    /// Register the calibration segment in the registry as a typedef plus one top-level instance.
+    /// Nested structs become nested typedefs; arrays of nested structs become dimensioned typedef
+    /// instances. The instance name is the calibration segment name.
+    /// Requires the calibration page to implement McRegisterType.
+    ///
+    /// Flattening for legacy tools that do not support typedefs is a separate, export-time
+    /// transform on the registry (not a registration mode).
+    pub fn register(&self) -> &Self {
+        self.default_page.mc_register(McRegisterTarget::CalSeg(self.get_name()), Some(self.get_name()));
         self
     }
 }
@@ -131,6 +135,142 @@ where
     pub fn get_index(&self) -> usize {
         self.index as usize
     }
+
+    /// Construct a `CalSeg` from a link-time registered descriptor (used by the [`cal_seg!`] macro).
+    ///
+    /// On the first call this triggers deterministic creation of *all* calibration segments whose
+    /// descriptors were collected into [`CAL_SEG_REGISTRY`] at link time: they are sorted by name
+    /// and created in that order, so the segment index (A2L MEMORY_SEGMENT number) is stable across
+    /// runs regardless of creation order or threads. Subsequent calls only read the resolved index.
+    #[cfg(feature = "linkme")]
+    #[doc(hidden)]
+    pub fn __from_registry(default_page: &'static T, descriptor: &'static CalSegDescriptor) -> CalSeg<T> {
+        ensure_calsegs_created();
+        let index = descriptor.index.load(Ordering::Acquire);
+        assert!(
+            index != XCP_UNDEFINED_CALSEG,
+            "calibration segment '{}' was not registered - is XCP initialized (Xcp::init) before creating calibration segments?",
+            descriptor.name
+        );
+        CalSeg {
+            index,
+            default_page,
+            _not_sync_marker: PhantomData,
+        }
+    }
+}
+
+//----------------------------------------------------------------------------------------------
+// Link-time calibration segment registration (cal_seg! macro)
+
+/// Sentinel for an unresolved / invalid calibration segment index (matches XCP_UNDEFINED_CALSEG).
+#[cfg(feature = "linkme")]
+const XCP_UNDEFINED_CALSEG: u16 = 0xFFFF;
+
+/// Descriptor for a calibration segment, collected into [`CAL_SEG_REGISTRY`] at link time by the
+/// [`cal_seg!`] macro. Mirrors the C `tXcpCalSegDescriptor` placed in the `xcp_cals` ELF section.
+///
+/// Not part of the public API; only constructed by the `cal_seg!` macro.
+#[cfg(feature = "linkme")]
+#[doc(hidden)]
+pub struct CalSegDescriptor {
+    name: &'static str,
+    default_page: *const core::ffi::c_void,
+    size: u16,
+    index: AtomicU16,
+}
+
+#[cfg(feature = "linkme")]
+impl CalSegDescriptor {
+    /// Const constructor so the descriptor can be a `static` initializer in the macro expansion.
+    #[doc(hidden)]
+    pub const fn new(name: &'static str, default_page: *const core::ffi::c_void, size: u16) -> Self {
+        Self {
+            name,
+            default_page,
+            size,
+            index: AtomicU16::new(XCP_UNDEFINED_CALSEG),
+        }
+    }
+}
+
+// SAFETY: `default_page` points to an immutable, 'static calibration page. The raw pointer is only
+// ever read (handed once to XcpCreateCalSeg); `index` is atomic. The descriptor is never mutated
+// through shared references other than the atomic store, so it is safe to share across threads.
+#[cfg(feature = "linkme")]
+unsafe impl Sync for CalSegDescriptor {}
+
+/// Distributed slice of all calibration segment descriptors created via [`cal_seg!`].
+/// The linker gathers every descriptor into a contiguous section, independent of which code paths
+/// actually execute, exactly like the C `xcp_cals` section consumed by `XcpInit`.
+#[cfg(feature = "linkme")]
+#[distributed_slice]
+#[doc(hidden)]
+pub static CAL_SEG_REGISTRY: [CalSegDescriptor];
+
+/// Guards one-time creation of all registered calibration segments.
+#[cfg(feature = "linkme")]
+static CAL_SEG_REGISTRY_INIT: Once = Once::new();
+
+/// Create all link-time registered calibration segments once, in name-sorted order.
+#[cfg(feature = "linkme")]
+fn ensure_calsegs_created() {
+    CAL_SEG_REGISTRY_INIT.call_once(|| {
+        // Sort by name -> deterministic, source-order- and thread-independent segment indices.
+        let mut descriptors: Vec<&'static CalSegDescriptor> = CAL_SEG_REGISTRY.iter().collect();
+        descriptors.sort_by(|a, b| a.name.cmp(b.name));
+        for d in descriptors {
+            let c_name = std::ffi::CString::new(d.name).expect("calibration segment name must not contain NUL");
+            // @@@@ UNSAFE - C library call; default_page is a 'static page of d.size bytes
+            let index = unsafe { xcplib::XcpCreateCalSeg(c_name.as_ptr(), d.default_page, d.size) };
+            assert!(index != XCP_UNDEFINED_CALSEG, "XcpCreateCalSeg failed for calibration segment '{}'", d.name);
+            d.index.store(index, Ordering::Release);
+            debug!("Registered calibration segment '{}' with index {}", d.name, index);
+        }
+    });
+}
+
+/// Create a calibration segment.
+///
+/// With the **`linkme` feature enabled (default)** the segment descriptor is collected into a
+/// distributed slice at link time. On first use all descriptors are sorted by name and created in
+/// that order, so the segment index (A2L MEMORY_SEGMENT number) stays stable across runs regardless
+/// of creation order or threads - preventing unnecessary A2L churn and avoiding any creation race.
+///
+/// With the **`linkme` feature disabled** this falls back to eager creation in call order (exactly
+/// like [`CalSeg::new`]). This is appropriate when all calibration segments are created in a single,
+/// deterministic, race-free order and you prefer not to depend on `linkme`.
+///
+/// # Arguments
+/// * `$name` - `&'static str` name of the calibration segment instance (must be unique).
+/// * `$default` - `&'static` reference to a `const`/`static` default calibration page.
+///
+/// # Example
+/// ```ignore
+/// let calseg = cal_seg!("my_params", &PARAMS);
+/// calseg.register();
+/// ```
+#[cfg(feature = "linkme")]
+#[macro_export]
+macro_rules! cal_seg {
+    ($name:expr, $default:expr $(,)?) => {{
+        #[$crate::_private::distributed_slice($crate::_private::CAL_SEG_REGISTRY)]
+        static CAL_SEG_DESCRIPTOR: $crate::_private::CalSegDescriptor =
+            $crate::_private::CalSegDescriptor::new($name, $default as *const _ as *const ::core::ffi::c_void, ::core::mem::size_of_val($default) as u16);
+        $crate::CalSeg::__from_registry($default, &CAL_SEG_DESCRIPTOR)
+    }};
+}
+
+/// Create a calibration segment.
+///
+/// Fallback definition used when the **`linkme` feature is disabled**: the segment is created
+/// eagerly in call order, identical to [`CalSeg::new`]. Use this when all calibration segments are
+/// created in a single, deterministic, race-free order so that the assigned indices are stable.
+/// Enable the `linkme` feature for link-time, name-sorted, race-free index assignment.
+#[cfg(not(feature = "linkme"))]
+#[macro_export]
+macro_rules! cal_seg {
+    ($name:expr, $default:expr $(,)?) => {{ $crate::CalSeg::new($name, $default) }};
 }
 
 //----------------------------------------------------------------------------------------------
@@ -342,7 +482,7 @@ mod cal_tests {
 
     use super::*;
     use crate::xcp::*;
-    use xcp_type_description::prelude::*;
+    use registry::McRegisterType;
 
     //-----------------------------------------------------------------------------
     // Test helpers
@@ -368,7 +508,7 @@ mod cal_tests {
         Ok(())
     }
 
-    #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+    #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
     struct CalPageTest1 {
         byte1: u8,
         byte2: u8,
@@ -376,7 +516,7 @@ mod cal_tests {
         byte4: u8,
     }
 
-    #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+    #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
     struct CalPageTest2 {
         byte1: u8,
         byte2: u8,
@@ -436,7 +576,7 @@ mod cal_tests {
 
         // Interior mutability, page switch and unwanted compiler optimizations
         let cal_page_test1 = CalSeg::new("CalPageTest1", &CAL_PAGE_TEST1);
-        cal_page_test1.register_fields();
+        cal_page_test1.register();
         let p = cal_page_test1.read_lock();
         let mut test = p.byte1;
         drop(p);
@@ -459,7 +599,7 @@ mod cal_tests {
 
         // Move to threads
         let cal_page_test2 = CalSeg::new("CalPageTest2", &CAL_PAGE_TEST2);
-        cal_page_test2.register_fields();
+        cal_page_test2.register();
         let index = cal_page_test2.get_index();
         assert_eq!(index, 2); // Segment index
 
@@ -502,7 +642,7 @@ mod cal_tests {
     fn test_calibration_segment_persistence() {
         let _xcp = xcp_test::test_setup();
 
-        #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+        #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
         struct CalPage {
             test_byte: u8,
             test_short: u16,
@@ -558,21 +698,21 @@ mod cal_tests {
     //-----------------------------------------------------------------------------
     // Test cal page switching
 
-    #[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, XcpTypeDescription)]
+    #[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, McRegisterType)]
     struct CalPage1 {
         a: u32,
         b: u32,
         c: u32,
     }
 
-    #[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, XcpTypeDescription)]
+    #[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, McRegisterType)]
     struct CalPage2 {
         a: u32,
         b: u32,
         c: u32,
     }
 
-    #[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, XcpTypeDescription)]
+    #[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, McRegisterType)]
     struct CalPage3 {
         a: u32,
         b: u32,
@@ -678,7 +818,7 @@ mod cal_tests {
 
     //-----------------------------------------------------------------------------
     // Test cal page write and CalCell
-    #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+    #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
     struct StaticCalPage {
         test1: u8,
         test2: i64,
@@ -707,7 +847,7 @@ mod cal_tests {
     #[test]
     fn test_calpage_write() {
         let static_calseg = STATIC_CAL_SEG.get_or_init(|| CalCell::new("static_calseg", &STATIC_CAL_PAGE)).clone_calseg();
-        static_calseg.register_fields();
+        static_calseg.register();
 
         let value = STATIC_CAL_SEG.get().unwrap().clone_calseg();
         {

@@ -1,6 +1,6 @@
 [package]
 name = "single_thread_demo"
-version = "1.1.0"
+version = "3.0.0"
 edition = "2024"
 
 [dependencies]
@@ -10,10 +10,11 @@ anyhow = "1.0"
 lazy_static = "1.5"
 serde = "1.0"
 serde_json = "1.0"
-clap = { version = "4.5.52", features = ["derive"] }
+example_common = { path = "../common" }
 build-info = "0.0.40"
 
 xcp_lite = { path = "../../", features = [] }
+xcp_registry = { path = "../../xcp_registry" }
 
 [build-dependencies]
 build-info-build = "0.0.40"

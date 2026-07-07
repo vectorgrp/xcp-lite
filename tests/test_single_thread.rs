@@ -1,6 +1,6 @@
 // single_thread
 // Integration test for XCP in a single thread application
-// Uses the test XCP client in module xcp_client
+// Uses the test XCP client crate xcp_test_client
 
 // cargo test --features=a2l_reader -- --test-threads=1 --nocapture  --test test_single_thread
 
@@ -13,6 +13,7 @@ use tokio::time::Duration;
 use xcp_lite::registry::*;
 use xcp_lite::*;
 
+#[path = "support/xcp_test_executor.rs"]
 mod xcp_test_executor;
 use xcp_test_executor::OPTION_LOG_LEVEL;
 use xcp_test_executor::OPTION_XCP_LOG_LEVEL;
@@ -32,7 +33,7 @@ const TEST_REINIT: bool = false; // Execute reinitialization test
 //-----------------------------------------------------------------------------
 // Calibration Segment
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
 struct TestInts {
     test_bool: bool,
     test_u8: u8,
@@ -47,7 +48,7 @@ struct TestInts {
     test_f64: f64,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
 struct CalPage1 {
     run: bool,
     counter_max: u32,
@@ -201,7 +202,6 @@ async fn test_single_thread() {
     // Test calibration and measurement in a single thread
 
     info!("XCP server initialization 1");
-    let _ = std::fs::remove_file("test_single_thread.a2h");
 
     // Initialize XCP server
     let xcp = match Xcp::init("test_single_thread", "EPK1.1.0", OPTION_XCP_LOG_LEVEL).start_server(XcpTransportLayer::Udp, [127, 0, 0, 1], 5555, 1024 * 256) {
@@ -214,7 +214,7 @@ async fn test_single_thread() {
 
     // Create a calibration segment
     let cal_seg = CalSeg::new("cal_seg", &CAL_PAR1);
-    cal_seg.register_fields();
+    cal_seg.register();
 
     // Create a test task
     let t1 = thread::spawn({
@@ -227,7 +227,7 @@ async fn test_single_thread() {
     thread::sleep(Duration::from_micros(500000));
     xcp.finalize_registry().unwrap(); // Write the A2L file
 
-    test_executor(TEST_CAL, TEST_DAQ, TEST_DURATION_MS, 1, TEST_SIGNAL_COUNT, TEST_CYCLE_TIME_US as u64).await; // Start the test executor XCP client
+    test_executor("test_single_thread", TEST_CAL, TEST_DAQ, TEST_DURATION_MS, 1, TEST_SIGNAL_COUNT, TEST_CYCLE_TIME_US as u64).await; // Start the test executor XCP client
 
     t1.join().unwrap();
 
@@ -249,6 +249,7 @@ async fn test_single_thread() {
         };
 
         test_executor(
+            "test_single_thread",
             xcp_test_executor::TestModeCal::None,
             xcp_test_executor::TestModeDaq::None,
             TEST_DURATION_MS,
@@ -260,6 +261,6 @@ async fn test_single_thread() {
 
         xcp.stop_server();
 
-        let _ = std::fs::remove_file("test_single_thread.a2l");
+        // let _ = std::fs::remove_file("upload_test_single_thread.a2l");
     }
 }

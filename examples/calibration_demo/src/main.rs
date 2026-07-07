@@ -18,44 +18,15 @@ use xcp_lite::*;
 //-----------------------------------------------------------------------------
 // Parameters
 
-const APP_NAME: &str = "cal_demo";
+const APP_NAME: &str = "calibration_demo";
 
 const XCP_QUEUE_SIZE: u32 = 1024 * 64; // 64kB
 const MAINLOOP_CYCLE_TIME: u32 = 1000; // 1ms
 
 //-----------------------------------------------------------------------------
-// Command line arguments
+// Command line arguments (shared parser, see examples/common)
 
-const DEFAULT_LOG_LEVEL: u8 = 3; // Info
-const DEFAULT_BIND_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
-const DEFAULT_PORT: u16 = 5555;
-const DEFAULT_TCP: bool = false; // UDP
-
-use clap::Parser;
-
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    /// Log level (Off=0, Error=1, Warn=2, Info=3, Debug=4, Trace=5)
-    #[arg(short, long, default_value_t = DEFAULT_LOG_LEVEL)]
-    log_level: u8,
-
-    /// Bind address, default is ANY
-    #[arg(short, long, default_value_t = DEFAULT_BIND_ADDR)]
-    bind: Ipv4Addr,
-
-    /// Use TCP as transport layer, default is UDP
-    #[arg(short, long, default_value_t = DEFAULT_TCP)]
-    tcp: bool,
-
-    /// Port number
-    #[arg(short, long, default_value_t = DEFAULT_PORT)]
-    port: u16,
-
-    /// Application name
-    #[arg(short, long, default_value_t = String::from(APP_NAME))]
-    name: String,
-}
+use example_common::ExampleArgs;
 
 //-----------------------------------------------------------------------------
 fn cubic_hermite(p0: f32, p1: f32, m0: f32, m1: f32, t: f32) -> f32 {
@@ -66,17 +37,16 @@ fn cubic_hermite(p0: f32, p1: f32, m0: f32, m1: f32, t: f32) -> f32 {
 
 //--------------------------------------------------------------------------------------------------
 // Calibration parameters
-// Define calibration parameters as structs with semantic annotations provided by XcpTypeDescription
+// Define calibration parameters as structs with semantic annotations provided by McRegisterType
 
 //------------------------------------
 // Demo of a simple struct with scalar parameters
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
 struct CounterControl {
     #[characteristic(comment = "Start/stop counter")]
     counter_on: bool, // VALUE type
 
-    #[characteristic(comment = "Max counter value")]
-    #[characteristic(min = "0", max = "10000")]
+    #[characteristic(comment = "Max counter value", min = 0, max = 10000)]
     counter_max: u32, // VALUE type
 }
 
@@ -89,27 +59,31 @@ const COUNTER_CONTROL: CounterControl = CounterControl {
 //--------------------------------------------------------
 // Demo of various multi dimensional calibration parameter types in a struct
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
 struct Params {
-    #[characteristic(comment = "Demo array", min = "0", max = "100")]
+    #[characteristic(comment = "Demo array", min = 0, max = 100)]
     array: [u8; 4], // VAL_BLK type (1 dimensions)
 
-    #[characteristic(comment = "Demo matrix", min = "0", max = "100")]
+    #[characteristic(comment = "Demo matrix", min = 0, max = 100)]
     matrix: [[u8; 9]; 5], // VAL_BLK type (2 dimensions)
 
-    #[axis(comment = "Demo shared axis", min = "0", max = "10000")]
+    #[axis(comment = "Demo shared axis", min = 0, max = 10000)]
     shared_axis_16: [f32; 16], // AXIS_PTS type
-    #[axis(comment = "Demo shared axis", min = "0", max = "10000")]
+    #[axis(comment = "Demo shared axis", min = 0, max = 10000)]
     shared_axis_9: [f32; 9], // AXIS_PTS type
 
-    #[characteristic(comment = "Demo curve with shared axis", axis = "cal_demo_2.params.shared_axis_16", min = "-10", max = "10")]
+    #[characteristic(comment = "Demo curve with shared axis", axis = "cal_demo_2.params.shared_axis_16", min = -10, max = 10)]
     curve1: [f64; 16], // CURVE type (1 dimension), shared axis 'shared_axis_16'
-    #[characteristic(comment = "Demo curve with shared axis", axis = "cal_demo_2.params.shared_axis_16", min = "-10", max = "10")]
+    #[characteristic(comment = "Demo curve with shared axis", axis = "cal_demo_2.params.shared_axis_16", min = -10, max = 10)]
     curve2: [f64; 16], // CURVE type (1 dimension)
 
-    #[characteristic(comment = "Demo map with shared axis", min = "0", max = "100")]
-    #[characteristic(x_axis = "cal_demo_2.params.shared_axis_9")]
-    #[characteristic(y_axis = "cal_demo_2.params.shared_axis_16")]
+    #[characteristic(
+        comment = "Demo map with shared axis",
+        min = 0,
+        max = 100,
+        x_axis = "cal_demo_2.params.shared_axis_9",
+        y_axis = "cal_demo_2.params.shared_axis_16"
+    )]
     map: [[u8; 9]; 16], // MAP type (2 dimensions), shared axis 'shared_axis_9' and 'shared_axis_16'
 }
 
@@ -153,11 +127,11 @@ const PARAMS: Params = Params {
 // Lookup table parameter demo
 // For project CANape_typedef this struct is registered as TYPEDEF_STRUCTURE + INSTANCE
 // For project CANape_fields this struct is registered as CHARACTERISTIC + AXIS_PTS
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
 struct LookUpTable {
-    #[axis(comment = "LookUpTable axis", min = "0", max = "10000")]
+    #[axis(comment = "LookUpTable axis", min = 0, max = 10000)]
     lookup_axis: [f32; 16],
-    #[characteristic(comment = "LookUpTable values", axis = "cal_demo_2.lookup_table.lookup_axis", min = "0", max = "10000")]
+    #[characteristic(comment = "LookUpTable values", axis = "cal_demo_2.lookup_table.lookup_axis", min = 0, max = 10000)]
     lookup_values: [f32; 16],
 }
 
@@ -233,11 +207,10 @@ impl LookUpTable {
 
 //-----------------------------------------------
 // Calibration data segment2 (A2L MEMORY_SEGMENT)
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
 struct CalPage1 {
     // Mainloop delay time
-    #[characteristic(comment = "Task delay time in us")]
-    #[characteristic(min = "0", max = "2000000", step = "100", unit = "us")]
+    #[characteristic(comment = "Task delay time in us", min = 0, max = 2000000, step = 100, unit = "us")]
     delay: u32,
 
     // Mainloop counter control parameters
@@ -250,7 +223,7 @@ const CALPAGE1: CalPage1 = CalPage1 {
     counter_control: COUNTER_CONTROL,
 };
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
 struct CalPage2 {
     // Demo of a calibratable lookup table (A2l CURVE with AXIS_PTS)
     // Lookup table output = lookup_table(input)
@@ -271,28 +244,11 @@ const CALPAGE2: CalPage2 = CalPage2 {
 #[allow(unused_assignments)]
 fn main() -> Result<()> {
     // Args
-    let args = Args::parse();
-    let log_level = match args.log_level {
-        2 => log::LevelFilter::Warn,
-        3 => log::LevelFilter::Info,
-        4 => log::LevelFilter::Debug,
-        5 => log::LevelFilter::Trace,
-        _ => log::LevelFilter::Error,
-    };
-
-    /* #region INIT_LOGGING */
-    // Logging
-    env_logger::Builder::new()
-        .target(env_logger::Target::Stdout)
-        .filter_level(log_level)
-        .format_timestamp(None)
-        .format_module_path(false)
-        .format_target(false)
-        .init();
-    /* #endregion */
+    let args = ExampleArgs::parse();
+    args.init_logging();
 
     // XCP: Initialize the XCP server
-    let app_name = args.name.as_str();
+    let app_name = args.app_name(APP_NAME);
     let app_revision = build_info::format!("{}", $.timestamp);
     let xcp = Xcp::init(app_name, app_revision, args.log_level).start_server(
         if args.tcp { XcpTransportLayer::Tcp } else { XcpTransportLayer::Udp },
@@ -302,10 +258,12 @@ fn main() -> Result<()> {
     )?;
 
     // XCP: Create calibration segments with default values and register the calibration parameters
-    let calseg1 = CalSeg::new("cal_demo_1", &CALPAGE1); // delay, counter_control
-    calseg1.register_fields();
-    let calseg2 = CalSeg::new("cal_demo_2", &CALPAGE2); // Lookup_table, params
-    calseg2.register_fields();
+    // cal_seg! registers the segment descriptor at link time; segment indices are assigned
+    // deterministically (sorted by name) on first use, independent of creation order or threads.
+    let calseg1 = cal_seg!("cal_demo_1", &CALPAGE1); // delay, counter_control
+    calseg1.register();
+    let calseg2 = cal_seg!("cal_demo_2", &CALPAGE2); // Lookup_table, params
+    calseg2.register();
 
     // XCP: Load calibration parameter page from a file if it exists, otherwise initially save the defaults
     if calseg1.load("cal_demo_seg1.json").is_err() {
@@ -319,7 +277,7 @@ fn main() -> Result<()> {
     let mut counter: u32 = 0;
 
     // Struct measurement variable lookup on stack
-    #[derive(Clone, Copy, XcpTypeDescription)]
+    #[derive(Clone, Copy, McRegisterType)]
     struct Lookup {
         input: f32,
         output_linear: f32,
@@ -335,6 +293,9 @@ fn main() -> Result<()> {
     let event = daq_create_event!("cal_demo", 16);
     daq_register!(counter, event);
     daq_register_struct!(lookup, event); // Register as nested typedefs and one instance
+
+    // XCP: Select flattened or typedef A2L representation (--flatten)
+    Xcp::get().set_registry_mode(args.flatten, false);
 
     let _ = xcp.finalize_registry(); // Force writing of A2L file, otherwise it is written on connect
 

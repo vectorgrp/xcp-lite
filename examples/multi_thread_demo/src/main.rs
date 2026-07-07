@@ -30,62 +30,25 @@ const XCP_QUEUE_SIZE: u32 = 1024 * 64; // 64kB
 const MAINLOOP_CYCLE_TIME_US: u32 = 10000; // 10ms
 
 //-----------------------------------------------------------------------------
-// Command line arguments
+// Command line arguments (shared parser, see examples/common)
 
-const DEFAULT_LOG_LEVEL: u8 = 3; // Info
-const DEFAULT_BIND_ADDR: Ipv4Addr = Ipv4Addr::new(0, 0, 0, 0);
-const DEFAULT_PORT: u16 = 5555;
-const DEFAULT_TCP: bool = false; // UDP
-
-use clap::Parser;
-
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    /// Log level (Off=0, Error=1, Warn=2, Info=3, Debug=4, Trace=5)
-    #[arg(short, long, default_value_t = DEFAULT_LOG_LEVEL)]
-    log_level: u8,
-
-    /// Bind address, default is ANY
-    #[arg(short, long, default_value_t = DEFAULT_BIND_ADDR)]
-    bind: Ipv4Addr,
-
-    /// Use TCP as transport layer, default is UDP
-    #[arg(short, long, default_value_t = DEFAULT_TCP)]
-    tcp: bool,
-
-    /// Port number
-    #[arg(short, long, default_value_t = DEFAULT_PORT)]
-    port: u16,
-
-    /// Application name
-    #[arg(short, long, default_value_t = String::from(APP_NAME))]
-    name: String,
-}
+use example_common::ExampleArgs;
 
 //-----------------------------------------------------------------------------
 // Demo calibration parameters
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, XcpTypeDescription)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, McRegisterType)]
 struct Params {
-    #[characteristic(comment = "Task delay time in s, ecu internal value as u32 in us")]
-    #[characteristic(min = "0.00001", max = "2", unit = "s", factor = "0.000001")]
+    #[characteristic(comment = "Task delay time in s, ecu internal value as u32 in us", min = 0.00001, max = 2, unit = "s", factor = 0.000001)]
     delay: u32,
 
-    #[characteristic(comment = "Amplitude of the sine signal")]
-    #[characteristic(unit = "Volt")]
-    #[characteristic(min = "0")]
-    #[characteristic(max = "500")]
+    #[characteristic(comment = "Amplitude of the sine signal", unit = "Volt", min = 0, max = 500)]
     ampl: f64,
 
-    #[characteristic(comment = "Period of the sine signal")]
-    #[characteristic(unit = "s")]
-    #[characteristic(min = "0.001")]
-    #[characteristic(max = "10")]
+    #[characteristic(comment = "Period of the sine signal", unit = "s", min = 0.001, max = 10)]
     period: f64,
 
-    #[characteristic(comment = "Counter maximum value")]
-    #[characteristic(min = "0", max = "255", step = "10")]
+    #[characteristic(comment = "Counter maximum value", min = 0, max = 255, step = 10)]
     counter_max: u32,
 }
 
@@ -155,26 +118,11 @@ fn main() -> Result<()> {
     println!("XCPlite Multi Thread Demo");
 
     // Args
-    let args = Args::parse();
-    let log_level = match args.log_level {
-        2 => log::LevelFilter::Warn,
-        3 => log::LevelFilter::Info,
-        4 => log::LevelFilter::Debug,
-        5 => log::LevelFilter::Trace,
-        _ => log::LevelFilter::Error,
-    };
-
-    // Logging
-    env_logger::Builder::new()
-        .target(env_logger::Target::Stdout)
-        .filter_level(log_level)
-        .format_timestamp(None)
-        .format_module_path(false)
-        .format_target(false)
-        .init();
+    let args = ExampleArgs::parse();
+    args.init_logging();
 
     // XCP: Initialize the XCP server
-    let app_name = args.name.as_str();
+    let app_name = args.app_name(APP_NAME);
     let app_revision = build_info::format!("{}", $.timestamp);
     let xcp = Xcp::init(app_name, app_revision, args.log_level).start_server(
         if args.tcp { XcpTransportLayer::Tcp } else { XcpTransportLayer::Udp },
@@ -183,12 +131,15 @@ fn main() -> Result<()> {
         XCP_QUEUE_SIZE,
     )?;
 
+    // XCP: Select flattened or typedef A2L representation (--flatten)
+    Xcp::get().set_registry_mode(args.flatten, false);
+
     // Create a static calibration parameter set (will be a MEMORY_SEGMENT in A2L) from a const struct CALPAGE1
     // The calibration parameters are shared between the threads
     // Calibration segments have 2 pages, a constant default "FLASH" page and a mutable "RAM" page
     // FLASH or RAM can be switched at runtime (XCP set_cal_page), saved to json (XCP freeze) freeze and reinitialized from FLASH (XCP copy_cal_page)
     let params = CALSEG1.get_or_init(|| CalCell::new("multi_thread_params", &CALPAGE1)).clone_calseg();
-    params.register_fields(); // Register all struct fields (with meta data from annotations) in the A2L registry
+    params.register(); // Register all struct fields (with meta data from annotations) in the A2L registry
 
     // Start multiple instances of the demo task
     // Each instance will create its own measurement variable and event instances
