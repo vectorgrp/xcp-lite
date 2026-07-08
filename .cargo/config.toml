@@ -1,0 +1,24 @@
+[target.'cfg(all())']
+rustflags = [
+
+    "-A", "dead_code",   # disable globally (bindgen)
+    "-A", "non_camel_case_types",   # disable globally (bindgen)
+    "-A", "non_upper_case_globals",   # disable globally
+
+
+#    "-W", "clippy::pedantic",
+
+    "-W", "clippy::cast_possible_truncation",
+    "-W", "clippy::cast_possible_wrap",
+    "-W", "clippy::cast_sign_loss",
+    "-W", "clippy::cast_precision_loss",
+
+# @@@@ TODO: remove this
+    "-A", "clippy::too_many_arguments",   # disable globally
+    "-A", "clippy::collapsible_if",   # disable globally
+    "-A", "clippy::derivable_impls",   # disable globally
+    "-A", "clippy::len_zero",   # disable globally
+    "-A", "clippy::manual_range_contains",   # disable globally
+    "-A", "clippy::unnecessary_unwrap",   # disable globally
+]
+

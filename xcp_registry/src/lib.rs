@@ -109,6 +109,9 @@ pub enum RegistryError {
     #[error("registry error: metadata already set for field `{0}`")]
     MetadataAlreadySet(String),
 
+    #[error("registry error: index overflow")]
+    IndexOverflow,
+
     #[error("unknown error")]
     Unknown,
 }
@@ -147,7 +150,7 @@ static REGISTRY: Mutex<Option<Registry>> = Mutex::new(None);
 
 // @@@@ TODO: Check if this AI induced change from OnceLock to Mutex is what we desired ??????
 /// Closed registry singleton
-/// (Finalized and read only after call to Registry::close())
+/// (Finalized and read only after call to `Registry::close()`)
 static CLOSED_REGISTRY: Mutex<Option<&'static Registry>> = Mutex::new(None);
 //static CLOSED_REGISTRY: std::sync::OnceLock<Registry> = std::sync::OnceLock::new();
 
@@ -257,7 +260,7 @@ fn expand_typedef_slot(
     // Array or matrix of structs: unroll element by element.
     let columns = x_dim.max(1);
     let rows = y_dim.max(1);
-    let stride = typedef.size as i32;
+    let stride = i32::try_from(typedef.size).expect("Typedef size exceeds i32::MAX");
     for iy in 0..rows {
         for ix in 0..columns {
             let element_index = iy as i32 * columns as i32 + ix as i32;

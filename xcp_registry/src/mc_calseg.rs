@@ -120,14 +120,15 @@ impl McCalibrationSegmentList {
 
     /// Add a calibration segment with segment relative addressing mode
     pub fn add_cal_seg<T: Into<McIdentifier>>(&mut self, name: T, number: Option<u8>, size: u32) -> Result<&McCalibrationSegment, RegistryError> {
-        let index = self.len() as u16;
+        let index = u16::try_from(self.len()).map_err(|_| RegistryError::IndexOverflow)?;
         let (addr_ext, addr) = McAddress::get_calseg_ext_addr_base(index);
         self.add_a2l_cal_seg(name, index, number, addr_ext, addr, size)
     }
 
     /// Add a calibration segment with absolute addressing mode
     pub fn add_cal_seg_by_addr<T: Into<McIdentifier>>(&mut self, name: T, number: Option<u8>, addr_ext: u8, addr: u32, size: u32) -> Result<&McCalibrationSegment, RegistryError> {
-        self.add_a2l_cal_seg(name, self.len() as u16, number, addr_ext, addr, size)
+        let index = u16::try_from(self.len()).map_err(|_| RegistryError::IndexOverflow)?;
+        self.add_a2l_cal_seg(name, index, number, addr_ext, addr, size)
     }
 
     /// Add a calibration segment by name, index, address extension and address

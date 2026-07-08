@@ -196,7 +196,7 @@ impl EventList {
 
     fn create_event_ext(&mut self, name: &'static str, indexed: bool) -> XcpEvent {
         // Allocate a new, sequential event id number
-        let id: u16 = self.0.len() as u16;
+        let id: u16 = u16::try_from(self.0.len()).expect("Event id exceeds u16::MAX");
         if id >= XcpEvent::XCP_MAX_EVENTS {
             log::error!("Maximum number of events exceeded");
             return XcpEvent::XCP_UNDEFINED_EVENT;
@@ -407,13 +407,14 @@ impl Xcp {
     }
 
     /// Get calibration segment name by index
+    #[allow(clippy::cast_possible_truncation)] // @@@@ TODO: Improve index as u16
     fn get_calseg_name(&self, index: usize) -> &'static str {
         unsafe {
             // @@@@ UNSAFE - C library call
             let name_ptr = xcplib::XcpGetCalSegName(index as u16);
             if !name_ptr.is_null() {
                 let c_str = std::ffi::CStr::from_ptr(name_ptr);
-                return c_str.to_str().unwrap_or("");
+                c_str.to_str().unwrap_or("")
             } else {
                 panic!("Calibration segment {} does not exist", index);
             }

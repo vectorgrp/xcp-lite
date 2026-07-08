@@ -104,10 +104,7 @@ fn enum_pair_count(unit: &str) -> Option<usize> {
             return None;
         }
         rest = &rest[1..];
-        let end = match rest.find('"') {
-            Some(i) => i,
-            None => return None,
-        };
+        let end = rest.find('"')?;
         rest = rest[end + 1..].trim_start();
         pairs += 1;
     }
@@ -445,7 +442,7 @@ impl GenerateA2l for McEvent {
             let short_name = if name.len() > 8 { &name[name.len() - 8..] } else { &name };
             write!(writer, "\t\t\t/begin EVENT \"{:.100}\" \"{}\" ", name, short_name)?;
         } else {
-            let short_name = if name.len() > 8 { &name[name.len() - 8..] } else { &name };
+            let short_name = if name.len() > 8 { &name[name.len() - 8..] } else { name };
             write!(writer, "\t\t\t/begin EVENT \"{:.100}\" \"{}\" ", name, short_name)?;
         }
         writeln!(writer, "{} DAQ 0xFF {} {} {} CONSISTENCY DAQ /end EVENT", id, time_cycle, time_unit, priority)

@@ -134,7 +134,7 @@ impl McAddress {
 
     /// Undefined
     pub const XCP_ADDR_EXT_UNDEF: u8 = 0xFF;
-    pub const XCP_ADDR_OFFSET_UNDEF: i32 = 0x80000000u32 as i32;
+    pub const XCP_ADDR_OFFSET_UNDEF: i32 = 0x80000000u32.cast_signed();
 
     pub fn new_calseg_rel<T: Into<McIdentifier>>(calseg_name: T, addr_offset: i32) -> Self {
         McAddress {
@@ -169,7 +169,7 @@ impl McAddress {
         McAddress {
             calseg_name: None,
             event_id: Some(event_id),
-            addr_offset: addr_offset,
+            addr_offset,
             addr_mode: McAddrMode::Dyn,
             a2l_addr: 0,
             a2l_addr_ext: McAddress::XCP_ADDR_EXT_DYN + index,
@@ -262,6 +262,9 @@ impl McAddress {
     }
 
     /// Add an offset to an address
+    // Infallible: value is always < u32::MAX (bounded by protocol)
+    #[allow(clippy::cast_possible_truncation)]
+    #[allow(clippy::cast_sign_loss)]
     pub fn add_addr_offset(&mut self, offset: i32) {
         match self.addr_mode {
             McAddrMode::Cal | McAddrMode::Dyn => {
@@ -290,11 +293,11 @@ impl McAddress {
             "Invalid address extension for DYN addressing"
         );
         assert!(
-            offset >= -McAddress::XCP_ADDR_EXT_DYN_OFFSET_OFFSET && offset <= McAddress::XCP_ADDR_EXT_DYN_OFFSET_MASK as i32 - McAddress::XCP_ADDR_EXT_DYN_OFFSET_OFFSET,
+            offset >= -McAddress::XCP_ADDR_EXT_DYN_OFFSET_OFFSET && offset <= McAddress::XCP_ADDR_EXT_DYN_OFFSET_MASK.cast_signed() - McAddress::XCP_ADDR_EXT_DYN_OFFSET_OFFSET,
             "Offset out of range for DYN addressing"
         );
         let a2l_addr: u32 = ((event_id as u32) << McAddress::XCP_ADDR_EXT_DYN_OFFSET_BITS)
-            | ((offset + McAddress::XCP_ADDR_EXT_DYN_OFFSET_OFFSET) as u32 & McAddress::XCP_ADDR_EXT_DYN_OFFSET_MASK);
+            | ((offset + McAddress::XCP_ADDR_EXT_DYN_OFFSET_OFFSET).cast_unsigned() & McAddress::XCP_ADDR_EXT_DYN_OFFSET_MASK);
         (addr_ext, a2l_addr)
     }
 
@@ -320,7 +323,7 @@ impl McAddress {
     pub fn get_a2l_addr(&self, registry: &Registry) -> (u8, u32) {
         match self.addr_mode {
             // Event relative addressing with async access
-            McAddrMode::Dyn => McAddress::get_dyn_ext_addr(self.a2l_addr_ext, self.event_id.unwrap(), self.addr_offset.try_into().expect("offset too large")),
+            McAddrMode::Dyn => McAddress::get_dyn_ext_addr(self.a2l_addr_ext, self.event_id.unwrap(), self.addr_offset),
             // Absolute addressing with default event
             McAddrMode::Abs => McAddress::get_abs_ext_addr(self.addr_offset.try_into().expect("get_a2l_addr: addr too large")),
             // Explicit segment relative addressing

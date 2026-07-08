@@ -122,6 +122,7 @@ impl<const N: usize> DaqEvent<N> {
 
     /// Associate a variable on stack to this DaqEvent and register it in rel addr mode
     #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::cast_possible_wrap)]
     pub fn add_stack(&self, name: &'static str, ptr: *const u8, value_type: McValueType, x_dim: u16, y_dim: u16, mc_support_data: McSupportData) {
         let p = ptr as usize; // variable address
         let b = &self.buffer as *const _ as usize; // base address
