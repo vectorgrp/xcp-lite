@@ -576,7 +576,7 @@ impl McSupportData {
 
     /// Get the physical unit as &'static str
     pub fn get_unit(&self) -> &'static str {
-        return self.unit.as_str();
+        self.unit.as_str()
     }
 
     /// Get the physical step size as f64

@@ -1,11 +1,12 @@
 {
     "rust-analyzer.cargo.features": "all",
-    "rust-analyzer.checkOnSave.command": "clippy",
+    "rust-analyzer.check.command": "clippy",
     "rust-analyzer.debug.sourceFileMap": "auto",
     "lldb.displayFormat": "auto",
     "lldb.dereferencePointers": true,
     "lldb.consoleMode": "commands",
     "lldb.launch.sourceMap": {
         "/rustc/*": "${env:HOME}/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/src/rust/*"
-    }
+    },
+    "rust-analyzer.checkOnSave": true
 }

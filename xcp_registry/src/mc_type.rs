@@ -142,6 +142,7 @@ impl McValueType {
             McValueType::Sbyte => Some(i8::MIN as f64),
             McValueType::Sword => Some(i16::MIN as f64),
             McValueType::Slong => Some(i32::MIN as f64),
+            #[allow(clippy::cast_precision_loss)]
             McValueType::Slonglong => Some(i64::MIN as f64),
             McValueType::Float32Ieee | McValueType::Float64Ieee => Some(-1E32),
             McValueType::Ubyte => Some(0.0),
@@ -165,7 +166,9 @@ impl McValueType {
             McValueType::Sword => Some(i16::MAX as f64),
             McValueType::Ulong => Some(u32::MAX as f64),
             McValueType::Slong => Some(i32::MAX as f64),
+            #[allow(clippy::cast_precision_loss)]
             McValueType::Ulonglong => Some(u64::MAX as f64), // converting u64::MAX to f64 results in a loss of precision, and the resulting f64 value is slightly higher than the original u64 value
+            #[allow(clippy::cast_precision_loss)]
             McValueType::Slonglong => Some(i64::MAX as f64),
             McValueType::Float32Ieee => Some(1E32),
             McValueType::Float64Ieee => Some(1E32),

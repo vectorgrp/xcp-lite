@@ -5,6 +5,7 @@ use quote::quote;
 use syn::{Expr, Lit, Type};
 
 /// Base (innermost, non-array) type of a field.
+#[allow(clippy::large_enum_variant)]
 pub(crate) enum BaseType {
     /// A recognized scalar; carries the `McValueType` variant identifier name.
     Scalar(&'static str),
