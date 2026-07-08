@@ -11,7 +11,6 @@ Histogram
 - All metric fields are measurement variables with addressing mode DYN
 - This allow asynchronous read (polling) and write access to modify or reset the histogram state
 */
-
 //-------------------------------------------------------------------------------------------------
 // Macros
 
@@ -97,6 +96,7 @@ impl<const N: usize> Histogram<N> {
     // # Panics
     // if the field name is not unique
     // if the field offset is out of range, which should not happen
+    #[allow(clippy::cast_possible_wrap)]
     fn register_field(&mut self, field_name: &'static str, field_offset: usize, mc_value_type: McValueType, mc_support_data: McSupportData) {
         let event_offset = std::mem::offset_of!(Histogram<N>, event);
         let offset: i64 = field_offset as i64 - event_offset as i64;
@@ -111,6 +111,8 @@ impl<const N: usize> Histogram<N> {
 
     /// Register all fields of a histogram as measurement variables with write access
     /// Status may be reset by setting the reset flag to 1 or by writing directly to the fields
+    #[allow(clippy::cast_possible_truncation)]
+    #[allow(clippy::cast_possible_wrap)]
     pub fn register_fields(&mut self) {
         // Histogram
         let event_offset = std::mem::offset_of!(Histogram<N>, event);
@@ -198,6 +200,7 @@ impl<const N: usize> Histogram<N> {
     }
 
     /// Trigger the histogram event and update the aggregations
+    #[allow(clippy::cast_possible_truncation)]
     pub fn trigger(&mut self) {
         let time_ns = Xcp::get().get_clock(); // Get the current time in nanoseconds
         self.cycle_time_us = ((time_ns - self.last_time_ns) / 1000) as u32; // Convert to microseconds

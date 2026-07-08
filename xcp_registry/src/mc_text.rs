@@ -201,7 +201,7 @@ impl From<McIdentifier> for String {
 // From String, &'static str
 //--------------------------
 
-fn to_identifier(s: &mut String) {
+fn to_identifier(s: &mut str) {
     // Convert the string into a mutable byte slice
     let bytes = unsafe { s.as_bytes_mut() };
 

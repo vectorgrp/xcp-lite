@@ -109,7 +109,11 @@ where
         unsafe {
             let c_name = std::ffi::CString::new(instance_name).unwrap();
             let c_default_page = default_page as *const T as *const std::os::raw::c_void;
-            let index = xcplib::XcpCreateCalSeg(c_name.as_ptr(), c_default_page, std::mem::size_of::<T>() as u16);
+            let index = xcplib::XcpCreateCalSeg(
+                c_name.as_ptr(),
+                c_default_page,
+                u16::try_from(std::mem::size_of::<T>()).expect("CalSeg size exceeds u16::MAX"),
+            );
 
             if index == u16::MAX {
                 panic!("xcplib_create_calseg failed for instance_name={}", instance_name);
@@ -126,8 +130,7 @@ where
     pub fn get_name(&self) -> &'static str {
         unsafe {
             let c_str = xcplib::XcpGetCalSegName(self.index);
-            let r_str = std::ffi::CStr::from_ptr(c_str).to_str().unwrap();
-            r_str
+            std::ffi::CStr::from_ptr(c_str).to_str().unwrap()
         }
     }
 
@@ -375,7 +378,6 @@ impl<T: CalPageTrait> Deref for ReadLockGuard<'_, T> {
 /// Write lock guard that provides consistent write access to a calibration page
 /// Makes the changes visible in this CalSeg after the guard is dropped, all other clones of the CalSeg will see the changes on their next sync
 /// This should be used for testing only, mutable parameters are not supported yet
-
 pub struct WriteLockGuard<'a, T: CalPageTrait> {
     page: &'a mut T,
     index: xcplib::tXcpCalSegIndex,
@@ -401,7 +403,7 @@ impl<T: CalPageTrait> Deref for WriteLockGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        &self.page
+        self.page
     }
 }
 
