@@ -3,6 +3,25 @@
 All notable changes to Rust xcp-lite are documented in this file.
 
 
+## [V3.0.5]
+
+- Fix xcplib compilation on Linux/GCC with -std=c11
+    Added -D_GNU_SOURCE to cc build flags (build.rs)
+    GCC on Linux with -std=c11 disables all POSIX/GNU extensions unless explicitly opted in. 
+    The following symbols in platform.c require _GNU_SOURCE to be visible:
+        - CLOCK_MONOTONIC_RAW, CLOCK_REALTIME  (GNU/Linux clock IDs)
+        - clock_gettime, clock_getres          (POSIX.1b realtime clock)
+        - nanosleep                            (POSIX.1b sleep)
+        - pthread_mutexattr_settype, PTHREAD_MUTEX_RECURSIVE (POSIX.1-2001 mutex attrs)
+        - struct timeval, struct ip_mreqn      (socket/network types)
+        - gmtime_r                             (POSIX.1-2001 time util)
+
+
+## [V3.0.3]
+
+- Removed some clippy warnings
+
+
 ## [V3.0.1]
 
 - Support for enum fields of basic types (u8, u16, u32, i8, i16, i32) in the new McRegisterType macro.  

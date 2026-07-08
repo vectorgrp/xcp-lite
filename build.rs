@@ -82,7 +82,7 @@ fn main() {
     builder.define("XCPLIB_CFG_OVERRIDE", "\"xcplib_rust_cfg.h\"");
 
     if is_posix {
-        //builder.define("_POSIX_C_SOURCE", "200112L");
+        builder.define("_GNU_SOURCE", None); // Required on Linux/GCC with -std=c11 for POSIX/GNU extensions (nanosleep, clock_gettime, CLOCK_MONOTONIC_RAW, pthread_mutexattr_settype, gmtime_r, ip_mreqn, ...)
         builder.flag("-std=c11");
         if is_release {
             builder.flag("-O2");

@@ -1,0 +1,37 @@
+{
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "xcp-lite: sync to Linux",
+            "command": "rsync",
+            "args": [
+                "-avz",
+                "--delete",
+                "--exclude=build/",
+                "--exclude=target/",
+                "--exclude=.git/",
+                "--exclude=\"*.o\"",
+                "--exclude=\"*.a\"",
+                "--exclude=\"*.mf4\"",
+                "./",
+                "rainer@192.168.0.206:~/xcp-lite-RainerZ/"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "dependsOn": "xcp-lite: sync clock on Linux",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "detail": "rsync to Linux rainer@192.168.0.206:~/xcp-lite-RainerZ/"
+        },
+    ],
+    "version": "2.0.0"
+}
