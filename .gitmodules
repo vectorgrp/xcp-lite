@@ -1,4 +1,4 @@
 [submodule "xcplib"]
 	path = xcplib
-	url = https://github.com/RainerZ/XCPlite.git
-	branch = V2.1.6
+	url = https://github.com/vectorgrp/XCPlite
+	branch = master
