@@ -299,11 +299,11 @@ fn write_axis_descr(_name: &str, dim_type: &McDimType, mc_support_data: &McSuppo
 fn write_ifdata_event(event_id: u16, writer: &mut A2lWriter) -> std::io::Result<()> {
     if event_id == 0 {
         // Default event
-        // @@@@ TODO Event id 0 is a default event - make configurable
-        write!(
-            writer,
-            " /begin IF_DATA XCP /begin DAQ_EVENT VARIABLE /begin DEFAULT_EVENT_LIST EVENT {event_id} /end DEFAULT_EVENT_LIST /end DAQ_EVENT /end IF_DATA"
-        )?;
+        write!(writer, " /begin IF_DATA XCP /begin DAQ_EVENT VARIABLE")?;
+        if writer.registry.get_write_default_event_list() {
+            write!(writer, " /begin DEFAULT_EVENT_LIST EVENT {event_id} /end DEFAULT_EVENT_LIST")?;
+        }
+        write!(writer, " /end DAQ_EVENT /end IF_DATA")?;
     } else {
         // Fixed event
         write!(writer, " /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT {event_id} /end DAQ_EVENT /end IF_DATA")?;
@@ -1254,6 +1254,31 @@ ASAP2_VERSION 1 71
 #[cfg(test)]
 mod test {
     use super::*;
+
+    fn write_event_if_data(event_id: u16, write_default_event_list: bool) -> String {
+        let mut reg = Registry::new();
+        reg.set_write_default_event_list(write_default_event_list);
+        let mut buf = Vec::new();
+        {
+            let writer: &mut dyn Write = &mut buf;
+            let mut a2l_writer = A2lWriter::new(writer, &reg);
+            write_ifdata_event(event_id, &mut a2l_writer).unwrap();
+        }
+        String::from_utf8(buf).unwrap()
+    }
+
+    #[test]
+    fn test_default_event_list_mode() {
+        assert_eq!(
+            write_event_if_data(0, true),
+            " /begin IF_DATA XCP /begin DAQ_EVENT VARIABLE /begin DEFAULT_EVENT_LIST EVENT 0 /end DEFAULT_EVENT_LIST /end DAQ_EVENT /end IF_DATA"
+        );
+        assert_eq!(write_event_if_data(0, false), " /begin IF_DATA XCP /begin DAQ_EVENT VARIABLE /end DAQ_EVENT /end IF_DATA");
+        assert_eq!(
+            write_event_if_data(1, false),
+            " /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT 1 /end DAQ_EVENT /end IF_DATA"
+        );
+    }
 
     // Write only the typedef section of a registry into a string
     fn write_typedefs(reg: &Registry) -> String {

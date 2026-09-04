@@ -107,6 +107,10 @@ impl McApplication {
 //-------------------------------------------------------------------------------------------------
 // Registry
 
+fn default_write_default_event_list() -> bool {
+    true
+}
+
 /// Measurement and calibration object database
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Registry {
@@ -119,6 +123,11 @@ pub struct Registry {
     #[serde(skip_serializing)]
     #[serde(skip_deserializing)]
     prefix_names: bool,
+
+    // Write event 0 as the default event for measurement objects in A2L
+    #[serde(skip_serializing)]
+    #[serde(skip_deserializing, default = "default_write_default_event_list")]
+    write_default_event_list: bool,
 
     // Application name and software version
     pub application: McApplication,
@@ -158,6 +167,7 @@ impl Registry {
         Registry {
             flatten_typedefs: false,
             prefix_names: false,
+            write_default_event_list: true,
             application: McApplication::new(),
             xcp_tl_params: None,
             xcp_params: None,
@@ -222,6 +232,14 @@ impl Registry {
     }
     pub fn get_prefix_names_mode(&self) -> bool {
         self.prefix_names
+    }
+
+    /// Write event 0 as DEFAULT_EVENT_LIST when writing A2L
+    pub fn set_write_default_event_list(&mut self, write_default_event_list: bool) {
+        self.write_default_event_list = write_default_event_list;
+    }
+    pub fn get_write_default_event_list(&self) -> bool {
+        self.write_default_event_list
     }
 
     //---------------------------------------------------------------------------------------------------------

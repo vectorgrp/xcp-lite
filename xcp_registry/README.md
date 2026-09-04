@@ -58,6 +58,7 @@ Set optional rendering modes before populating (see [Registry modes](#registry-m
 ```rust
 registry.set_flatten_typedefs_mode(false); // default: false → use TYPEDEF_STRUCTURE
 registry.set_prefix_names_mode(false);     // default: false → no app-name prefix
+registry.set_write_default_event_list(true); // default: true → emit event 0 in DEFAULT_EVENT_LIST
 ```
 
 Set the XCP Ethernet transport parameters so the A2L gets an `IF_DATA XCP` section:
@@ -447,6 +448,7 @@ let m: Option<McSupportData> = McSupportData::from_json_string(&s);
 |---|---|---|
 | `set_flatten_typedefs_mode(bool)` | `false` | When `true`, nested typedefs are flattened to flat objects with mangled names at A2L export time |
 | `set_prefix_names_mode(bool)` | `false` | When `true`, every A2L object name is prefixed with the application name |
+| `set_write_default_event_list(bool)` | `true` | When `false`, event 0 is emitted as `VARIABLE` without `DEFAULT_EVENT_LIST` |
 
 Flattening only affects the *export*; the internal registry structure (typedef tree) is
 preserved regardless.
