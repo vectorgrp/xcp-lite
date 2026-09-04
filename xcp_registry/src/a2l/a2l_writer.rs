@@ -295,17 +295,17 @@ fn write_axis_descr(_name: &str, dim_type: &McDimType, mc_support_data: &McSuppo
     Ok(())
 }
 
-// Write instance IF_DATA with event
-fn write_ifdata_event(event_id: u16, writer: &mut A2lWriter) -> std::io::Result<()> {
-    if event_id == 0 {
-        // Default event
-        // @@@@ TODO Event id 0 is a default event - make configurable
+// Write instance IF_DATA with a single event, default or fixed
+fn write_ifdata_event(event_id: u16, default: bool, writer: &mut A2lWriter) -> std::io::Result<()> {
+    // Default event
+    if default {
         write!(
             writer,
             " /begin IF_DATA XCP /begin DAQ_EVENT VARIABLE /begin DEFAULT_EVENT_LIST EVENT {event_id} /end DEFAULT_EVENT_LIST /end DAQ_EVENT /end IF_DATA"
         )?;
-    } else {
-        // Fixed event
+    }
+    // Fixed event
+    else {
         write!(writer, " /begin IF_DATA XCP /begin DAQ_EVENT FIXED_EVENT_LIST EVENT {event_id} /end DAQ_EVENT /end IF_DATA")?;
     }
     Ok(())
@@ -647,7 +647,7 @@ impl McInstance {
  "#
             )?;
             if let Some(id) = event_id {
-                write_ifdata_event(id, writer)?;
+                write_ifdata_event(id, false, writer)?; // Fixed event
             }
             writeln!(writer, r#" /end BLOB"#)?;
         }
@@ -658,7 +658,8 @@ impl McInstance {
             write!(writer, r#"/begin INSTANCE {instance_name} "{comment}" {type_name} 0x{addr:X} ECU_ADDRESS_EXTENSION {ext}"#)?;
             write_dimensions(dim_type, writer)?;
             if let Some(id) = event_id {
-                write_ifdata_event(id, writer)?;
+                // Instances in absolute addressing mode allow the tool, in the user's responsibility, to choose a different event
+                write_ifdata_event(id, self.address.is_absolute(), writer)?;
             }
             writeln!(writer, r#" /end INSTANCE"#)?;
         }
@@ -697,7 +698,7 @@ impl McInstance {
                     write!(writer, " ECU_ADDRESS_EXTENSION {}", ext)?;
                 }
                 if let Some(id) = event_id {
-                    write_ifdata_event(id, writer)?;
+                    write_ifdata_event(id, false, writer)?;
                 }
                 writeln!(writer, " /end CHARACTERISTIC")?;
             } else {
@@ -723,7 +724,8 @@ impl McInstance {
                 }
                 write_dimensions(dim_type, writer)?;
                 if let Some(id) = event_id {
-                    write_ifdata_event(id, writer)?;
+                    // Measurements in absolute addressing mode allow the tool, in the user's responsibility, to choose a different event
+                    write_ifdata_event(id, self.address.is_absolute(), writer)?;
                 }
                 writeln!(writer, r#" /end MEASUREMENT"#)?;
             }

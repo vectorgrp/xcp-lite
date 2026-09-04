@@ -11,6 +11,7 @@ All notable changes to Rust xcp-lite are documented in this file.
 - Added `McXcpProtocolLayer` (`max_cto`, `max_dto`) to the registry; written into A2L XCP IF_DATA.
 - A2L files are now written with a UTF-8 BOM.
 - A2L writer: unique names for field typedefs of the same name but different type.
+- Removed the special treatment of event id 0 as a default event instead of a fixed event
 - Switched xcplib submodule to VectorGrp master.
 
 

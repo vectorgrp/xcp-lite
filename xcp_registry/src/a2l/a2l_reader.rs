@@ -170,11 +170,12 @@ fn get_event_id_from_ifdata(if_data_vec: &Vec<a2lfile::IfData>) -> Option<u16> {
         let decoded_ifdata = aml_ifdata::A2mlVector::load_from_ifdata(ifdata).unwrap();
         if let Some(xcp) = decoded_ifdata.xcp {
             if let Some(daq_event) = xcp.daq_event {
+                // Fixed event
                 if let Some(fixed_event_list) = daq_event.fixed_event_list {
                     assert!(!fixed_event_list.event.is_empty());
                     return Some(fixed_event_list.event[0].item);
                 }
-                // @@@@ TODO Improve this workaround to treat the first default event like a fixed event
+                // Default event, take the first event from the list as fixed event
                 if let Some(event_lists) = daq_event.variable {
                     if let Some(default_event_list) = event_lists.default_event_list {
                         assert!(!default_event_list.event.is_empty());
