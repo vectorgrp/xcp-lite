@@ -386,6 +386,11 @@ The writer emits `TYPEDEF_STRUCTURE` / `INSTANCE` blocks by default.
 With `set_flatten_typedefs_mode(true)` the registry is internally flattened before
 writing, producing plain `MEASUREMENT` / `CHARACTERISTIC` / `AXIS_PTS` objects with mangled names instead.
 
+By default the A2L file includes the XCP A2ML description with `/include "XCP_104.aml"`, which keeps the file small.
+Tools like CANape then need `XCP_104.aml` next to the A2L file, its content is available as `xcp_registry::XCP_104_AML`.
+With `set_a2ml_mode(McA2mlMode::Embed)` the A2ML description is embedded and the A2L file is self-contained,
+`McA2mlMode::None` omits it.
+
 ---
 
 ## Reading A2L (optional feature)
@@ -410,6 +415,9 @@ let warnings = registry.load_a2l(
 )?;
 println!("{} warnings", warnings);
 ```
+
+IF_DATA XCP is parsed with the XCP A2ML specification built into the crate. The A2L file does not need to contain
+an A2ML description, and an `/include` of a missing `.aml` file (such as `/include "XCP_104.aml"`) is ignored.
 
 ### Validate an A2L file (syntax + consistency check)
 
@@ -447,6 +455,7 @@ let m: Option<McSupportData> = McSupportData::from_json_string(&s);
 |---|---|---|
 | `set_flatten_typedefs_mode(bool)` | `false` | When `true`, nested typedefs are flattened to flat objects with mangled names at A2L export time |
 | `set_prefix_names_mode(bool)` | `false` | When `true`, every A2L object name is prefixed with the application name |
+| `set_a2ml_mode(McA2mlMode)` | `Include` | A2ML description in the A2L file: `Include` writes `/include "XCP_104.aml"`, `Embed` embeds it, `None` omits it |
 
 Flattening only affects the *export*; the internal registry structure (typedef tree) is
 preserved regardless.

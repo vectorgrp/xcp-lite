@@ -24,6 +24,11 @@ pub use mc_registry::Registry;
 
 // A2L reader and writer
 mod a2l;
+pub use a2l::McA2mlMode;
+
+/// ASAM XCP 1.4 A2ML description (content of the file XCP_104.aml)
+/// Embedded into A2L files with `McA2mlMode::Embed`, or to be written next to an A2L file which includes "XCP_104.aml"
+pub const XCP_104_AML: &str = include_str!("../XCP_104.aml");
 
 // McEvent
 mod mc_event;

@@ -167,7 +167,10 @@ fn get_conversion(conversion: &str, module: &a2lfile::Module) -> (Option<f64>, O
 // Get event number from IF_DATA
 fn get_event_id_from_ifdata(if_data_vec: &Vec<a2lfile::IfData>) -> Option<u16> {
     for ifdata in if_data_vec {
-        let decoded_ifdata = aml_ifdata::A2mlVector::load_from_ifdata(ifdata).unwrap();
+        // Skip IF_DATA blocks which are not XCP (e.g. CANAPE_EXT) or could not be parsed
+        let Some(decoded_ifdata) = aml_ifdata::A2mlVector::load_from_ifdata(ifdata) else {
+            continue;
+        };
         if let Some(xcp) = decoded_ifdata.xcp {
             if let Some(daq_event) = xcp.daq_event {
                 // Fixed event
@@ -351,8 +354,7 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
             error!("IF_DATA block is not valid");
 
             //info!("{:#?}", if_data);
-        } else {
-            let decoded_ifdata = aml_ifdata::A2mlVector::load_from_ifdata(if_data).unwrap();
+        } else if let Some(decoded_ifdata) = aml_ifdata::A2mlVector::load_from_ifdata(if_data) {
             if let Some(xcp) = decoded_ifdata.xcp {
                 if let Some(daq) = xcp.daq {
                     for e in daq.event {

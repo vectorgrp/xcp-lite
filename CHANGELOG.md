@@ -3,6 +3,14 @@
 All notable changes to Rust xcp-lite are documented in this file.
 
 
+## [V3.0.10]
+
+- A2L reader: IF_DATA XCP is always parsed with the XCP 1.4 A2ML specification built into `xcp_registry`; A2L files no longer need to include or contain an A2ML description to be loaded or checked.
+- A2L reader: an `/include` of a missing `.aml` file (e.g. `/include "XCP_104.aml"`) is ignored, `XCP_104.aml` does not have to be provided next to the A2L file. Other relative includes are still resolved relative to the A2L file.
+- A2L reader: non-XCP or unparsable IF_DATA blocks are skipped instead of panicking.
+- A2L writer: `Registry::set_a2ml_mode(McA2mlMode)` selects how the A2ML description is written: `Include` (`/include "XCP_104.aml"`, default, unchanged), `Embed` (self-contained A2L file with `/begin A2ML ... /end A2ML`) or `None`.
+- `xcp_registry::XCP_104_AML` provides the XCP 1.4 A2ML description (XCP_104.aml) as a string.
+
 ## [V3.0.9]
 
 - Bugfix: `McDimType::is_scalar`/`is_array`/`is_matrix` — copy-paste bug caused misclassifying all 1D arrays as scalars.

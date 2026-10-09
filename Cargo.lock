@@ -59,7 +59,7 @@ dependencies = [
 
 [[package]]
 name = "all_features_demo"
-version = "3.0.9"
+version = "3.0.10"
 dependencies = [
  "anyhow",
  "build-info 0.0.40",
@@ -441,7 +441,7 @@ checksum = "b35204fbdc0b3f4446b89fc1ac2cf84a8a68971995d0bf2e925ec7cd960f9cb3"
 
 [[package]]
 name = "calibration_demo"
-version = "3.0.9"
+version = "3.0.10"
 dependencies = [
  "anyhow",
  "build-info 0.0.40",
@@ -808,7 +808,7 @@ dependencies = [
 
 [[package]]
 name = "example_common"
-version = "3.0.9"
+version = "3.0.10"
 dependencies = [
  "clap",
  "env_logger",
@@ -973,7 +973,7 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
 name = "hello_xcp"
-version = "3.0.9"
+version = "3.0.10"
 dependencies = [
  "anyhow",
  "build-info 0.0.40",
@@ -1435,7 +1435,7 @@ dependencies = [
 
 [[package]]
 name = "multi_thread_demo"
-version = "3.0.9"
+version = "3.0.10"
 dependencies = [
  "anyhow",
  "build-info 0.0.40",
@@ -1665,7 +1665,7 @@ dependencies = [
 
 [[package]]
 name = "point_cloud_demo"
-version = "3.0.9"
+version = "3.0.10"
 dependencies = [
  "anyhow",
  "build-info 0.0.40",
@@ -1968,7 +1968,7 @@ dependencies = [
 
 [[package]]
 name = "rayon_demo"
-version = "3.0.9"
+version = "3.0.10"
 dependencies = [
  "anyhow",
  "build-info 0.0.40",
@@ -2149,7 +2149,7 @@ dependencies = [
 
 [[package]]
 name = "single_thread_demo"
-version = "3.0.9"
+version = "3.0.10"
 dependencies = [
  "anyhow",
  "build-info 0.0.40",
@@ -2209,7 +2209,7 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "struct_measurement_demo"
-version = "3.0.9"
+version = "3.0.10"
 dependencies = [
  "anyhow",
  "build-info 0.0.40",
@@ -2363,7 +2363,7 @@ dependencies = [
 
 [[package]]
 name = "tokio_demo"
-version = "3.0.9"
+version = "3.0.10"
 dependencies = [
  "build-info 0.0.40",
  "build-info-build 0.0.40",
@@ -2656,7 +2656,7 @@ checksum = "9edde0db4769d2dc68579893f2306b26c6ecfbe0ef499b013d731b7b9247e0b9"
 
 [[package]]
 name = "xcp_idl_generator"
-version = "3.0.9"
+version = "3.0.10"
 dependencies = [
  "ctor",
  "lazy_static",
@@ -2666,7 +2666,7 @@ dependencies = [
 
 [[package]]
 name = "xcp_idl_generator_derive"
-version = "3.0.9"
+version = "3.0.10"
 dependencies = [
  "lazy_static",
  "quote",
@@ -2675,7 +2675,7 @@ dependencies = [
 
 [[package]]
 name = "xcp_lite"
-version = "3.0.9"
+version = "3.0.10"
 dependencies = [
  "anyhow",
  "bindgen",
@@ -2706,7 +2706,7 @@ dependencies = [
 
 [[package]]
 name = "xcp_register_type_derive"
-version = "3.0.9"
+version = "3.0.10"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2716,7 +2716,7 @@ dependencies = [
 
 [[package]]
 name = "xcp_registry"
-version = "3.0.9"
+version = "3.0.10"
 dependencies = [
  "a2lfile",
  "log",
@@ -2730,7 +2730,7 @@ dependencies = [
 
 [[package]]
 name = "xcp_test_client"
-version = "3.0.9"
+version = "3.0.10"
 dependencies = [
  "byteorder",
  "bytes",

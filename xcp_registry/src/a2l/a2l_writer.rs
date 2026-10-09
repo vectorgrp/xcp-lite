@@ -918,6 +918,11 @@ impl<'a> A2lWriter<'a> {
     }
 
     fn write_a2l_head(&mut self, title_comment: &str, project_name: &str, project_description: &str, module_name: &str, project_no: &str) -> std::io::Result<()> {
+        let a2ml = match self.registry.get_a2ml_mode() {
+            McA2mlMode::Include => "/include \"XCP_104.aml\"",
+            McA2mlMode::Embed => crate::XCP_104_AML.trim_end(),
+            McA2mlMode::None => "",
+        };
         writeln!(
             self,
             r#"
@@ -928,7 +933,7 @@ ASAP2_VERSION 1 71
 
 /begin MODULE {module_name} ""
         
-    /include "XCP_104.aml"
+    {a2ml}
     
     /begin MOD_COMMON ""
     BYTE_ORDER MSB_LAST

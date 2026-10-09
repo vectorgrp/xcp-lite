@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::net::Ipv4Addr;
 
 //use super::McAddress;
+use super::McA2mlMode;
 use super::McCalibrationSegmentList;
 use super::McDimType;
 use super::McEventList;
@@ -120,6 +121,11 @@ pub struct Registry {
     #[serde(skip_deserializing)]
     prefix_names: bool,
 
+    // How the XCP A2ML description is written into the A2L file
+    #[serde(skip_serializing)]
+    #[serde(skip_deserializing)]
+    a2ml_mode: McA2mlMode,
+
     // Application name and software version
     pub application: McApplication,
 
@@ -158,6 +164,7 @@ impl Registry {
         Registry {
             flatten_typedefs: false,
             prefix_names: false,
+            a2ml_mode: McA2mlMode::Include,
             application: McApplication::new(),
             xcp_tl_params: None,
             xcp_params: None,
@@ -222,6 +229,14 @@ impl Registry {
     }
     pub fn get_prefix_names_mode(&self) -> bool {
         self.prefix_names
+    }
+
+    /// How the XCP A2ML description is written into the A2L file (include XCP_104.aml, embed or none)
+    pub fn set_a2ml_mode(&mut self, a2ml_mode: McA2mlMode) {
+        self.a2ml_mode = a2ml_mode;
+    }
+    pub fn get_a2ml_mode(&self) -> McA2mlMode {
+        self.a2ml_mode
     }
 
     //---------------------------------------------------------------------------------------------------------
