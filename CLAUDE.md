@@ -4,7 +4,7 @@ Guidance for AI coding agents working in this repository.
 
 ## What this is
 
-`xcp_lite` (v3.0.9, edition 2024, rust-version 1.90.0) — a Rust measurement & calibration
+`xcp_lite` (v3.0.10, edition 2024, rust-version 1.90.0) — a Rust measurement & calibration
 library implementing the ASAM **XCP** protocol, wrapping the C `xcplib` (XCP server, Ethernet
 transport). The Rust layer adds: a type **registry**, **A2L** file generation, a `CalSeg<T>`
 calibration-segment wrapper, and measurement macros. Used with tools like Vector CANape.
