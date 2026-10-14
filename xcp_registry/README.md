@@ -416,8 +416,8 @@ let warnings = registry.load_a2l(
 println!("{} warnings", warnings);
 ```
 
-IF_DATA XCP is parsed with the XCP A2ML specification built into the crate. The A2L file does not need to contain
-an A2ML description, and an `/include` of a missing `.aml` file (such as `/include "XCP_104.aml"`) is ignored.
+IF_DATA XCP is parsed with the XCP A2ML specification built into the crate, the A2L file does not need to contain
+an A2ML description. An A2L file with `/include "XCP_104.aml"` still requires `XCP_104.aml` next to it.
 
 ### Validate an A2L file (syntax + consistency check)
 

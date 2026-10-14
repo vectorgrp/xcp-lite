@@ -30,136 +30,11 @@ pub enum McA2mlMode {
 
 // IF_DATA XCP is always parsed with the XCP A2ML specification built into this crate (aml_ifdata.rs),
 // the A2L file does not need to contain or include an A2ML description.
-// a2lfile fails on any /include of a file which does not exist. An /include of a missing .aml file is ignored,
-// so A2L files with /include "XCP_104.aml" can be loaded without having XCP_104.aml next to it.
+// An /include "XCP_104.aml" in the A2L file requires the file to exist, a2lfile fails on any missing include file.
 #[cfg(feature = "a2l_reader")]
 fn load_a2l_file(path: &std::path::Path, strict: bool) -> Result<(a2lfile::A2lFile, Vec<a2lfile::A2lError>), String> {
     let a2ml_spec = Some(aml_ifdata::A2MLVECTOR_TEXT.to_string());
-
-    // Find /include directives which can not be resolved
-    // Files in encodings other than UTF-8 or Latin-1 (UTF-16/32) yield no includes here and are left to a2lfile
-    let bytes = std::fs::read(path).map_err(|e| format!("a2lfile::load failed: {}: {}", path.display(), e))?;
-    let mut text = decode_a2l_text(&bytes);
-    let base_dir = path.parent().unwrap_or(std::path::Path::new(""));
-    let includes = find_a2l_includes(&text);
-    if includes.iter().all(|inc| !is_aml_file(&inc.name) || resolve_a2l_include(&inc.name, base_dir).is_some()) {
-        return a2lfile::load(path, a2ml_spec, strict).map_err(|e| format!("a2lfile::load failed: {}", e));
-    }
-
-    // Remove the /include directives of missing .aml files, keep line numbers unchanged
-    // a2lfile::load_from_string resolves relative includes relative to the current working directory, not to the A2L file,
-    // so all other includes are replaced by the resolved path
-    for inc in includes.iter().rev() {
-        if let Some(resolved) = resolve_a2l_include(&inc.name, base_dir) {
-            text.replace_range(inc.name_range.clone(), &format!("\"{}\"", resolved.display()));
-        } else if is_aml_file(&inc.name) {
-            log::warn!("{}: included file {} not found, using the built-in XCP A2ML specification", path.display(), inc.name);
-            let blank: String = text[inc.range.clone()].chars().map(|c| if c == '\n' { c } else { ' ' }).collect();
-            text.replace_range(inc.range.clone(), &blank);
-        }
-    }
-    a2lfile::load_from_string(&text, a2ml_spec, strict).map_err(|e| format!("a2lfile::load failed: {}: {}", path.display(), e))
-}
-
-// Decode A2L file content, UTF-8 (with or without BOM) or Latin-1
-#[cfg(feature = "a2l_reader")]
-fn decode_a2l_text(bytes: &[u8]) -> String {
-    let bytes = bytes.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(bytes);
-    match std::str::from_utf8(bytes) {
-        Ok(s) => s.to_string(),
-        Err(_) => bytes.iter().map(|&b| b as char).collect(),
-    }
-}
-
-#[cfg(feature = "a2l_reader")]
-fn is_aml_file(name: &str) -> bool {
-    name.to_ascii_lowercase().ends_with(".aml")
-}
-
-// An /include directive in an A2L file
-#[cfg(feature = "a2l_reader")]
-#[derive(Debug)]
-struct A2lInclude {
-    range: std::ops::Range<usize>,      // Byte range of the complete directive
-    name_range: std::ops::Range<usize>, // Byte range of the filename, including quotes
-    name: String,                       // Filename without quotes
-}
-
-// Find all /include directives in A2L text, skipping comments and strings (same lexical rules as a2lfile)
-#[cfg(feature = "a2l_reader")]
-fn find_a2l_includes(text: &str) -> Vec<A2lInclude> {
-    let b = text.as_bytes();
-    let len = b.len();
-    let mut includes = Vec::new();
-    let mut i = 0;
-    while i < len {
-        if b[i] == b'"' {
-            i = find_a2l_string_end(b, i);
-        } else if b[i..].starts_with(b"/*") {
-            i = text[i + 2..].find("*/").map_or(len, |p| i + 2 + p + 2);
-        } else if b[i..].starts_with(b"//") {
-            i = text[i..].find('\n').map_or(len, |p| i + p);
-        } else if b[i..].starts_with(b"/include") {
-            let start = i;
-            i += 8;
-            while i < len && b[i].is_ascii_whitespace() {
-                i += 1;
-            }
-            let name_start = i;
-            if i < len && b[i] == b'"' {
-                i = find_a2l_string_end(b, i);
-            } else {
-                while i < len && !b[i].is_ascii_whitespace() {
-                    i += 1;
-                }
-            }
-            if i > name_start {
-                let name = text[name_start..i].trim_matches('"').to_string();
-                includes.push(A2lInclude {
-                    range: start..i,
-                    name_range: name_start..i,
-                    name,
-                });
-            }
-        } else {
-            i += 1;
-        }
-    }
-    includes
-}
-
-// Position after the closing quote of the string starting at pos, quotes are escaped as \" or ""
-#[cfg(feature = "a2l_reader")]
-fn find_a2l_string_end(b: &[u8], pos: usize) -> usize {
-    let mut i = pos + 1;
-    while i < b.len() {
-        match b[i] {
-            b'\\' => i += 2,
-            b'"' if i + 1 < b.len() && b[i + 1] == b'"' => i += 2,
-            b'"' => return i + 1,
-            _ => i += 1,
-        }
-    }
-    b.len()
-}
-
-// Resolve an include filename like a2lfile: absolute, relative to the directory of the including file, or relative to the current working directory
-#[cfg(feature = "a2l_reader")]
-fn resolve_a2l_include(name: &str, base_dir: &std::path::Path) -> Option<std::path::PathBuf> {
-    let sep = std::path::MAIN_SEPARATOR.to_string();
-    let name = name.replace(['\\', '/'], &sep);
-    let path = std::path::Path::new(&name);
-    if path.is_absolute() {
-        return if path.exists() { Some(path.to_path_buf()) } else { None };
-    }
-    let joined = base_dir.join(path);
-    if joined.exists() {
-        Some(joined)
-    } else if path.exists() {
-        Some(path.to_path_buf())
-    } else {
-        None
-    }
+    a2lfile::load(path, a2ml_spec, strict).map_err(|e| format!("a2lfile::load failed: {}", e))
 }
 
 impl Registry {
@@ -168,7 +43,7 @@ impl Registry {
 
     /// Check A2L file
     /// Syntax and consistency check an A2L file
-    /// IF_DATA XCP is checked with the built-in XCP A2ML specification, a missing XCP_104.aml include file is ignored
+    /// IF_DATA XCP is checked with the built-in XCP A2ML specification, an A2ML description in the A2L file is not required
     #[cfg(feature = "a2l_reader")]
     pub fn check_a2l<P: AsRef<std::path::Path>>(&self, path: &P) -> Result<u32, String> {
         // Read A2L file into A2lFile
@@ -207,7 +82,7 @@ impl Registry {
     /// strict - enable strict mode parsing
     /// check - perform additional consistency checks and print warnings to log
     /// flatten_typedefs - flatten nested typedefs to basic type instances with mangled names
-    /// IF_DATA XCP is parsed with the built-in XCP A2ML specification, a missing XCP_104.aml include file is ignored
+    /// IF_DATA XCP is parsed with the built-in XCP A2ML specification, an A2ML description in the A2L file is not required
     #[cfg(feature = "a2l_reader")]
     pub fn load_a2l<P: AsRef<std::path::Path>>(&mut self, path: &P, print_warnings: bool, strict: bool, check: bool, flatten_typedefs: bool) -> Result<u32, String> {
         //
@@ -315,6 +190,7 @@ impl Registry {
 #[cfg(all(test, feature = "a2l_reader"))]
 mod test {
     use super::*;
+    use a2lfile::A2lObject;
 
     // Empty directory in the system temp directory, unique for this process and test
     fn test_dir(name: &str) -> std::path::PathBuf {
@@ -360,13 +236,19 @@ mod test {
         reg.check_a2l(&path).unwrap();
     }
 
-    // /include "XCP_104.aml" without XCP_104.aml next to the A2L file
+    // An include of a missing .aml file is an error
+    // a2lfile also resolves includes relative to the current working directory, which contains XCP_104.aml when running the tests,
+    // so the include is renamed to a file which does not exist
     #[test]
     fn test_load_a2l_include_missing_aml() {
         let dir = test_dir("include_missing_aml");
         let path = write_test_a2l(&dir, McA2mlMode::Include);
-        assert!(std::fs::read_to_string(&path).unwrap().contains("/include \"XCP_104.aml\""));
-        check_loaded(&path);
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert!(text.contains("/include \"XCP_104.aml\""));
+        std::fs::write(&path, text.replace("/include \"XCP_104.aml\"", "/include \"XCP_104_missing.aml\"")).unwrap();
+        let mut reg = Registry::new();
+        assert!(reg.load_a2l(&path, true, true, true, false).is_err());
+        assert!(reg.check_a2l(&path).is_err());
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
@@ -395,35 +277,206 @@ mod test {
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
-    // Other relative includes are still resolved relative to the A2L file, when a missing XCP_104.aml include is removed
+    // A2L text without A2ML description, with IF_DATA XCP for the transport layer, events, a memory segment and a measurement
+    fn spec_test_a2l(protocol: &str) -> String {
+        let mut reg = test_registry(McA2mlMode::None);
+        if protocol == "SxI" {
+            reg.set_xcp_sxi_params(115200);
+        } else if protocol == "TCP" {
+            reg.set_xcp_eth_params("TCP", std::net::Ipv4Addr::new(127, 0, 0, 1), 5555);
+        }
+        reg.cal_seg_list.add_cal_seg("params", Some(0), 16).unwrap();
+        let mut buf: Vec<u8> = Vec::new();
+        {
+            let writer: &mut dyn std::io::Write = &mut buf;
+            a2l_writer::A2lWriter::new(writer, &reg).write_a2l("test", "test", "", "test", "XCPLITE__ACSDD").unwrap();
+        }
+        String::from_utf8(buf).unwrap()
+    }
+
+    // All IF_DATA blocks of the module
+    fn module_if_data(a2l_file: &a2lfile::A2lFile) -> Vec<&a2lfile::IfData> {
+        let module = &a2l_file.project.module[0];
+        let mut if_data: Vec<&a2lfile::IfData> = module.if_data.iter().collect();
+        if let Some(mod_par) = &module.mod_par {
+            for s in &mod_par.memory_segment {
+                if_data.extend(&s.if_data);
+            }
+        }
+        for m in &module.measurement {
+            if_data.extend(&m.if_data);
+        }
+        for c in &module.characteristic {
+            if_data.extend(&c.if_data);
+        }
+        for i in &module.instance {
+            if_data.extend(&i.if_data);
+        }
+        if_data
+    }
+
+    // Structure and values of parsed IF_DATA, one item per line, tags of tagged structs and unions sorted, positions ignored
+    fn generic_if_data_lines(data: &a2lfile::GenericIfData, indent: usize, lines: &mut Vec<String>) {
+        use a2lfile::GenericIfData as G;
+        let pad = "  ".repeat(indent);
+        let tagged = |kind: &str, items: &std::collections::HashMap<String, Vec<a2lfile::GenericIfDataTaggedItem>>, lines: &mut Vec<String>| {
+            lines.push(format!("{pad}{kind}"));
+            let mut tags: Vec<&String> = items.keys().collect();
+            tags.sort();
+            for tag in tags {
+                for item in &items[tag] {
+                    lines.push(format!("{pad}  {tag}{}", if item.is_block { " (block)" } else { "" }));
+                    generic_if_data_lines(&item.data, indent + 2, lines);
+                }
+            }
+        };
+        match data {
+            G::Array(items) | G::Sequence(items) | G::Struct(_, _, items) | G::Block { items, .. } => {
+                lines.push(format!("{pad}{}", if matches!(data, G::Array(_)) { "Array" } else { "Struct" }));
+                for item in items {
+                    generic_if_data_lines(item, indent + 1, lines);
+                }
+            }
+            G::TaggedStruct(items) => tagged("TaggedStruct", items, lines),
+            G::TaggedUnion(items) => tagged("TaggedUnion", items, lines),
+            G::EnumItem(_, value) => lines.push(format!("{pad}Enum {value}")),
+            G::String(_, value) => lines.push(format!("{pad}String {value:?}")),
+            G::Char(_, (v, _)) => lines.push(format!("{pad}Char {v}")),
+            G::Int(_, (v, _)) => lines.push(format!("{pad}Int {v}")),
+            G::Long(_, (v, _)) => lines.push(format!("{pad}Long {v}")),
+            G::Int64(_, (v, _)) => lines.push(format!("{pad}Int64 {v}")),
+            G::UChar(_, (v, _)) => lines.push(format!("{pad}UChar {v}")),
+            G::UInt(_, (v, _)) => lines.push(format!("{pad}UInt {v}")),
+            G::ULong(_, (v, _)) => lines.push(format!("{pad}ULong {v}")),
+            G::UInt64(_, (v, _)) => lines.push(format!("{pad}UInt64 {v}")),
+            G::Float(_, v) => lines.push(format!("{pad}Float {v}")),
+            G::Double(_, v) => lines.push(format!("{pad}Double {v}")),
+            G::None => lines.push(format!("{pad}None")),
+        }
+    }
+
+    // Content of an A2ML description file without /begin A2ML ... /end A2ML
+    fn a2ml_body(a2ml: &str) -> &str {
+        a2ml.trim()
+            .strip_prefix("/begin A2ML")
+            .and_then(|s| s.strip_suffix("/end A2ML"))
+            .expect("A2ML description is not enclosed in /begin A2ML ... /end A2ML")
+    }
+
+    // Parse the A2L texts with the built-in A2ML specification and with the given A2ML specification,
+    // all IF_DATA blocks must be valid with both and parsed identically
+    fn compare_a2ml_specifications(a2l_texts: &[String], name: &str, a2ml: &str) {
+        for text in a2l_texts {
+            let (builtin, _) = a2lfile::load_from_string(text, Some(aml_ifdata::A2MLVECTOR_TEXT.to_string()), true).unwrap();
+            let (file, _) = a2lfile::load_from_string(text, Some(a2ml.to_string()), true).unwrap();
+            let (builtin, file) = (module_if_data(&builtin), module_if_data(&file));
+            assert!(builtin.len() >= 3, "IF_DATA blocks missing in test A2L file");
+            assert_eq!(builtin.len(), file.len());
+            for (b, f) in builtin.iter().zip(&file) {
+                assert!(
+                    b.ifdata_valid && f.ifdata_valid,
+                    "IF_DATA in line {} not valid, built-in {} {name} {}",
+                    b.get_line(),
+                    b.ifdata_valid,
+                    f.ifdata_valid
+                );
+                let (mut b_lines, mut f_lines) = (Vec::new(), Vec::new());
+                generic_if_data_lines(b.ifdata_items.as_ref().unwrap(), 0, &mut b_lines);
+                generic_if_data_lines(f.ifdata_items.as_ref().unwrap(), 0, &mut f_lines);
+                if let Some(i) = (0..b_lines.len().max(f_lines.len())).find(|&i| b_lines.get(i) != f_lines.get(i)) {
+                    let context = |lines: &[String]| lines[i.saturating_sub(8)..(i + 4).min(lines.len())].join("\n");
+                    panic!(
+                        "IF_DATA in line {} parsed differently\n--- built-in (aml_ifdata.rs):\n{}\n--- {name}:\n{}",
+                        b.get_line(),
+                        context(&b_lines),
+                        context(&f_lines)
+                    );
+                }
+            }
+        }
+    }
+
+    // Replace the text between begin and end (inclusive) in a2l
+    fn replace_block(a2l: &str, begin: &str, end: &str, new: &str) -> String {
+        let start = a2l.find(begin).unwrap();
+        let stop = a2l[start..].find(end).unwrap() + start + end.len();
+        format!("{}{}{}", &a2l[..start], new, &a2l[stop..])
+    }
+
+    // The XCP A2ML specification used for reading (aml_ifdata.rs) and the one written into A2L files (XCP_104_AML)
+    // are maintained separately, both must parse IF_DATA XCP identically
     #[test]
-    fn test_load_a2l_missing_aml_other_include() {
-        let dir = test_dir("other_include");
-        let path = write_test_a2l(&dir, McA2mlMode::Include);
-        std::fs::create_dir_all(dir.join("sub")).unwrap();
-        std::fs::write(
-            dir.join("sub").join("part.a2l"),
-            "/begin MEASUREMENT included \"\" UBYTE NO_COMPU_METHOD 0 0 0 255 ECU_ADDRESS 0x200 /end MEASUREMENT\n",
-        )
-        .unwrap();
-        let text = std::fs::read_to_string(&path).unwrap().replace("/end MODULE", "/include \"sub/part.a2l\"\n/end MODULE");
-        std::fs::write(&path, text).unwrap();
-        check_loaded(&path);
-        let mut reg = Registry::new();
-        reg.load_a2l(&path, true, true, false, false).unwrap();
-        assert!(reg.instance_list.get_instance("included", McObjectType::Measurement, None).is_some());
+    fn test_a2ml_specification_xcp_104() {
+        // A2L files written by this crate for all transport layers
+        let mut a2l_texts: Vec<String> = ["UDP", "TCP", "SxI"].iter().map(|protocol| spec_test_a2l(protocol)).collect();
+        // @@@@ TODO: The writer writes FRAMING without /begin and /end, which does not match the XCP 1.4 A2ML specification
+        let sxi = &mut a2l_texts[2];
+        if !sxi.contains("/begin FRAMING") {
+            *sxi = sxi.replace("FRAMING 0x9A 0x9B", "/begin FRAMING 0x9A 0x9B /end FRAMING");
+        }
+
+        // XCP 1.4 keywords not written by this crate: event properties, transport layer properties of Ethernet and CAN
+        let udp = a2l_texts[0].replace(
+            "CONSISTENCY DAQ /end EVENT",
+            "CONSISTENCY DAQ /begin BUFFER_RESERVE_EVENT 10 20 /end BUFFER_RESERVE_EVENT \
+             /begin CPU_LOAD_CONSUMPTION_DAQ 1.0 2.0 3.0 /begin CORE_LOAD_EP 1 0.5 /end CORE_LOAD_EP /end CPU_LOAD_CONSUMPTION_DAQ \
+             /begin CPU_LOAD_CONSUMPTION_QUEUE_STIM 1.0 2.0 /begin CORE_LOAD_EP 2 0.5 /end CORE_LOAD_EP /end CPU_LOAD_CONSUMPTION_QUEUE_STIM /end EVENT",
+        );
+        let udp_14 = replace_block(
+            &udp,
+            "/begin XCP_ON_UDP_IP",
+            "/end XCP_ON_UDP_IP",
+            "/begin XCP_ON_UDP_IP 0x0104 5555 ADDRESS \"127.0.0.1\" MAX_BUS_LOAD 50 PACKET_ALIGNMENT PACKET_ALIGNMENT_32 \
+             OPTIONAL_TL_SUBCMD GET_SLAVE_ID OPTIONAL_TL_SUBCMD GET_DAQ_CLOCK_MULTICAST /end XCP_ON_UDP_IP",
+        );
+        let can = replace_block(
+            &udp,
+            "/begin XCP_ON_UDP_IP",
+            "/end XCP_ON_UDP_IP",
+            "/begin XCP_ON_CAN 0x0100 CAN_ID_MASTER 0x0301 CAN_ID_SLAVE 0x01 CAN_ID_GET_DAQ_CLOCK_MULTICAST 0x0302 BAUDRATE 0x0F4240 \
+             SAMPLE_POINT 0x4B SAMPLE_RATE SINGLE BTL_CYCLES 0x08 SJW 0x02 SYNC_EDGE SINGLE MEASUREMENT_SPLIT_ALLOWED \
+             OPTIONAL_TL_SUBCMD GET_DAQ_ID OPTIONAL_TL_SUBCMD GET_DAQ_CLOCK_MULTICAST /end XCP_ON_CAN",
+        );
+        a2l_texts.extend([udp_14, can]);
+
+        compare_a2ml_specifications(&a2l_texts, "XCP_104.aml", a2ml_body(crate::XCP_104_AML));
+
+        // Events and fixed events are loaded from A2L files with these keywords
+        let dir = test_dir("xcp_14_keywords");
+        let path = dir.join("test.a2l");
+        for text in &a2l_texts[3..] {
+            std::fs::write(&path, text).unwrap();
+            check_loaded(&path);
+        }
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
-    // /include in comments and strings is not an include directive, quoted and unquoted filenames
+    // The CANape A2ML specification in the built-in A2ML specification must parse CANape IF_DATA like CANape.aml in the repository root
     #[test]
-    fn test_find_a2l_includes() {
-        let text = "/* /include \"a.aml\" */ // /include b.aml\n\"x /include \\\"c.aml\\\" \"\"y\"\" \" /include \"d.aml\" /include\te.a2l";
-        let includes = find_a2l_includes(text);
-        let names: Vec<&str> = includes.iter().map(|inc| inc.name.as_str()).collect();
-        assert_eq!(names, ["d.aml", "e.a2l"]);
-        assert_eq!(&text[includes[0].range.clone()], "/include \"d.aml\"");
-        assert_eq!(&text[includes[0].name_range.clone()], "\"d.aml\"");
-        assert_eq!(&text[includes[1].range.clone()], "/include\te.a2l");
+    fn test_a2ml_specification_canape() {
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../CANape.aml");
+        let canape_aml = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("{path}: {e}"));
+        let a2l = r#"ASAP2_VERSION 1 71
+/begin PROJECT test ""
+/begin MODULE test ""
+/begin IF_DATA CANAPE_MODULE RECORD_LAYOUT_STEPSIZE "U8" 1 2 3 4 5 6 /end IF_DATA
+/begin IF_DATA CANAPE_ADDRESS_UPDATE
+    EPK_ADDRESS "epk" 0 ECU_CALIBRATION_OFFSET "offset" 16
+    /begin CALIBRATION_METHOD InCircuit2 "table" 0 ORIGINAL_POINTER_TABLE "flash_table" 0 FLASH_SECTION 0x8000000 0x10000 /end CALIBRATION_METHOD
+    /begin MAP_SYMBOL FIRST "start" 0 LAST "end" 0 ADDRESS_MAPPING_XCP "src" "dst" /end MAP_SYMBOL
+    /begin MEMORY_SEGMENT "params" FIRST "params_start" 0 LAST "params_end" 0 /end MEMORY_SEGMENT
+/end IF_DATA
+/begin IF_DATA CANAPE_GROUP /begin STRUCTURE_LIST "a" "b" /end STRUCTURE_LIST /end IF_DATA
+/begin IF_DATA CANAPE_CAL_METHOD
+    /begin CAL_PARAM_GROUP NAME "group" ADDRESS 0x1000 SIZE 16 COMMENT "" LINK_MAP "symbol" 0x1000 0 0 0 /end CAL_PARAM_GROUP
+/end IF_DATA
+/begin IF_DATA CNP_CREATE_INI /begin TP_BLOB 1 PARAMETER "device.ini" "$CNP_DVC_SCTN$" "name" "value" /end TP_BLOB /end IF_DATA
+/begin MEASUREMENT counter "" UBYTE NO_COMPU_METHOD 0 0 0 255 ECU_ADDRESS 0x200
+    /begin IF_DATA CANAPE_EXT 100 LINK_MAP "counter" 0x200 0 0 0 1 0x87 0 DISPLAY 0 0 255 VIRTUAL_CONVERSION "conv" STEPSIZE_W 1 STEPSIZE_X 2 STEPSIZE_Y 3 /end IF_DATA
+/end MEASUREMENT
+/end MODULE
+/end PROJECT
+"#;
+        compare_a2ml_specifications(&[a2l.to_string()], "CANape.aml", a2ml_body(&canape_aml));
     }
 }

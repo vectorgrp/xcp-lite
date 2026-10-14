@@ -348,6 +348,10 @@ a2ml_specification! {
                         uchar event_channel_time_cycle;  /// EVENT_CHANNEL_TIME_CYCLE
                         uchar event_channel_time_unit;  /// EVENT_CHANNEL_TIME_UNIT
                     };
+                    block "BUFFER_RESERVE_EVENT" struct {        /* overrules default BUFFER_RESERVE for this EVENT */
+                        uchar odt_daq_buffer_element_reserve;  /// ODT_DAQ_BUFFER_ELEMENT_RESERVE in % of ODT_DAQ_BUFFER_ELEMENT_SIZE
+                        uchar odt_stim_buffer_element_reserve;  /// ODT_STIM_BUFFER_ELEMENT_RESERVE in % of ODT_STIM_BUFFER_ELEMENT_SIZE
+                    };
                     "CPU_LOAD_MAX" float;
                     block "CPU_LOAD_CONSUMPTION_DAQ" struct {
                         float daq_factor;  /// "DAQ_FACTOR"
@@ -358,6 +362,10 @@ a2ml_specification! {
                                 uint size;  /// "SIZE"
                                 float size_factor;  /// "SIZE_FACTOR"
                             })*;
+                            block "CORE_LOAD_EP" struct {
+                                uint core_nr;  /// CORE_NR: core reference number
+                                float core_load_ep_max;  /// CORE_LOAD_EP_MAX: max load of this event part
+                            };
                         };
                     };
                     block "CPU_LOAD_CONSUMPTION_STIM" struct {
@@ -369,11 +377,31 @@ a2ml_specification! {
                                 uint size;  /// "SIZE"
                                 float size_factor;  /// "SIZE_FACTOR"
                             })*;
+                            block "CORE_LOAD_EP" struct {
+                                uint core_nr;  /// CORE_NR: core reference number
+                                float core_load_ep_max;  /// CORE_LOAD_EP_MAX: max load of this event part
+                            };
                         };
                     };
-                    block "CPU_LOAD_CONSUMPTION_QUEUE" struct {
+                    block "CPU_LOAD_CONSUMPTION_QUEUE" struct {  /* default for DAQ and STIM QUEUE */
                         float odt_factor;  /// "ODT_FACTOR"
                         float odt_length_factor;  /// "ODT_LENGTH_FACTOR", length in elements[AG]
+                        taggedstruct {
+                            block "CORE_LOAD_EP" struct {
+                                uint core_nr;  /// CORE_NR: core reference number
+                                float core_load_ep_max;  /// CORE_LOAD_EP_MAX: max load of this event part
+                            };
+                        };
+                    };
+                    block "CPU_LOAD_CONSUMPTION_QUEUE_STIM" struct {  /* overrules CPU_LOAD_CONSUMPTION_QUEUE for STIM QUEUE */
+                        float odt_factor;  /// "ODT_FACTOR"
+                        float odt_length_factor;  /// "ODT_ELEMENT_LOAD", length in elements[AG]
+                        taggedstruct {
+                            block "CORE_LOAD_EP" struct {
+                                uint core_nr;  /// CORE_NR: core reference number
+                                float core_load_ep_max;  /// CORE_LOAD_EP_MAX: max load of this event part
+                            };
+                        };
                     };
                 };
             })*;
@@ -586,6 +614,7 @@ a2ml_specification! {
             "CAN_ID_MASTER" ulong value;  /// CMD/STIM CAN-ID
             "CAN_ID_MASTER_INCREMENTAL" ;  /// Master uses range of CAN-IDs. Start of range = CAN_ID_MASTER
             "CAN_ID_SLAVE" ulong value;  /// RES/ERR/EV/SERV/DAQ CAN-ID
+            "CAN_ID_GET_DAQ_CLOCK_MULTICAST" ulong value;  /// Only for GET_DAQ_CLOCK_MULTICAST
             "BAUDRATE" ulong value;  /// Baudrate in Hz
             "SAMPLE_POINT" uchar value;  /// Sample point in % of bit time
             "SAMPLE_RATE" enum {
@@ -613,6 +642,7 @@ a2ml_specification! {
                 };
             })*;
             "MAX_BUS_LOAD" ulong;  /// maximum available bus in bit/s
+            "MEASUREMENT_SPLIT_ALLOWED";  /// Supports splitting of measurements to increase payload for MAX_DTO <= 8
             block "CAN_FD" struct {
                 taggedstruct {
                     "MAX_DLC" uint value;  /// 8, 12, 16, 20, 24, 32, 48 or 64
@@ -632,6 +662,14 @@ a2ml_specification! {
                     };
                 };
             };
+        };
+        taggedstruct {
+            ("OPTIONAL_TL_SUBCMD" enum CanTlSubcmd {  /* XCP code of optional transport layer specific subcommand supported by the slave */
+                "GET_SLAVE_ID" = 0xFF,
+                "GET_DAQ_ID" = 0xFE,
+                "SET_DAQ_ID" = 0xFD,
+                "GET_DAQ_CLOCK_MULTICAST" = 0xFA
+            })*;
         };
     };
 
@@ -678,6 +716,19 @@ a2ml_specification! {
         };
     };
 
+    enum EthPacketAlignment {
+        "PACKET_ALIGNMENT_8" = 0,  /* default if the keyword is missing */
+        "PACKET_ALIGNMENT_16" = 1,
+        "PACKET_ALIGNMENT_32" = 2
+    };  /// PACKET_ALIGNMENT of XCP on TCP_IP and UDP_IP
+
+    enum EthTlSubcmd {  /* XCP code of optional transport layer specific subcommand supported by the slave */
+        "GET_SLAVE_ID" = 0xFF,
+        "GET_SLAVE_ID_EXTENDED" = 0xFD,
+        "SET_SLAVE_IP_ADDRESS" = 0xFC,
+        "GET_DAQ_CLOCK_MULTICAST" = 0xFA
+    };  /// OPTIONAL_TL_SUBCMD of XCP on TCP_IP and UDP_IP
+
     struct TCP_IP_Parameters {
         uint version;  /// XCP on TCP_IP version, currently 0x0100
         uint port;  /// PORT
@@ -689,6 +740,12 @@ a2ml_specification! {
         taggedstruct {
             "MAX_BUS_LOAD" ulong;  /// maximum available bus load in percent
             "MAX_BIT_RATE" ulong;  /// Network speed which is the base for MAX_BUS_LOAD in Mbit
+        };
+        taggedstruct {
+            "PACKET_ALIGNMENT" enum EthPacketAlignment;
+        };
+        taggedstruct {
+            ("OPTIONAL_TL_SUBCMD" enum EthTlSubcmd)*;
         };
     };
 
@@ -703,6 +760,12 @@ a2ml_specification! {
         taggedstruct {
             "MAX_BUS_LOAD" ulong;  /// maximum available bus load in percent
             "MAX_BIT_RATE" ulong;  /// Network speed which is the base for MAX_BUS_LOAD in Mbit
+        };
+        taggedstruct {
+            "PACKET_ALIGNMENT" enum EthPacketAlignment;
+        };
+        taggedstruct {
+            ("OPTIONAL_TL_SUBCMD" enum EthTlSubcmd)*;
         };
     };
 
@@ -763,6 +826,12 @@ a2ml_specification! {
                 };
             })*;  /// end of DAQ_LIST_USB_ENDPOINT
         };  /// end of optional
+        taggedstruct {
+            ("OPTIONAL_TL_SUBCMD" enum UsbTlSubcmd {  /* XCP code of optional transport layer specific subcommand supported by the slave */
+                "GET_DAQ_EP" = 0xFF,
+                "SET_DAQ_EP" = 0xFE
+            })*;
+        };
     };
 
     enum PacketAssignmentType {
@@ -817,6 +886,7 @@ a2ml_specification! {
                 "EV_SERV" enum PacketAssignmentType;  /// end of EV_SERV
                 "DAQ" enum PacketAssignmentType;  /// end of DAQ
                 "STIM" enum PacketAssignmentType;  /// end of STIM
+                "MULTICAST" enum PacketAssignmentType;  /// end of MULTICAST
             };  /// end of XCP_PACKET
         };
     };  /// end of Buffer
@@ -852,6 +922,16 @@ a2ml_specification! {
         taggedstruct {
             (block "POOL_BUFFER" struct Buffer)*;
         };
+        taggedstruct {
+            ("OPTIONAL_TL_SUBCMD" enum FlxTlSubcmd {  /* XCP code of optional transport layer specific subcommand supported by the slave */
+                "FLX_ASSIGN" = 0xFF,
+                "FLX_ACTIVATE" = 0xFE,
+                "FLX_DEACTIVATE" = 0xFD,
+                "GET_DAQ_FLX_BUF" = 0xFC,
+                "SET_DAQ_FLX_BUF" = 0xFB,
+                "GET_DAQ_CLOCK_MULTICAST" = 0xFA
+            })*;
+        };
     };
 
     block "IF_DATA" taggedunion if_data {
@@ -877,6 +957,9 @@ a2ml_specification! {
                 "VIRTUAL_CONVERSION" struct {
                     char conversion_name[256];   /// name of the conversion formula
                 };
+                "STEPSIZE_W" uint;           /// step size for FNC_VALUES in referenced record layout
+                "STEPSIZE_X" uint;           /// step size for AXIS_PTS_X in referenced record layout
+                "STEPSIZE_Y" uint;           /// step size for AXIS_PTS_Y in referenced record layout
             };
         };
         "CANAPE_MODULE" struct {
@@ -976,6 +1059,20 @@ a2ml_specification! {
         };
         "CANAPE_GROUP" taggedstruct {
             block "STRUCTURE_LIST" (char name[1024])*;
+        };
+
+        "CNP_CREATE_INI" taggedstruct {
+            block "TP_BLOB" struct {
+                uint version;  /// version
+                taggedstruct {
+                    ("PARAMETER" struct {
+                        char file_name[256];  /// file name
+                        char section[50];  /// Section, $CNP_DVC_SCTN$ defines the Device-Section entry
+                        char parameter_name[50];  /// parameter name
+                        char parameter_value[256];  /// parameter value
+                    })*;
+                };
+            };
         };
 
         "XCP" struct {

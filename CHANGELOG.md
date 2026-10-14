@@ -5,11 +5,12 @@ All notable changes to Rust xcp-lite are documented in this file.
 
 ## [V3.0.10]
 
-- A2L reader: IF_DATA XCP is always parsed with the XCP 1.4 A2ML specification built into `xcp_registry`; A2L files no longer need to include or contain an A2ML description to be loaded or checked.
-- A2L reader: an `/include` of a missing `.aml` file (e.g. `/include "XCP_104.aml"`) is ignored, `XCP_104.aml` does not have to be provided next to the A2L file. Other relative includes are still resolved relative to the A2L file.
-- A2L reader: non-XCP or unparsable IF_DATA blocks are skipped instead of panicking.
+- A2L reader: IF_DATA XCP is always parsed with the XCP 1.4 A2ML specification built into `xcp_registry`; A2L files no longer need to include or contain an A2ML description to be loaded or checked. An A2L file with `/include "XCP_104.aml"` still requires the file next to it.
+- A2L reader: the built-in A2ML specification (`aml_ifdata.rs`) is updated to XCP 1.4 (XCP_104.aml) and CANape (CANape.aml): `PACKET_ALIGNMENT` and `OPTIONAL_TL_SUBCMD` of all transport layers, `CAN_ID_GET_DAQ_CLOCK_MULTICAST`, `MEASUREMENT_SPLIT_ALLOWED`, `BUFFER_RESERVE_EVENT`, `CORE_LOAD_EP`, `CPU_LOAD_CONSUMPTION_QUEUE_STIM`, FlexRay `MULTICAST`, CANape `STEPSIZE_W/X/Y` and `CNP_CREATE_INI`. Before, an IF_DATA XCP using any of these (e.g. `OPTIONAL_TL_SUBCMD GET_DAQ_CLOCK_MULTICAST` written by XCPlite with multicast enabled) could not be decoded and its events were missing. Unit tests check that the built-in specification parses IF_DATA identically to XCP_104.aml and CANape.aml.
+- A2L reader: non-XCP or unparsable IF_DATA blocks are skipped instead of panicking, a module IF_DATA which can not be decoded with the built-in specification is reported with a warning.
 - A2L writer: `Registry::set_a2ml_mode(McA2mlMode)` selects how the A2ML description is written: `Include` (`/include "XCP_104.aml"`, default, unchanged), `Embed` (self-contained A2L file with `/begin A2ML ... /end A2ML`) or `None`.
 - `xcp_registry::XCP_104_AML` provides the XCP 1.4 A2ML description (XCP_104.aml) as a string.
+
 
 ## [V3.0.9]
 

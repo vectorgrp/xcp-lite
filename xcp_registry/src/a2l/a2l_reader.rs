@@ -11,6 +11,7 @@
 
 use super::*;
 
+use a2lfile::A2lObject;
 use a2lfile::A2lObjectName;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
@@ -350,21 +351,27 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
     //----------------------------------------------------------------------------------------------------------------
     // Events
     for if_data in &module.if_data {
-        if !if_data.ifdata_valid {
-            error!("IF_DATA block is not valid");
-
-            //info!("{:#?}", if_data);
-        } else if let Some(decoded_ifdata) = aml_ifdata::A2mlVector::load_from_ifdata(if_data) {
-            if let Some(xcp) = decoded_ifdata.xcp {
-                if let Some(daq) = xcp.daq {
-                    for e in daq.event {
-                        // Process each event
-                        info!("Event found in IF_DATA XCP: {} - {}", e.event_channel_name, e.event_channel_number);
-                        registry.event_list.add_event(McEvent::new(e.event_channel_name, 0, e.event_channel_number, 0)).unwrap();
-                    }
+        // IF_DATA is decoded with the built-in A2ML specification, IF_DATA other than XCP (e.g. CANAPE_MODULE) is ignored
+        // IF_DATA which does not match the built-in specification can not be decoded, events defined in it are missing
+        let decoded_ifdata = if if_data.ifdata_valid {
+            aml_ifdata::A2mlVector::load_from_ifdata(if_data)
+        } else {
+            None
+        };
+        let Some(decoded_ifdata) = decoded_ifdata else {
+            warn!(
+                "IF_DATA in line {} does not match the built-in A2ML specification and is ignored, events defined in it are missing",
+                if_data.get_line()
+            );
+            continue;
+        };
+        if let Some(xcp) = decoded_ifdata.xcp {
+            if let Some(daq) = xcp.daq {
+                for e in daq.event {
+                    // Process each event
+                    info!("Event found in IF_DATA XCP: {} - {}", e.event_channel_name, e.event_channel_number);
+                    registry.event_list.add_event(McEvent::new(e.event_channel_name, 0, e.event_channel_number, 0)).unwrap();
                 }
-            } else {
-                warn!("Could not decode XCP IF_DATA XCP");
             }
         }
     }

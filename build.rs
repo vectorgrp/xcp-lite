@@ -60,7 +60,11 @@ fn main() {
             //
             .generate()
             .expect("Unable to generate bindings");
-        bindings.write_to_file("src/xcp/xcplib.rs").expect("Couldn't write bindings!");
+        // Write the bindings only if they changed, build_info_build watches src/xcp/xcplib.rs and rewriting it would rerun this build script on every build
+        let bindings = bindings.to_string();
+        if std::fs::read_to_string("src/xcp/xcplib.rs").ok().as_deref() != Some(bindings.as_str()) {
+            std::fs::write("src/xcp/xcplib.rs", bindings).expect("Couldn't write bindings!");
+        }
     }
 
     // Build xcplib
@@ -72,6 +76,7 @@ fn main() {
         .file("xcplib/src/xcpappl.c")
         .file("xcplib/src/persistence.c")
         .file("xcplib/src/platform.c")
+        .file("xcplib/src/sockets.c")
         .file("xcplib/src/xcplite.c")
         .file("xcplib/src/cal.c")
         .file("xcplib/src/queue64v.c")
@@ -94,25 +99,26 @@ fn main() {
     builder.compile("xcplib");
 
     // Tell cargo to invalidate the built crate whenever any of these files changed.
-    println!("cargo:rerun-if-changed=xcplib_cfg/xcplib_cfg.h");
+    println!("cargo:rerun-if-changed=xcplib_cfg/xcplib_rust_cfg.h");
     println!("cargo:rerun-if-changed=xcplib/inc/xcplib.h");
-    println!("cargo:rerun-if-changed=xcplib/src/main_cfg.h");
+    println!("cargo:rerun-if-changed=xcplib/src/xcplib_cfg.h");
     println!("cargo:rerun-if-changed=xcplib/src/xcptl_cfg.h");
     println!("cargo:rerun-if-changed=xcplib/src/xcp_cfg.h");
-    println!("cargo:rerun-if-changed=xcplib/src/a2l.h");
+    println!("cargo:rerun-if-changed=xcplib/inc/a2l.h");
     println!("cargo:rerun-if-changed=xcplib/src/a2l.c");
-    println!("cargo:rerun-if-changed=xcplib/src/xcpAppl.h");
-    println!("cargo:rerun-if-changed=xcplib/src/xcpAppl.c");
+    println!("cargo:rerun-if-changed=xcplib/src/xcpappl.c");
     println!("cargo:rerun-if-changed=xcplib/src/platform.h");
     println!("cargo:rerun-if-changed=xcplib/src/platform.c");
-    println!("cargo:rerun-if-changed=xcplib/src/xcpQueue.h");
-    println!("cargo:rerun-if-changed=xcplib/src/xcpQueue64.c");
-    println!("cargo:rerun-if-changed=xcplib/src/xcpQueue32.c");
-    println!("cargo:rerun-if-changed=xcplib/src/xcpEthTl.h");
-    println!("cargo:rerun-if-changed=xcplib/src/xcpEthTl.c");
-    println!("cargo:rerun-if-changed=xcplib/src/xcpEthServer.h");
-    println!("cargo:rerun-if-changed=xcplib/src/xcpEthServer.c");
+    println!("cargo:rerun-if-changed=xcplib/src/sockets.h");
+    println!("cargo:rerun-if-changed=xcplib/src/sockets.c");
+    println!("cargo:rerun-if-changed=xcplib/src/queue.h");
+    println!("cargo:rerun-if-changed=xcplib/src/queue64v.c");
+    println!("cargo:rerun-if-changed=xcplib/src/queue32.c");
+    println!("cargo:rerun-if-changed=xcplib/src/xcpethtl.h");
+    println!("cargo:rerun-if-changed=xcplib/src/xcpethtl.c");
+    println!("cargo:rerun-if-changed=xcplib/src/xcpethserver.h");
+    println!("cargo:rerun-if-changed=xcplib/src/xcpethserver.c");
     println!("cargo:rerun-if-changed=xcplib/src/xcp.h");
-    println!("cargo:rerun-if-changed=xcplib/src/xcpLite.h");
-    println!("cargo:rerun-if-changed=xcplib/src/xcpLite.c");
+    println!("cargo:rerun-if-changed=xcplib/src/xcplite.h");
+    println!("cargo:rerun-if-changed=xcplib/src/xcplite.c");
 }
