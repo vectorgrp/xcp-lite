@@ -45,8 +45,8 @@ unsafe extern "C" {
     pub fn XcpLockCalSeg(index: tXcpCalSegIndex) -> *const u8;
 }
 unsafe extern "C" {
-    #[doc = " Unlock a calibration segment"]
-    pub fn XcpUnlockCalSeg(index: tXcpCalSegIndex) -> u8;
+    #[doc = " Unlock a calibration segment\n @return The lock count before the unlock, 1 for the outermost unlock of a recursive lock"]
+    pub fn XcpUnlockCalSeg(index: tXcpCalSegIndex) -> u16;
 }
 #[doc = " DAQ event id as handle"]
 pub type tXcpEventId = u16;

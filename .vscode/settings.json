@@ -8,5 +8,6 @@
     "lldb.launch.sourceMap": {
         "/rustc/*": "${env:HOME}/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/src/rust/*"
     },
-    "rust-analyzer.checkOnSave": true
+    "rust-analyzer.checkOnSave": true,
+    "cmake.sourceDirectory": "/Users/rainer/git/xcp-lite-RainerZ/xcplib"
 }
