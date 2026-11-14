@@ -236,6 +236,43 @@ mod test {
         reg.check_a2l(&path).unwrap();
     }
 
+    // An enum-format unit is written as COMPU_VTAB and read back as the same enum-format unit, a physical unit is not affected
+    #[test]
+    fn test_load_a2l_enum_conversion() {
+        let dir = test_dir("enum_conversion");
+        let path = dir.join("test.a2l");
+        let enum_unit = r#"0 "OFF" 1 "ON" 2 "STAND BY" -1 "ERROR""#;
+        let mut reg = test_registry(McA2mlMode::Embed);
+        reg.instance_list
+            .add_instance(
+                "state",
+                McDimType::new(McValueType::Sbyte, 1, 1),
+                McSupportData::new(McObjectType::Measurement).set_unit(enum_unit),
+                McAddress::new_event_abs(1, 0x200),
+            )
+            .unwrap();
+        reg.instance_list
+            .add_instance(
+                "voltage",
+                McDimType::new(McValueType::Uword, 1, 1),
+                McSupportData::new(McObjectType::Measurement).set_linear(0.5, 1.0, "Volt"),
+                McAddress::new_event_abs(1, 0x204),
+            )
+            .unwrap();
+        reg.write_a2l(&path, "test", "test", "", "test", "XCPLITE__ACSDD", false).unwrap();
+
+        let mut reg = Registry::new();
+        reg.load_a2l(&path, true, true, true, false).unwrap();
+        let state = reg.instance_list.get_instance("state", McObjectType::Measurement, None).unwrap();
+        assert_eq!(state.unit(), enum_unit);
+        let counter = reg.instance_list.get_instance("counter", McObjectType::Measurement, None).unwrap();
+        assert_eq!(counter.unit(), "");
+        let voltage = reg.instance_list.get_instance("voltage", McObjectType::Measurement, None).unwrap();
+        assert_eq!(voltage.unit(), "Volt");
+        assert_eq!(voltage.get_mc_support_data().get_factor(), Some(0.5));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
     // An include of a missing .aml file is an error
     // a2lfile also resolves includes relative to the current working directory, which contains XCP_104.aml when running the tests,
     // so the include is renamed to a file which does not exist
