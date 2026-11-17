@@ -4,14 +4,14 @@ version.workspace = true
 edition = "2024"
 
 [dependencies]
-log = "0.4.28"
-env_logger = "0.11.8"
+log = "0.4.35"
+env_logger = "0.11.11"
 anyhow = "1.0"
 lazy_static = "1.5"
 serde = "1.0"
 serde_json = "1.0"
 example_common = { path = "../common" }
-build-info = "0.0.40"
+build-info = "0.0.47"
 
 xcp_lite = { path = "../../", features = [] }
 xcp_registry = { path = "../../xcp_registry" }
@@ -21,5 +21,5 @@ xcp_registry = { path = "../../xcp_registry" }
 linkme = "0.3"
 
 [build-dependencies]
-build-info-build = "0.0.40"
+build-info-build = "0.0.47"
 

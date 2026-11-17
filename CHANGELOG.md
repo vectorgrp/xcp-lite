@@ -3,6 +3,12 @@
 All notable changes to Rust xcp-lite are documented in this file.
 
 
+## [V3.0.11]
+
+- mc_registry A2l reader: Implemented TabVerb conversion to XCPlite enum unit string format
+- mc_registry A2L writer: The IF_DATA XCP (protocol layer, DAQ events) is always written, also without transport layer parameters (`set_xcp_eth_params`, `set_xcp_sxi_params`), then without the `XCP_ON_xxx` transport layer block and with the XCPlite defaults for XCP on Ethernet (`max_cto` 248, `max_dto` 1024). Before, the whole IF_DATA XCP and with it the event list were missing. XCPlite xcpclient uses this for IPv6 servers, the registry addresses are IPv4 only.
+
+
 ## [V3.0.10]
 
 - A2L reader: IF_DATA XCP is always parsed with the XCP 1.4 A2ML specification built into `xcp_registry`; A2L files no longer need to include or contain an A2ML description to be loaded or checked. An A2L file with `/include "XCP_104.aml"` still requires the file next to it.

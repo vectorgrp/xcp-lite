@@ -1032,9 +1032,11 @@ ASAP2_VERSION 1 71
     }
 
     // IF_DATA XCP
+    // IF_DATA XCP with protocol layer, DAQ events and, if set, the transport layer
+    // Without protocol layer parameters (set_xcp_eth_params, set_xcp_sxi_params), the XCPlite defaults for XCP on Ethernet are used
     fn write_a2l_if_data(&mut self) -> std::io::Result<()> {
-        let max_cto: u8 = self.registry.xcp_params.map_or(8, |p| p.max_cto);
-        let max_dto: u16 = self.registry.xcp_params.map_or(8, |p| p.max_dto);
+        let max_cto: u8 = self.registry.xcp_params.map_or(248, |p| p.max_cto);
+        let max_dto: u16 = self.registry.xcp_params.map_or(1024, |p| p.max_dto);
 
         write!(
             self,
@@ -1243,9 +1245,7 @@ ASAP2_VERSION 1 71
         assert!(!project_name.is_empty() && !module_name.is_empty() && !project_no.is_empty());
         self.write_a2l_head(title_comment, project_name, project_description, module_name, project_no)?;
         self.write_a2l_modpar()?;
-        if self.registry.has_xcp_params() {
-            self.write_a2l_if_data()?;
-        }
+        self.write_a2l_if_data()?; // Always, the transport layer block only if set
         self.write_a2l_typedefs()?;
         self.write_a2l_measurements()?;
         self.write_a2l_characteristics()?;

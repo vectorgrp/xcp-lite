@@ -92,6 +92,9 @@
 
 #undef OPTION_DAQ_EVENT_LIST // Disable DAQ event management
 
+// Required by xcplib without OPTION_DAQ_EVENT_LIST, the xcp_evts and xcp_cals sections stay empty in Rust xcp-lite
+#define OPTION_SECTION_REGISTRATION
+
 #undef OPTION_DAQ_MEM_SIZE
 #define OPTION_DAQ_MEM_SIZE (1024 * 8) // Memory bytes used for XCP DAQ tables - 6 bytes per measurement signal/block needed
 

@@ -120,48 +120,75 @@ fn get_value_type_from_record_layout(s: &str) -> McValueType {
     }
 }
 
-fn get_conversion(conversion: &str, module: &a2lfile::Module) -> (Option<f64>, Option<f64>) {
+// Get the enum-format unit string of a verbal conversion table (COMPU_VTAB): pairs of <int> "<label>" separated by spaces
+// This is the format the A2L writer creates a COMPU_VTAB from, see enum_pair_count in a2l_writer.rs
+// Example: /begin COMPU_VTAB conv.table "" TAB_VERB 3 0 "OFF" 1 "ON" 2 "STANDBY" /end COMPU_VTAB -> 0 "OFF" 1 "ON" 2 "STANDBY"
+// Returns None, if the table does not exist, is empty or can not be represented (value not an integer, label with a quote)
+fn get_enum_unit(compu_method: &a2lfile::CompuMethod, module: &a2lfile::Module) -> Option<String> {
+    let table_name = &compu_method.compu_tab_ref.as_ref()?.conversion_table;
+    let compu_vtab = module.compu_vtab.get(table_name)?;
+    if compu_vtab.value_pairs.is_empty() {
+        return None;
+    }
+    let mut unit = String::new();
+    for pair in &compu_vtab.value_pairs {
+        if pair.in_val.fract() != 0.0 || pair.in_val.abs() > 9007199254740992.0 || pair.out_val.contains('"') {
+            return None;
+        }
+        if !unit.is_empty() {
+            unit.push(' ');
+        }
+        unit.push_str(&format!(r#"{} "{}""#, pair.in_val as i64, pair.out_val));
+    }
+    Some(unit)
+}
+
+// Get factor, offset and the enum-format unit string of a conversion rule
+// The enum-format unit string of a verbal conversion (TAB_VERB) replaces the physical unit, see get_enum_unit
+fn get_conversion(conversion: &str, module: &a2lfile::Module) -> (Option<f64>, Option<f64>, Option<String>) {
     // Assume there is a predefined conversion for IDENTITY, just ignore
     if conversion != "NO_COMPU_METHOD" && conversion != "IDENTITY" {
         let opt_compu_method = module.compu_method.get(conversion);
         if let Some(compu_method) = opt_compu_method {
             let name = compu_method.get_name();
             match compu_method.conversion_type {
-                a2lfile::ConversionType::Identical => (None, None),
+                a2lfile::ConversionType::Identical => (None, None, None),
                 a2lfile::ConversionType::Linear => {
                     let coeffs_linear = compu_method.coeffs_linear.as_ref().unwrap();
-                    (Some(coeffs_linear.a), Some(coeffs_linear.b))
+                    (Some(coeffs_linear.a), Some(coeffs_linear.b), None)
                 }
                 a2lfile::ConversionType::RatFunc => {
                     let coeffs = compu_method.coeffs.as_ref().unwrap();
                     if coeffs.f != 0.0 && coeffs.d == 0.0 && coeffs.e == 0.0 && coeffs.a == 0.0 {
-                        (Some(coeffs.b / coeffs.f), Some(coeffs.c))
+                        (Some(coeffs.b / coeffs.f), Some(coeffs.c), None)
                     } else {
                         debug!("RatFunc conversion not supported: {:?}", coeffs);
-                        (None, None)
+                        (None, None, None)
                     }
                 }
                 a2lfile::ConversionType::TabVerb => {
                     if name == "BOOL" {
-                        (None, None) // Assume there is a predefined conversion for BOOL, just ignore
+                        (None, None, None) // Assume there is a predefined conversion for BOOL, just ignore
                     } else {
-                        // @@@@ TODO Implement TabVerb conversion
-                        debug!("Compu method COMPU_VTAB not supported: {}", name);
-                        (None, None)
+                        let enum_unit = get_enum_unit(compu_method, module);
+                        if enum_unit.is_none() {
+                            debug!("Compu method {}: COMPU_VTAB not found or not supported", name);
+                        }
+                        (None, None, enum_unit)
                     }
                 }
 
                 _ => {
                     debug!("Compu method not supported: {:?}", compu_method.conversion_type);
-                    (None, None)
+                    (None, None, None)
                 }
             }
         } else {
             error!("Compu method not found: {}", conversion);
-            (None, None)
+            (None, None, None)
         }
     } else {
-        (None, None)
+        (None, None, None)
     }
 }
 
@@ -430,7 +457,7 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
         let name = characteristic.get_name().to_string();
         let value_type = get_value_type_from_record_layout(&characteristic.deposit);
         let conversion = &characteristic.conversion;
-        let (factor, offset) = get_conversion(conversion, module);
+        let (factor, offset, enum_unit) = get_conversion(conversion, module);
         let (x_dim, y_dim) = get_matrix_dim(characteristic.matrix_dim.as_ref());
         let object_type: McObjectType = McObjectType::Characteristic;
         match characteristic.characteristic_type {
@@ -453,7 +480,9 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
             .set_max(Some(characteristic.upper_limit))
             .set_factor(factor)
             .set_offset(offset);
-        if let Some(u) = characteristic.phys_unit.as_ref() {
+        if let Some(u) = enum_unit {
+            mc_support_data = mc_support_data.set_unit(u);
+        } else if let Some(u) = characteristic.phys_unit.as_ref() {
             mc_support_data = mc_support_data.set_unit(u.unit.clone());
         }
 
@@ -511,7 +540,7 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
         // Conversion
         let conversion = &measurement.conversion;
         let phys_unit = &measurement.phys_unit;
-        let (factor, offset) = get_conversion(conversion, module);
+        let (factor, offset, enum_unit) = get_conversion(conversion, module);
 
         // Dimension
         let matrix_dim = &measurement.matrix_dim;
@@ -528,7 +557,9 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
             .set_max(Some(upper_limit))
             .set_factor(factor)
             .set_offset(offset);
-        if let Some(u) = phys_unit.as_ref() {
+        if let Some(u) = enum_unit {
+            mc_support_data = mc_support_data.set_unit(u);
+        } else if let Some(u) = phys_unit.as_ref() {
             mc_support_data = mc_support_data.set_unit(u.unit.clone());
         }
 
@@ -626,11 +657,11 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
     for typedef in &module.typedef_measurement {
         let name = typedef.get_name();
         let conversion = &typedef.conversion;
-        let (factor, offset) = get_conversion(conversion, module);
+        let (factor, offset, enum_unit) = get_conversion(conversion, module);
         let comment = &typedef.long_identifier;
         let min = typedef.lower_limit;
         let max = typedef.upper_limit;
-        let unit = typedef.phys_unit.as_ref().map(|u| &u.unit);
+        let unit = enum_unit.as_ref().or(typedef.phys_unit.as_ref().map(|u| &u.unit));
         let value_type = get_value_type_from_datatype(typedef.datatype);
         update_typedef_field(
             registry,
@@ -649,12 +680,12 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
     for typedef in &module.typedef_characteristic {
         let name = typedef.get_name();
         let conversion = &typedef.conversion;
-        let (factor, offset) = get_conversion(conversion, module);
+        let (factor, offset, enum_unit) = get_conversion(conversion, module);
         let record_layout = &typedef.record_layout;
         let comment = &typedef.long_identifier;
         let min = typedef.lower_limit;
         let max = typedef.upper_limit;
-        let unit = typedef.phys_unit.as_ref().map(|u| &u.unit);
+        let unit = enum_unit.as_ref().or(typedef.phys_unit.as_ref().map(|u| &u.unit));
         let value_type = get_value_type_from_record_layout(record_layout);
         let _sub_type = typedef.characteristic_type; // ValBlk, Value, Ascii, Curve, Cuboid, Cube4, Cube5
         update_typedef_field(
@@ -674,12 +705,12 @@ fn registry_load_a2lfile(registry: &mut Registry, a2l_file: &a2lfile::A2lFile) -
     for typedef in &module.typedef_axis {
         let name = typedef.get_name();
         let conversion = &typedef.conversion;
-        let (factor, offset) = get_conversion(conversion, module);
+        let (factor, offset, enum_unit) = get_conversion(conversion, module);
         let record_layout = &typedef.record_layout;
         let comment = &typedef.long_identifier;
         let min = typedef.lower_limit;
         let max = typedef.upper_limit;
-        let unit = typedef.phys_unit.as_ref().map(|u| &u.unit);
+        let unit = enum_unit.as_ref().or(typedef.phys_unit.as_ref().map(|u| &u.unit));
         let value_type = get_value_type_from_record_layout(record_layout);
         update_typedef_field(registry, name, McObjectType::Axis, value_type, None, comment, min, max, unit, factor, offset);
     }
