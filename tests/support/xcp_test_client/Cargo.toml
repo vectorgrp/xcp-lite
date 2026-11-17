@@ -15,11 +15,11 @@ categories = ["measurement and calibration"]
  # more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-log = "0.4.28"
+log = "0.4.35"
 byteorder = "1.5.0"
-bytes = "1.11.0"
+bytes = "1.12.1"
 parking_lot = "0.12.5"
-tokio = { version = "1.48", features = ["full"] }
+tokio = { version = "1.54", features = ["full"] }
 
 # A2l registry and A2L reader/writer
 xcp_registry = { path = "../../../xcp_registry", features = ["a2l_reader"] }

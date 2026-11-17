@@ -5,22 +5,22 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0"
-log = "0.4.28"
-env_logger = "0.11.8"
-rayon = "1.11.0"
+log = "0.4.35"
+env_logger = "0.11.11"
+rayon = "1.12.0"
 num = "0.4.3"
-image = "0.25.9"
+image = "0.25.10"
 
 serde = "1.0"
 serde_json = "1.0"
 lazy_static = "1.5"
 cdr = "0.2.4"
 example_common = { path = "../common" }
-build-info = "0.0.40"
+build-info = "0.0.47"
 
 xcp_lite = { path = "../../", features = [] }
 xcp_registry = { path = "../../xcp_registry" }
 
 [build-dependencies]
-build-info-build = "0.0.40"
+build-info-build = "0.0.47"
 

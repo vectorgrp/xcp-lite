@@ -26,16 +26,16 @@ a2l_reader = ["dep:a2lfile"]
 [dependencies]
 
 # Error handling
-thiserror = "1.0.69"
+thiserror = "2.0.21"
 
 # Logging
-log = "0.4.28"
+log = "0.4.35"
 
 # More compact and efficient implementations of the standard synchronization primitives
 parking_lot = "0.12.5"
 
 # Regular expression matching for registry object search
-regex = "1.12.2"
+regex = "1.13.1"
 
 # A generic serialization/deserialization framework
 serde = { version = "1.0", features = ["derive"] }
@@ -45,4 +45,4 @@ serde_json = "1.0"
 xcp_register_type_derive = { path = "../xcp_register_type_derive/", version = "3.0.0" }
 
 # A2L checker (optional)
-a2lfile = { version = "3.3.0", optional = true }
+a2lfile = { version = "3.5.1", optional = true }

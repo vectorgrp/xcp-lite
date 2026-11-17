@@ -7,7 +7,7 @@ edition = "2024"
 ctor = "0.2.9"
 #ctor = "0.4"
 lazy_static = "1.5"
-regex = "1.12.2"
+regex = "1.13.1"
 xcp_idl_generator_derive = { path = "./xcp_idl_generator_derive/" }
 
 [lib]

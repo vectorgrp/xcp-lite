@@ -123,6 +123,7 @@ Notable active options:
 - `OPTION_CAL_SEGMENTS_ABS` is **not defined** — addressing is segment-relative (address extension 0 = segment-relative, encodes segment index in high word of address).
 - `OPTION_QUEUE_64_VAR_SIZE` — 64-bit lock-free variable-size transmit queue; no locking on the DAQ producer path.
 - `OPTION_ENABLE_PERSISTENCE` is **not defined** — no BIN file persistence; A2L is always regenerated at startup.
+- `OPTION_SECTION_REGISTRATION` — defined only because xcplib (≥ V2.3.2) rejects `OPTION_DAQ_EVENT_LIST` off without it (`#error` in `xcplib.h`, missing `__start_xcp_evts` in `xcplite.c`). Rust uses no C event/calseg macros, so the `xcp_evts`/`xcp_cals` sections stay empty and events/segments are still created at runtime by Rust. Side effect: xcplib `#error`s on MSVC with this option, so Windows builds are not supported.
 
 ## Calibration RCU (`CalSeg<T>`)
 
