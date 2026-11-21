@@ -3,6 +3,15 @@
 All notable changes to Rust xcp-lite are documented in this file.
 
 
+## [V3.0.12]
+
+- The registry crate `xcp_registry` and its derive macro crate have moved to their own repository, <https://github.com/RainerZ/xcp-registry>, and are published on crates.io. xcp-lite, the examples and `xcp_test_client` now use `xcp_registry` version 0.1 from crates.io. The folders `xcp_registry` and `xcp_register_type_derive` are removed from this repository.
+- The derive macro crate is renamed from `xcp_register_type_derive` to `xcp_registry_derive`. The macros `McRegisterType` and `McRegisterEnum` keep their names and are re-exported by `xcp_registry` as before.
+- Crates which used `xcp_registry` by path or as a git dependency from this repository have to depend on `xcp_registry = "0.1"` instead.
+- The registry itself has changed between xcp-lite V3.0.11 and `xcp_registry` 0.1.0: errors and warnings instead of panics in the A2L reader and writer, `get_lock()` returns `RegistryGuard`, `load_a2l` and `check_a2l` return `RegistryError`, public types are `#[non_exhaustive]`. See the [changelog of xcp_registry](https://github.com/RainerZ/xcp-registry/blob/main/CHANGELOG.md).
+- xcp_lite no longer depends on the derive macro crate directly, it was not used.
+
+
 ## [V3.0.11]
 
 - mc_registry A2l reader: Implemented TabVerb conversion to XCPlite enum unit string format

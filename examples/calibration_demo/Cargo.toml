@@ -14,7 +14,7 @@ example_common = { path = "../common" }
 build-info = "0.0.47"
 
 xcp_lite = { path = "../../", features = [] }
-xcp_registry = { path = "../../xcp_registry" }
+xcp_registry = { workspace = true }
 
 # Required by the cal_seg! macro: linkme's generated element code references the linkme crate,
 # so any crate that creates calibration segments via cal_seg! must depend on linkme directly.

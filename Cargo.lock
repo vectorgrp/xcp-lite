@@ -59,7 +59,7 @@ dependencies = [
 
 [[package]]
 name = "all_features_demo"
-version = "3.0.10"
+version = "3.0.12"
 dependencies = [
  "anyhow",
  "build-info",
@@ -361,7 +361,7 @@ checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
 
 [[package]]
 name = "calibration_demo"
-version = "3.0.10"
+version = "3.0.12"
 dependencies = [
  "anyhow",
  "build-info",
@@ -726,7 +726,7 @@ dependencies = [
 
 [[package]]
 name = "example_common"
-version = "3.0.10"
+version = "3.0.12"
 dependencies = [
  "clap",
  "env_logger",
@@ -882,7 +882,7 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
 name = "hello_xcp"
-version = "3.0.10"
+version = "3.0.12"
 dependencies = [
  "anyhow",
  "build-info",
@@ -1249,7 +1249,7 @@ dependencies = [
 
 [[package]]
 name = "multi_thread_demo"
-version = "3.0.10"
+version = "3.0.12"
 dependencies = [
  "anyhow",
  "build-info",
@@ -1503,7 +1503,7 @@ dependencies = [
 
 [[package]]
 name = "point_cloud_demo"
-version = "3.0.10"
+version = "3.0.12"
 dependencies = [
  "anyhow",
  "build-info",
@@ -1765,7 +1765,7 @@ dependencies = [
 
 [[package]]
 name = "rayon_demo"
-version = "3.0.10"
+version = "3.0.12"
 dependencies = [
  "anyhow",
  "build-info",
@@ -1941,7 +1941,7 @@ dependencies = [
 
 [[package]]
 name = "single_thread_demo"
-version = "3.0.10"
+version = "3.0.12"
 dependencies = [
  "anyhow",
  "build-info",
@@ -2007,7 +2007,7 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "struct_measurement_demo"
-version = "3.0.10"
+version = "3.0.12"
 dependencies = [
  "anyhow",
  "build-info",
@@ -2126,7 +2126,7 @@ dependencies = [
 
 [[package]]
 name = "tokio_demo"
-version = "3.0.10"
+version = "3.0.12"
 dependencies = [
  "build-info",
  "build-info-build",
@@ -2326,7 +2326,7 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
 name = "xcp_idl_generator"
-version = "3.0.10"
+version = "3.0.12"
 dependencies = [
  "ctor",
  "lazy_static",
@@ -2345,7 +2345,7 @@ dependencies = [
 
 [[package]]
 name = "xcp_lite"
-version = "3.0.10"
+version = "3.0.12"
 dependencies = [
  "anyhow",
  "bindgen",
@@ -2369,38 +2369,39 @@ dependencies = [
  "tokio",
  "xcp_idl_generator",
  "xcp_idl_generator_derive",
- "xcp_register_type_derive",
  "xcp_registry",
  "xcp_test_client",
 ]
 
 [[package]]
-name = "xcp_register_type_derive"
-version = "3.0.10"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
- "xcp_registry",
-]
-
-[[package]]
 name = "xcp_registry"
-version = "3.0.10"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7dc80662e6a66f9ceba8ce38891a256e506bbbd8272cc8d4b21aa266e2d6d649"
 dependencies = [
  "a2lfile",
  "log",
- "parking_lot",
  "regex",
  "serde",
  "serde_json",
  "thiserror",
- "xcp_register_type_derive",
+ "xcp_registry_derive",
+]
+
+[[package]]
+name = "xcp_registry_derive"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "390b1267018f973d938fb739542a3562ddf2566baf8e3cc82360c6b371d5b535"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
 ]
 
 [[package]]
 name = "xcp_test_client"
-version = "3.0.10"
+version = "3.0.12"
 dependencies = [
  "byteorder",
  "bytes",

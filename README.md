@@ -8,7 +8,7 @@ xcp-lite is a Rust API for measurement and calibration, which uses the ASAM XCP 
 This is no complete implementation of XCP in Rust, the protocol and transport layer implementation is in C/C++ based on XCPlite.  
 For more details on XCP and XCPlite, see <https://github.com/vectorgrp/XCPlite>. The Rust API provides a convenient and safe interface to the C/C++ implementation, which is optimized for speed, lock-less operation and low memory footprint. The C/C++ XCPlite is a submodule of this repository. 
 
-The Rust implementation provides its own in memory registry for measurement and calibration objects and types, which is used to generate the A2L file on target. It does not use the XCPlite A2L generation. The registry library crate is used by other crates to deal with A2L and ELF files.  
+The Rust implementation provides its own in memory registry for measurement and calibration objects and types, which is used to generate the A2L file on target. It does not use the XCPlite A2L generation. The registry library crate is used by other crates to deal with A2L and ELF files. It has its own repository, <https://github.com/RainerZ/xcp-registry>, and is used from crates.io as [`xcp_registry`](https://crates.io/crates/xcp_registry).  
 
  
 Main purpose was to experiment with Rust and to demonstrate some more advanced features of measurement and calibration with CANape:
@@ -49,6 +49,16 @@ build, run and command line instructions common to all of them.
   > `Cargo.toml`). Crates that disable the feature do not need it.
 
 - `a2l_reader`  *(disabled by default)* —  parse and check the generated A2L.  
+
+### Dependencies of an application crate
+
+Besides `xcp_lite` itself, a crate that uses it needs these **direct dependencies** in its
+`Cargo.toml` (see the [examples](examples/README.md)):
+
+- `xcp_registry = "0.1"`, when it uses `#[derive(McRegisterType)]` or `#[derive(McRegisterEnum)]`:
+  the generated code refers to the crate by its name `::xcp_registry`. Its version must be
+  compatible with the one `xcp_lite` uses.
+- `linkme`, when it uses `cal_seg!` with the default feature `linkme` (see the note above).
 
 ### Build
 
