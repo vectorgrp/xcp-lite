@@ -15,8 +15,6 @@ categories = ["MC"]
 
 [workspace]
 members = [
-    "xcp_registry",
-    "xcp_register_type_derive",
     "tests/support/xcp_test_client",  
     "xcp_idl_generator",      
     "examples/common",
@@ -32,7 +30,16 @@ members = [
 ]
 
 [workspace.package]
-version = "3.0.10"
+version = "3.0.12"
+
+[workspace.dependencies]
+# Registry (pure Rust, no C/xcplib dependency) with the McRegisterType derive macro, https://github.com/RainerZ/xcp-registry
+xcp_registry = "0.1"
+
+# To try a local clone of the registry instead of the published crates, enable:
+# [patch.crates-io]
+# xcp_registry = { path = "../xcp-registry/xcp_registry" }
+# xcp_registry_derive = { path = "../xcp-registry/xcp_registry_derive" }
 
 
 
@@ -106,9 +113,8 @@ serde_json =  "1.0"
 xcp_idl_generator  = { path = "./xcp_idl_generator/"}
 xcp_idl_generator_derive  = { path = "./xcp_idl_generator/xcp_idl_generator_derive/"}
 
-# Registry (pure Rust, no C/xcplib dependency) and the McRegisterType derive macro
-xcp_registry = { path = "./xcp_registry" }
-xcp_register_type_derive = { path = "./xcp_register_type_derive" }
+# Registry (pure Rust, no C/xcplib dependency) with the McRegisterType derive macro
+xcp_registry = { workspace = true }
 
 anyhow = "1.0"
 

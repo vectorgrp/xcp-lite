@@ -4,7 +4,7 @@ Guidance for AI coding agents working in this repository.
 
 ## What this is
 
-`xcp_lite` (v3.0.10, edition 2024, rust-version 1.90.0) — a Rust measurement & calibration
+`xcp_lite` (v3.0.12, edition 2024, rust-version 1.90.0) — a Rust measurement & calibration
 library implementing the ASAM **XCP** protocol, wrapping the C `xcplib` (XCP server, Ethernet
 transport). The Rust layer adds: a type **registry**, **A2L** file generation, a `CalSeg<T>`
 calibration-segment wrapper, and measurement macros. Used with tools like Vector CANape.
@@ -13,9 +13,13 @@ calibration-segment wrapper, and measurement macros. Used with tools like Vector
 
 - Root crate `xcp_lite` — **library only** (no `src/main.rs`): `src/lib.rs`, `src/xcp/`
   (`mod.rs`, `cal.rs`, …), `src/metrics/`.
-- Workspace members: `xcp_registry`, `xcp_register_type_derive`, `xcp_idl_generator`,
-  `tests/support/xcp_test_client` (pkg `xcp_test_client`), `examples/common`
-  (pkg `example_common`), and the example bins.
+- Workspace members: `xcp_idl_generator`, `tests/support/xcp_test_client`
+  (pkg `xcp_test_client`), `examples/common` (pkg `example_common`), and the example bins.
+- The registry crates `xcp_registry` and `xcp_registry_derive` are **not in this repository**.
+  They are crates.io dependencies (`[workspace.dependencies]` in the root `Cargo.toml`), their
+  source is <https://github.com/RainerZ/xcp-registry>. Change the registry there. To build
+  against a local clone, enable the commented `[patch.crates-io]` block in the root `Cargo.toml`
+  (do not commit that).
 - Examples (each a bin with its own `CANape/` project + README): `all_features_demo`,
   `hello_xcp`, `calibration_demo`, `struct_measurement_demo`, `single_thread_demo`,
   `multi_thread_demo`, `rayon_demo`, `tokio_demo`, `point_cloud_demo`.
@@ -48,14 +52,15 @@ calibration-segment wrapper, and measurement macros. Used with tools like Vector
 
 Derive `#[derive(McRegisterType)]` on calibration/measurement structs.
 
-- Proc-macro crate: `xcp_register_type_derive` (`proc-macro = true`). It emits fully-qualified
-  `::xcp_registry::…` paths as tokens and therefore does **not** depend on `xcp_registry` as a
-  regular dependency (no dependency cycle) — it does have a `dev-dependency` on `xcp_registry`
-  for its own `tests/` (see Build & test). The runtime trait `McRegisterType` + context live in
-  `xcp_registry/src/mc_register_type.rs`.
-- Source modules: `src/attr.rs` (field attribute parsing), `src/ty.rs` (type parsing/mapping),
-  `src/enum_derive.rs` (`#[derive(McRegisterEnum)]`, see below), `src/lib.rs` (expansion).
-- **Full design specification: `xcp_register_type_derive/DESIGN.md`** (authoritative reference;
+- Proc-macro crate: `xcp_registry_derive` in the xcp-registry repository, re-exported by
+  `xcp_registry`. It emits fully-qualified `::xcp_registry::…` paths as tokens, so every crate
+  that uses the derive needs `xcp_registry` as a direct dependency. The runtime trait
+  `McRegisterType` + context live in `xcp_registry` (`src/mc_register_type.rs`).
+- Source modules of the derive crate: `src/attr.rs` (field attribute parsing), `src/ty.rs`
+  (type parsing/mapping), `src/enum_derive.rs` (`#[derive(McRegisterEnum)]`, see below),
+  `src/lib.rs` (expansion).
+- **Full design specification: `xcp_registry_derive/DESIGN.md` in the xcp-registry repository**
+  (authoritative reference;
   covers the typedef-only generation model, attribute syntax, and flattening as an export-time
   transform).
 - Attributes: `#[characteristic(...)]`, `#[axis(...)]`, `#[measurement(...)]`. Keys map to
@@ -76,20 +81,16 @@ Derive `#[derive(McRegisterType)]` on calibration/measurement structs.
     `u8`/`u16`/`u32`/`u64`/`usize`/`i8`/`i16`/`i32`/`i64`/`isize`. Parsed in `attr.rs`
     (`FieldAttrs.enum_type`, `enum_auto`, `key_allowed`, `apply_key`), mapped in
     `ty.rs::enum_int_value_type_tokens`, used in `lib.rs` `expand()`.
-- A2L writer (`xcp_registry/src/a2l/a2l_writer.rs`) auto-builds `COMPU_VTAB` + `COMPU_METHOD`
+- A2L writer (`src/a2l/a2l_writer.rs` in `xcp_registry`) auto-builds `COMPU_VTAB` + `COMPU_METHOD`
   from an enum-format `unit` string via `enum_pair_count`; the `phys_unit()` helper suppresses
   the invalid `PHYS_UNIT` for enum-format units.
 
 ## Build & test
 
 - `cargo build -p <crate>`, `cargo build --workspace`, `cargo run -p <example>`.
-- `cargo test -p xcp_registry`. Integration tests (`tests/test_single_thread.rs`,
-  `tests/test_multi_thread.rs`) build their OWN A2L at runtime and use `xcp_test_client` +
-  `tests/support/xcp_test_executor.rs`.
-- `cargo test -p xcp_register_type_derive` runs `xcp_register_type_derive/tests/*.rs` (e.g.
-  `type_group.rs`, a regression test for macro-generated field types being wrapped in
-  `syn::Type::Group`) — these are ordinary integration tests exercising the derive end-to-end
-  against the `xcp_registry` dev-dependency, not `trybuild`.
+- Integration tests (`tests/test_single_thread.rs`, `tests/test_multi_thread.rs`) build their
+  OWN A2L at runtime and use `xcp_test_client` + `tests/support/xcp_test_executor.rs`.
+- The tests of the registry and of the derive macro are in the xcp-registry repository.
 - Optional feature `a2l_reader` (via `xcp_registry/a2l_reader`) enables automatic A2L check
   using `a2lfile`. Default feature `linkme` gives deterministic, race-free calibration-segment
   indexing for `cal_seg!`.
@@ -103,7 +104,7 @@ Derive `#[derive(McRegisterType)]` on calibration/measurement structs.
 - Root `Cargo.lock` **is** tracked — do not re-ignore it.
 - `cfg(test)` is not active for dependency crates during integration tests.
 - `add_typedef` (size) + `add_typedef_field` (offset/dim_type/size) in
-  `xcp_registry/src/mc_registry.rs` validate structural typedef equality; the derive
+  `xcp_registry` (`src/mc_registry.rs`) validate structural typedef equality; the derive
   re-submits typedef fields after a duplicate typedef.
 - `McDimType` derives `PartialEq`.
 - Do not create markdown docs to describe changes unless asked. Comments: one short line, only
@@ -114,7 +115,7 @@ Derive `#[derive(McRegisterType)]` on calibration/measurement structs.
 The Rust crate is a thin wrapper over `xcplib/` (a git submodule — **do not edit**). Key facts:
 
 - **Reused from xcplib**: XCP protocol engine (`xcplite.c`), Ethernet server (`xcpethserver.c`), transport-layer lock-free queue (`queue64v.c`), calibration RCU (`cal.c`), clock, platform abstraction.
-- **Replaced by Rust**: A2L generation (xcplib's generator is disabled via `#undef OPTION_ENABLE_A2L_GENERATOR` in `xcplib_cfg/xcplib_rust_cfg.h`; Rust uses `xcp_registry/src/a2l/a2l_writer.rs`). DAQ event management (xcplib's event list disabled via `#undef OPTION_DAQ_EVENT_LIST`; Rust has its own).
+- **Replaced by Rust**: A2L generation (xcplib's generator is disabled via `#undef OPTION_ENABLE_A2L_GENERATOR` in `xcplib_cfg/xcplib_rust_cfg.h`; Rust uses the A2L writer of the `xcp_registry` crate). DAQ event management (xcplib's event list disabled via `#undef OPTION_DAQ_EVENT_LIST`; Rust has its own).
 - **Rust-specific xcplib config**: `xcplib_cfg/xcplib_rust_cfg.h` — this file is the single source of truth for all xcplib compile-time options active in the Rust build. Read it before reasoning about feature flags.
 
 Notable active options:

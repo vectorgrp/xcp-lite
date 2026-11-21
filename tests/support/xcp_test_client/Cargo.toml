@@ -22,7 +22,7 @@ parking_lot = "0.12.5"
 tokio = { version = "1.54", features = ["full"] }
 
 # A2l registry and A2L reader/writer
-xcp_registry = { path = "../../../xcp_registry", features = ["a2l_reader"] }
+xcp_registry = { workspace = true, features = ["a2l_reader"] }
 
 [lints.rust]
 dead_code = "allow"

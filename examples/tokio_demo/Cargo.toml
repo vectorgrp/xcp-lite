@@ -20,7 +20,7 @@ serde = "1.0"
 serde_json = "1.0"
 
 xcp_lite = { path = "../../", features = [] }
-xcp_registry = { path = "../../xcp_registry" }
+xcp_registry = { workspace = true }
 
 [build-dependencies]
 build-info-build = "0.0.47"
